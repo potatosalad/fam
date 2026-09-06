@@ -18,7 +18,7 @@ These commands use the public checkout. They do not call a globally installed CL
 npm run check
 ```
 
-This runs TypeScript checks, generated-file checks, mocked tests, and a build. Tests use temporary configuration directories and remove inherited login variables. CI runs them on Linux, macOS, and Windows with Node 22 and 24.
+This runs TypeScript checks, generated-file checks, mocked tests, and a build. Tests use temporary configuration directories and remove inherited login variables. CI runs them on Linux and macOS with Node 22 and 24.
 
 ## Generated code
 
