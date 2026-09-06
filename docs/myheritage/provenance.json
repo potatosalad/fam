@@ -1,0 +1,42 @@
+{
+  "package": "air.com.myheritage.mobile",
+  "versionName": "7.5.44",
+  "versionCode": 70050044,
+  "downloadedAt": "2026-09-06",
+  "playUrl": "https://play.google.com/store/apps/details?id=air.com.myheritage.mobile&hl=en_US",
+  "sourcePage": "https://apkpure.net/myheritage-family-tree-dna/air.com.myheritage.mobile/download",
+  "downloadUrl": "https://d.apkpure.net/b/XAPK/air.com.myheritage.mobile?versionCode=70050044&nc=arm64-v8a&sv=32",
+  "variant": {
+    "abi": "arm64-v8a",
+    "densitySplit": "hdpi",
+    "minSdk": 32,
+    "targetSdk": 37
+  },
+  "bundle": {
+    "path": "artifacts/myheritage/myheritage-7.5.44.xapk",
+    "bytes": 93393371,
+    "sha256": "5ef7fd03df12d0b1f43eb56074818e4c707badabbf137c1a91267cfc0c3e9a2f"
+  },
+  "baseApk": {
+    "path": "artifacts/myheritage/base.apk",
+    "bytes": 85903354,
+    "sha256": "a6dd5ecfc886aa0160a4012aeb795b3818b3d756183e149f715b8459ed3f11e9"
+  },
+  "signer": {
+    "subject": "CN=myHeritage, OU=, O=, C=US",
+    "sha256": "1f00a0221df03c14abd78ae440beb7fc10ee93d6f05f3b1584cf43543e96389a",
+    "sha1": "0dbbf85e64835632b5bb67c652b2df515550e669",
+    "verification": "apksigner verify --verbose --print-certs: v3 and source stamp verified; certificate matches APKPure and APKMirror listings"
+  },
+  "tools": {
+    "apktool": "3.0.2",
+    "jadx": "1.5.5",
+    "androidBuildTools": "36.1.0"
+  },
+  "decompilation": {
+    "dexFiles": 5,
+    "javaClassesProcessed": 17549,
+    "jadxErrors": 75,
+    "note": "Full smali completed. JADX simple mode had partial method failures; smali remains authoritative. APK was not installed or executed."
+  }
+}

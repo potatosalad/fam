@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-06",
+  "apkVersion": "7.5.44",
+  "apkSources": [
+    "supersearch/webviews/search/MHResearchView.java",
+    "supersearch/fragments/ResearchFragment.java",
+    "supersearch/webviews/search/HybridWebView.java"
+  ],
+  "webAssets": [
+    {
+      "file": "SuperSearchMainFormBundled_v5f33895c99013e46380ff5a5272854bb.js",
+      "url": "https://cf.mhcache.com/Static/FP/Assets/bundles/JS/SuperSearchMainFormBundled_v5f33895c99013e46380ff5a5272854bb.js",
+      "sha256": "eaa155ceeff0c8340c819f0784f6fb20708826428d5f76a10fff513666fdfb8b"
+    },
+    {
+      "file": "CollectionCatalogBundled_v03d550778f271cc45bc0119e6b8583ce.js",
+      "url": "https://cf.mhcache.com/Static/FP/Assets/bundles/JS/CollectionCatalogBundled_v03d550778f271cc45bc0119e6b8583ce.js",
+      "sha256": "86d3dc7f5303cace4ca2bffcb3131d5eb1f5171ee607be8daaea9f05e5f0e349"
+    },
+    {
+      "file": "RecordPageCombinedBundled_vaafc3c330264b75d7073437b5a4b6635.js",
+      "url": "https://cf.mhcache.com/Static/FP/Assets/bundles/JS/RecordPageCombinedBundled_vaafc3c330264b75d7073437b5a4b6635.js",
+      "sha256": "11c7d1c440f97ed6e37d07e03ce717494684a2e7f19de01a4f8103ab9ff63d96"
+    },
+    {
+      "file": "RecordDetectiveBundled_v9ddacea315e4c9b12f8ebfc67ed2c24b.js",
+      "url": "https://cf.mhcache.com/Static/FP/Assets/bundles/JS/RecordDetectiveBundled_v9ddacea315e4c9b12f8ebfc67ed2c24b.js",
+      "sha256": "6011411da4d10fe7a92137cead7fa3f4dcfd7a5365c492a9ab54c2a9919cb6ac"
+    },
+    {
+      "file": "DocumentViewerBundled_v8b4feade4714b3b306f37123435c49dd.js",
+      "url": "https://cf.mhcache.com/Static/FP/Assets/bundles/JS/DocumentViewerBundled_v8b4feade4714b3b306f37123435c49dd.js",
+      "sha256": "90032c3dfc1af475fdb632eb6eeea349e07232b774c17260e3a0d67e044eb292"
+    }
+  ]
+}

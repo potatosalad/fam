@@ -1,0 +1,1085 @@
+{
+  "scope": "Genealogy data, research, memories, collaboration, tree context, helper permissions, and ordinance research. Excludes messaging, event discovery, account administration, app infrastructure and appointment scheduling.",
+  "operations": [
+    {
+      "name": "memories.contributor",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifact/contributor/{artifactPatronId}?includePathForCloseRelatives=true"
+    },
+    {
+      "name": "memories.upload",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/multipart"
+    },
+    {
+      "name": "memories.delete",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}"
+    },
+    {
+      "name": "memories.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}"
+    },
+    {
+      "name": "memories.update",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}"
+    },
+    {
+      "name": "memories.unlink",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/artifacts"
+    },
+    {
+      "name": "memories.link",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/artifacts"
+    },
+    {
+      "name": "memories.comments",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/comments"
+    },
+    {
+      "name": "memories.addComment",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/comments"
+    },
+    {
+      "name": "memories.deleteComment",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/comments/{commentId}"
+    },
+    {
+      "name": "memories.setDatePlace",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/datesplaces"
+    },
+    {
+      "name": "memories.replaceFile",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/files"
+    },
+    {
+      "name": "memories.tagPerson",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/tags"
+    },
+    {
+      "name": "memories.untagPerson",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/tags/{tagId}"
+    },
+    {
+      "name": "memories.trash",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifactmanager/patrons/{cisId}/tombstones"
+    },
+    {
+      "name": "memories.forUser",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifactmanager/patrons/{cisUserId}/artifacts"
+    },
+    {
+      "name": "memories.forPerson",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifactmanager/persons/personsByTreePersonId/{pid}/artifacts"
+    },
+    {
+      "name": "memories.updateTag",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/photoTags/{tagId}"
+    },
+    {
+      "name": "memories.purge",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/artifactmanager/tombstones/{tombstoneId}"
+    },
+    {
+      "name": "memories.restore",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifactmanager/tombstones/{tombstoneId}/restore"
+    },
+    {
+      "name": "memories.transform",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/memories/artifacts/{artifactId}/transform"
+    },
+    {
+      "name": "memories.topics",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/memories/memtts/topictags/{artifactId}/topics"
+    },
+    {
+      "name": "memories.suggestTopics",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/memories/memtts/topictags/{prefix}/getPrefix"
+    },
+    {
+      "name": "memories.addTopic",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/memories/memtts/topictags/{topic}"
+    },
+    {
+      "name": "memories.deleteTopic",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/memories/memtts/topictags/{topic}/{artifactId}"
+    },
+    {
+      "name": "memories.groups",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/memories/mgm/groups/artifacts/{artifactId}"
+    },
+    {
+      "name": "memories.removeFromGroup",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/memories/mgm/groups/{groupId}/artifacts/{artifactId}"
+    },
+    {
+      "name": "memories.addToGroup",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/memories/mgm/groups/{groupId}/artifacts/{artifactId}"
+    },
+    {
+      "name": "memories.search",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/memories/search/artifacts"
+    },
+    {
+      "name": "memories.byTopic",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/memories/topictags/artifacts"
+    },
+    {
+      "name": "memories.tags",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/memories/artifacts/{artifactId}/tags"
+    },
+    {
+      "name": "memories.taggedPersons",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/memories/patrons/{cisId}/taggedPersons"
+    },
+    {
+      "name": "authorities.dates",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/authorities/dates"
+    },
+    {
+      "name": "authorities.compliantName",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/authorities/name-forms/compliant"
+    },
+    {
+      "name": "authorities.places",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/authorities/places"
+    },
+    {
+      "name": "authorities.transliterate",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/authorities/transliteration"
+    },
+    {
+      "name": "authorities.countries",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/places/countries"
+    },
+    {
+      "name": "authorities.states",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/places/countries/{countryId}/states-provinces"
+    },
+    {
+      "name": "authorities.locations",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/places/locations"
+    },
+    {
+      "name": "contributors.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/contributor/{contributorOrCisId}?includePathForCloseRelatives=true"
+    },
+    {
+      "name": "contributors.relationship",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user-relationship/ft/contributor/relationship"
+    },
+    {
+      "name": "contributors.friendRelationship",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/friends/{cisId}/relationship"
+    },
+    {
+      "name": "contributors.relativeRelationship",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/relationship/relative/{relative_id}"
+    },
+    {
+      "name": "groups.create",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/group-management/groups"
+    },
+    {
+      "name": "groups.limits",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/group-management/groups/limits"
+    },
+    {
+      "name": "groups.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}"
+    },
+    {
+      "name": "groups.update",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}"
+    },
+    {
+      "name": "groups.deleteImage",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/image"
+    },
+    {
+      "name": "groups.uploadImage",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/image"
+    },
+    {
+      "name": "groups.invite",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/invites"
+    },
+    {
+      "name": "groups.getInvite",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/invites/{inviteId}"
+    },
+    {
+      "name": "groups.respondToInvite",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/invites/{inviteId}"
+    },
+    {
+      "name": "groups.members",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/members"
+    },
+    {
+      "name": "groups.leave",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/members/CURRENT"
+    },
+    {
+      "name": "groups.removeMember",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/members/{memberCisId}"
+    },
+    {
+      "name": "groups.updateMember",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/group-management/groups/{groupId}/members/{memberCisId}"
+    },
+    {
+      "name": "groups.list",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/group-management/users/CURRENT/groups"
+    },
+    {
+      "name": "groups.membership",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/group-management/users/CURRENT/groups/{groupId}"
+    },
+    {
+      "name": "helpers.helpees",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/help/permit/helpees"
+    },
+    {
+      "name": "helpers.removeHelpee",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/help/permit/helpees/{cisId}"
+    },
+    {
+      "name": "helpers.addHelpee",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/help/permit/helpees/{cisId}"
+    },
+    {
+      "name": "helpers.offers",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/help/permit/offers/helpees"
+    },
+    {
+      "name": "helpers.offer",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/help/permit/offers/helpees"
+    },
+    {
+      "name": "helpers.deleteOffer",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/help/permit/offers/helpees/{offerId}"
+    },
+    {
+      "name": "helpers.request",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/help/permit/requests"
+    },
+    {
+      "name": "helpers.statistics",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/help/permit/requests/statistics"
+    },
+    {
+      "name": "helpers.finish",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/ident/finishedHelping"
+    },
+    {
+      "name": "hints.updateRecordMatch",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/platform/tree/persons/{personId}/matches?collection=https://familysearch.org/platform/collections/records",
+      "defaultHeaders": {
+        "Content-Type": "application/x-gedcomx-v1+json"
+      }
+    },
+    {
+      "name": "hints.notAMatch",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/platform/tree/persons/{personId}/not-a-match"
+    },
+    {
+      "name": "hints.opportunities",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/pop/users/{cisId}/opportunities/summaries"
+    },
+    {
+      "name": "hints.activities",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/taz/users/{cisId}/activities"
+    },
+    {
+      "name": "hints.matchByExample",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/tree/person/match-by-example"
+    },
+    {
+      "name": "hints.matchById",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/match-by-id/{personId}"
+    },
+    {
+      "name": "hints.potentialPersons",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/tree/person/{childId}/potential-persons"
+    },
+    {
+      "name": "hints.duplicate",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{personId}/match/{duplicateId}"
+    },
+    {
+      "name": "hints.duplicates",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{personId}/matches?unmergeableMatches=true"
+    },
+    {
+      "name": "hints.recordMatches",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/record/matches",
+      "responseOptional": true,
+      "responseNote": "Production returns HTTP 204 for no record matches (observed September 6, 2026)."
+    },
+    {
+      "name": "sources.detach",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/platform/tree/persons/{personId}/source-references/{sourceReferenceId}",
+      "defaultHeaders": {
+        "Content-Type": "application/x-gedcomx-v1+json"
+      }
+    },
+    {
+      "name": "sources.updateLinks",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/source-links/source/{descriptionId}"
+    },
+    {
+      "name": "sources.recordDetailsV1",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/source/record/details"
+    },
+    {
+      "name": "sources.attachRelationships",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/sourcelinker/attached/person/{personId}/relationships"
+    },
+    {
+      "name": "sources.updateEntityReference",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/person/{personId}/entityref/{entityRefId}"
+    },
+    {
+      "name": "sources.recordDetails",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/record/details"
+    },
+    {
+      "name": "sources.treeMatches",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/record/persona/{personaId}/tree/matches"
+    },
+    {
+      "name": "sources.create",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/source"
+    },
+    {
+      "name": "sources.update",
+      "method": "PUT",
+      "path": "/service/mobile/api/v2/source/{sourceId}"
+    },
+    {
+      "name": "sources.attachRecord",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/sourcelinker/attach"
+    },
+    {
+      "name": "sources.linkerMatch",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/sourcelinker/match"
+    },
+    {
+      "name": "sources.attach",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/source-reference"
+    },
+    {
+      "name": "sources.updateReference",
+      "method": "PUT",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/source-reference/{sourceReferenceId}"
+    },
+    {
+      "name": "sources.forPerson",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/sources"
+    },
+    {
+      "name": "pedigree.ancestorCount",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/guided/tree/persons/{personId}/ancestorCount"
+    },
+    {
+      "name": "pedigree.preferredParents",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/platform/tree/users/{userId}/preferred-parent-relationships/{pid}"
+    },
+    {
+      "name": "pedigree.preferredSpouse",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/platform/tree/users/{userId}/preferred-spouse-relationships/{pid}"
+    },
+    {
+      "name": "pedigree.setPreferences",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/user/preferences/pedigree/{pid}"
+    },
+    {
+      "name": "pedigree.downloadTree",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tree-graph/soiTreeDownload"
+    },
+    {
+      "name": "pedigree.builderSearch",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tree/builder/one-search"
+    },
+    {
+      "name": "pedigree.builderPersons",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tree/builder/pedigree/persons/{ids}"
+    },
+    {
+      "name": "pedigree.builderPedigree",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tree/builder/pedigree/{personId}"
+    },
+    {
+      "name": "pedigree.builderDelete",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tree/builder/pedigree/{personId}/position/{position}"
+    },
+    {
+      "name": "pedigree.builderAdd",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tree/builder/pedigree/{personId}/position/{position}"
+    },
+    {
+      "name": "pedigree.builderUpdate",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tree/builder/pedigree/{personId}/position/{position}"
+    },
+    {
+      "name": "pedigree.builderSearchPersons",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tree/builder/search/persons/{ids}"
+    },
+    {
+      "name": "pedigree.expandPortrait",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/pedigree/ancestry/portrait/expand"
+    },
+    {
+      "name": "pedigree.expandAncestors",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/pedigree/ancestry/sibling/expand/ancestors/{personId}"
+    },
+    {
+      "name": "pedigree.expandDescendants",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/pedigree/ancestry/sibling/expand/descendants/{personId}"
+    },
+    {
+      "name": "pedigree.expandSiblings",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/pedigree/ancestry/sibling/expand/siblings/{personId}"
+    },
+    {
+      "name": "pedigree.siblings",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/pedigree/ancestry/{personId}/sibling"
+    },
+    {
+      "name": "pedigree.portrait",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/pedigree/ancestry/{person_id}/portrait"
+    },
+    {
+      "name": "history.list",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/platform/users/{cisId}/history"
+    },
+    {
+      "name": "history.add",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/platform/users/{cisId}/history"
+    },
+    {
+      "name": "history.remove",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/platform/users/{cisId}/history/{personId}"
+    },
+    {
+      "name": "history.restoreChange",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/changes/{changeId}/restore"
+    },
+    {
+      "name": "history.undoMerge",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/changes/{changeId}/undomerge"
+    },
+    {
+      "name": "history.changes",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/changes"
+    },
+    {
+      "name": "search.locationMap",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/search/location-map"
+    },
+    {
+      "name": "search.categories",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/one-search/categories"
+    },
+    {
+      "name": "search.countries",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/one-search/locations/countries"
+    },
+    {
+      "name": "search.subcountries",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/one-search/locations/subcountries/{countryName}"
+    },
+    {
+      "name": "search.results",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/one-search/results"
+    },
+    {
+      "name": "associations.create",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/association"
+    },
+    {
+      "name": "associations.delete",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/association/{associationId}"
+    },
+    {
+      "name": "associations.deleteConclusion",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/association/{associationId}/conclusion/{conclusionId}"
+    },
+    {
+      "name": "associations.deleteNote",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/association/{associationId}/notes/{noteId}"
+    },
+    {
+      "name": "associations.reorder",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/association/{associationId}/persons/order"
+    },
+    {
+      "name": "associations.addFact",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/association/{associationRelationshipId}/conclusion/fact"
+    },
+    {
+      "name": "associations.updateFact",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/association/{associationRelationshipId}/conclusion/fact/{conclusionId}"
+    },
+    {
+      "name": "associations.addNote",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/association/{associationRelationshipId}/notes/"
+    },
+    {
+      "name": "associations.updateNote",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/association/{associationRelationshipId}/notes/{noteId}"
+    },
+    {
+      "name": "associations.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/association/{relationshipId}"
+    },
+    {
+      "name": "associations.notes",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/association/{relationshipId}/notes"
+    },
+    {
+      "name": "associations.note",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/association/{relationshipId}/notes/{noteId}"
+    },
+    {
+      "name": "couples.notes",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/couple/{id}/notes"
+    },
+    {
+      "name": "couples.addNote",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/couple/{id}/notes"
+    },
+    {
+      "name": "couples.deleteNote",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/couple/{id}/notes/{noteId}"
+    },
+    {
+      "name": "couples.note",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/couple/{id}/notes/{noteId}"
+    },
+    {
+      "name": "couples.updateNote",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/couple/{id}/notes/{noteId}"
+    },
+    {
+      "name": "couples.delete",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/couple/{relationshipId}"
+    },
+    {
+      "name": "couples.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/couple/{relationshipId}"
+    },
+    {
+      "name": "couples.addFact",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/couple/{relationshipId}/conclusion/fact"
+    },
+    {
+      "name": "couples.updateFact",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/couple/{relationshipId}/conclusion/fact/{conclusionId}"
+    },
+    {
+      "name": "couples.deleteConclusion",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/couple/{relationshipId}/conclusion/{conclusionId}"
+    },
+    {
+      "name": "couples.reorder",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/couple/{relationshipId}/spouses/order"
+    },
+    {
+      "name": "parentChildren.create",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/parentchild"
+    },
+    {
+      "name": "parentChildren.notes",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/parentchild/{id}/notes"
+    },
+    {
+      "name": "parentChildren.addNote",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/parentchild/{id}/notes"
+    },
+    {
+      "name": "parentChildren.deleteNote",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/parentchild/{id}/notes/{noteId}"
+    },
+    {
+      "name": "parentChildren.note",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/parentchild/{id}/notes/{noteId}"
+    },
+    {
+      "name": "parentChildren.updateNote",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/parentchild/{id}/notes/{noteId}"
+    },
+    {
+      "name": "parentChildren.delete",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/parentchild/{relationshipId}"
+    },
+    {
+      "name": "parentChildren.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/parentchild/{relationshipId}"
+    },
+    {
+      "name": "parentChildren.addFact",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/parentchild/{relationshipId}/conclusion/fact"
+    },
+    {
+      "name": "parentChildren.updateFact",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/parentchild/{relationshipId}/conclusion/fact/{conclusionId}"
+    },
+    {
+      "name": "parentChildren.deleteConclusion",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/parentchild/{relationshipId}/conclusion/{conclusionId}"
+    },
+    {
+      "name": "parentChildren.reorder",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/parentchild/{relationshipId}/parents/order"
+    },
+    {
+      "name": "persons.reportDeceasedAsLiving",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/support/issue/dead-to-living/person/{person_id}"
+    },
+    {
+      "name": "persons.delete",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/person/{personId}"
+    },
+    {
+      "name": "persons.deleteConstraints",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/person/{person_id}/delete-constraint"
+    },
+    {
+      "name": "persons.deleteConclusion",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/conclusion/{conclusionId}"
+    },
+    {
+      "name": "persons.notes",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/notes"
+    },
+    {
+      "name": "persons.addNote",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/notes"
+    },
+    {
+      "name": "persons.deleteNote",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/notes/{noteId}"
+    },
+    {
+      "name": "persons.note",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/notes/{noteId}"
+    },
+    {
+      "name": "persons.updateNote",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/notes/{noteId}"
+    },
+    {
+      "name": "persons.addRelationship",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/relationship"
+    },
+    {
+      "name": "persons.updateAssociation",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/relationship/{associationId}"
+    },
+    {
+      "name": "persons.updateRelationship",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/person/{pid}/relationship/{relationshipId}"
+    },
+    {
+      "name": "persons.merge",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/person/{survivorId}/merge/{duplicateId}",
+      "defaultHeaders": {
+        "Product": "int-android-merge-000"
+      }
+    },
+    {
+      "name": "persons.stats",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tf/user/CURRENT/stats"
+    },
+    {
+      "name": "persons.create",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/tree/person",
+      "defaultHeaders": {
+        "Product": "int-android-person-000"
+      }
+    },
+    {
+      "name": "persons.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{pid}"
+    },
+    {
+      "name": "persons.addFact",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/conclusion/fact"
+    },
+    {
+      "name": "persons.updateFact",
+      "method": "PUT",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/conclusion/fact/{conclusionId}"
+    },
+    {
+      "name": "persons.updateGender",
+      "method": "PUT",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/conclusion/gender/{conclusionId}"
+    },
+    {
+      "name": "persons.addName",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/conclusion/name/"
+    },
+    {
+      "name": "persons.updateName",
+      "method": "PUT",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/conclusion/name/{nameId}"
+    },
+    {
+      "name": "persons.mergeAnalysis",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{survivorId}/merge/{duplicateId}/analysis"
+    },
+    {
+      "name": "persons.privatePersons",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/private-space/persons"
+    },
+    {
+      "name": "persons.contributions",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/user/contributions?pageSize=300&includeOtherRelationships=true"
+    },
+    {
+      "name": "portraits.lastPublicEvent",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tps/persons/{pid}/lastPublicEvent"
+    },
+    {
+      "name": "portraits.delete",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/tps/persons/{pid}/portrait"
+    },
+    {
+      "name": "portraits.get",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/tps/persons/{pid}/portrait"
+    },
+    {
+      "name": "portraits.set",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tps/persons/{pid}/portrait"
+    },
+    {
+      "name": "ordinances.familyCardsV1",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple/cards/family"
+    },
+    {
+      "name": "ordinances.transfer",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/transfer-a-name/batches?noEmailSender=MOBILE"
+    },
+    {
+      "name": "ordinances.builderRequest",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tree/builder/persons/family-ordinance-request"
+    },
+    {
+      "name": "ordinances.builderShare",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/tree/builder/persons/share-with-temple"
+    },
+    {
+      "name": "ordinances.ready",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/reservations/ordinances-ready"
+    },
+    {
+      "name": "ordinances.deleteReady",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v2/reservations/ordinances-ready/{token}"
+    },
+    {
+      "name": "ordinances.readyStatus",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/reservations/ordinances-ready/{token}"
+    },
+    {
+      "name": "ordinances.updateCards",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/reservations/owner/{ownerId}/cards"
+    },
+    {
+      "name": "ordinances.completedCards",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/reservations/owner/{ownerId}/cards/completed"
+    },
+    {
+      "name": "ordinances.groupCards",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/reservations/owner/{ownerId}/cards/groups"
+    },
+    {
+      "name": "ordinances.personalCards",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/reservations/owner/{ownerId}/cards/personal"
+    },
+    {
+      "name": "ordinances.templeCards",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/reservations/owner/{ownerId}/cards/temple"
+    },
+    {
+      "name": "ordinances.personCards",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/reservations/person/{personId}/cards"
+    },
+    {
+      "name": "ordinances.permissionExists",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/support/issue/ordinance-permission/exists/{personId}"
+    },
+    {
+      "name": "ordinances.requestPermission",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/support/issue/ordinance-permissions"
+    },
+    {
+      "name": "ordinances.permissionsExist",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/support/issue/ordinance-permissions/exist/{personId}"
+    },
+    {
+      "name": "ordinances.familyCards",
+      "method": "POST",
+      "path": "/service/mobile/api/v2/temple/cards/family-ordinance-request"
+    },
+    {
+      "name": "ordinances.forPerson",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{personId}/ordinances"
+    },
+    {
+      "name": "trees.setMePerson",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/tf/user/CURRENT/tree/{treeId}/person/{mePersonId}"
+    },
+    {
+      "name": "trees.matchPreference",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user-preferences/users/{cis_user_id}/preferences/match.service"
+    },
+    {
+      "name": "trees.setMatchPreference",
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/user-preferences/users/{cis_user_id}/preferences/match.service"
+    },
+    {
+      "name": "trees.status",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/tree/status"
+    },
+    {
+      "name": "trees.matchMe",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/user/tree/{treeId}/match-me-persons"
+    },
+    {
+      "name": "trees.switch",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/uts/sessions/CURRENT/tree",
+      "unsupported": "SelectedGroupTreeDto is obfuscated and has no recovered wire serializer; do not guess its field names."
+    },
+    {
+      "name": "following.unfollow",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/watch/followers/CURRENT/watches"
+    },
+    {
+      "name": "following.follow",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/watch/followers/CURRENT/watches"
+    },
+    {
+      "name": "following.status",
+      "method": "GET",
+      "path": "/service/mobile/api/v1/watch/followers/CURRENT/watches/{personId}/status"
+    },
+    {
+      "name": "tasks.descendants",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/descendant/tasks"
+    },
+    {
+      "name": "tasks.dismiss",
+      "method": "DELETE",
+      "path": "/service/mobile/api/v2/tree/person/{pid}/tasks"
+    },
+    {
+      "name": "tasks.list",
+      "method": "GET",
+      "path": "/service/mobile/api/v2/user/tasks"
+    }
+  ]
+}

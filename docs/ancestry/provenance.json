@@ -1,0 +1,37 @@
+{
+  "package": "com.ancestry.android.apps.ancestry",
+  "versionName": "18.16.3",
+  "versionCode": 1089,
+  "downloadedAt": "2026-09-06",
+  "playUrl": "https://play.google.com/store/apps/details?id=com.ancestry.android.apps.ancestry&hl=en_US",
+  "sourceUrl": "https://www.apkmirror.com/apk/ancestry-com/ancestry/ancestry-family-history-dna-18-16-3-release/ancestry-family-history-dna-18-16-3-android-apk-download/",
+  "sourceUploadDate": "2026-08-27",
+  "variant": "arm64-v8a, xxxhdpi, Android 12+, target Android 16",
+  "bundle": {
+    "path": "artifacts/ancestry/ancestry-18.16.3.apkm",
+    "bytes": 104639743,
+    "sha256": "697ea2df0d21e04486356fa78d026682af40b7e0ada9076db71d2eda2576dc1c"
+  },
+  "baseApk": {
+    "path": "artifacts/ancestry/base.apk",
+    "bytes": 110637113,
+    "sha256": "d37b4e31ad8b34225bb4608981002bf6c1666c4be59877b989b99b38c1ce689a"
+  },
+  "signer": {
+    "subject": "CN=Ancestry.com, OU=Android, O=Ancestry.com, L=Provo, ST=UT, C=US",
+    "sha256": "d038929cbafd966e51a635db8cff9ed839edcb03164ea1d097decd9f50878537",
+    "sha1": "023b542b3a5c3385e55e53c8f34b45c94e65c2d7",
+    "verification": "apksigner verify --verbose --print-certs; certificate matches APKMirror's published Ancestry signer"
+  },
+  "tools": {
+    "apktool": "3.0.2",
+    "jadx": "1.5.5",
+    "androidBuildTools": "36.1.0"
+  },
+  "decompilation": {
+    "smali": "Completed across five DEX files; extraction source of truth",
+    "javaClassesProcessed": 30467,
+    "jadxErrors": 344,
+    "note": "JADX simple mode completed with partial method failures. The APK was not installed or executed."
+  }
+}

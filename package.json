@@ -1,0 +1,85 @@
+{
+  "name": "@potatosalad/familysearch",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TypeScript clients and command-line tools for FamilySearch, Ancestry, and MyHeritage",
+  "scripts": {
+    "fs": "tsx src/cli.ts",
+    "ancestry": "tsx src/ancestry/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
+    "build": "tsc",
+    "extract:ancestry": "python3 scripts/extract-ancestry.py",
+    "check:ancestry": "python3 scripts/extract-ancestry.py --check",
+    "verify:ancestry": "tsx scripts/verify-ancestry.ts",
+    "generate": "python3 scripts/generate-sdk.py",
+    "check:generated": "python3 scripts/generate-sdk.py --check",
+    "test:types": "tsc -p test/tsconfig.json",
+    "verify:genealogy": "tsx scripts/verify-genealogy.ts",
+    "verify:research": "tsx scripts/verify-research.ts",
+    "myheritage": "tsx src/myheritage/cli.ts",
+    "extract:myheritage": "python3 scripts/extract-myheritage.py",
+    "check:myheritage": "python3 scripts/extract-myheritage.py --check",
+    "verify:myheritage": "tsx scripts/verify-myheritage.ts",
+    "verify:myheritage:research": "tsx scripts/verify-myheritage-research.ts",
+    "prepare": "npm run build",
+    "generate:catalogs": "python3 scripts/generate-catalogs.py",
+    "check:catalogs": "python3 scripts/generate-catalogs.py --check",
+    "check": "npm run typecheck && npm run test:types && npm run check:generated && npm run check:catalogs && npm test && npm run build"
+  },
+  "engines": {
+    "node": ">=22.16"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "graphql": "^17.0.2",
+    "impit": "^0.14.4",
+    "sharp": "^0.35.4",
+    "tough-cookie": "^6.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  },
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/potatosalad/familysearch.git"
+  },
+  "bin": {
+    "familysearch": "bin/familysearch.mjs",
+    "ancestry": "bin/ancestry.mjs",
+    "myheritage": "bin/myheritage.mjs"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ancestry": {
+      "types": "./dist/ancestry/index.d.ts",
+      "import": "./dist/ancestry/index.js"
+    },
+    "./myheritage": {
+      "types": "./dist/myheritage/index.d.ts",
+      "import": "./dist/myheritage/index.js"
+    }
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "src/",
+    "docs/**/*.md",
+    "docs/contracts.json",
+    "docs/endpoints.json",
+    "docs/operation-selection.json",
+    "docs/coverage.json",
+    "docs/apk.json",
+    "docs/*/contracts.json",
+    "docs/*/provenance.json",
+    "docs/myheritage/research-provenance.json"
+  ]
+}

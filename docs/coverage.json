@@ -1,0 +1,545 @@
+{
+  "apkVersion": "5.4.4 (43530)",
+  "scope": "Genealogy data, research, memories, collaboration, tree context, helper permissions, and ordinance research. Excludes messaging, event discovery, account administration, app infrastructure and appointment scheduling.",
+  "inventoryDeclarations": 319,
+  "selectedOperations": 213,
+  "implementedOperations": 212,
+  "selectedCanonicalRoutes": 212,
+  "implementedCanonicalRoutes": 211,
+  "models": 297,
+  "fields": 1502,
+  "groups": [
+    {
+      "group": "associations",
+      "selected": 12,
+      "implemented": 12
+    },
+    {
+      "group": "authorities",
+      "selected": 7,
+      "implemented": 7
+    },
+    {
+      "group": "contributors",
+      "selected": 4,
+      "implemented": 4
+    },
+    {
+      "group": "couples",
+      "selected": 11,
+      "implemented": 11
+    },
+    {
+      "group": "following",
+      "selected": 3,
+      "implemented": 3
+    },
+    {
+      "group": "groups",
+      "selected": 15,
+      "implemented": 15
+    },
+    {
+      "group": "helpers",
+      "selected": 9,
+      "implemented": 9
+    },
+    {
+      "group": "hints",
+      "selected": 10,
+      "implemented": 10
+    },
+    {
+      "group": "history",
+      "selected": 6,
+      "implemented": 6
+    },
+    {
+      "group": "memories",
+      "selected": 32,
+      "implemented": 32
+    },
+    {
+      "group": "ordinances",
+      "selected": 18,
+      "implemented": 18
+    },
+    {
+      "group": "parentChildren",
+      "selected": 12,
+      "implemented": 12
+    },
+    {
+      "group": "pedigree",
+      "selected": 18,
+      "implemented": 18
+    },
+    {
+      "group": "persons",
+      "selected": 24,
+      "implemented": 24
+    },
+    {
+      "group": "portraits",
+      "selected": 4,
+      "implemented": 4
+    },
+    {
+      "group": "search",
+      "selected": 5,
+      "implemented": 5
+    },
+    {
+      "group": "sources",
+      "selected": 14,
+      "implemented": 14
+    },
+    {
+      "group": "tasks",
+      "selected": 3,
+      "implemented": 3
+    },
+    {
+      "group": "trees",
+      "selected": 6,
+      "implemented": 5
+    }
+  ],
+  "gaps": [
+    {
+      "name": "trees.switch",
+      "method": "POST",
+      "path": "/service/mobile/api/v1/uts/sessions/CURRENT/tree",
+      "unsupported": "SelectedGroupTreeDto is obfuscated and has no recovered wire serializer; do not guess its field names."
+    }
+  ],
+  "unstructuredResponses": [
+    "sources.attachRecord"
+  ],
+  "excludedFromGenealogyScope": [
+    {
+      "method": "POST",
+      "path": "/cis-web/oauth2/v3/token?grant_type=authorization_code"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/cmn/user-preferences/users/{cisUserId}/preferences/rae.in-person-only"
+    },
+    {
+      "method": "GET",
+      "path": "/service/cmn/user-preferences/users/{cisUserId}/preferences?name=rae.in-person-only"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/app-info/{os}/{app}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifacts/storage/msg-attach"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifacts/storage/msg-attach/info/{attachment_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/artifacts/storage/user-portrait"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/artifacts/storage/user-portrait"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/artifacts/storage/user-portrait/{artifactId}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/artifacts/storage/user-portrait/{filename}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/experiments/{experimentId}/enroll"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/faq"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/featured-apps/android/tree"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/fs-chat/api/v2/approval/channels/membership"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/fs-chat/api/v2/auth/authenticate"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/fs-chat/api/v2/channels"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/fs-chat/api/v2/channels/{cid}/members"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/fs-chat/api/v2/users"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/fs-chat/api/v2/users/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/fs-chat/api/v2/whitelist"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/fs-messages/threads/{threadId}/users/{cisId}/state"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/fs-messages/users/{cisId}/notifications/threads"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/fs-user/users/{cisId}/preferences/temple.printContactInfo"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/help/local-info/resources"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/ident/notificationData"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/ident/notificationData"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/ident/processCisId"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/ident/processFullname"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/ident/processUsername"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/login"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/login"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/login"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/maps/fhc/autocomplete"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/maps/fhc/location/all/summaries"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/maps/fhc/location/{type}/{id}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/maps/fhc/search"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/messaging/threads/{threadId}/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/messaging/users/{cisId}/folders/summaries"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/notification-prefs/display/notification-prefs"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/notification-prefs/prefs"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/notification-prefs/prefs/initialize"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/peers/around-me"
+    },
+    {
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/peers/peer/{userId}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/platform/logout"
+    },
+    {
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/push/registration"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/push/registration"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/push/registration/{token}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/register/username-suggestions-custom/*/*/{username}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/active-events"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/attendees"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/invite"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/places/countries/{countryId}/states-provinces"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/relatives"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/relatives/ancestor/counts"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/user/on-site"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/user/opt-in"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/user/opt-out"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/user/settings"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/views/add-relatives"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/views/landing"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/views/relatives"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/views/user/join"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{eventId}/views/user/settings"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/relatives-at-event/event/{event_id}/relatives/relationship"
+    },
+    {
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/session/sessions/{sessionId}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/session/sessions/{sessionId}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/support/issue/report-abuse/chat/{channelId}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/support/issue/report-abuse/memory/{artifactId}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/addGuest"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/edit"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/editHold"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/save"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/search"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/setHold"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temple-scheduling/appointment/{appointmentId}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/currentAppointments"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temple-scheduling/district"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/geoTemples"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temple-scheduling/languagesList"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/openings"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/prayerRoll"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temple-scheduling/recommend"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/temple-scheduling/templeOrdinances"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temples/{templeCode}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temples/{templeOrgId}"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temples/{templeOrgId}/details"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/temples/{templeOrgId}/messageBanner/{locale}"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/user-relationship/ft/contributor/invite/pending"
+    },
+    {
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/user-relationship/ft/contributor/optin"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user-relationship/ft/contributor/optin"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/user-relationship/ft/contributor/optin"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/user/account/delete"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/user/account/password"
+    },
+    {
+      "method": "PUT",
+      "path": "/service/mobile/api/v1/user/account/username"
+    },
+    {
+      "method": "DELETE",
+      "path": "/service/mobile/api/v1/user/friends"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/friends"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/user/friends"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/membership/mrn"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/profile/directory/users"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/profile/users/CURRENT"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/user/profile/users/CURRENT"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/relationship/peer/{token}"
+    },
+    {
+      "method": "POST",
+      "path": "/service/mobile/api/v1/user/soi/visited"
+    },
+    {
+      "method": "GET",
+      "path": "/service/mobile/api/v1/user/units/members"
+    }
+  ]
+}

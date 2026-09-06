@@ -1,0 +1,23 @@
+{
+  "package": "org.familysearch.mobile",
+  "version": "5.4.4",
+  "versionCode": 43530,
+  "minSdk": 29,
+  "targetSdk": 36,
+  "downloadedAt": "2026-09-06",
+  "playListing": "https://play.google.com/store/apps/details?id=org.familysearch.mobile",
+  "downloadPage": "https://apkcombo.com/familysearch-tree/org.familysearch.mobile/download/apk",
+  "bundle": "artifacts/familysearch-tree-5.4.4.xapk",
+  "bundleSha256": "a9dbd75b31840cced9b1a1f67e63bbf8e9a945919c009b38e2a12cf7695deaf2",
+  "baseApk": "artifacts/apks/org.familysearch.mobile.apk",
+  "baseApkSha256": "a328744b0bc74653418554d01a9b33972a1ea974ba2b67d71044cfd6d48eb24b",
+  "signatureSchemeV3Verified": true,
+  "signerSha256": "1a6b2a93c5431c419b4851806993f7722c61ed042a83110b2db4613819c40896",
+  "signerMd5": "d00142074c48a2e10a38322c3aba93f3",
+  "signerDN": "CN=familysearch, OU=familysearch, O=familysearch, L=Salt Lake City, ST=UT, C=US",
+  "googleSourceStampVerified": true,
+  "sourceStampSignerSha256": "3257d599a49d2c961a471ca9843f59d341a405884583fc087df4237b733bbd6d",
+  "sourceStampTimestamp": 1787608597,
+  "tools": { "jadx": "1.5.5", "apktool": "3.0.2", "apksigner": "Android build-tools 36.1.0" },
+  "analysisNotes": "Full smali disassembly and resource decoding completed. Java reconstruction is partial: full and simple JADX runs stalled at 53% and were stopped. Endpoint extraction uses smali as ground truth."
+}

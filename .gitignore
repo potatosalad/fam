@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.credentials/
+.env
+.env.*
+!.env.example
+artifacts/
+analysis/decompiled/
+analysis/decoded/
+analysis/smali/
+analysis/ancestry/
+analysis/myheritage/
+.DS_Store
+*.har
+
+# Local outputs and live reports never belong in the public repository.
+research-output/
+reports/
+*.tgz
+*.log
+docs/**/live-*.json
+docs/**/research-verification*.json
+docs/**/*spot-check*.json
