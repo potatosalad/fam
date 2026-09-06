@@ -1,5 +1,6 @@
 # Maintenance
 
+- GPG-sign every commit with `git commit -S`. Verify signatures before pushing.
 - This is the portable public repository. Keep machine-specific integrations and private deployment instructions in the separate internal repository.
 - Use Node 22.16+ and npm. Run `npm ci`, then `npm run check` before submitting changes. Tests use disposable config directories and synthetic data.
 - `src/cli.ts`, `src/ancestry/cli.ts`, and `src/myheritage/cli.ts` are the three commands. Keep credential setup in `src/credentials.ts` and persistence in `src/storage.ts`; no implicit subprocesses or host-specific defaults.
