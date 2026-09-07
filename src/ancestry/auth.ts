@@ -35,6 +35,7 @@ export async function tokenRequest(http: AncestryHttp, fields: Record<string, st
     method: 'POST', encoding: 'raw', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams({client_id: CLIENT_ID, client_secret: CLIENT_SECRET, ...fields}).toString(),
   })).data;
+  if (refresh && data.access_token) data.refresh_token ||= fields.refresh_token!;
   if (data.must_change_password_before_next_login) throw new Error('Ancestry requires a password change. Complete it on Ancestry, then run fam ancestry auth again.');
   if (!data.access_token || !data.refresh_token) {
     if (fields.service_provider === 'user_credentials' && typeof (data as unknown as PendingAuth).verification_token === 'string') {

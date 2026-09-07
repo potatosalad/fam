@@ -4,8 +4,10 @@ import { pageKeys } from './parse.js';
 
 const probe = {id: 'account', label: 'Signed-in account', async run(value: unknown) {
   const session = value as GeneanetSession;
-  const {text} = await new GeneanetHttp(session.cookies).text(`${WEB}/`, {redirects: false});
+  const http = new GeneanetHttp(session.cookies);
+  const {text} = await http.text(`${WEB}/`, {redirects: false});
   if (pageKeys(text).user?.username !== session.username) throw new GeneanetError('session-rejected', 401);
+  return {session: {...session, cookies: http.jar.serializeSync(), validatedAt: new Date().toISOString()}};
 }};
 // Structural provider interface keeps this module usable with or without the optional root doctor dispatcher.
 export const doctorProvider = {

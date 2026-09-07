@@ -48,4 +48,10 @@ export async function writePrivateJson(name: string, value: unknown): Promise<vo
     finally { await file.close(); }
     await rename(temporary, path);
   } finally { await rm(temporary, { force: true }); }
+  const changed = /^(?:(ancestry|myheritage|findmypast|findagrave|geneanet|storied)\/)?(?:login|session|device)\.json$/.exec(name);
+  if (changed) {
+    const {syncCredentials} = await import('./credential-sync.js');
+    try {await syncCredentials(changed[1] ?? 'familysearch', CREDENTIAL_DIR, name);}
+    catch (error) {process.stderr.write(`${(error as Error).message}\n`);}
+  }
 }

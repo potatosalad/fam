@@ -1,0 +1,29 @@
+{
+  "package": "com.storied",
+  "versionName": "1.11.18",
+  "versionCode": 213,
+  "hbcVersion": 96,
+  "downloadUrl": "https://d.apkpure.net/b/XAPK/com.storied?versionCode=213&nc=arm64-v8a&sv=32",
+  "openapiUrl": "https://api.storied.com/swagger/v1/swagger.json",
+  "retrievedAt": "2026-09-07",
+  "sha256": {
+    "xapk": "bbfa6fda7e70a1acc85957d83854dc3f865982711d20009c75d9643d746bd266",
+    "baseApk": "ec061356c46d989cc7a451ff4db3fa063ce9ea52eaa5ef53b10929f1e9613133",
+    "hermesBundle": "6816744eea3d9902964c4403ef0e56a0af79f441adc06d091f15e740c2d7255d",
+    "openapi": "07bab1e1aa12aa0d5dac2c427346922240c0972257fe6ddbd5b469465bd8ddf9"
+  },
+  "counts": {
+    "openapiPaths": 778,
+    "consumerOperations": 728,
+    "excludedOperations": 66,
+    "schemas": 1021,
+    "apkMethods": 153,
+    "apkMethodsMatched": 153
+  },
+  "limitations": [
+    "The APK predates the current Play listing.",
+    "OpenAPI contracts are declarations, not live account verification.",
+    "JADX reported 85 errors; complete smali and Hermes disassembly are retained.",
+    "The APK method inventory covers its generated REST client; separate handwritten call sites may exist."
+  ]
+}

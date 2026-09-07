@@ -59,7 +59,7 @@ Configure a helper once in `~/.config/fam/config.json` to use it for every provi
 }
 ```
 
-No environment variable is needed for the persistent file setting. `FAM_CREDENTIALS_COMMAND='["node","/absolute/path/to/credential-helper.mjs"]'` is an optional override. fam runs the executable directly, without a shell, appending exactly one argument: `familysearch`, `ancestry`, `myheritage`, `findmypast`, `findagrave`, or `geneanet`. The working directory is the caller's directory; use absolute paths for helper files. Environment variables are inherited and stdin is closed.
+No environment variable is needed for the persistent file setting. `FAM_CREDENTIALS_COMMAND='["node","/absolute/path/to/credential-helper.mjs"]'` is an optional override. fam runs the executable directly, without a shell, appending exactly one argument: `familysearch`, `ancestry`, `myheritage`, `findmypast`, `findagrave`, `geneanet`, or `storied`. The working directory is the caller's directory; use absolute paths for helper files. Environment variables are inherited and stdin is closed.
 
 The helper must exit successfully and print only a JSON object with nonempty string `username` and `password` fields. Password whitespace is preserved. Output is limited to 64 KiB and execution to two minutes. Failures suppress command output and stop lookup; fam never silently falls back to an older saved password. Use this hook for a password manager, local executable, or SSH-backed helper. No helper runs unless configured, and help/status commands do not look up passwords.
 
@@ -73,7 +73,7 @@ For noninteractive setup, pipe a JSON object with string `username` and `passwor
 fam familysearch credentials --stdin < /private/path/login.json
 ```
 
-The same option works with `ancestry`, `myheritage`, `findmypast`, `findagrave`, and `geneanet`. It takes precedence over environment variables. The CLI preserves the password exactly and does not print it. Keep the input file private.
+The same option works with `ancestry`, `myheritage`, `findmypast`, `findagrave`, `geneanet`, and `storied`. It takes precedence over environment variables. The CLI preserves the password exactly and does not print it. Keep the input file private.
 
 ## Storage and profiles
 
@@ -87,7 +87,7 @@ All providers use the same configuration root:
 
 `FAMILYSEARCH_CONFIG_DIR` remains a compatibility alias when `FAM_CONFIG_DIR` is unset. New installations default to `fam`; old directories are never imported automatically.
 
-FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, `findmypast/`, `findagrave/`, and `geneanet/` subdirectories. Device IDs, cookies, and pending authentication state also live here.
+FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, `findmypast/`, `findagrave/`, `geneanet/`, and `storied/` subdirectories. Device IDs, cookies, and pending authentication state also live here.
 
 On POSIX systems, the CLI uses `0700` directories and `0600` files. Windows uses your user profile's ACLs. Credential writes replace files atomically.
 
@@ -110,6 +110,12 @@ Run the CLI's `status` command to find its configuration directory. Remove that 
 For an expired MyHeritage or Findmypast browser session, import a fresh HAR instead. Complete any website verification before capturing it. Findmypast's `refresh` revalidates browser cookies; it does not renew an expired browser login.
 
 Find a Grave has no token refresh command. `fam findagrave verify` checks the saved session without extending it; use `fam findagrave auth` to replace an expired session.
+
+## Optional credential sync hook
+
+Set `credentialsSyncCommand` in your profile's `config.json` to an executable and argument array, for example `["node", "/absolute/path/to/sync-helper.mjs"]`. `FAM_CREDENTIALS_SYNC_COMMAND` overrides it using the same JSON format. Fam runs the helper after saving a provider's login, session, or device file. The helper receives the provider as its final argument and JSON on stdin: `{ "version": 1, "provider": "myheritage", "credentialDirectory": "/absolute/profile/path", "file": "myheritage/session.json", "reason": "save" }`.
+
+The helper decides what to upload and where. Fam waits up to 30 seconds, suppresses helper output, and warns on failure while retaining the saved local credentials. Run `fam PROVIDER sync` to retry manually; this passes `reason: "manual"` and `file: null`. Child processes inherit `FAM_CONFIG_DIR` and `FAM_CREDENTIALS_SYNC_DISABLED=1` to prevent recursive hooks.
 
 ## Migration from familysearch
 

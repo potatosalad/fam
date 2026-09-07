@@ -72,14 +72,20 @@ export async function authenticateMyHeritage(options: {code?: string; verificati
   return saveMyHeritageSession(http, {accessToken: response.accessToken, accountId: response.accountId, userId: response.userId, data12p: response.data12p, deviceId});
 }
 export async function refreshMyHeritage(http: MyHeritageHttp, session: MyHeritageSession): Promise<MyHeritageSession> {
+  const next = await renewMyHeritage(http, session);
+  await writePrivateJson('myheritage/session.json', next);
+  return next;
+}
+export async function renewMyHeritage(http: MyHeritageHttp, session: MyHeritageSession): Promise<MyHeritageSession> {
   if (session.mode === 'browser') throw new Error('Browser sessions refresh from their authenticated tree page, not the native token endpoint.');
   const response = parseAuthResponse((await http.exchange<string>(`${WEB}/FP/API/Mobile/refresh-token.php`, {
     method: 'POST', headers: {Authorization: `Bearer ${session.accessToken}`, Accept: 'application/xml', 'Content-Type': 'application/x-www-form-urlencoded'},
     encoding: 'raw', body: new URLSearchParams(deviceFields(session.deviceId)).toString(), response: 'text',
   })).data);
   if (response.resultCode !== 0 || !response.accessToken) throw new Error(`MyHeritage session refresh failed (code ${response.resultCode}); run fam myheritage auth.`);
-  return saveMyHeritageSession(http, {...session, accessToken: response.accessToken, accountId: response.accountId ?? session.accountId,
-    userId: response.userId ?? session.userId, data12p: response.data12p ?? session.data12p});
+  return {...session, accessToken: response.accessToken, accountId: response.accountId ?? session.accountId,
+    userId: response.userId ?? session.userId, data12p: response.data12p ?? session.data12p,
+    savedAt: new Date().toISOString(), cookies: http.jar.serializeSync()};
 }
 
 /** Import only API authorization from a HAR that the account owner explicitly supplies.

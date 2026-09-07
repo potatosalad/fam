@@ -1,6 +1,6 @@
 # fam
 
-One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, and Geneanet. Browse family trees, search historical records and memorials, and download original documents.
+One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, and Storied. Browse family trees, search historical records and memorials, and download original documents.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
@@ -25,6 +25,8 @@ Upgrading an older installation? See [migration from familysearch](docs/setup.md
 If installation fails or your shell can't find the commands, see [installation help](docs/setup.md#installation).
 
 ## Set up credentials
+
+Storied uses Auth0 browser sign-in with PKCE and renewable native tokens. Run `fam storied auth` with configured credentials, then `fam storied verify`. Use `fam storied auth --interactive` for social login or account verification. See the [Storied guide](docs/storied/README.md) for browser setup, trees, pedigrees, stories, media, historical search, and its API catalog.
 
 Set up the services you use. `fam PROVIDER credentials` saves login details from environment variables or a configured helper; otherwise, it prompts for your username and hides the password as you type. `fam PROVIDER auth` signs in. Browser-session imports do not require saving a password.
 
@@ -121,6 +123,17 @@ fam geneanet photos --last-name Lincoln --first-name Abraham
 Geneanet uses a web password session and JSON media APIs. The [Geneanet guide](docs/geneanet/README.md) covers archival transcriptions, collections, portraits, register images, and library PDF pages, including browser-challenge and subscription limits.
 
 ## Use the commands
+
+Check your setup and diagnose provider failures:
+
+```sh
+fam doctor
+fam doctor --verbose
+fam doctor --offline
+fam doctor ancestry findmypast --json
+```
+
+Doctor verifies saved sessions online, renews them automatically when needed, and shows one row per provider with the next step for issues. `--offline` inspects local files without requests or changes, and `--verbose` shows details. Password-login cooldowns do not mark working browser sessions as blocked. Doctor never submits passwords or runs searches. See [doctor checks and recovery](docs/doctor.md) for coverage and exit codes.
 
 ```sh
 fam familysearch person PERSON_ID

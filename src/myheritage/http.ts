@@ -16,6 +16,18 @@ export class MyHeritageHttpError extends Error {
     super(`MyHeritage HTTP ${status} from ${path}`);
   }
 }
+export class MyHeritageChallengeError extends Error {
+  readonly code = 'request-challenged';
+  constructor() {
+    super('MyHeritage challenged this request with Incapsula. Check website access and complete any verification before retrying; this does not establish that your saved credentials expired.');
+    this.name = 'MyHeritageChallengeError';
+  }
+}
+export function checkMyHeritageChallenge(text: string): void {
+  if (/<iframe\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]*\/_Incapsula_Resource\b/i.test(text) || /Incapsula incident ID\s*:/i.test(text)) {
+    throw new MyHeritageChallengeError();
+  }
+}
 export class MyHeritageHttp {
   readonly jar: CookieJar;
   private readonly transport = new Impit({ browser: 'chrome', timeout: 30_000 });
@@ -52,6 +64,7 @@ export class MyHeritageHttp {
     if (options.response === 'void' || response.status === 204) { await response.text(); return result(undefined); }
     if (options.response === 'binary') return result(new Uint8Array(await response.arrayBuffer()));
     const text = await response.text();
+    checkMyHeritageChallenge(text);
     if (options.response === 'text') return result(text);
     try { return result(parseJson(text)); } catch { throw new Error(`Expected JSON from MyHeritage ${target.pathname}.`); }
   }

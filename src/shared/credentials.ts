@@ -3,7 +3,7 @@ import { Writable } from 'node:stream';
 import { execFile } from 'node:child_process';
 import { readPrivateJson, writePrivateJson } from './storage.js';
 
-export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast' | 'findagrave' | 'geneanet';
+export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast' | 'findagrave' | 'geneanet' | 'storied';
 export interface Credentials { username: string; password: string }
 
 const loginFile = (service: Service) => service === 'familysearch' ? 'login.json' : `${service}/login.json`;
@@ -70,6 +70,16 @@ export async function loadLoginCredentials(service: Service): Promise<Credential
   const saved = await readPrivateJson<unknown>(loginFile(service));
   if (saved !== undefined) return validate(saved, service);
   throw new Error(`No ${service} credentials configured. Run "fam ${service} credentials" or set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD.`);
+}
+
+/** Inspect the effective source without running a helper, prompting, or testing a password. */
+export async function inspectLoginCredentials(service: Service): Promise<'environment' | 'helper' | 'file' | 'none'> {
+  if (environmentCredentials(service)) return 'environment';
+  if (await credentialCommand()) return 'helper';
+  const saved = await readPrivateJson<unknown>(loginFile(service));
+  if (saved === undefined) return 'none';
+  validate(saved, service);
+  return 'file';
 }
 
 async function promptCredentials(service: Service): Promise<Credentials> {
