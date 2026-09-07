@@ -69,7 +69,9 @@ export async function downloadPhoto(client: FindagraveClient, memorialId: string
   if (!photo) throw new Error('Photo was not found in this memorial.');
   const url = new URL(photo.path);
   if (url.origin !== IMAGES || !url.pathname.startsWith('/photos/') || url.username || url.password || url.hash) throw new Error('Photo URL is not a Find a Grave image.');
-  const response = await client.request<Uint8Array>(url.href, {response:'binary'});
+  const response = await client.request<Uint8Array>(url.href, {response:'binary', headers:{
+    'User-Agent':'Mozilla/5.0', Referer:`https://www.findagrave.com/memorial/${encodeURIComponent(memorialId)}`, Accept:'*/*',
+  }});
   const meta = await sharp(response.data, {limitInputPixels: 200_000_000}).metadata();
   if (!meta.width || !meta.height || !['jpeg','png','webp'].includes(meta.format ?? '')) throw new Error('Response was not a supported photo.');
   await sharp(response.data).stats();

@@ -99,7 +99,7 @@ findagrave me
 
 Run `findagrave verify` to check a saved session, or `auth` to sign in again when it expires. Public searches also work with `--anonymous`, without credentials.
 
-See the [Find a Grave guide](docs/findagrave/README.md) for memorials, cemeteries, biography search, and photo download limits.
+See the [Find a Grave guide](docs/findagrave/README.md) for memorials, cemeteries, biography search, and photo downloads.
 
 ## Use the commands
 

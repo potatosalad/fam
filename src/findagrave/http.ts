@@ -43,8 +43,12 @@ export class FindagraveHttp {
     if (options.body !== undefined && !raw) headers.set('Content-Type', 'application/json');
     let response;
     try {
-      response = await this.transport.fetch(target, {method: options.method ?? 'GET', headers: Object.fromEntries(headers), redirect: 'manual',
-        ...(options.body === undefined ? {} : {body: raw ? options.body as UploadBody : stringifyJson(options.body)})});
+      // Image requests work with the standard transport and browser headers; the
+      // impersonating transport still receives a CDN challenge with those headers.
+      response = target.origin === IMAGES && options.response === 'binary' && (options.method ?? 'GET') === 'GET' && options.body === undefined
+        ? await fetch(target, {headers, redirect: 'manual', signal: AbortSignal.timeout(45_000)})
+        : await this.transport.fetch(target, {method: options.method ?? 'GET', headers: Object.fromEntries(headers), redirect: 'manual',
+          ...(options.body === undefined ? {} : {body: raw ? options.body as UploadBody : stringifyJson(options.body)})});
     } catch { throw new Error(`Find a Grave network request failed for ${target.pathname}.`); }
     if (target.origin === ORIGIN) for (const cookie of response.headers.getSetCookie()) await this.jar.setCookie(cookie, target.href);
     if (!response.ok) {

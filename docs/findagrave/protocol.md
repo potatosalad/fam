@@ -89,9 +89,11 @@ Call-site inventories retain observed URL **prefixes** where IDs/suffixes are co
 
 The optional live verifier exercises native identity/session validation, exact name/year search, search sorting/pagination, memorial relationships, photo pagination, cemetery search/details, location typeahead, public contributor profile, tags, saved/virtual/volunteer lists, and three photo-request lists. Empty results prove successful transport/response shape, not populated account features. The verifier does not execute genealogy mutations, profile edits, account-link changes, messages, photo uploads, or request claims. Reports are saved in the private configuration directory.
 
-The image downloader requests the URL returned in `photos.photos[].path`. Protocol research encountered HTTP 403 responses with `cf-mitigated: challenge` from the image CDN. The browser photo viewer worked, while direct original and thumbnail requests remained blocked. The CLI fails without saving HTML as an image. Byte decoding, source attribution, checksums, URL restrictions, and rejection of unrelated photos are tested offline. A successful CLI original-photo download remains unverified; the verifier records CDN denials as blocked downloads.
+The image downloader requests the URL returned in `photos.photos[].path`. Binary image GETs use Node's standard `fetch` with a browser user-agent, the memorial page as `Referer`, and `Accept: */*`. The impersonating API transport encountered CDN challenges even with those headers; the standard transport successfully downloaded an original photo anonymously. API requests continue to use the existing transport. Both paths strip account credentials from image requests and reject redirects.
 
-HTTP requests have a 30-second timeout and no application-level retries. Tokens are stored atomically with owner-only permissions. No automatic token rotation or cross-process refresh lock is claimed. These are private Android API contracts and may change independently of the installed CLI.
+The CLI decodes image bytes before saving them and records source attribution, dimensions, and a checksum. Tests cover credential stripping, redirect and CDN-error handling, image decoding, and rejection of unrelated photos. A denied CDN response produces no image file; the optional verifier reports it as blocked.
+
+API requests have a 30-second timeout; binary image requests have 45 seconds. Neither retries automatically. Tokens are stored atomically with owner-only permissions. No automatic token rotation or cross-process refresh lock is claimed. These are private Android API contracts and may change independently of the installed CLI.
 
 
 ## Reproduce the catalog

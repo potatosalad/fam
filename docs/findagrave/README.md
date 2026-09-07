@@ -72,7 +72,7 @@ Signed-in account commands include `my-cemeteries`, `virtual-cemeteries`, `volun
 
 ## Photos
 
-Photo metadata and pagination are supported. Direct image requests can receive HTTP 403 challenges from the image CDN; successful original-photo downloads have not been verified. If blocked, open the memorial's Photos tab in a browser.
+Photo metadata, pagination, and original-image downloads are supported. An original-photo download was verified against a public memorial without signing in. If the CDN denies a request, open the memorial's Photos tab in a browser.
 
 ```sh
 findagrave photos MEMORIAL_ID

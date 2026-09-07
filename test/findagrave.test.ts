@@ -207,12 +207,36 @@ test('Find a Grave photo paging uses returned identity and actual from/size argu
 test('Find a Grave photo downloads validate pixels and retain attribution/checksum',async()=>{
   const bytes=new Uint8Array(await sharp({create:{width:12,height:8,channels:3,background:'#abcdef'}}).jpeg().toBuffer());
   const client=new FindagraveClient(session,mock((url,o)=>{
-    if(url.startsWith(IMAGES)){assert.equal(o.headers?.fgmSeed,undefined);return bytes;}
+    if(url.startsWith(IMAGES)){
+      assert.equal(o.headers?.fgmSeed,undefined);assert.equal(o.headers?.['User-Agent'],'Mozilla/5.0');
+      assert.equal(o.headers?.Referer,'https://www.findagrave.com/memorial/example');assert.equal(o.headers?.Accept,'*/*');return bytes;
+    }
     return {data:{memorialsById:[{id:'example',photos:{total:1,photos:[{id:'photo',path:`${IMAGES}/photos/synthetic.jpg`,caption:'Synthetic image',contributor:{id:'synthetic',publicName:'Example'}}]}}]}};
   }));
   const r=await downloadPhoto(client,'example','photo');
   assert.equal(r.metadata.width,12);assert.equal(r.metadata.height,8);assert.equal(r.metadata.caption,'Synthetic image');
   assert.equal(r.metadata.sha256,createHash('sha256').update(bytes).digest('hex'));
+});
+test('Find a Grave image transport strips credentials and rejects redirects and CDN errors',async t=>{
+  let status=200,calls=0;
+  t.mock.method(globalThis,'fetch',async (url:URL,options:RequestInit)=>{
+    calls++;assert.equal(url.origin,IMAGES);assert.equal(options.redirect,'manual');
+    const headers=new Headers(options.headers);
+    for(const key of ['authorization','cookie','fgm','fgmSeed','ak'])assert.equal(headers.has(key),false);
+    assert.equal(headers.get('user-agent'),'Mozilla/5.0');assert.equal(headers.get('referer'),'https://www.findagrave.com/memorial/311');
+    return new Response(status===200?new Uint8Array([1,2,3]):'private error response',{status,headers:{location:'https://foreign.example/'}});
+  });
+  const http=new FindagraveHttp();
+  http.jar.setCookieSync('session=synthetic; Domain=.findagrave.com; Secure','https://www.findagrave.com');
+  const options:ApiRequest={response:'binary',headers:{'User-Agent':'Mozilla/5.0',Referer:'https://www.findagrave.com/memorial/311',
+    Cookie:'synthetic',authorization:'synthetic',fgm:'synthetic',fgmSeed:'synthetic',ak:'synthetic'}};
+  const r=await http.exchange<Uint8Array>(`${IMAGES}/photos/example.jpg`,options);
+  assert.deepEqual([...r.data],[1,2,3]);
+  for(const code of [302,403,429]){
+    status=code;
+    await assert.rejects(http.exchange(`${IMAGES}/photos/example.jpg`,options),e=>e instanceof FindagraveHttpError&&e.status===code&&!e.message.includes('private'));
+  }
+  assert.equal(calls,4);
 });
 test('Find a Grave photo downloads reject an unrelated photo or foreign image URL',async()=>{
   let transfers=0;
