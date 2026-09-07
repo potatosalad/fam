@@ -1,5 +1,5 @@
 /** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
-export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied'] as const;
+export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive'] as const;
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Family trees, historical records, original images, and full-text research.'},
   ancestry: {name: 'Ancestry', description: 'Family trees, people, historical records, hints, and media.'},
@@ -8,6 +8,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   findagrave: {name: 'Find a Grave', description: 'Memorials, cemeteries, relatives, biographies, and photographs.'},
   geneanet: {name: 'Geneanet', description: 'Archival records, family trees, portraits, registers, and library material.'},
   storied: {name: 'Storied', description: 'Family trees, stories, media, hints, and historical records.'},
+  newspaperarchive: {name: 'NewspaperArchive', description: 'Historical newspapers, genealogy searches, publication locations, and page OCR.'},
   cli: {name: 'CLI', description: 'Command discovery, provider information, health checks, and shell completion.'},
 };
 export type Provider = typeof providerNames[number];
@@ -28,6 +29,7 @@ export const objectDescriptions: Record<string, string> = {
   location: 'Geographic locations and location lookup.', media: 'Linked photographs and other media.',
   memorial: 'Memorials, biographies, relatives, and photographs.', 'mobile.version': 'Mobile application version information.',
   newspaper: 'Historical newspaper research.', notification: 'Account notifications.', person: 'People and genealogy profiles.',
+  page: 'Newspaper pages, source citations, and OCR text.', publication: 'Newspaper titles and publication locations.',
   'person.mobile': 'Person information through mobile API operations.', photo: 'Photographs and photo metadata.',
   'photo.request': 'Grave photograph requests.', place: 'Place names and geographic information.',
   provider: 'Available genealogy providers.', record: 'Historical records and record search.',
@@ -175,19 +177,19 @@ for (const provider of providerNames) {
   add(provider, 'credentials', 'credential set', 'Save login credentials from helper, environment, prompt, or JSON stdin.', [], 'stdin', {risk: {level: 'local', description: 'Writes private credentials and may invoke the configured credential sync helper.'}});
   add(provider, 'sync', 'credential sync', 'Run the explicitly configured credential synchronization helper.', [], '', {risk: {level: 'write', description: 'Invokes the user-configured synchronization helper, which may contact another host.'}});
   const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
-    : provider === 'findmypast' ? 'capture har browser callback-file browser-channel capture-timeout region' : provider === 'storied' ? 'interactive browser-channel' : '';
+    : provider === 'findmypast' ? 'capture har browser callback-file browser-channel capture-timeout region' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive browser-channel' : '';
   add(provider, 'auth', 'session login', 'Sign in and save a session; use the provider-specific authentication options.', [], auth, {risk: login, flags: provider === 'findmypast' ? {region: {choices: ['com', 'co.uk']}} : undefined});
   add(provider, 'status', 'session get', 'Inspect saved session metadata without tokens or live authentication.', [], '', {risk: local});
-  if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
-  if (['familysearch', 'findagrave', 'geneanet', 'storied'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
+  if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
+  if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
   if (provider !== 'ancestry') add(provider, provider === 'familysearch' ? 'whoami' : 'me', 'account get', 'Read the current account profile and available tree context.', [], provider === 'myheritage' ? 'query' : '');
   add(provider, 'ops', 'api list', 'List and filter the provider’s known API operations and aliases.', ['?filter'], '', {risk: local});
   add(provider, 'schema', 'api describe', 'Inspect the contract, inputs, response information, and availability of one provider API operation.', ['operation'], provider === 'familysearch' ? 'example' : '', {risk: local});
-  if (!['familysearch', 'geneanet', 'storied'].includes(provider)) {
+  if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive'].includes(provider)) {
     add(provider, 'gql', 'api.gql query', 'Execute a cataloged GraphQL query or mutation with variables.', ['operation', '?variables'], '', {risk: api});
     if (provider !== 'ancestry') add(provider, 'query', 'api.gql execute', 'Execute a custom GraphQL document from a file.', ['document', '?variables'], '', {risk: api});
   }
-  if (provider !== 'geneanet') add(provider, 'call', 'api call', 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
+  if (!['geneanet', 'newspaperarchive'].includes(provider)) add(provider, 'call', 'api call', 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
     provider === 'familysearch' ? ['operation'] : ['operation', '?input'], provider === 'familysearch' ? 'input query' : provider === 'ancestry' ? 'query base' : ['myheritage', 'findmypast'].includes(provider) ? 'query' : '',
     {risk: api, flags: provider === 'familysearch' ? {input: {description: 'JSON input file or - for stdin.'}, query: {multiple: true, description: 'Typed key=value query binding; repeatable.'}} : undefined});
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});
@@ -320,8 +322,20 @@ for (const [legacy, objectAction, description, args] of [
 }
 add('storied', 'model', 'api.model get', 'Read a recovered model schema.', ['name'], '', {risk: local});
 
+add('newspaperarchive', 'search', 'newspaper search', 'Search newspaper OCR for ancestors, obituaries, births, marriages, names, and keywords.', [],
+  'first-name last-name keyword phrase any-words exclude-words country-id state-id city-id publication-id from to page limit',
+  {pagination: paging, flags: {limit: {default: 20, maximum: 100},
+    from: {description: 'Start publication date, YYYY-MM-DD; use with --to.'}, to: {description: 'End publication date, YYYY-MM-DD; use with --from.'}}});
+add('newspaperarchive', 'publications', 'publication search', 'Find newspaper titles and places with publication and location IDs.', ['name'], 'page limit', {pagination: paging, flags: {limit: {maximum: 100}}});
+add('newspaperarchive', 'locations', 'location list', 'List countries, or narrow to states, cities, and newspapers using location IDs.', [], 'country-id state-id city-id');
+add('newspaperarchive', 'page', 'page get', 'Read newspaper page metadata, a source citation, and available OCR.', ['url']);
+add('newspaperarchive', 'transcript', 'page transcript', 'Read machine OCR text and citation from a newspaper page.', ['url']);
+add('newspaperarchive', 'ocr', 'page ocr', 'Read provider OCR by image ID and optional article ID; availability depends on the provider.', ['image-id'], 'article-id');
+add('newspaperarchive', 'dates', 'publication dates', 'Browse available years, months, or issue dates for a newspaper.', ['publication-id'], 'year month');
+add('newspaperarchive', 'call', 'api call', 'Execute a supported NewspaperArchive read operation through the Storied API.', ['operation', '?input']);
+
 // Anonymous mode is limited to providers and workflows that already support it.
-for (const cmd of registry) if (['findmypast', 'findagrave', 'geneanet', 'storied'].includes(cmd.provider)
+for (const cmd of registry) if (['findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive'].includes(cmd.provider)
   && !['credential', 'session', 'account'].includes(cmd.object)) cmd.flags.push(flag('anonymous'));
 
 const cliRisk: Extras = {risk: local};

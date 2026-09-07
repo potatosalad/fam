@@ -43,6 +43,8 @@ To uninstall completion, remove the marked `fam bash completion` or `fam zsh com
 
 ## Credential lookup
 
+NewspaperArchive shares Storied authentication: use `STORIED_USERNAME` and `STORIED_PASSWORD`. Its credential helper receives `storied`, and both providers use `storied/login.json` and `storied/session.json`. See the [NewspaperArchive guide](newspaperarchive/README.md).
+
 When a login is needed, fam reads its username and password from the environment first, then an explicitly configured credential helper, then its saved login file. A partial or empty environment pair is an error. API commands never prompt for a password.
 
 `fam PROVIDER.credential set` is explicit setup: it uses environment values, then a configured helper, then a hidden interactive prompt. It saves the resulting login details rather than reusing an existing login file. `credentials --stdin` uses only the supplied JSON.

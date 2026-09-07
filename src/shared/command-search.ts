@@ -72,6 +72,8 @@ export function resolveContext(input: string, provider?: string): Context {
   } else if (detected === 'findmypast') {
     const id = url.searchParams.get('id');
     if (id) return {...result, object: 'record', flags: {'record-id': id}};
+  } else if (detected === 'newspaperarchive' && /-p-\d+\/?$/.test(path)) {
+    return {...result, object: 'page', flags: {url: url.href}};
   }
   return {...result, note: 'Provider recognized; this URL shape has no unambiguous parameter mapping yet.'};
 }

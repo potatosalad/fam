@@ -11,6 +11,7 @@ const providers = {
   familysearch: () => import('./familysearch/cli.js'), ancestry: () => import('./ancestry/cli.js'),
   myheritage: () => import('./myheritage/cli.js'), findmypast: () => import('./findmypast/cli.js'),
   findagrave: () => import('./findagrave/cli.js'), geneanet: () => import('./geneanet/cli.js'), storied: () => import('./storied/cli.js'),
+  newspaperarchive: () => import('./newspaperarchive/cli.js'),
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {
   const {command, values: v} = invocation;
@@ -82,7 +83,7 @@ async function main() {
   else if (command.binding.command[0] === 'sync') {
     const {syncCredentials} = await import('./shared/credential-sync.js');
     const {CREDENTIAL_DIR} = await import('./shared/storage.js');
-    if (!await syncCredentials(command.provider, CREDENTIAL_DIR)) throw new Error('No credential sync helper is configured. Set credentialsSyncCommand in config.json.');
+    if (!await syncCredentials(command.provider === 'newspaperarchive' ? 'storied' : command.provider, CREDENTIAL_DIR)) throw new Error('No credential sync helper is configured. Set credentialsSyncCommand in config.json.');
     data = {synced: true, provider: command.provider};
   } else data = await (await providers[command.provider]()).runProvider(invocation.args);
   const envelope = {schemaVersion: 1, ok: true, command: command.id, data: data ?? null,

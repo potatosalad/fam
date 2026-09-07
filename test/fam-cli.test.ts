@@ -131,7 +131,7 @@ test('every old provider command has a unique registered mapping', async () => {
     assert.ok(command.description && command.examples.length && command.outputSchema && command.risk);
     assert.ok(!command.flags.some(f => f.name === 'confirm'));
   }
-  for (const provider of providerNames) for (const old of before[provider].commands) {
+  for (const provider of providerNames) for (const old of before[provider]?.commands ?? []) {
     assert.equal(commands.filter(c => c.provider === provider && c.binding.command.join(' ') === old).length, 1, `${provider} ${old}`);
   }
 });

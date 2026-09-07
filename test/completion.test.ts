@@ -25,7 +25,7 @@ await writeFile(cli, `#!/bin/sh\nexec ${[process.execPath, ...sourceArgs].map(qu
 
 test('completion covers dotted objects, actions, flags and option values from the registry', () => {
   assert.deepEqual(query('familysearch.im').candidates, ['familysearch.image']);
-  for (const provider of ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied']) {
+  for (const provider of ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive']) {
     assert.ok(query('').candidates.includes(`${provider}.session`));
     assert.ok(query(`${provider}.session`, '').candidates.includes('login'));
     assert.ok(query(`${provider}.session`, 'get', '--').candidates.includes('--out'));

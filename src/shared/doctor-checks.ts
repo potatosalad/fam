@@ -69,7 +69,7 @@ export function failure(error: unknown, recovery: string): Pick<DoctorCheck, 'st
   const e = object(error), message = error instanceof Error ? error.message : '';
   const code: IssueCode = error instanceof DoctorIssue ? error.code
     : e.name === 'MyHeritageChallengeError' ? 'request-challenged'
-    : e.name === 'GeneanetError' && ['session-rejected', 'verification-required', 'api-changed'].includes(e.code) ? e.code
+    : ['GeneanetError', 'NewspaperArchiveError'].includes(e.name) && ['session-rejected', 'verification-required', 'api-changed'].includes(e.code) ? e.code
     : e.status === 401 ? 'session-rejected'
     : e.status === 403 || e.status === 451 ? 'access-denied'
     : e.status === 406 || e.name === 'MyHeritageResearchVerificationError' ? 'verification-required'

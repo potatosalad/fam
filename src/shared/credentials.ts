@@ -3,7 +3,7 @@ import { Writable } from 'node:stream';
 import { execFile } from 'node:child_process';
 import { readPrivateJson, writePrivateJson } from './storage.js';
 
-export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast' | 'findagrave' | 'geneanet' | 'storied';
+export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast' | 'findagrave' | 'geneanet' | 'storied' | 'newspaperarchive';
 export interface Credentials { username: string; password: string }
 
 const loginFile = (service: Service) => service === 'familysearch' ? 'login.json' : `${service}/login.json`;
@@ -63,6 +63,7 @@ async function commandCredentials(service: Service): Promise<Credentials | undef
 
 /** Never prompts. External lookup runs only when the user explicitly configures a command. */
 export async function loadLoginCredentials(service: Service): Promise<Credentials> {
+  if (service === 'newspaperarchive') service = 'storied';
   const environment = environmentCredentials(service);
   if (environment) return environment;
   const external = await commandCredentials(service);
@@ -74,6 +75,7 @@ export async function loadLoginCredentials(service: Service): Promise<Credential
 
 /** Inspect the effective source without running a helper, prompting, or testing a password. */
 export async function inspectLoginCredentials(service: Service): Promise<'environment' | 'helper' | 'file' | 'none'> {
+  if (service === 'newspaperarchive') service = 'storied';
   if (environmentCredentials(service)) return 'environment';
   if (await credentialCommand()) return 'helper';
   const saved = await readPrivateJson<unknown>(loginFile(service));
@@ -125,6 +127,7 @@ async function stdinCredentials(service: Service): Promise<Credentials> {
 
 /** Explicit setup replaces saved login details; sign in again to switch accounts. */
 export async function configureCredentials(service: Service, options: { stdin?: boolean } = {}): Promise<Credentials> {
+  if (service === 'newspaperarchive') service = 'storied';
   const credentials = options.stdin ? await stdinCredentials(service)
     : environmentCredentials(service) ?? await commandCredentials(service) ?? await promptCredentials(service);
   await writePrivateJson(loginFile(service), credentials);

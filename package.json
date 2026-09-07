@@ -2,7 +2,7 @@
   "name": "@potatosalad/fam",
   "version": "0.3.2",
   "type": "module",
-  "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, and Storied",
+  "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, and NewspaperArchive",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
@@ -91,6 +91,10 @@
     "./storied": {
       "types": "./dist/storied/index.d.ts",
       "import": "./dist/storied/index.js"
+    },
+    "./newspaperarchive": {
+      "types": "./dist/newspaperarchive/index.d.ts",
+      "import": "./dist/newspaperarchive/index.js"
     }
   },
   "files": [
