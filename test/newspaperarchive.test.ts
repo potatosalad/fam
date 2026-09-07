@@ -23,11 +23,11 @@ function fake(call: (name: string, input?: CallInput) => Promise<unknown>) {retu
 
 test('name, keyword, date and location filters use the NewspaperArchive native contract', () => {
   const query = searchQuery({firstName: ' Ada ', lastName: "O'Neil & Co", keyword: 'birth marriage', phrase: 'Ada O’Neil', anyWords: 'wedding obituary', excludeWords: 'advertisement',
-    countryId: '7', stateId: '37', cityId: '5196', publicationId: '123', from: '1865-04-14', to: '1865-04-16', page: 2, limit: 3});
-  assert.deepEqual(query, {PN:2,PS:3,FN:'Ada',LN:"O'Neil & Co",'K.AL':'birth marriage','K.EX':'Ada O’Neil','K.AN':'wedding obituary','K.WO':'advertisement',
+    countryId: '7', stateId: '37', cityId: '5196', publicationId: '123', from: '1865-04-14', to: '1865-04-16', page: 2, limit: 10});
+  assert.deepEqual(query, {PN:2,PS:10,FN:'Ada',LN:"O'Neil & Co",'K.AL':'birth marriage','K.EX':'Ada O’Neil','K.AN':'wedding obituary','K.WO':'advertisement',
     'L.CU':'7','L.ST':'37','L.CI':'5196','L.PID':'123','DT.DFT':'between','DT.Y':'1865','DT.M':'4','DT.D':'14','DT.EY':'1865','DT.EM':'4','DT.ED':'16'});
   for (const options of [{}, {lastName:'Smith',from:'1900-01-01'}, {lastName:'Smith',from:'1900-02-30',to:'1901-01-01'},
-    {lastName:'Smith',from:'1901-01-01',to:'1900-01-01'}, {lastName:'Smith',countryId:'../x'}, {lastName:'Smith',limit:0}, {lastName:'Smith',limit:101}, {lastName:'Smith',page:1.5}]) assert.throws(() => searchQuery(options));
+    {lastName:'Smith',from:'1901-01-01',to:'1900-01-01'}, {lastName:'Smith',countryId:'../x'}, {lastName:'Smith',limit:3}, {lastName:'Smith',limit:0}, {lastName:'Smith',limit:101}, {lastName:'Smith',page:1.5}]) assert.throws(() => searchQuery(options));
 });
 
 test('search preserves snippets and masking and returns honest single-page continuation', async () => {
@@ -35,10 +35,10 @@ test('search preserves snippets and masking and returns honest single-page conti
   const record = {imageId:123,publicationTitle:'Fixture Gazette',description:'<b>Ada</b> married',isMasked:true};
   const client = new NewspaperArchiveClient(fake(async (name, input) => {
     calls++; assert.equal(name, operations.search); assert.equal(input?.query?.PN, 2);
-    return {data:{resultCount:7,searchResults:[record]},error:null};
+    return {data:{resultCount:25,searchResults:[record]},error:null};
   }));
-  const results = await client.search({lastName:'Smith',page:2,limit:3});
-  assert.deepEqual(results.searchResults, [{...record,sourceUrl:null}]); assert.equal(results.nextPage,3); assert.equal(results.limit,3); assert.equal(calls,1);
+  const results = await client.search({lastName:'Smith',page:2,limit:10});
+  assert.deepEqual(results.searchResults, [{...record,sourceUrl:null}]); assert.equal(results.nextPage,3); assert.equal(results.limit,10); assert.equal(calls,1);
   const empty = new NewspaperArchiveClient(fake(async () => ({data:{resultCount:0,searchResults:null}})));
   assert.deepEqual((await empty.search({keyword:'fixture'})).searchResults,[]);
   assert.equal((await empty.search({keyword:'fixture'})).nextPage,null);
@@ -136,7 +136,7 @@ test('public page transport sends no account credentials and blocks foreign redi
 });
 
 test('CLI discovery uses named flags, resolves page URLs, and writes private offline status', async () => {
-  assert.equal(parseInvocation(['newspaperarchive.newspaper','search','--last-name','Smith','--limit','3']).command.provider,'newspaperarchive');
+  assert.equal(parseInvocation(['newspaperarchive.newspaper','search','--last-name','Smith','--limit','10']).command.provider,'newspaperarchive');
   assert.deepEqual(resolveContext(url).flags,{url});
   const out=join(CREDENTIAL_DIR,'newspaper-status.json');
   assert.deepEqual(await runProvider(['status','--out',out]),{saved:out});

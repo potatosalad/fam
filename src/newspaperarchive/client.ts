@@ -32,7 +32,9 @@ function date(value: string) {
 }
 export function searchQuery(options: SearchOptions = {}): Record<string, string | number> {
   if (![options.firstName, options.lastName, options.keyword, options.phrase, options.anyWords, options.publicationId].some(v => v?.trim())) throw new Error('Supply a name, keyword, phrase, or publication ID.');
-  const query: Record<string, string | number> = {PN: integer(options.page ?? 1, 1, 1_000_000), PS: integer(options.limit ?? 20)};
+  const limit = options.limit ?? 20;
+  if (![10,20,30,50].includes(limit)) throw new Error('Search limit must be 10, 20, 30, or 50; the provider uses fixed page sizes.');
+  const query: Record<string, string | number> = {PN: integer(options.page ?? 1, 1, 1_000_000), PS: limit};
   for (const [key, value] of Object.entries({FN: options.firstName, LN: options.lastName, 'K.AL': options.keyword, 'K.EX': options.phrase, 'K.AN': options.anyWords, 'K.WO': options.excludeWords})) if (value?.trim()) query[key] = value.trim();
   for (const [key, value] of Object.entries({'L.CU': options.countryId, 'L.ST': options.stateId, 'L.CI': options.cityId, 'L.PID': options.publicationId})) if (value !== undefined) {id(value); query[key] = value;}
   if (!!options.from !== !!options.to) throw new Error('Use --from and --to together for a publication date range.');

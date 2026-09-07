@@ -324,7 +324,7 @@ add('storied', 'model', 'api.model get', 'Read a recovered model schema.', ['nam
 
 add('newspaperarchive', 'search', 'newspaper search', 'Search newspaper OCR for ancestors, obituaries, births, marriages, names, and keywords.', [],
   'first-name last-name keyword phrase any-words exclude-words country-id state-id city-id publication-id from to page limit',
-  {pagination: paging, flags: {limit: {default: 20, maximum: 100},
+  {pagination: paging, flags: {limit: {default: 20, choices: ['10','20','30','50']},
     from: {description: 'Start publication date, YYYY-MM-DD; use with --to.'}, to: {description: 'End publication date, YYYY-MM-DD; use with --from.'}}});
 add('newspaperarchive', 'publications', 'publication search', 'Find newspaper titles and places with publication and location IDs.', ['name'], 'page limit', {pagination: paging, flags: {limit: {maximum: 100}}});
 add('newspaperarchive', 'locations', 'location list', 'List countries, or narrow to states, cities, and newspapers using location IDs.', [], 'country-id state-id city-id');

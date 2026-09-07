@@ -25,7 +25,7 @@ fam newspaperarchive.newspaper search --phrase 'Mary Smith' --any-words 'married
 fam newspaperarchive.newspaper search --last-name Smith --country-id 7 --state-id 37 --page 2 --limit 20 --json
 ```
 
-Names, all words (`--keyword`), exact phrases, any words, and excluded words can be combined. Location and publication IDs narrow the search. Both `--from` and `--to` are required for an inclusive publication date range; use `YYYY-MM-DD`. Pages start at 1; `--limit` is 1–100, default 20. Each invocation fetches one page, with `nextPage` and the provider's result count.
+Names, all words (`--keyword`), exact phrases, any words, and excluded words can be combined. Location and publication IDs narrow the search. Both `--from` and `--to` are required for an inclusive publication date range; use `YYYY-MM-DD`. Pages start at 1; `--limit` is 10, 20, 30, or 50, default 20. Smaller or arbitrary page sizes are rejected because the service silently substitutes its default. Each invocation fetches one page, with `nextPage` and the provider's result count.
 
 Results preserve publication title, date, location, page number, image ID, article ID, OCR snippets, thumbnail URL, and `isMasked`. A `sourceUrl` is derived from a recognized provider thumbnail path and page number; otherwise it is null. Use it with `page transcript` to read and cite the matching page. **Masked results remain masked**; successful search or login does not establish access to every scan. Obituaries, births and marriage announcements can be found with names and keywords; this initial provider does not pretend to offer an independently indexed obituary collection.
 
