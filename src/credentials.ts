@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { readPrivateJson, writePrivateJson } from './storage.js';
 
-export type Service = 'familysearch' | 'ancestry' | 'myheritage';
+export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast';
 export interface Credentials { username: string; password: string }
 
 const loginFile = (service: Service) => service === 'familysearch' ? 'login.json' : `${service}/login.json`;

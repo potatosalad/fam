@@ -2,7 +2,7 @@
   "name": "@potatosalad/familysearch",
   "version": "0.1.0",
   "type": "module",
-  "description": "TypeScript clients and command-line tools for FamilySearch, Ancestry, and MyHeritage",
+  "description": "TypeScript clients and command-line tools for FamilySearch, Ancestry, MyHeritage, and Findmypast",
   "scripts": {
     "fs": "tsx src/cli.ts",
     "ancestry": "tsx src/ancestry/cli.ts",
@@ -25,7 +25,11 @@
     "prepare": "npm run build",
     "generate:catalogs": "python3 scripts/generate-catalogs.py",
     "check:catalogs": "python3 scripts/generate-catalogs.py --check",
-    "check": "npm run typecheck && npm run test:types && npm run check:generated && npm run check:catalogs && npm test && npm run build"
+    "check": "npm run typecheck && npm run test:types && npm run check:generated && npm run check:catalogs && npm test && npm run build",
+    "findmypast": "tsx src/findmypast/cli.ts",
+    "extract:findmypast": "python3 scripts/extract-findmypast.py",
+    "check:findmypast": "python3 scripts/extract-findmypast.py --check",
+    "verify:findmypast": "tsx scripts/verify-findmypast.ts"
   },
   "engines": {
     "node": ">=22.16"
@@ -50,7 +54,8 @@
   "bin": {
     "familysearch": "bin/familysearch.mjs",
     "ancestry": "bin/ancestry.mjs",
-    "myheritage": "bin/myheritage.mjs"
+    "myheritage": "bin/myheritage.mjs",
+    "findmypast": "bin/findmypast.mjs"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -66,6 +71,10 @@
     "./myheritage": {
       "types": "./dist/myheritage/index.d.ts",
       "import": "./dist/myheritage/index.js"
+    },
+    "./findmypast": {
+      "types": "./dist/findmypast/index.d.ts",
+      "import": "./dist/findmypast/index.js"
     }
   },
   "files": [

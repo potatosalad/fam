@@ -8,6 +8,7 @@ Use Node.js 22.16 or newer, npm, and Python 3. Run `npm ci` to install dependenc
 npm run fs -- --help
 npm run ancestry -- --help
 npm run myheritage -- --help
+npm run findmypast -- --help
 ```
 
 These commands use the public checkout. They do not call a globally installed CLI.
@@ -29,15 +30,15 @@ npm run generate
 npm run generate:catalogs
 ```
 
-The first command generates FamilySearch code and reference docs. The second generates Ancestry and MyHeritage catalogs. Both use checked-in JSON and need no APK or decompiler.
+The first command generates FamilySearch code and reference docs. The second generates Ancestry, MyHeritage, and Findmypast catalogs. Both use checked-in JSON and need no APK or decompiler.
 
-The extraction scripts need the APK and disassembly files described in the provider protocol notes. `check:ancestry` and `check:myheritage` compare against those local artifacts, so they are separate from the usual checks.
+The extraction scripts need the APK and disassembly files described in the provider protocol notes. `check:ancestry`, `check:myheritage`, and `check:findmypast` compare against those local artifacts, so they are separate from the usual checks. See the [Findmypast protocol](findmypast/protocol.md#reproduce-the-catalog) for its extraction steps.
 
 ## Packaging
 
 `npm pack --dry-run` lists the files npm will install. To build a distributable archive, run `npm pack` and install the resulting `.tgz` file with `npm install --global /path/to/archive.tgz`.
 
-Check all three commands from outside the checkout after changing packaging. Use a temporary npm prefix and configuration directory to avoid replacing another installation or using real credentials.
+Check all four commands from outside the checkout after changing packaging. Use a temporary npm prefix and configuration directory to avoid replacing another installation or using real credentials.
 
 ## Live verification
 
@@ -49,8 +50,9 @@ npm run verify:research
 npm run verify:ancestry
 npm run verify:myheritage
 npm run verify:myheritage:research
+npm run verify:findmypast
 ```
 
-Run only the checks for services you have set up. They are not part of `npm test` or CI. MyHeritage record searches may update recent-search history.
+Run only the checks for services you have set up. They are not part of `npm test` or CI. MyHeritage record searches may update recent-search history. Findmypast uses an existing session and samples account, tree, record, newspaper, and image reads; `npm run verify:findmypast -- --anonymous` runs only its public-endpoint checks. Neither mode attempts password login or confirms credit purchases.
 
 Account reports go into the private configuration directory. Document checks save downloads under the checkout's ignored `artifacts/` directory and print a summary. Keep live reports, HARs, credentials, and personal exports out of commits.

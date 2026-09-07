@@ -1,6 +1,6 @@
 # FamilySearch CLI
 
-Command-line tools for FamilySearch, Ancestry, and MyHeritage. Browse family trees, search historical records, and download original documents.
+Command-line tools for FamilySearch, Ancestry, MyHeritage, and Findmypast. Browse family trees, search historical records, and download original documents.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
@@ -15,7 +15,7 @@ npm ci
 npm install --global .
 ```
 
-This installs `familysearch`, `ancestry`, and `myheritage` from the checkout. Keep the directory in place. To update, run `git pull` and `npm ci` in it.
+This installs `familysearch`, `ancestry`, `myheritage`, and `findmypast` from the checkout. Keep the directory in place. To update, run `git pull` and `npm ci` in it. Run `npm install --global .` again to link any newly added commands.
 
 If installation fails or your shell can't find the commands, see [installation help](docs/setup.md#installation).
 
@@ -69,6 +69,24 @@ Delete the HAR after importing it. It contains session credentials. If MyHeritag
 
 Browser sessions support tree browsing and historical-record research. See the [MyHeritage guide](docs/myheritage/README.md) for native login and other limitations.
 
+### Findmypast
+
+Import a browser session:
+
+1. Sign in at Findmypast on `.com` or `.co.uk` and open Developer Tools, then the Network tab.
+2. Load the family-tree page. Check that the log includes a successful `/titan/marshal/graphql` request.
+3. Export a HAR including sensitive data and save it outside Git.
+4. Import it:
+
+```sh
+findmypast auth --har /path/to/session.har
+findmypast me
+```
+
+Delete the HAR after importing it. It contains session credentials. Import a fresh HAR when the session expires; browser import does not require saving your password.
+
+See the [Findmypast guide](docs/findmypast/README.md) for native login, record and newspaper searches, and image downloads.
+
 ## Use the commands
 
 ```sh
@@ -80,6 +98,9 @@ ancestry search --given Abraham --surname Lincoln --birth-year 1809
 
 myheritage search --first-name Abraham --last-name Lincoln --birth-year 1809
 myheritage collections census
+
+findmypast search --first-name Ada --last-name Lovelace --birth-year 1815
+findmypast newspapers --name "Ada Lovelace" --country England
 ```
 
 Replace `PERSON_ID` and `IMAGE_ARK` with IDs from the service. Each CLI accepts `--help`. Commands print JSON by default; use `--out FILE` to save results. Keep personal data outside Git.
@@ -90,6 +111,7 @@ The `call` and `gql` commands can execute writes and deletions. Check the operat
 - [FamilySearch images, films, full-text search, and transcripts](docs/document-research.md)
 - [Ancestry commands](docs/ancestry/README.md)
 - [MyHeritage record research](docs/myheritage/research.md)
+- [Findmypast commands](docs/findmypast/README.md)
 - [TypeScript API](docs/typescript.md)
 
 ## Configuration
@@ -105,6 +127,7 @@ For scripts, set both environment variables for the service:
 | FamilySearch | `FAMILYSEARCH_USERNAME` | `FAMILYSEARCH_PASSWORD` |
 | Ancestry | `ANCESTRY_USERNAME` | `ANCESTRY_PASSWORD` |
 | MyHeritage | `MYHERITAGE_USERNAME` | `MYHERITAGE_PASSWORD` |
+| Findmypast | `FINDMYPAST_USERNAME` | `FINDMYPAST_PASSWORD` |
 
 Environment credentials take precedence over saved passwords. Existing sessions remain active until a new login is needed or you run `auth`. The CLIs do not load `.env` files.
 

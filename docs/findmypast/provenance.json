@@ -1,0 +1,31 @@
+{
+  "package": "com.findmypast.prod",
+  "versionName": "2.59.0",
+  "versionCode": 259000,
+  "downloadedAt": "2026-09-07",
+  "playStore": "https://play.google.com/store/apps/details?id=com.findmypast.prod&hl=en_US",
+  "downloadSource": "https://d.apkpure.net/b/XAPK/com.findmypast.prod?version=latest",
+  "pinnedDownload": "https://d.apkpure.net/b/XAPK/com.findmypast.prod?versionCode=259000&nc=arm64-v8a&sv=32",
+  "xapkSha256": "17362c07c7753c0f6c6f820550b96faa859c57a1dab25274441aaf6024e05f6a",
+  "baseApkSha256": "871582437e67cf243a73d50abc861fbb172fd0bd7b048f04444be8852b7a1d07",
+  "xapkBytes": 22685073,
+  "minSdk": 32,
+  "targetSdk": 37,
+  "apkSignatureVerified": true,
+  "signatureScheme": "v3",
+  "signerCertificateSha256": "d3d03c2dca6504ca85fb9675c33239bbc7db9ad9ec0e7977b949994745448354",
+  "sourceStampCertificateSha256": "3257d599a49d2c961a471ca9843f59d341a405884583fc087df4237b733bbd6d",
+  "tools": {
+    "apktool": "3.0.2",
+    "jadxMode": "simple",
+    "jadxIncompleteMethods": 8,
+    "apksigner": "Android SDK build-tools 37.0.0"
+  },
+  "analysis": "Complete smali is authoritative for contracts; Java and decoded resources establish routing and call sites. APK code was not installed or executed.",
+  "limitations": "Artifact obtained from a mirror, not directly downloaded from an authenticated Play account. Cryptographic integrity and embedded signature/source stamp verified; no separate official publisher-certificate comparison was available. No claim this is the latest Play release.",
+  "counts": {
+    "graphql": 110,
+    "rest": 17,
+    "inputFieldInventories": 12
+  }
+}

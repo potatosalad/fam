@@ -1,0 +1,2999 @@
+{
+  "apkVersion": "2.59.0",
+  "models": [
+    {
+      "name": "CreateFamilyTreePersonFactInput",
+      "fields": [
+        "temporaryId",
+        "sources",
+        "place",
+        "factTypeId",
+        "dateDetail",
+        "description"
+      ],
+      "source": "analysis/findmypast/smali/smali/bu1.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "DeselectionInput",
+      "fields": [
+        "deselectedFacts",
+        "deselectedFamilyFacts",
+        "deselectedPersonFacts",
+        "deselectedPersons"
+      ],
+      "source": "analysis/findmypast/smali/smali/fk2.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "Filter",
+      "fields": [
+        "field",
+        "values",
+        "proximity",
+        "variants",
+        "offset"
+      ],
+      "source": "analysis/findmypast/smali/smali/di3.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "MergeTreeAssistSuggestionInput",
+      "fields": [
+        "targetReference",
+        "person",
+        "suggestionId",
+        "ahnenDab",
+        "familyId",
+        "emitTreeAssistEvent"
+      ],
+      "source": "analysis/findmypast/smali/smali/ow6.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "NewspaperSearchDateInput",
+      "fields": [
+        "from",
+        "to"
+      ],
+      "source": "analysis/findmypast/smali/smali/cc7.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "NewspaperSearchLocationInput",
+      "fields": [
+        "county",
+        "place",
+        "country"
+      ],
+      "source": "analysis/findmypast/smali/smali/jc7.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "NewspaperSearchOrderingInput",
+      "fields": [
+        "by",
+        "direction"
+      ],
+      "source": "analysis/findmypast/smali/smali/lc7.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "PersonInput",
+      "fields": [
+        "givenNames",
+        "surnames",
+        "gender",
+        "genderIdentity",
+        "genderPronouns",
+        "genderAvatar",
+        "isLiving",
+        "birthDate",
+        "deathDate",
+        "birthPlace",
+        "deathPlace"
+      ],
+      "source": "analysis/findmypast/smali/smali/dw7.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "RecordSearchOrder",
+      "fields": [
+        "by",
+        "direction"
+      ],
+      "source": "analysis/findmypast/smali/smali/ds8.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "SearchFilter",
+      "fields": [
+        "field",
+        "offset",
+        "proximity",
+        "values",
+        "variants"
+      ],
+      "source": "analysis/findmypast/smali/smali/cd9.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "SignUpSurveyAnswers",
+      "fields": [
+        "experience",
+        "usageType",
+        "projectType",
+        "interests",
+        "skipped"
+      ],
+      "source": "analysis/findmypast/smali/smali/ux9.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    },
+    {
+      "name": "TreeAssistSuggestionV2ArgsFlan",
+      "fields": [
+        "focus",
+        "mother",
+        "father",
+        "familyTreeId"
+      ],
+      "source": "analysis/findmypast/smali/smali/z5b.smali",
+      "note": "Input field inventory from toString; not a complete server SDL or required-field schema."
+    }
+  ],
+  "rest": [
+    {
+      "id": "rest.cj.a",
+      "owner": "cj",
+      "method": "POST",
+      "path": "app/logs",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Body",
+          "name": null,
+          "type": "Ljava/util/List;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract a(Ljava/lang/String;Ljava/util/List;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/cj.smali"
+    },
+    {
+      "id": "rest.cj.b",
+      "owner": "cj",
+      "method": "POST",
+      "path": "app/logs",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "x-signature",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Body",
+          "name": null,
+          "type": "Ljava/util/List;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract b(Ljava/lang/String;Ljava/util/List;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/cj.smali"
+    },
+    {
+      "id": "rest.cj.c",
+      "owner": "cj",
+      "method": "POST",
+      "path": "app/metrics",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "x-signature",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Body",
+          "name": null,
+          "type": "Lta5;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract c(Ljava/lang/String;Lta5;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/cj.smali"
+    },
+    {
+      "id": "rest.cj.d",
+      "owner": "cj",
+      "method": "POST",
+      "path": "app/metrics",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Body",
+          "name": null,
+          "type": "Lta5;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract d(Ljava/lang/String;Lta5;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/cj.smali"
+    },
+    {
+      "id": "rest.eh7.a",
+      "owner": "eh7",
+      "method": "GET",
+      "path": "obscura/api/image/coordinates",
+      "parameters": [
+        {
+          "kind": "Query",
+          "name": "stringToHighlight",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "articleKey",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract a(Ljava/lang/String;Ljava/lang/String;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/eh7.smali"
+    },
+    {
+      "id": "rest.eh7.b",
+      "owner": "eh7",
+      "method": "GET",
+      "path": "record-gateway/image/{id}/detail.json",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Path",
+          "name": "id",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract b(Ljava/lang/String;Ljava/lang/String;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/eh7.smali"
+    },
+    {
+      "id": "rest.eh7.c",
+      "owner": "eh7",
+      "method": "GET",
+      "path": "obscura/api/manifest/fn/{id}",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Path",
+          "name": "id",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract c(Ljava/lang/String;Ljava/lang/String;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/eh7.smali"
+    },
+    {
+      "id": "rest.eh7.d",
+      "owner": "eh7",
+      "method": "POST",
+      "path": "obscura/api/clipping/store",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Body",
+          "name": null,
+          "type": "Ldt1;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract d(Ljava/lang/String;Ldt1;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/eh7.smali"
+    },
+    {
+      "id": "rest.eh7.e",
+      "owner": "eh7",
+      "method": "GET",
+      "path": "obscura/api/manifest/{publication}/{issue}",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Path",
+          "name": "publication",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Path",
+          "name": "issue",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/eh7.smali"
+    },
+    {
+      "id": "rest.hl0.a",
+      "owner": "hl0",
+      "method": "GET",
+      "path": "api/v2/documents/search",
+      "parameters": [
+        {
+          "kind": "Query",
+          "name": "ref",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "q",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "page",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "pageSize",
+          "type": "I",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract a(Ljava/lang/String;Ljava/lang/String;IILcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/hl0.smali"
+    },
+    {
+      "id": "rest.hl0.b",
+      "owner": "hl0",
+      "method": "GET",
+      "path": "api/v2/documents/search",
+      "parameters": [
+        {
+          "kind": "Query",
+          "name": "ref",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "q",
+          "type": "Ljava/util/List;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "orderings",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "page",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "pageSize",
+          "type": "I",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract b(Ljava/lang/String;Ljava/util/List;Ljava/lang/String;IILcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/hl0.smali"
+    },
+    {
+      "id": "rest.hl0.c",
+      "owner": "hl0",
+      "method": "GET",
+      "path": "api/v2",
+      "parameters": [],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract c(Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/hl0.smali"
+    },
+    {
+      "id": "rest.w40.a",
+      "owner": "w40",
+      "method": "GET",
+      "path": "GetAsset",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "assetId",
+          "type": "J",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "aspect",
+          "type": "I",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract a(Ljava/lang/String;JILcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/w40.smali"
+    },
+    {
+      "id": "rest.w40.b",
+      "owner": "w40",
+      "method": "PUT",
+      "path": "DetachEntitysFromAssets",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "assetIds",
+          "type": "J",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "entitys",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract b(Ljava/lang/String;JLjava/lang/String;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/w40.smali"
+    },
+    {
+      "id": "rest.w40.c",
+      "owner": "w40",
+      "method": "PUT",
+      "path": "SetProfileImage",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Header",
+          "name": "Family-Tree-Ref",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "assetId",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "entityKey",
+          "type": "J",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract c(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/w40.smali"
+    },
+    {
+      "id": "rest.w40.d",
+      "owner": "w40",
+      "method": "GET",
+      "path": "GetAssetsByEntity",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "entityKey",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "assetTypeId",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "itemsPerPage",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "pageNumber",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "familyTreeType",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "entityTypeId",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "aspect",
+          "type": "I",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "width",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "height",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "json",
+      "signature": "public abstract d(Ljava/lang/String;IIIIIIILjava/lang/String;Ljava/lang/String;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/w40.smali"
+    },
+    {
+      "id": "rest.w40.e",
+      "owner": "w40",
+      "method": "POST",
+      "path": "CreateAsset",
+      "parameters": [
+        {
+          "kind": "Header",
+          "name": "Authorization",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Query",
+          "name": "entitys",
+          "type": "Ljava/lang/String;",
+          "encoded": false
+        },
+        {
+          "kind": "Part",
+          "name": null,
+          "type": "Lq37;",
+          "encoded": false
+        }
+      ],
+      "headers": {},
+      "encoding": "multipart",
+      "signature": "public abstract e(Ljava/lang/String;Ljava/lang/String;Lq37;Lcp1;)Ljava/lang/Object;",
+      "source": "analysis/findmypast/smali/smali/w40.smali"
+    }
+  ],
+  "graphql": [
+    {
+      "id": "graphql.AddTranscriptToPerson",
+      "name": "AddTranscriptToPerson",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "recordId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation AddTranscriptToPerson($treeId: ID!, $personId: ID!, $recordId: ID!) { addTranscriptToPerson(input: { treeId: $treeId personId: $personId recordId: $recordId } ) { hint { familyTreeId personId id hintRef hintCategoryId } } }",
+      "sha256": "08d0a619ff7fbfefca04e807b0c3b844af143c18d6754563553d84d97f4fc9c4",
+      "source": "analysis/findmypast/smali/smali/pe.smali"
+    },
+    {
+      "id": "graphql.CreateChildNode",
+      "name": "CreateChildNode",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "person",
+          "type": "PersonInput!",
+          "required": true
+        },
+        {
+          "name": "motherId",
+          "type": "ID",
+          "required": false
+        },
+        {
+          "name": "fatherId",
+          "type": "ID",
+          "required": false
+        }
+      ],
+      "document": "mutation CreateChildNode($person: PersonInput!, $motherId: ID, $fatherId: ID) { createChild(newChildDetails: $person, motherId: $motherId, fatherId: $fatherId) { newChild { id } } }",
+      "sha256": "d8e6b185f4d494350eb0471e876acb400925e8d1c943c6fa90c1abcc87b6fc47",
+      "source": "analysis/findmypast/smali/smali/ts1.smali"
+    },
+    {
+      "id": "graphql.CreateFamilyFact",
+      "name": "CreateFamilyFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "familyId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "preferred",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "FactTypeEnum!",
+          "required": true
+        },
+        {
+          "name": "typeId",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "place",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "private",
+          "type": "Boolean!",
+          "required": true
+        }
+      ],
+      "document": "mutation CreateFamilyFact($familyId: ID!, $preferred: Boolean!, $type: FactTypeEnum!, $typeId: Int!, $place: String!, $date: String!, $private: Boolean!) { createFamilyFact(familyId: $familyId, fact: { preferred: $preferred type: $type factTypeId: $typeId place: { placeName: $place }  originalDate: $date isPrivate: $private } ) { fact { id } } }",
+      "sha256": "919ea03fde2f7fe93dd24b9ea2f209e4b964b96a5afa37a14f161c3aaf3aa1be",
+      "source": "analysis/findmypast/smali/smali/ot1.smali"
+    },
+    {
+      "id": "graphql.CreateFamilyTree",
+      "name": "CreateFamilyTree",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "gender",
+          "type": "Gender!",
+          "required": true
+        },
+        {
+          "name": "living",
+          "type": "Boolean",
+          "required": false
+        },
+        {
+          "name": "givenName",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "surname",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "treeName",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "facts",
+          "type": "[CreateFamilyTreePersonFactInput!]!",
+          "required": true
+        }
+      ],
+      "document": "mutation CreateFamilyTree($gender: Gender!, $living: Boolean, $givenName: String, $surname: String, $treeName: String!, $facts: [CreateFamilyTreePersonFactInput!]!) { createFamilyTree(familyTree: { people: [{ temporaryId: \"-1\" gender: $gender isLiving: $living names: [{ temporaryId: -2 factTypeId: 100 givenNames: $givenName surnames: $surname } ] facts: $facts } ] rootPerson: \"-1\" title: $treeName } ) { familyTree { id } } }",
+      "sha256": "28bba0cf6ae6b0a010afc7942ab113ee08a1929c3735c2d0428f920a9e56ecb7",
+      "source": "analysis/findmypast/smali/smali/wt1.smali"
+    },
+    {
+      "id": "graphql.CreateNameFact",
+      "name": "CreateNameFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "familyTreeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "factTypeId",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "preferred",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "givenNamePrefix",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "givenNames",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "surnames",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "surnameSuffix",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "isPrivate",
+          "type": "Boolean",
+          "required": false
+        }
+      ],
+      "document": "mutation CreateNameFact($personId: ID!, $familyTreeId: ID!, $factTypeId: Int!, $preferred: Boolean!, $givenNamePrefix: String, $givenNames: String, $surnames: String, $surnameSuffix: String, $isPrivate: Boolean) { createPersonName(personId: $personId, familyTreeId: $familyTreeId, personName: { factTypeId: $factTypeId preferred: $preferred givenNamePrefix: $givenNamePrefix givenNames: $givenNames surnames: $surnames surnameSuffix: $surnameSuffix isPrivate: $isPrivate } ) { id } }",
+      "sha256": "e434dc61d62e1fc7eb7a8d274714b322d498ada94689da82947bcbe0dc06910d",
+      "source": "analysis/findmypast/smali/smali/vu1.smali"
+    },
+    {
+      "id": "graphql.CreateParentNode",
+      "name": "CreateParentNode",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "person",
+          "type": "PersonInput!",
+          "required": true
+        },
+        {
+          "name": "childId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "existingParentId",
+          "type": "ID",
+          "required": false
+        },
+        {
+          "name": "existingFamilyId",
+          "type": "ID",
+          "required": false
+        }
+      ],
+      "document": "mutation CreateParentNode($person: PersonInput!, $childId: ID!, $existingParentId: ID, $existingFamilyId: ID) { createParent(person: $person, childId: $childId, existingParentId: $existingParentId, existingFamilyId: $existingFamilyId) { newParent { id } family { id } } }",
+      "sha256": "6af17a911c076e6c386e4786255af8dfe5bdd927de3c8b69914ed341fc9b58d4",
+      "source": "analysis/findmypast/smali/smali/bw1.smali"
+    },
+    {
+      "id": "graphql.CreatePersonAsset",
+      "name": "CreatePersonAsset",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "recordId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation CreatePersonAsset($treeId: ID!, $personId: ID!, $recordId: ID!) { createPersonAsset(treeId: $treeId, personId: $personId, recordId: $recordId) { id } }",
+      "sha256": "99df2fba44d6d05ef7b7b4084ad59eb92653d8e7a94c5b46cf8cc4da3f5ac840",
+      "source": "analysis/findmypast/smali/smali/pw1.smali"
+    },
+    {
+      "id": "graphql.CreatePersonFact",
+      "name": "CreatePersonFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "preferred",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "FactTypeEnum!",
+          "required": true
+        },
+        {
+          "name": "factTypeId",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "place",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "isPrivate",
+          "type": "Boolean",
+          "required": false
+        },
+        {
+          "name": "description",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "address",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation CreatePersonFact($personId: ID!, $preferred: Boolean!, $type: FactTypeEnum!, $factTypeId: Int!, $place: String!, $date: String!, $isPrivate: Boolean, $description: String!, $address: String!) { createPersonFact(personId: $personId, fact: { preferred: $preferred type: $type factTypeId: $factTypeId place: { placeName: $place }  originalDate: $date isPrivate: $isPrivate description: $description address: $address } ) { person { id } } }",
+      "sha256": "f54c43c4310618966e78c8a661a89511d0ebec4661a05c75dd3465d196f76099",
+      "source": "analysis/findmypast/smali/smali/ww1.smali"
+    },
+    {
+      "id": "graphql.CreateSiblingNode",
+      "name": "CreateSiblingNode",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "person",
+          "type": "PersonInput!",
+          "required": true
+        },
+        {
+          "name": "existingSiblingId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "motherId",
+          "type": "ID",
+          "required": false
+        },
+        {
+          "name": "fatherId",
+          "type": "ID",
+          "required": false
+        }
+      ],
+      "document": "mutation CreateSiblingNode($person: PersonInput!, $existingSiblingId: ID!, $motherId: ID, $fatherId: ID) { createSibling(person: $person, existingSiblingId: $existingSiblingId, motherId: $motherId, fatherId: $fatherId) { newSibling { id } } }",
+      "sha256": "5ea84578e346240af3161e1354ff471281f925980f149ceb4b14ef1dfd9b7f34",
+      "source": "analysis/findmypast/smali/smali/qx1.smali"
+    },
+    {
+      "id": "graphql.CreateSpouseNode",
+      "name": "CreateSpouseNode",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "person",
+          "type": "PersonInput!",
+          "required": true
+        },
+        {
+          "name": "existingSpouseId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "childrenIds",
+          "type": "[ID!]!",
+          "required": true
+        }
+      ],
+      "document": "mutation CreateSpouseNode($person: PersonInput!, $existingSpouseId: ID!, $childrenIds: [ID!]!) { createSpouse(person: $person, existingSpouseId: $existingSpouseId, childrenIds: $childrenIds) { newSpouse { id } } }",
+      "sha256": "410e1401ae62bdca2c3f24523e9e9d94e8e41a85077dfed63d6776bae8e103d6",
+      "source": "analysis/findmypast/smali/smali/yx1.smali"
+    },
+    {
+      "id": "graphql.DeleteFactSource",
+      "name": "DeleteFactSource",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "sourceId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation DeleteFactSource($sourceId: ID!) { deleteSource(sourceId: $sourceId) }",
+      "sha256": "5325267da5730e7be8a03fe9267d3549f37ae755a94191e8fd69a5adbcc3b4b6",
+      "source": "analysis/findmypast/smali/smali/sg2.smali"
+    },
+    {
+      "id": "graphql.DeleteFamilyFact",
+      "name": "DeleteFamilyFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "factId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation DeleteFamilyFact($factId: ID!) { deleteFamilyFact(familyFactId: $factId) }",
+      "sha256": "30c34c1c289a02b8aff5fe46f3c692f4d8f1a7bc7c4a147f673edf2cb13c2924",
+      "source": "analysis/findmypast/smali/smali/ah2.smali"
+    },
+    {
+      "id": "graphql.DeleteNameFact",
+      "name": "DeleteNameFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "factId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation DeleteNameFact($factId: ID!) { deletePersonName(personNameId: $factId) }",
+      "sha256": "372e9a7469bf75f86858dc28c1b8c9b7cc04fa6e7a064d1507b2c6137a0f95b3",
+      "source": "analysis/findmypast/smali/smali/gh2.smali"
+    },
+    {
+      "id": "graphql.DeleteNodeFromTree",
+      "name": "DeleteNodeFromTree",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "id",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation DeleteNodeFromTree($id: ID!) { deletePersonFromTree(id: $id) { deletedFamilyIds } }",
+      "sha256": "0b1fb9f219d071e76794f845bbd354393b9de086b479ff5f11dc20266e0c4e01",
+      "source": "analysis/findmypast/smali/smali/oh2.smali"
+    },
+    {
+      "id": "graphql.DeletePersonFact",
+      "name": "DeletePersonFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "factId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation DeletePersonFact($factId: ID!) { deletePersonFact(personFactId: $factId) { person { id } } }",
+      "sha256": "31ac362d39122167ba87a32fde01ef8a4c74b8a2b6d0359854ca5c191bcf63a0",
+      "source": "analysis/findmypast/smali/smali/xh2.smali"
+    },
+    {
+      "id": "graphql.DeleteProfileDateOfBirth",
+      "name": "DeleteProfileDateOfBirth",
+      "kind": "mutation",
+      "variables": [],
+      "document": "mutation DeleteProfileDateOfBirth { updateCurrentUserProfile(fieldsToDelete: { dateOfBirth: true } ) { profile { id } } }",
+      "sha256": "6f8d9dd494c3af116cb8781eed986eff7dc4c250f79e7e617767b6d392393047",
+      "source": "analysis/findmypast/smali/smali/fi2.smali"
+    },
+    {
+      "id": "graphql.DeleteProfilePicture",
+      "name": "DeleteProfilePicture",
+      "kind": "mutation",
+      "variables": [],
+      "document": "mutation DeleteProfilePicture { updateCurrentUserProfile(fieldsToDelete: { profilePicture: true } ) { profile { id } } }",
+      "sha256": "8ffbaa1c00544daf06cfaf5a658b80ddb6f02ccc6389151e0afa0f6062879842",
+      "source": "analysis/findmypast/smali/smali/pi2.smali"
+    },
+    {
+      "id": "graphql.DeleteProfilePronouns",
+      "name": "DeleteProfilePronouns",
+      "kind": "mutation",
+      "variables": [],
+      "document": "mutation DeleteProfilePronouns { updateCurrentUserProfile(fieldsToDelete: { pronouns: true } ) { profile { id } } }",
+      "sha256": "03b5d2370767216a1d0760b297d20fcb3e1b5b08d5f9d946cf003374341ddcea",
+      "source": "analysis/findmypast/smali/smali/yi2.smali"
+    },
+    {
+      "id": "graphql.DetachMediaFromEntity",
+      "name": "DetachMediaFromEntity",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "entityType",
+          "type": "EntityTypeEnum!",
+          "required": true
+        },
+        {
+          "name": "entityId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "assetIds",
+          "type": "[ID!]!",
+          "required": true
+        }
+      ],
+      "document": "mutation DetachMediaFromEntity($entityType: EntityTypeEnum!, $entityId: ID!, $assetIds: [ID!]!) { detachMediaFromEntity(entityType: $entityType, entityId: $entityId, assetIds: $assetIds) }",
+      "sha256": "12b5abc29eeb3273196520a68fab0713a25b214bd57a4e678302a19fd0e7eafc",
+      "source": "analysis/findmypast/smali/smali/jk2.smali"
+    },
+    {
+      "id": "graphql.EditFamilyFact",
+      "name": "EditFamilyFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "factId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "place",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "preferred",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "private",
+          "type": "Boolean",
+          "required": false
+        }
+      ],
+      "document": "mutation EditFamilyFact($factId: ID!, $date: String, $place: String!, $preferred: Boolean!, $private: Boolean) { editFamilyFact(familyFactId: $factId, familyFactInput: { originalDate: $date place: { placeName: $place }  preferred: $preferred isPrivate: $private } ) { id } }",
+      "sha256": "dc5bd98eb8e6795d17c58f034a355b8129853da1ae52a869214579da241c0ce9",
+      "source": "analysis/findmypast/smali/smali/ev2.smali"
+    },
+    {
+      "id": "graphql.EditGenderOfPerson",
+      "name": "EditGenderOfPerson",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "gender",
+          "type": "Gender!",
+          "required": true
+        }
+      ],
+      "document": "mutation EditGenderOfPerson($personId: ID!, $gender: Gender!) { editGenderOfPerson(personId: $personId, gender: $gender) { person { id } } }",
+      "sha256": "c476f2636af95d6f8e00698bf78a22644853b7b2012f1ae20aa1c4affe69b2ee",
+      "source": "analysis/findmypast/smali/smali/ov2.smali"
+    },
+    {
+      "id": "graphql.EditLivingStatus",
+      "name": "EditLivingStatus",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "isLiving",
+          "type": "Boolean",
+          "required": false
+        }
+      ],
+      "document": "mutation EditLivingStatus($personId: ID!, $isLiving: Boolean) { editIsLivingOfPerson(personId: $personId, isLiving: $isLiving) { person { id } } }",
+      "sha256": "78f2235e19afa439cf3e96522be7ab3805de4caaf92ffa1de69748dc1930f78e",
+      "source": "analysis/findmypast/smali/smali/aw2.smali"
+    },
+    {
+      "id": "graphql.EditMediaDetails",
+      "name": "EditMediaDetails",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "id",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "dateOfAsset",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "location",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "required": false
+        }
+      ],
+      "document": "mutation EditMediaDetails($id: ID!, $dateOfAsset: String, $description: String, $location: String, $title: String) { editMediaDetails(id: $id, title: $title, description: $description, location: $location, dateOfAsset: $dateOfAsset) }",
+      "sha256": "c59f75c2966faa973252c7daa83c2d4c582697d56b58d77bb4fe1bcc9e347515",
+      "source": "analysis/findmypast/smali/smali/ow2.smali"
+    },
+    {
+      "id": "graphql.EditNameFact",
+      "name": "EditNameFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "factId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "givenName",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "surname",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "suffix",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "preferred",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "private",
+          "type": "Boolean!",
+          "required": true
+        }
+      ],
+      "document": "mutation EditNameFact($factId: ID!, $prefix: String, $givenName: String, $surname: String, $suffix: String, $preferred: Boolean!, $private: Boolean!) { editPersonName(personNameId: $factId, personNameInput: { givenNamePrefix: $prefix givenNames: $givenName surnames: $surname surnameSuffix: $suffix preferred: $preferred isPrivate: $private } ) { id } }",
+      "sha256": "a0f5aeb7ad4611d15e0ed1c9dc5ee3c3aa659ac78c85c87e0c4a9f6797982806",
+      "source": "analysis/findmypast/smali/smali/tw2.smali"
+    },
+    {
+      "id": "graphql.EditPersonFact",
+      "name": "EditPersonFact",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "factId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "preferred",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "place",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "isPrivate",
+          "type": "Boolean",
+          "required": false
+        },
+        {
+          "name": "description",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation EditPersonFact($factId: ID!, $preferred: Boolean!, $place: String!, $date: String!, $isPrivate: Boolean, $description: String!) { editPersonFact(fact: { id: $factId preferred: $preferred place: { placeName: $place }  originalDate: $date isPrivate: $isPrivate description: $description address: \"\" } ) { person { id } } }",
+      "sha256": "a8b3369d52187e15833014c76a34f345ebefcf93d7b081e83a164bceed340146",
+      "source": "analysis/findmypast/smali/smali/gx2.smali"
+    },
+    {
+      "id": "graphql.GenerateLifeStory",
+      "name": "GenerateLifeStory",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "nodeId",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "familyTreeId",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "generateNew",
+          "type": "Boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "ToneOfVoice!",
+          "required": true
+        }
+      ],
+      "document": "mutation GenerateLifeStory($nodeId: String!, $familyTreeId: String!, $generateNew: Boolean, $tone: ToneOfVoice!) { generateLifeStoryChapter(personId: $nodeId, familyTreeId: $familyTreeId, generateNew: $generateNew, toneOfVoice: $tone) { id } }",
+      "sha256": "65fa884dea9dd5b844a00696df6bf253b49f3bef05df321920dd416e47179830",
+      "source": "analysis/findmypast/smali/smali/wx3.smali"
+    },
+    {
+      "id": "graphql.GetAgeGroup",
+      "name": "GetAgeGroup",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "date",
+          "type": "Date!",
+          "required": true
+        }
+      ],
+      "document": "query GetAgeGroup($date: Date!) { getAgeGroup(date: $date) { ageGroup } }",
+      "sha256": "77fa3a0589c19647016984c7ced212735fbc409263203722780f0ce412c3d3d2",
+      "source": "analysis/findmypast/smali/smali/az3.smali"
+    },
+    {
+      "id": "graphql.GetAppToken",
+      "name": "GetAppToken",
+      "kind": "mutation",
+      "variables": [],
+      "document": "mutation GetAppToken { getAppToken(externalAccountType: GOOGLE) { __typename ... on GetAppTokenSuccessful { token } ... on GetAppTokenFailure { failureReason } } }",
+      "sha256": "66a95fc19a16e8d38347c058059598a9f08cd7407ec32689e8e6ad2316f6dfc3",
+      "source": "analysis/findmypast/smali/smali/lz3.smali"
+    },
+    {
+      "id": "graphql.GetCensusRelatedRecord",
+      "name": "GetCensusRelatedRecord",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetCensusRelatedRecord { getCensusRelatedRecordNotifications { censusName eventPlace eventYear givenNames score surnames transcriptId } }",
+      "sha256": "48ebcc36b7a77444b6b349fe3bfd33df4d8d461887edb2bc45e2cd81b1e182df",
+      "source": "analysis/findmypast/smali/smali/i04.smali"
+    },
+    {
+      "id": "graphql.GetClipping",
+      "name": "GetClipping",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "clippingId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetClipping($clippingId: String!) { getClipping(id: $clippingId) { clipping { copyrightStatement issueId issueTitle publicationDate } } }",
+      "sha256": "812e7df33fa349bbbe185dbbcc4ce8610f72fcf937cccaa76632d162c867d49f",
+      "source": "analysis/findmypast/smali/smali/r04.smali"
+    },
+    {
+      "id": "graphql.GetCollectionDetails",
+      "name": "GetCollectionDetails",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "collectionId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetCollectionDetails($collectionId: ID!) { collection(collectionId: $collectionId) { collectionMetadata { id title isPrivate isOwner description dateCreated dateUpdated collectionType mediaCount tags backgroundImageId userProfile { __typename ... on ActiveUserProfile { id username profilePicture } } } } }",
+      "sha256": "913443d2cd749e03a028c4c4b9146fbd0fe0221c82b4281567cfe64bef3be818",
+      "source": "analysis/findmypast/smali/smali/d14.smali"
+    },
+    {
+      "id": "graphql.GetCollectionMedia",
+      "name": "GetCollectionMedia",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "collectionId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "rows",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "startFrom",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query GetCollectionMedia($collectionId: ID!, $rows: Int!, $startFrom: Int!) { collection(collectionId: $collectionId) { collectionMediaResult(pagination: { rows: $rows startFrom: $startFrom } ) { results { media { mediaMetadata { id dateCreated datePublished description isOwner tags title userProfile { id username } } } } } } }",
+      "sha256": "7acc7b3622b5319751349c0aa0b38247e7377aaf5ddb40f430dcad4fa1ac3c45",
+      "source": "analysis/findmypast/smali/smali/b24.smali"
+    },
+    {
+      "id": "graphql.GetCollectionMediaDetails",
+      "name": "GetCollectionMediaDetails",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "mediaId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetCollectionMediaDetails($mediaId: ID!) { media(mediaId: $mediaId) { mediaMetadata { description datePublished } } }",
+      "sha256": "f646227b32b2af9d5f1041f51653ff9cdb2bd63d230b585d4e5ddfb1253a11b1",
+      "source": "analysis/findmypast/smali/smali/o14.smali"
+    },
+    {
+      "id": "graphql.GetCollectionOfTheWeek",
+      "name": "GetCollectionOfTheWeek",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetCollectionOfTheWeek { getCollectionOfTheWeek { collectionId } }",
+      "sha256": "7936f9057234c59a8dcbe11d793853e344e0fa283aeb0816d4561f755d1427fa",
+      "source": "analysis/findmypast/smali/smali/n24.smali"
+    },
+    {
+      "id": "graphql.GetCurrentUserProfile",
+      "name": "GetCurrentUserProfile",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetCurrentUserProfile { currentUserProfile { id username profilePicture dateOfBirth ageGroup registrationMonthYear pronouns shouldShowAgeGroup profileStatus aiConsent { toggleState } } }",
+      "sha256": "36b13b1a795e9e01462af80179fdd439310ab9906282d7f5b24215214dd08aef",
+      "source": "analysis/findmypast/smali/smali/g34.smali"
+    },
+    {
+      "id": "graphql.GetCustomerAvailablePlans",
+      "name": "GetCustomerAvailablePlans",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "journey",
+          "type": "CustomerJourney",
+          "required": false
+        }
+      ],
+      "document": "query GetCustomerAvailablePlans($journey: CustomerJourney) { customer { availablePlans(journey: $journey) { id pricesByCurrency { currency amount } currency durationInMonths name groupName upsellText description displayName bulletPoints strapline style { bgPrimaryColor bgAdditionalColor textColor ctaVariant } } } }",
+      "sha256": "c0473c8d69b0a7ee9548ab783482c01367d90a92f32df23a3df64fbdb7645efa",
+      "source": "analysis/findmypast/smali/smali/q34.smali"
+    },
+    {
+      "id": "graphql.GetEmailNotificationSettings",
+      "name": "GetEmailNotificationSettings",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetEmailNotificationSettings { emailNotificationSettings { privateMessages errorCorrections news offers partner guidesAndTips unsubscribeFromEverything discoveries } }",
+      "sha256": "2490c6ab6e743b13167f36fba3540a94302bf2298da64cfa423d23c372b36e4d",
+      "source": "analysis/findmypast/smali/smali/b44.smali"
+    },
+    {
+      "id": "graphql.GetFactsForPerson",
+      "name": "GetFactsForPerson",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetFactsForPerson($personId: ID!) { person(id: $personId) { families { father { id } mother { id } facts { id description originalDate dateValue1 sortDate place { id placeName } family { father { id } mother { id } } placeDetail preferred isPrivate factType { id description shape { hasPlaceAndAddressFields hasDateField hasDescriptionField } ownerTypeId } sources { id page reference comments title isPrivate } } } facts { id description originalDate dateValue1 sortDate place { id placeName } placeDetail preferred isPrivate factType { id description shape { hasPlaceAndAddressFields hasDateField hasDescriptionField } ownerTypeId } sources { id page reference comments title isPrivate } } names { id description isPrivate preferred givenNamePrefix givenNames surnames surnameSuffix factTypeId sources { id page reference comments title isPrivate } } } }",
+      "sha256": "8fe2d439f31cfa18c9445407b8b44615d3e571af17aa1a3a4fb82da8148b5ab4",
+      "source": "analysis/findmypast/smali/smali/i54.smali"
+    },
+    {
+      "id": "graphql.GetFamiliesForNode",
+      "name": "GetFamiliesForNode",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetFamiliesForNode($personId: ID!) { person(id: $personId) { families { id father { id } mother { id } children { person { id } } } } }",
+      "sha256": "ae07556d646a171296e85c31ee5b21e4120e5b16307f86171bd6c57621864f0a",
+      "source": "analysis/findmypast/smali/smali/p64.smali"
+    },
+    {
+      "id": "graphql.GetFamilyViewForNode",
+      "name": "GetFamilyViewForNode",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "nodeId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetFamilyViewForNode($treeId: ID!, $nodeId: ID!) { familyTree(id: $treeId) { familyView(focusPersonId: $nodeId) { nodes { __typename ahnenDab extraRelations ... on RealFamilyViewNode { person { id givenNames surnames gender isLiving birthDate deathDate portraitUrl hintCount profileCompleteness { completed { name percentage missingFields } notCompleted { name percentage missingFields } } } } } } } }",
+      "sha256": "d2cbe8f151d5e0a3c5dbee0a86ab206ff81d090e312b8436737b49decf4e6d09",
+      "source": "analysis/findmypast/smali/smali/i74.smali"
+    },
+    {
+      "id": "graphql.GetFeatureToggles",
+      "name": "GetFeatureToggles",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "env",
+          "type": "String",
+          "required": false
+        },
+        {
+          "name": "keys",
+          "type": "[String]",
+          "required": false
+        }
+      ],
+      "document": "query GetFeatureToggles($env: String, $keys: [String]) { featureToggles(launchDarklyEnvironment: $env, toggleKeys: $keys) { id variation } }",
+      "sha256": "a8c762a813c9107b5f08692da038282ef750ff81fe174ee2f255172fb6b3e380",
+      "source": "analysis/findmypast/smali/smali/w74.smali"
+    },
+    {
+      "id": "graphql.GetHintById",
+      "name": "GetHintById",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "hintId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "treeRef",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetHintById($hintId: ID!, $treeRef: String!) { fmpHint(id: $hintId, treeRef: $treeRef) { id personId relevance hintStatusId hintCategoryId hintRef matchGivenNames matchPlace matchSurnames matchYear sourceCategory sourceCountry sourceName } }",
+      "sha256": "057620b11d68fddf555175fb3e5e259cb4f2ce6d1e6de75671f5e5c8b8ae3e0b",
+      "source": "analysis/findmypast/smali/smali/e84.smali"
+    },
+    {
+      "id": "graphql.GetHintCategoriesForTree",
+      "name": "GetHintCategoriesForTree",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetHintCategoriesForTree($treeId: ID!) { familyTreeHintsV2(familyTreeId: $treeId) { sourceCategories } }",
+      "sha256": "4649e20cce9e3324a55d4ea931ea245085b7b2f88ae347791b9470f564df9079",
+      "source": "analysis/findmypast/smali/smali/k84.smali"
+    },
+    {
+      "id": "graphql.GetHintEntitlement",
+      "name": "GetHintEntitlement",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "recordId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetHintEntitlement($recordId: ID!) { getHintEntitlement(recordId: $recordId) { decision reason fulfillmentAction } }",
+      "sha256": "a4198eb82eca7641ac3e1dcab47f838f5d7c7ed58629ef3aa2858d54c5e03ccb",
+      "source": "analysis/findmypast/smali/smali/u84.smali"
+    },
+    {
+      "id": "graphql.GetHintsForPerson",
+      "name": "GetHintsForPerson",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "familyTreeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "offset",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "statusId",
+          "type": "Int",
+          "required": false
+        }
+      ],
+      "document": "query GetHintsForPerson($familyTreeId: ID!, $personId: ID!, $offset: Int!, $limit: Int!, $statusId: Int) { familyTreeHintsV2(familyTreeId: $familyTreeId, filters: { hintStatusId: $statusId personIds: [$personId] } ) { totalCount list(offset: $offset, limit: $limit, sortBy: RELEVANCE_DESC) { id personId relevance hintStatusId hintCategoryId hintRef matchGivenNames matchPlace matchSurnames matchYear sourceCategory sourceCountry sourceName } } }",
+      "sha256": "3a3d20706e633ae298552e144b9f0dd7789997fdbc65f98e0d0199a60877c6d9",
+      "source": "analysis/findmypast/smali/smali/f94.smali"
+    },
+    {
+      "id": "graphql.GetHintsForTree",
+      "name": "GetHintsForTree",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "offset",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "statusId",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "sourceCategories",
+          "type": "[String!]",
+          "required": false
+        }
+      ],
+      "document": "query GetHintsForTree($treeId: ID!, $offset: Int!, $limit: Int!, $statusId: Int!, $sourceCategories: [String!]) { familyTreeHintsV2(familyTreeId: $treeId, filters: { hintStatusId: $statusId sourceCategories: $sourceCategories } ) { totalCount list(offset: $offset, limit: $limit, sortBy: RELEVANCE_DESC) { id personId relevance hintStatusId hintCategoryId hintRef matchGivenNames matchPlace matchSurnames matchYear sourceCategory sourceCountry sourceName } } }",
+      "sha256": "70eaa1a4d6fb471c19e3a2886f2ab299b87cb042f5b2bae861e36c48b14b0b83",
+      "source": "analysis/findmypast/smali/smali/o94.smali"
+    },
+    {
+      "id": "graphql.GetHomepageQuizzes",
+      "name": "GetHomepageQuizzes",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetHomepageQuizzes { getQuizHomeData { availableQuizzes { completed id imageUrl utcEndTime utcStartTime score numberInSeries questionCount } correctRateForUser nextQuizStartTime streakLengthForUser quizSectionTitle completedQuizTitle completedQuizMessage completedQuizImage currentSeriesId quizSeriesFinished quizFirstTimeTitle quizFirstTimeSubtitle quizFirstTimeImage currentSeriesName } }",
+      "sha256": "d0d97090a4ff32396c5490db17e14c67c23a84eccf9a35f7ccb283c32b211093",
+      "source": "analysis/findmypast/smali/smali/w94.smali"
+    },
+    {
+      "id": "graphql.GetLessonForQuestion",
+      "name": "GetLessonForQuestion",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "questionId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetLessonForQuestion($questionId: String!) { getLessonDataForQuestion(questionId: $questionId) { title imageUrl aiGenerated facts { title text source } } }",
+      "sha256": "53c5b0a1d57bbb9255f1f0cf5ad5a4597784007dacf42a18999db38d7e3d46d9",
+      "source": "analysis/findmypast/smali/smali/ka4.smali"
+    },
+    {
+      "id": "graphql.GetLifeStoryForNode",
+      "name": "GetLifeStoryForNode",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "nodeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "nodeIdString",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetLifeStoryForNode($nodeId: ID!, $nodeIdString: String!) { getLifeStoryChapter(personId: $nodeIdString) { id aiGenerated events { LIKED DISLIKED VIEWED } fact { id date description factTypeId location } facts { id date description factTypeId location } familyTreeId personId recipeType recipeName status sections { type verses { alt content coordinates copyrightText datum factIds icon id linkUrl posttext pretext pretitle src style title type unit } } } person(id: $nodeId) { facts { id place { placeName } placeDetail dateValue1 originalDate description factType { description } } } }",
+      "sha256": "a548694b8497a03a33de916ba1cc8a2ab1fcb94945b26f3d21e14c174c2ee989",
+      "source": "analysis/findmypast/smali/smali/bb4.smali"
+    },
+    {
+      "id": "graphql.GetListOfTrees",
+      "name": "GetListOfTrees",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "offset",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query GetListOfTrees($offset: Int!, $limit: Int!) { familyTreesV2(displayDeletedTrees: false) { totalCount list(offset: $offset, limit: $limit, sortBy: VIEWED_DESC) { id title personCount dateCreated dateUpdated dateViewed status { id } } } }",
+      "sha256": "fa779e744f26abe98a93bad2363ff44a5724b7bd3889b616601c8969f67fca91",
+      "source": "analysis/findmypast/smali/smali/cc4.smali"
+    },
+    {
+      "id": "graphql.GetMediaDetails",
+      "name": "GetMediaDetails",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "id",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetMediaDetails($id: ID!) { mediaDetails(id: $id) { assetUrl } }",
+      "sha256": "5daf52a8e4867bbf8cafec6a5b5895c440cdf8e8c26e4df3917083cb90e2fd12",
+      "source": "analysis/findmypast/smali/smali/kc4.smali"
+    },
+    {
+      "id": "graphql.GetNewspaperSearchResultCount",
+      "name": "GetNewspaperSearchResultCount",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "names",
+          "type": "[String!]!",
+          "required": true
+        },
+        {
+          "name": "keywords",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "exactNames",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "exactKeywords",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "newspaperTitle",
+          "type": "[String!]!",
+          "required": true
+        },
+        {
+          "name": "publicationPlace",
+          "type": "[NewspaperSearchLocationInput!]!",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "NewspaperSearchDateInput",
+          "required": false
+        },
+        {
+          "name": "facets",
+          "type": "[ArticleSearchExclusiveFacetEnum!]",
+          "required": false
+        }
+      ],
+      "document": "query GetNewspaperSearchResultCount($names: [String!]!, $keywords: String!, $exactNames: Boolean!, $exactKeywords: Boolean!, $newspaperTitle: [String!]!, $publicationPlace: [NewspaperSearchLocationInput!]!, $date: NewspaperSearchDateInput, $facets: [ArticleSearchExclusiveFacetEnum!]) { articleSearch(facets: $facets, filters: { namesFilter: $names exactNames: $exactNames keywordsFilter: $keywords exactKeywords: $exactKeywords filterQuery: { consumer: FMP publicationPlace: $publicationPlace newspaperTitle: $newspaperTitle articleType: [] filterByPerpetualAccess: false frontPageOnly: false publicationDate: $date }  } ) { numberOfResults } }",
+      "sha256": "4d774eab27a12acf06bc86523ea5cd6799281162dbff9798eb5698d538f13dbd",
+      "source": "analysis/findmypast/smali/smali/ed4.smali"
+    },
+    {
+      "id": "graphql.GetNewspaperSearchResults",
+      "name": "GetNewspaperSearchResults",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "names",
+          "type": "[String!]!",
+          "required": true
+        },
+        {
+          "name": "keywords",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "exactNames",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "exactKeywords",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "newspaperTitle",
+          "type": "[String!]!",
+          "required": true
+        },
+        {
+          "name": "publicationPlace",
+          "type": "[NewspaperSearchLocationInput!]!",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "NewspaperSearchDateInput",
+          "required": false
+        },
+        {
+          "name": "facets",
+          "type": "[ArticleSearchExclusiveFacetEnum!]",
+          "required": false
+        },
+        {
+          "name": "dayOfYear",
+          "type": "DayOfYearInput",
+          "required": false
+        },
+        {
+          "name": "sort",
+          "type": "NewspaperSearchOrderingInput!",
+          "required": true
+        },
+        {
+          "name": "offset",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "pageSize",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query GetNewspaperSearchResults($names: [String!]!, $keywords: String!, $exactNames: Boolean!, $exactKeywords: Boolean!, $newspaperTitle: [String!]!, $publicationPlace: [NewspaperSearchLocationInput!]!, $date: NewspaperSearchDateInput, $facets: [ArticleSearchExclusiveFacetEnum!], $dayOfYear: DayOfYearInput, $sort: NewspaperSearchOrderingInput!, $offset: Int!, $pageSize: Int!) { articleSearch(facets: $facets, filters: { namesFilter: $names exactNames: $exactNames keywordsFilter: $keywords exactKeywords: $exactKeywords filterQuery: { consumer: FMP publicationPlace: $publicationPlace newspaperTitle: $newspaperTitle articleType: [] filterByPerpetualAccess: false frontPageOnly: false publicationDate: $date dayOfYear: $dayOfYear }  } , ordering: $sort, pagination: { startFrom: $offset rows: $pageSize } ) { numberOfResults articles { articleId title textSnippet newspaperPages { id thumbnailUri } newspaperIssue { id title titleVariant publicationDate publicationPlace publicationCounty publicationRegion } } facets { name facetCounts { numberOfResults from to value } } } }",
+      "sha256": "f6919fed3d8345d503c3217596a621202fb98ceebb43adb4bf778073e37187f3",
+      "source": "analysis/findmypast/smali/smali/pd4.smali"
+    },
+    {
+      "id": "graphql.GetOperationalToggles",
+      "name": "GetOperationalToggles",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "env",
+          "type": "String",
+          "required": false
+        }
+      ],
+      "document": "query GetOperationalToggles($env: String) { operationalToggles(launchDarklyEnvironment: $env) { id variation } }",
+      "sha256": "862e91bfb6cf27c39b7e32d14b54c41a5e45a166f245945c6b877d77eca4f178",
+      "source": "analysis/findmypast/smali/smali/ae4.smali"
+    },
+    {
+      "id": "graphql.GetPeopleInTree",
+      "name": "GetPeopleInTree",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetPeopleInTree($treeId: ID!) { familyTree(id: $treeId) { id title familyTreeRef lastViewedPerson { id } personCount rootPerson { id } people { id personRef givenNames surnames gender isLiving birthDate deathDate portraitUrl profileCompleteness { completed { name percentage missingFields } notCompleted { name percentage missingFields } } } status { id description } dateCreated isPrivate isPhotoPrivate } }",
+      "sha256": "056ee8f3b193f9e8a5284707b0d629a1a95eafb4fff8d12e3dcf6739c2cff257",
+      "source": "analysis/findmypast/smali/smali/re4.smali"
+    },
+    {
+      "id": "graphql.GetPersonMedia",
+      "name": "GetPersonMedia",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "id",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "offset",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query GetPersonMedia($id: ID!, $offset: Int!, $limit: Int!) { personMedia(id: $id) { totalCount list(offset: $offset, limit: $limit) { __typename id ...PersonMediaForProfile } } }  fragment PersonMediaForProfile on MediaAsset { id assetType title tsrc url location dateOfAsset description dateCreated isNotAvailable recordId }",
+      "sha256": "c4fe6ec696ea5172996c2850fb5fc17ab458917982d48fd0ebc3a69a47eb0703",
+      "source": "analysis/findmypast/smali/smali/ff4.smali"
+    },
+    {
+      "id": "graphql.GetPodcasts",
+      "name": "GetPodcasts",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetPodcasts { getPodcasts { seriesId title blurb heroImage seriesColourHex accentColourHex textColourHex shareLink episodes { episodeId title description streamUrl downloadUrl heroImage publishDate lengthSeconds linkedCollections linkedNewspapers linkedSearch { category subcategory recordset actionTitle actionSubtitle } people { name imageUrl } } } }",
+      "sha256": "90240d0a5fcf2b1fa8b65898ebfbc86cb0cacfb66a4b40a6429cf4136998fb1c",
+      "source": "analysis/findmypast/smali/smali/ag4.smali"
+    },
+    {
+      "id": "graphql.GetPotentialFamiliesForRelative",
+      "name": "GetPotentialFamiliesForRelative",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "focusPersonId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "relationship",
+          "type": "RelationshipType!",
+          "required": true
+        }
+      ],
+      "document": "query GetPotentialFamiliesForRelative($focusPersonId: ID!, $relationship: RelationshipType!) { potentialFamiliesForRelative(focusPersonId: $focusPersonId, relationship: $relationship) { families { father { id } mother { id } id children { person { id } } } } }",
+      "sha256": "82170f023cb5770079f7925f0c505810264ecf67815016f2ffb0e22807e7ebce",
+      "source": "analysis/findmypast/smali/smali/og4.smali"
+    },
+    {
+      "id": "graphql.GetPushNotificationSettings",
+      "name": "GetPushNotificationSettings",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetPushNotificationSettings { pushNotificationSettings { privateMessages errorCorrections news offers partner guidesAndTips unsubscribeFromEverything discoveries } }",
+      "sha256": "a37c30b9037d848b222b210912bd5fc79d423d4ec3ea73033fd88e2d2f712b4b",
+      "source": "analysis/findmypast/smali/smali/ah4.smali"
+    },
+    {
+      "id": "graphql.GetQuizQuestions",
+      "name": "GetQuizQuestions",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "id",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetQuizQuestions($id: String!) { getQuizQuestionAndAnswerData(quizId: $id) { quizStatus { correctAnswers hasUserCompletedQuiz totalQuestions } questionDetails { id text imageUrl type } answerOptions { id isCorrect text } reaction { allImage allTexts correctTexts incorrectTexts noneImage noneTexts someImage someTexts timeUpText } seriesIntroPageData { seriesDescription seriesHeader seriesImage seriesIntroScreenTemplate } } }",
+      "sha256": "67dedf7e27033475d25b21e4c2e955e59f0ebed5712fc5fab0ddb34d5691c9c9",
+      "source": "analysis/findmypast/smali/smali/sh4.smali"
+    },
+    {
+      "id": "graphql.GetQuizSeriesDataForHome",
+      "name": "GetQuizSeriesDataForHome",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetQuizSeriesDataForHome { getQuizSeriesDataForHome { seriesId seriesName seriesImage seriesCorrectRate totalQuestions questionsComplete } }",
+      "sha256": "ddc9a3ae939b55abba8ffbf0f10ea1f866be1c8cf232df7a2edc986eb5eddf4f",
+      "source": "analysis/findmypast/smali/smali/di4.smali"
+    },
+    {
+      "id": "graphql.GetQuizSummaryById",
+      "name": "GetQuizSummaryById",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "id",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetQuizSummaryById($id: String!) { getQuizSummaryData(quizId: $id) { nextQuizStartTime correctRate lessons { title imageUrl imageAttribution aiGenerated facts { title text source } ctaText ctaType ctaContent } streakLength searchAction { title message category subCategory recordSet } lessonsTitle } }",
+      "sha256": "97b189d6f6d5b0798810449074d12568bd3edcc0b01e7e365dbd321b6a87325d",
+      "source": "analysis/findmypast/smali/smali/mi4.smali"
+    },
+    {
+      "id": "graphql.GetRecordFulfillment",
+      "name": "GetRecordFulfillment",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "records",
+          "type": "[FulfillableRecordInput!]!",
+          "required": true
+        }
+      ],
+      "document": "query GetRecordFulfillment($records: [FulfillableRecordInput!]!) { fulfillableItems(records: $records) { id isFulfilled } }",
+      "sha256": "ceaab43623ae868a5ddba9e49e24c98b3af6072eb9f5c88c300505e2740dbda5",
+      "source": "analysis/findmypast/smali/smali/xi4.smali"
+    },
+    {
+      "id": "graphql.GetRecordMergeData",
+      "name": "GetRecordMergeData",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "familyTreeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "familyTreeRef",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "hintCategory",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "recordId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetRecordMergeData($familyTreeId: ID!, $familyTreeRef: String!, $hintCategory: Int!, $personId: ID!, $recordId: String!) { getMergeTreeData(familyTreeRef: $familyTreeRef, hintCategory: $hintCategory, personId: $personId, recordId: $recordId) { mergeTreeData } familyTree(id: $familyTreeId) { id factTypes { id description shape { hasPlaceAndAddressFields hasDateField hasDescriptionField } } } }",
+      "sha256": "a07ff80a582566c1aa4ee61e158e014a7cdeeec78f2c5f7b0b7c8b01254bc1dc",
+      "source": "analysis/findmypast/smali/smali/jj4.smali"
+    },
+    {
+      "id": "graphql.GetRecordSearchResultCount",
+      "name": "GetRecordSearchResultCount",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "filter",
+          "type": "[Filter!]!",
+          "required": true
+        }
+      ],
+      "document": "query GetRecordSearchResultCount($filter: [Filter!]!) { recordSearchCount(filters: $filter) }",
+      "sha256": "46e498d3d3c920c421dbe934f6d0665302168c98280528ec982a7f2ec994aa01",
+      "source": "analysis/findmypast/smali/smali/rj4.smali"
+    },
+    {
+      "id": "graphql.GetReplacementMode",
+      "name": "GetReplacementMode",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetReplacementMode { getAndroidReplacementMode }",
+      "sha256": "d1a51da5cb442fb08668a884ba815246cbe57d6b7b9756a46a4987134fd00665",
+      "source": "analysis/findmypast/smali/smali/bk4.smali"
+    },
+    {
+      "id": "graphql.GetSavedStories",
+      "name": "GetSavedStories",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "memberKey",
+          "type": "Int",
+          "required": false
+        },
+        {
+          "name": "personId",
+          "type": "BigInt",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "type": "Int",
+          "required": false
+        }
+      ],
+      "document": "query GetSavedStories($memberKey: Int, $personId: BigInt, $offset: Int) { savedStories(memberKey: $memberKey, personId: $personId, offset: $offset) { totalCount nodes { id uri personId treeId memberKey insertedAt rowId lastViewedAt lastSavedAt lastSeenAt changeMessageTime factId recipeId copyrightAttribution templateId description { templateId text } storyTitle details { title eventDate event recipeTemplate age birthDate } imagePath context } } }",
+      "sha256": "26bac0c5172b8b4db02e9b02fadb0d0c5f2ed4577d8bdee49c3f6c1788604912",
+      "source": "analysis/findmypast/smali/smali/lk4.smali"
+    },
+    {
+      "id": "graphql.GetSearchResults",
+      "name": "GetSearchResults",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "filter",
+          "type": "[SearchFilter!]!",
+          "required": true
+        },
+        {
+          "name": "page",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query GetSearchResults($filter: [SearchFilter!]!, $page: Int!) { root { id search { id recordSearch(filters: $filter, pageNumber: $page, order: null) { id numberOfRecords records { id fields { displayLabel fieldId value } transcript { id creditCost recordMetadataId isNationalTrust mediaSource } pdf { id creditCost recordMetadataId isNationalTrust mediaSource } image { id creditCost recordMetadataId isNationalTrust mediaSource } } } } } }",
+      "sha256": "9ecc4e4359457ef1eda699f3b96607804c1034196b59cbb75e05544c8aa047ee",
+      "source": "analysis/findmypast/smali/smali/el4.smali"
+    },
+    {
+      "id": "graphql.GetSearchResultsWithSort",
+      "name": "GetSearchResultsWithSort",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "filter",
+          "type": "[SearchFilter!]!",
+          "required": true
+        },
+        {
+          "name": "page",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "orderBy",
+          "type": "RecordSearchOrder!",
+          "required": true
+        }
+      ],
+      "document": "query GetSearchResultsWithSort($filter: [SearchFilter!]!, $page: Int!, $orderBy: RecordSearchOrder!) { root { id search { id recordSearch(filters: $filter, pageNumber: $page, order: $orderBy) { id numberOfRecords records { id fields { displayLabel fieldId value } transcript { id creditCost recordMetadataId isNationalTrust mediaSource } pdf { id creditCost recordMetadataId isNationalTrust mediaSource } image { id creditCost recordMetadataId isNationalTrust mediaSource } } } } } }",
+      "sha256": "715594037251a7d7e877159bb9b0a581afb133266a43a5513ebd0c660db132ce",
+      "source": "analysis/findmypast/smali/smali/zl4.smali"
+    },
+    {
+      "id": "graphql.GetSeriesById",
+      "name": "GetSeriesById",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "id",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetSeriesById($id: String!) { getQuizzesForSeries(seriesId: $id) { seriesName headerImage headerText correctRate quizzes { completed id imageUrl utcEndTime utcStartTime score numberInSeries questionCount } } }",
+      "sha256": "4caba1df5461c0325fa13c59ec8bfeba5e94be6f77d49041490dd2cc9a1a6140",
+      "source": "analysis/findmypast/smali/smali/nm4.smali"
+    },
+    {
+      "id": "graphql.GetStoriesForNode",
+      "name": "GetStoriesForNode",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "memberKey",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "treeId",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "personId",
+          "type": "BigInt!",
+          "required": true
+        },
+        {
+          "name": "sequencePosition",
+          "type": "Int",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query GetStoriesForNode($memberKey: Int!, $treeId: Int!, $personId: BigInt!, $sequencePosition: Int, $limit: Int!) { stories(memberKey: $memberKey, treeId: $treeId, personId: $personId, sequencePosition: $sequencePosition, useStoredSequence: false, limit: $limit) { id uri personId treeId memberKey insertedAt rowId lastViewedAt lastSavedAt lastSeenAt changeMessageTime factId recipeId copyrightAttribution templateId description { templateId text } storyTitle details { title eventDate event recipeTemplate age } imagePath context } }",
+      "sha256": "548909ec5617b89d9a384d7cb29d185ce2a41ab73388bdbde4707e7506614dff",
+      "source": "analysis/findmypast/smali/smali/cn4.smali"
+    },
+    {
+      "id": "graphql.GetSubscription",
+      "name": "GetSubscription",
+      "kind": "query",
+      "variables": [],
+      "document": "query GetSubscription { customer { __typename ... on RegisteredCustomer { id paymentBackend activeSubscription { id plan { id name description displayName upsellText durationInMonths groupName bulletPoints strapline } state createdAt expiresAt type storeType updatedAt currentTermStartedAt } } } }",
+      "sha256": "d26bf6b5af6c11a76a3e711dcabd01f9d50a3cce0d75e2a7229f6342d788d3a7",
+      "source": "analysis/findmypast/smali/smali/on4.smali"
+    },
+    {
+      "id": "graphql.GetTranscriptById",
+      "name": "GetTranscriptById",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "recordId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation GetTranscriptById($recordId: String!) { fulfillTranscript(confirmedPurchase: true, recordId: $recordId) { action transcript { id imageFulfillableItem { id recordMetadataId } recordSet { id fields { fieldId displayLabel displayOnSite hideEmpty transcriptionDisplayOrder relatedRecordDisplayOrder } } fields { fieldId value } otherPeopleRelatedRecords { title records { fields { displayLabel fieldId value } id } } } } }",
+      "sha256": "fee04a61b351b2350f3f2ac21bcb6745995af4dfbf0d7bde4ce22f30713a3c49",
+      "source": "analysis/findmypast/smali/smali/io4.smali"
+    },
+    {
+      "id": "graphql.GetTranscriptEntitlement",
+      "name": "GetTranscriptEntitlement",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "recordId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetTranscriptEntitlement($recordId: ID!) { getTranscriptEntitlement(recordId: $recordId) { decision reason fulfillmentAction } }",
+      "sha256": "529aa2f0f32dc1899cd6958dd1601dde0a2a51a60ce583351edeca244e409148",
+      "source": "analysis/findmypast/smali/smali/wo4.smali"
+    },
+    {
+      "id": "graphql.GetTreeAssistFlan",
+      "name": "GetTreeAssistFlan",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "focus",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "mother",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "father",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "withMother",
+          "type": "Boolean!",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "withFather",
+          "type": "Boolean!",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "document": "query GetTreeAssistFlan($focus: ID!, $mother: ID!, $father: ID!, $withMother: Boolean! = false , $withFather: Boolean! = false ) { focus: person(id: $focus) { id givenNames surnames birthDate birthPlace gender __typename } mother: person(id: $mother) @include(if: $withMother) { id givenNames surnames birthDate birthPlace gender __typename } father: person(id: $father) @include(if: $withFather) { id givenNames surnames birthDate birthPlace gender __typename } }",
+      "sha256": "f822f37d019f77381bcb9ab0605a93a0f15d73a6c84cc189a81f06555b94f1a9",
+      "source": "analysis/findmypast/smali/smali/ip4.smali"
+    },
+    {
+      "id": "graphql.GetTreeAssistRecords",
+      "name": "GetTreeAssistRecords",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "suggestionId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query GetTreeAssistRecords($suggestionId: String!) { treeAssistRecords(suggestionId: $suggestionId) { records { id sourceCategory datasetName imageUppId eventYear location spouse { givenNames surnames gender } } suggestionId suggestionText } }",
+      "sha256": "53083aa43596e9b694e884e640efa41b54649154295b4b9ba8e1ba69e7ab426b",
+      "source": "analysis/findmypast/smali/smali/sp4.smali"
+    },
+    {
+      "id": "graphql.GetTreeSettings",
+      "name": "GetTreeSettings",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetTreeSettings($treeId: ID!) { familyTree(id: $treeId) { id title isPrivate isPhotoPrivate } }",
+      "sha256": "97fd4b2f253e7a6ecdae0271a455943a3e35f90dec19f8ba5d7c9279c49ea6f8",
+      "source": "analysis/findmypast/smali/smali/cq4.smali"
+    },
+    {
+      "id": "graphql.GetTreeToTreeHintEntitlement",
+      "name": "GetTreeToTreeHintEntitlement",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "recordId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "query GetTreeToTreeHintEntitlement($recordId: ID!) { getTree2TreeHintEntitlement(recordId: $recordId) { decision reason fulfillmentAction } }",
+      "sha256": "1051a179652a0245d6dd786832c1445cf5063883bd57e1f4da9fae9013ace298",
+      "source": "analysis/findmypast/smali/smali/jq4.smali"
+    },
+    {
+      "id": "graphql.IncrementCollectionViewCount",
+      "name": "IncrementCollectionViewCount",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "collectionId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation IncrementCollectionViewCount($collectionId: ID!) { incrementCollectionViewCount(collectionId: $collectionId) }",
+      "sha256": "096a70d2d0633795901bf28871d0828105865247e343fd004b3a288fb5f874fe",
+      "source": "analysis/findmypast/smali/smali/oa5.smali"
+    },
+    {
+      "id": "graphql.IsNodeEligible",
+      "name": "IsNodeEligible",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "nodeId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query IsNodeEligible($treeId: String!, $nodeId: String!) { canGenerateLifestoryChapter(familyTreeId: $treeId, personId: $nodeId) { status } }",
+      "sha256": "d718100dcb9f9ce82ddccf363e5f9aad7b85f9bd3a6b2f907db2313e258227ca",
+      "source": "analysis/findmypast/smali/smali/ph5.smali"
+    },
+    {
+      "id": "graphql.IsUsernameAvailable",
+      "name": "IsUsernameAvailable",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "username",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query IsUsernameAvailable($username: String!) { isUsernameAvailable(username: $username) { isUsernameAvailable } }",
+      "sha256": "d3ed7aff7cab4016764de43bfd8cab74a146e0ca2ce357ca5f003c95f54b3bd1",
+      "source": "analysis/findmypast/smali/smali/vh5.smali"
+    },
+    {
+      "id": "graphql.RejectSuggestion",
+      "name": "RejectSuggestion",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "suggestionId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation RejectSuggestion($suggestionId: String!) { rejectSuggestion(suggestionId: $suggestionId) }",
+      "sha256": "2bc340a9c06e80d7e02191ee4afc5517c7d76990a2b6d47de4206c840fb2753e",
+      "source": "analysis/findmypast/smali/smali/qx8.smali"
+    },
+    {
+      "id": "graphql.RemoveStoryFromSaved",
+      "name": "RemoveStoryFromSaved",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "storyId",
+          "type": "BigInt!",
+          "required": true
+        },
+        {
+          "name": "memberKey",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "mutation RemoveStoryFromSaved($storyId: BigInt!, $memberKey: Int!) { markStoryAsUnsaved(input: { memberKey: $memberKey storyId: $storyId } ) { story { id } } }",
+      "sha256": "cb0bb4f2ee11e9d336a974a0b43bf75d665e5389f8ac39ebebfea9b9ad75451b",
+      "source": "analysis/findmypast/smali/smali/qy8.smali"
+    },
+    {
+      "id": "graphql.SaveStory",
+      "name": "SaveStory",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "storyId",
+          "type": "BigInt!",
+          "required": true
+        },
+        {
+          "name": "memberKey",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "mutation SaveStory($storyId: BigInt!, $memberKey: Int!) { markStoryAsSaved(input: { memberKey: $memberKey storyId: $storyId } ) { story { id } } }",
+      "sha256": "7a8d1ce45b9558d9224f2c9136f4ccc2d847f1879f9137b9625ed8bc6ea94ec8",
+      "source": "analysis/findmypast/smali/smali/w79.smali"
+    },
+    {
+      "id": "graphql.SearchCollections",
+      "name": "SearchCollections",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "searchTerm",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "order",
+          "type": "ScrapbookSearchOrder!",
+          "required": true
+        },
+        {
+          "name": "options",
+          "type": "ScrapbookSearchByOptions",
+          "required": false
+        },
+        {
+          "name": "rows",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "startFrom",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query SearchCollections($searchTerm: String!, $order: ScrapbookSearchOrder!, $options: ScrapbookSearchByOptions, $rows: Int!, $startFrom: Int!) { searchCollections(filter: { searchTerm: $searchTerm searchBy: $options } , ordering: { by: $order direction: DESC } , pagination: { rows: $rows startFrom: $startFrom } ) { numberOfCollections results { id title isPrivate isOwner description dateCreated dateUpdated collectionType mediaCount tags backgroundImageId collectionOrder userProfile { __typename ... on ActiveUserProfile { id username profilePicture } } } } }",
+      "sha256": "011a091f0263d78a619d35e96fa178de9221aa9a59f4f2b2b600586c9cf46bec",
+      "source": "analysis/findmypast/smali/smali/jc9.smali"
+    },
+    {
+      "id": "graphql.SearchRecordSets",
+      "name": "SearchRecordSets",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "query",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "categories",
+          "type": "[String!]!",
+          "required": true
+        },
+        {
+          "name": "subcategories",
+          "type": "[String!]!",
+          "required": true
+        },
+        {
+          "name": "startFrom",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "rows",
+          "type": "Int!",
+          "required": true
+        }
+      ],
+      "document": "query SearchRecordSets($query: String!, $categories: [String!]!, $subcategories: [String!]!, $startFrom: Int!, $rows: Int!) { searchDatasetMetadata(input: { pagination: { startFrom: $startFrom rows: $rows }  metadataFilter: { subcategories: $subcategories categories: $categories tags: [{ type: subject text: $query } ] dateRange: {  }  text: $query }  ordering: [{ by: RELEVANCE direction: DESC } ,{ direction: DESC by: COUNT } ] } ) { datasets { id name category subcategory } totalCount } }",
+      "sha256": "7a4a5eba1abb8bcc70262010aaff338a2dd81dd27c5ba47ef0bf13fd4c5abf07",
+      "source": "analysis/findmypast/smali/smali/cf9.smali"
+    },
+    {
+      "id": "graphql.SendAnswerForQuestion",
+      "name": "SendAnswerForQuestion",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "questionId",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "answerId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation SendAnswerForQuestion($questionId: String!, $answerId: String!) { setQuizResponse(questionId: $questionId, answerId: $answerId) }",
+      "sha256": "fc2c45123f0d50152ccfec1cf2cc56a3efea2a164ab3633220c64100cc5186d6",
+      "source": "analysis/findmypast/smali/smali/hn9.smali"
+    },
+    {
+      "id": "graphql.SendChapterEvent",
+      "name": "SendChapterEvent",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "id",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "event",
+          "type": "ChapterEventType!",
+          "required": true
+        }
+      ],
+      "document": "mutation SendChapterEvent($id: String!, $event: ChapterEventType!) { trackChapter(id: $id, eventType: $event) }",
+      "sha256": "e8236d0468dbdb5aed6a4153a08192bc5b59a1affc0b95b2e8276118c943a7ec",
+      "source": "analysis/findmypast/smali/smali/mn9.smali"
+    },
+    {
+      "id": "graphql.SendTimeoutForQuestionMutation",
+      "name": "SendTimeoutForQuestionMutation",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "questionId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation SendTimeoutForQuestionMutation($questionId: String!) { setQuizTimeOutResponse(questionId: $questionId) }",
+      "sha256": "f835c6092806fa3287d64e6631ece40b48640bd0613932f6ec266a8dad471558",
+      "source": "analysis/findmypast/smali/smali/un9.smali"
+    },
+    {
+      "id": "graphql.SetAiConsent",
+      "name": "SetAiConsent",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "state",
+          "type": "AiConsentToggleState!",
+          "required": true
+        }
+      ],
+      "document": "mutation SetAiConsent($state: AiConsentToggleState!) { setAiConsent(toggleState: $state) { aiConsent { toggleState } } }",
+      "sha256": "9b71fb2ea6ac2cb4dc66b0e1e80ea331450a806b0a448a9fc06ebd485de7848e",
+      "source": "analysis/findmypast/smali/smali/sq9.smali"
+    },
+    {
+      "id": "graphql.SetAppUserLastActive",
+      "name": "SetAppUserLastActive",
+      "kind": "mutation",
+      "variables": [],
+      "document": "mutation SetAppUserLastActive { setUserAppLastActive { id } }",
+      "sha256": "e728ca4773374107dc3591509798f848c1c2bac8b171467d005f6c1a08357b10",
+      "source": "analysis/findmypast/smali/smali/ar9.smali"
+    },
+    {
+      "id": "graphql.SetEmailPreferences",
+      "name": "SetEmailPreferences",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "settings",
+          "type": "BulkEmailNotificationSettingsInput!",
+          "required": true
+        },
+        {
+          "name": "optIn",
+          "type": "Boolean!",
+          "required": true
+        }
+      ],
+      "document": "mutation SetEmailPreferences($settings: BulkEmailNotificationSettingsInput!, $optIn: Boolean!) { bulkUpdateEmailNotificationSettings(bulkEmailNotificationSettingsInput: $settings) setEmailMarketingNotificationOptIn(optIn: $optIn) }",
+      "sha256": "75246abe6d45e1aae122d2bb12fb44bc5f01c9438c4516ff848aa698840ba2b5",
+      "source": "analysis/findmypast/smali/smali/ir9.smali"
+    },
+    {
+      "id": "graphql.SetHintStatus",
+      "name": "SetHintStatus",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "hintStatusId",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "hintsIds",
+          "type": "[ID!]!",
+          "required": true
+        },
+        {
+          "name": "familyTreeId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation SetHintStatus($hintStatusId: Int!, $hintsIds: [ID!]!, $familyTreeId: ID!) { updateHintsStatusV2(hintStatusId: $hintStatusId, hintsIds: $hintsIds, familyTreeId: $familyTreeId) { hintsUpdated } }",
+      "sha256": "d8881eee77ceba7cdbb9a806d4c1cb7175b4f633f54b3f544d18ab4aa13a96ea",
+      "source": "analysis/findmypast/smali/smali/or9.smali"
+    },
+    {
+      "id": "graphql.SetLastViewedTree",
+      "name": "SetLastViewedTree",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation SetLastViewedTree($treeId: ID!) { updateFamilyTreeLastViewed(familyTreeId: $treeId) { success } }",
+      "sha256": "05293b2fae67ae030a911580fcfd9dc01dbf1965d18913491ee1ca3b2a8da20b",
+      "source": "analysis/findmypast/smali/smali/bs9.smali"
+    },
+    {
+      "id": "graphql.SetLastViewedTreeNode",
+      "name": "SetLastViewedTreeNode",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        }
+      ],
+      "document": "mutation SetLastViewedTreeNode($personId: ID!, $treeId: ID!) { setLastViewedPersonForFamilyTree(treeId: $treeId, personId: $personId) { person { id } } }",
+      "sha256": "1d422c0a8cc4ab47890b5b9694affa13e24298c5b52c6308dbafb2ce795254a4",
+      "source": "analysis/findmypast/smali/smali/is9.smali"
+    },
+    {
+      "id": "graphql.SetProfileDateOfBirth",
+      "name": "SetProfileDateOfBirth",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "dateOfBirth",
+          "type": "Date",
+          "required": false
+        }
+      ],
+      "document": "mutation SetProfileDateOfBirth($dateOfBirth: Date) { updateCurrentUserProfile(fieldsToUpdate: { dateOfBirth: $dateOfBirth } ) { profile { id } } }",
+      "sha256": "dce5329bf297a4415aa24f30dd1514b813e0131340c2cb4b500a5736d0cbc029",
+      "source": "analysis/findmypast/smali/smali/qs9.smali"
+    },
+    {
+      "id": "graphql.SetProfilePronouns",
+      "name": "SetProfilePronouns",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "pronouns",
+          "type": "String",
+          "required": false
+        }
+      ],
+      "document": "mutation SetProfilePronouns($pronouns: String) { updateCurrentUserProfile(fieldsToUpdate: { pronouns: $pronouns } ) { profile { id } } }",
+      "sha256": "445a3c75ca8c00141679f3abec34fe846549cc6e77c7592ac1688894f71f40b9",
+      "source": "analysis/findmypast/smali/smali/ys9.smali"
+    },
+    {
+      "id": "graphql.SetProfileShowAge",
+      "name": "SetProfileShowAge",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "showAge",
+          "type": "Boolean",
+          "required": false
+        }
+      ],
+      "document": "mutation SetProfileShowAge($showAge: Boolean) { updateCurrentUserProfile(fieldsToUpdate: { shouldShowAgeGroup: $showAge } ) { profile { id } } }",
+      "sha256": "5a82386633eef441487097a44b7e9edf95f825c500f31b494c45a5748c32b2cc",
+      "source": "analysis/findmypast/smali/smali/gt9.smali"
+    },
+    {
+      "id": "graphql.SetProfileUsername",
+      "name": "SetProfileUsername",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "username",
+          "type": "String",
+          "required": false
+        }
+      ],
+      "document": "mutation SetProfileUsername($username: String) { updateCurrentUserProfile(fieldsToUpdate: { username: $username } ) { profile { id } } }",
+      "sha256": "cf7bf1927c5c3987d0dc3ad376ee8d158511db65bcd4e39ae270f794355d248b",
+      "source": "analysis/findmypast/smali/smali/ot9.smali"
+    },
+    {
+      "id": "graphql.SetPushPreferences",
+      "name": "SetPushPreferences",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "settings",
+          "type": "BulkPushNotificationSettingsInput!",
+          "required": true
+        },
+        {
+          "name": "optIn",
+          "type": "Boolean!",
+          "required": true
+        }
+      ],
+      "document": "mutation SetPushPreferences($settings: BulkPushNotificationSettingsInput!, $optIn: Boolean!) { bulkUpdatePushNotificationSettings(bulkPushNotificationSettingsInput: $settings) setPushMarketingNotificationOptIn(optIn: $optIn) }",
+      "sha256": "1008762b55bbae67d3c80f38435cca4b0c947a5f55506cdc049facfa2fe8bca5",
+      "source": "analysis/findmypast/smali/smali/ut9.smali"
+    },
+    {
+      "id": "graphql.SetRecordMergeResult",
+      "name": "SetRecordMergeResult",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "input",
+          "type": "DeselectionInput",
+          "required": false
+        },
+        {
+          "name": "treeRef",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "hintCategory",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "personId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "recordId",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "selectedFamily",
+          "type": "Int",
+          "required": false
+        }
+      ],
+      "document": "mutation SetRecordMergeResult($input: DeselectionInput, $treeRef: String!, $hintCategory: Int!, $personId: ID!, $recordId: String!, $selectedFamily: Int) { putUpdateFamilyTree(deselectionInput: $input, familyTreeRef: $treeRef, hintCategory: $hintCategory, personId: $personId, recordId: $recordId, selectedFamilyId: $selectedFamily) }",
+      "sha256": "94e9bdd1c066b054bda636f4ef59f9b3b18164bdba9157a9b0cf7eb4f650d656",
+      "source": "analysis/findmypast/smali/smali/yt9.smali"
+    },
+    {
+      "id": "graphql.SetSignUpAnswers",
+      "name": "SetSignUpAnswers",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "answers",
+          "type": "SignUpSurveyAnswers!",
+          "required": true
+        }
+      ],
+      "document": "mutation SetSignUpAnswers($answers: SignUpSurveyAnswers!) { storeSignUpSurveyAnswers(answers: $answers) }",
+      "sha256": "1fc93be1b55b1c3c397914af7a272ace8d150af1dc00dee4c82e8725ae1a3a93",
+      "source": "analysis/findmypast/smali/smali/du9.smali"
+    },
+    {
+      "id": "graphql.SuggestRegion",
+      "name": "SuggestRegion",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "search",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "region",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "rows",
+          "type": "Int!",
+          "required": true
+        },
+        {
+          "name": "parentCategory",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "childCategory",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "datasetName",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query SuggestRegion($search: String!, $region: String!, $rows: Int!, $parentCategory: String!, $childCategory: String!, $datasetName: String!) { suggestRegion(input: { location: $search region: $region rows: $rows parentCategory: $parentCategory childCategory: $childCategory datasetName: $datasetName } ) { suggestions { payload weight term } } }",
+      "sha256": "d1ae49551129e5a8af7afeb9be5af145803b3caebaf9e312e08685c230cbd3ad",
+      "source": "analysis/findmypast/smali/smali/kfa.smali"
+    },
+    {
+      "id": "graphql.TreeAssistMergeSuggestion",
+      "name": "TreeAssistMergeSuggestion",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "mergeSuggestionInput",
+          "type": "MergeTreeAssistSuggestionInput!",
+          "required": true
+        }
+      ],
+      "document": "mutation TreeAssistMergeSuggestion($mergeSuggestionInput: MergeTreeAssistSuggestionInput!) { mergeTreeAssistSuggestion(input: $mergeSuggestionInput) { personId suggestionId } }",
+      "sha256": "597027190df5a6d995f542da0ef40e00e93befb7d61812c75a14ae0f4f7f0c8c",
+      "source": "analysis/findmypast/smali/smali/m5b.smali"
+    },
+    {
+      "id": "graphql.TriggerTreeAssistSuggestions",
+      "name": "TriggerTreeAssistSuggestions",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "flan",
+          "type": "TreeAssistSuggestionV2ArgsFlan!",
+          "required": true
+        },
+        {
+          "name": "waitForStage",
+          "type": "[SuggestionGenerationStage!]",
+          "required": false
+        },
+        {
+          "name": "waitForSuggestion",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "source",
+          "type": "TreeAssistSource",
+          "required": false
+        }
+      ],
+      "document": "query TriggerTreeAssistSuggestions($flan: TreeAssistSuggestionV2ArgsFlan!, $waitForStage: [SuggestionGenerationStage!], $waitForSuggestion: Boolean!, $source: TreeAssistSource) { triggerAsyncSuggestions(flan: $flan, waitForStage: $waitForStage, waitForSuggestion: $waitForSuggestion, source: $source) { suggestions { id recordIds person { birthDate birthPlace gender givenNames surnames } ahnenDab } treeAssistQueryId hasErrors hasTimeouts } }",
+      "sha256": "b77983de06016be9a70726a8a5ed2b644af6ae802fd27990bcac97b8a65ade9d",
+      "source": "analysis/findmypast/smali/smali/oab.smali"
+    },
+    {
+      "id": "graphql.UpdateEmail",
+      "name": "UpdateEmail",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "newEmail",
+          "type": "EmailAddress!",
+          "required": true
+        }
+      ],
+      "document": "mutation UpdateEmail($newEmail: EmailAddress!) { changeUserEmailAddress(newEmailAddress: $newEmail) { user { id } } }",
+      "sha256": "867bef80a65eb12175f0c4f346e89afb6d75aabf24933303c1981d29f072e01a",
+      "source": "analysis/findmypast/smali/smali/ygb.smali"
+    },
+    {
+      "id": "graphql.UpdateFamilyTree",
+      "name": "UpdateFamilyTree",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "treeId",
+          "type": "ID!",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "isPrivate",
+          "type": "Boolean!",
+          "required": true
+        },
+        {
+          "name": "isPhotoPrivate",
+          "type": "Boolean!",
+          "required": true
+        }
+      ],
+      "document": "mutation UpdateFamilyTree($treeId: ID!, $name: String!, $isPrivate: Boolean!, $isPhotoPrivate: Boolean!) { updateFamilyTree(familyTreeFieldsToUpdate: { isPhotoPrivate: $isPhotoPrivate isPrivate: $isPrivate title: $name familyTreeId: $treeId } ) { success } }",
+      "sha256": "df2f5002f6a85197c9296973070ff424f4f2a653b03d0a0506c7773132419e1d",
+      "source": "analysis/findmypast/smali/smali/khb.smali"
+    },
+    {
+      "id": "graphql.UpdateVerse",
+      "name": "UpdateVerse",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "verseId",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "id",
+          "type": "String!",
+          "required": true
+        },
+        {
+          "name": "content",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation UpdateVerse($verseId: String!, $id: String!, $content: String!) { updateVerse(content: $content, verseId: $verseId, id: $id) { id } }",
+      "sha256": "7c97892408c6284f06d663337b4db1359e25edd3e2130a8d951872421afc71ef",
+      "source": "analysis/findmypast/smali/smali/nib.smali"
+    },
+    {
+      "id": "graphql.UploadProfilePicture",
+      "name": "UploadProfilePicture",
+      "kind": "mutation",
+      "variables": [
+        {
+          "name": "image",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "mutation UploadProfilePicture($image: String!) { uploadProfilePicture(profilePicture: $image) { outcome } }",
+      "sha256": "10fbe5c03612c8ad5ad50bb3df5e8345716c4b3ffae11f5bbf000f02b89dda34",
+      "source": "analysis/findmypast/smali/smali/zib.smali"
+    },
+    {
+      "id": "graphql.recordSetInformation",
+      "name": "recordSetInformation",
+      "kind": "query",
+      "variables": [
+        {
+          "name": "recordMetadataId",
+          "type": "String!",
+          "required": true
+        }
+      ],
+      "document": "query recordSetInformation($recordMetadataId: String!) { recordSetInformation(recordMetadataId: $recordMetadataId) }",
+      "sha256": "c369dbffce96ecf905aa1d4236852cd655dc9b1f6b3261aad65b0ec67fd29809",
+      "source": "analysis/findmypast/smali/smali/os8.smali"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ analysis/decoded/
 analysis/smali/
 analysis/ancestry/
 analysis/myheritage/
+analysis/findmypast/
 .DS_Store
 *.har
 
