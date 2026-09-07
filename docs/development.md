@@ -4,7 +4,7 @@ Use Node.js 22.16 or newer, npm, and Python 3. Run `npm ci` to install dependenc
 
 ## Source layout
 
-`src/cli.ts` contains only the `fam` dispatcher and top-level help. Each service owns its client, authentication, CLI, and generated contracts under `src/familysearch/`, `src/ancestry/`, `src/myheritage/`, `src/findmypast/`, or `src/findagrave/`.
+`src/cli.ts` contains only the `fam` dispatcher and top-level help. Each service owns its client, authentication, CLI, and generated contracts under `src/familysearch/`, `src/ancestry/`, `src/myheritage/`, `src/findmypast/`, `src/findagrave/`, or `src/geneanet/`.
 
 `src/shared/` contains credential lookup, private storage, and lossless JSON utilities used across providers. `src/index.ts` preserves the root library export; FamilySearch is also available through `@potatosalad/fam/familysearch`, alongside the other provider subpaths. Builds clear old output before compiling so renamed modules do not remain in installed packages.
 
@@ -69,3 +69,5 @@ Run only the checks for services you have set up. They are not part of `npm test
 Find a Grave verification also uses an existing session. `npm run verify:findagrave -- --anonymous` checks public reads without a login. Photo CDN denials are reported as blocked downloads; they do not count as successful downloads or fail the other checks. The search verifier checks biography, name, date, and plot filters. Neither verifier signs in or executes account or memorial edits.
 
 Account reports go into the private configuration directory. Document checks save downloads under the checkout's ignored `artifacts/` directory and print a summary. Keep live reports, HARs, credentials, and personal exports out of commits.
+
+Geneanet uses website contracts instead of APK extraction. Its checked-in JSON also regenerates with `npm run generate:catalogs`. See [Geneanet protocol and evidence](geneanet/protocol.md).

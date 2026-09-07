@@ -1,0 +1,48 @@
+{
+  "observedAt": "2026-09-07",
+  "sourceType": "official website and public JavaScript; no APK",
+  "sources": [
+    {
+      "url": "https://geneacdn.net/build/geneanet.js?v=cb2e9482",
+      "bytes": 667894,
+      "sha256": "006a34e26dfe319dd953d9572deb347916d94839ca847200f26484e72e3e8bad"
+    },
+    {
+      "url": "https://geneacdn.net/build/bundles/media/plugin.js?v=53d60c34",
+      "bytes": 696793,
+      "sha256": "ffd6f1ed3b6f6dc35a4e61297007a2dc293b6faeaa94c2489f06ff0c8d19b057"
+    },
+    {
+      "url": "https://geneacdn.net/build/bundles/core/viewer.js?v=4375d7a9",
+      "bytes": 645700,
+      "sha256": "a4477577d171a535f6a6797e475de4a41d89c2632bf4201b443e4acc42d807e4"
+    },
+    {
+      "url": "https://geneacdn.net/build/bundles/bibliotheque/viewer.js?v=d9c937db",
+      "bytes": 314954,
+      "sha256": "b1e8ba9cf9f8bb4eccae022c6c7cfa0eff28f135f90433c6d33a4c3ba7be8ccc"
+    },
+    {
+      "url": "https://geneacdn.net/build/bundles/registres/registre.js?v=6239c88c",
+      "bytes": 414860,
+      "sha256": "429e65a855495fec4f4138cc123ce9e27b53548daa172ccfac8f2ee3ba633559"
+    },
+    {
+      "url": "https://geneacdn.net/build/bundles/geneweb.js?v=1d9ffd24",
+      "bytes": 1263060,
+      "sha256": "02ff56b37484c95e34b202279a83792faca1c90329b01a23e45863510e31ed59"
+    },
+    {
+      "url": "https://en.geneanet.org/_fragment/core/js/routing?c_routing_version=20260907152710&c_version=11&cachable=1&callback=fos.Router.setData&lang=en&route_origin=geneanet_core_js_routing&ttl=43200",
+      "bytes": 72439,
+      "sha256": "583a517336882d7396acef93e9c9f8f7bc44f56093c9527a2f227ee1884c92e5"
+    }
+  ],
+  "routeCount": 228,
+  "operationCount": 16,
+  "notes": [
+    "Bundles were inspected as text and were not executed.",
+    "Only selected read routes have traced arguments and live verification. Route inventory is not a complete public developer API.",
+    "No account HTML, cookies, JWTs, credentials, or downloaded research are included."
+  ]
+}

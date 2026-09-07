@@ -6,14 +6,16 @@ const providers = {
   myheritage: () => import('./myheritage/cli.js'),
   findmypast: () => import('./findmypast/cli.js'),
   findagrave: () => import('./findagrave/cli.js'),
+  geneanet: () => import('./geneanet/cli.js'),
 };
 
 const help = `Usage: fam PROVIDER COMMAND [arguments] [options]
 
-Providers: familysearch, ancestry, myheritage, findmypast, findagrave
+Providers: familysearch, ancestry, myheritage, findmypast, findagrave, geneanet
 
 Examples:
   fam familysearch whoami
+  fam geneanet search --last-name Lincoln --first-name Abraham
   fam ancestry trees
   fam myheritage --help
   fam findmypast search --first-name Ada --last-name Lovelace

@@ -1,6 +1,6 @@
 # fam
 
-One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave. Browse family trees, search historical records and memorials, and download original documents.
+One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, and Geneanet. Browse family trees, search historical records and memorials, and download original documents.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
@@ -105,6 +105,18 @@ Run `fam findagrave verify` to check a saved session, or `auth` to sign in again
 
 See the [Find a Grave guide](docs/findagrave/README.md) for memorials, cemeteries, biography search, and photo downloads.
 
+### Geneanet
+
+```sh
+fam geneanet credentials
+fam geneanet auth
+fam geneanet verify
+fam geneanet search --last-name Lincoln --first-name Abraham
+fam geneanet photos --last-name Lincoln --first-name Abraham
+```
+
+Geneanet uses a web password session and JSON media APIs. The [Geneanet guide](docs/geneanet/README.md) covers archival transcriptions, collections, portraits, register images, and library PDF pages, including browser-challenge and subscription limits.
+
 ## Use the commands
 
 ```sh
@@ -134,6 +146,7 @@ The `call` and `gql` commands can execute writes and deletions. Check the operat
 - [MyHeritage record research](docs/myheritage/research.md)
 - [Findmypast commands](docs/findmypast/README.md)
 - [Find a Grave commands](docs/findagrave/README.md)
+- [Geneanet commands and document downloads](docs/geneanet/README.md)
 - [FamilySearch TypeScript API](docs/familysearch/typescript.md)
 
 ## Configuration
@@ -151,6 +164,7 @@ For scripts, set both environment variables for the service:
 | MyHeritage | `MYHERITAGE_USERNAME` | `MYHERITAGE_PASSWORD` |
 | Findmypast | `FINDMYPAST_USERNAME` | `FINDMYPAST_PASSWORD` |
 | Find a Grave | `FINDAGRAVE_USERNAME` (email) | `FINDAGRAVE_PASSWORD` |
+| Geneanet | `GENEANET_USERNAME` (username or email) | `GENEANET_PASSWORD` |
 
 Environment credentials take precedence over a configured credential helper, then saved passwords. Existing sessions remain active until a new login is needed or you run `auth`. The CLI does not load `.env` files.
 

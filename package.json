@@ -2,7 +2,7 @@
   "name": "@potatosalad/fam",
   "version": "0.2.0",
   "type": "module",
-  "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave",
+  "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, and Geneanet",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
@@ -81,6 +81,10 @@
     "./familysearch": {
       "types": "./dist/familysearch/index.d.ts",
       "import": "./dist/familysearch/index.js"
+    },
+    "./geneanet": {
+      "types": "./dist/geneanet/index.d.ts",
+      "import": "./dist/geneanet/index.js"
     }
   },
   "files": [

@@ -7,7 +7,7 @@ const directory = mkdtempSync(join(tmpdir(), 'fam-test-'));
 process.env.FAM_CONFIG_DIR = directory;
 delete process.env.FAMILYSEARCH_CONFIG_DIR;
 delete process.env.FAM_CREDENTIALS_COMMAND;
-for (const service of ['FAMILYSEARCH', 'ANCESTRY', 'MYHERITAGE', 'FINDMYPAST', 'FINDAGRAVE']) {
+for (const service of ['FAMILYSEARCH', 'ANCESTRY', 'MYHERITAGE', 'FINDMYPAST', 'FINDAGRAVE', 'GENEANET']) {
   delete process.env[`${service}_USERNAME`];
   delete process.env[`${service}_PASSWORD`];
 }

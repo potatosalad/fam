@@ -15,7 +15,7 @@ const invoke = (...args: string[]) => run(process.execPath, ['--import', import.
 test('fam routes help, status and offline catalogs outside the checkout without credential lookup', async () => {
   for (const args of [[], ['--help'], ['-h'], ['help']]) assert.match((await invoke(...args)).stdout, /Usage: fam PROVIDER/);
   assert.match((await invoke('--version')).stdout, /^\d+\.\d+\.\d+\n$/);
-  for (const service of ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave']) {
+  for (const service of ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet']) {
     for (const args of [[service, '--help'], [service, '-h'], ['help', service]]) {
       assert.match((await invoke(...args)).stdout, new RegExp(`fam ${service}`));
     }
