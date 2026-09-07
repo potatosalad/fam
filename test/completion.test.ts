@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -10,12 +10,20 @@ import { complete, completionScript, installCompletion, type CompletionNode } fr
 
 const run = promisify(execFile);
 const root = fileURLToPath(new URL('../', import.meta.url));
-const cli = join(root, 'bin/fam.mjs');
+const sourceCli = join(root, 'src/cli.ts');
+const sourceArgs = ['--import', import.meta.resolve('tsx'), sourceCli];
 // Refresh the catalog for source tests, including provider changes since the build.
 await run(process.execPath, [join(root, 'scripts/generate-completions.mjs')]);
 const catalog = JSON.parse(await readFile(join(root, 'dist/shared/completion-data.json'), 'utf8')) as CompletionNode;
 const query = (...words: string[]) => complete(catalog, words);
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+
+// Shell adapters invoke an executable. Use a disposable launcher for the source
+// CLI so npm test does not depend on a previous build of dist/cli.js.
+const launcherDirectory = await mkdtemp(join(tmpdir(), 'fam completion-'));
+after(() => rm(launcherDirectory, { recursive: true, force: true }));
+const cli = join(launcherDirectory, 'fam');
+await writeFile(cli, `#!/bin/sh\nexec ${[process.execPath, ...sourceArgs].map(quote).join(' ')} "$@"\n`, { mode: 0o700 });
 
 test('completion covers every provider, nested commands, flags and option values', () => {
   assert.deepEqual(query('fam').candidates, ['familysearch']);
@@ -56,14 +64,14 @@ test('file completion is limited to file arguments and preserves whitespace and 
 test('completion CLI runs outside the checkout without accessing credentials', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'fam-completion-'));
   try {
-    const { stdout, stderr } = await run(process.execPath, [cli, '__complete', 'familysearch', 'image', 'd'], {
+    const { stdout, stderr } = await run(process.execPath, [...sourceArgs, '__complete', 'familysearch', 'image', 'd'], {
       cwd: directory, env: { ...process.env, FAM_CONFIG_DIR: join(directory, 'no-profile'), FAM_CREDENTIALS_COMMAND: '["must-not-run"]' },
     });
     assert.equal(stdout, 'words\nd\ndownload\n');
     assert.equal(stderr, '');
     await assert.rejects(stat(join(directory, 'no-profile')), { code: 'ENOENT' });
-    for (const shell of ['bash', 'zsh']) assert.equal((await run(process.execPath, [cli, 'completion', shell])).stdout, completionScript(shell));
-    await assert.rejects(run(process.execPath, [cli, 'completion', 'fish']));
+    for (const shell of ['bash', 'zsh']) assert.equal((await run(process.execPath, [...sourceArgs, 'completion', shell])).stdout, completionScript(shell));
+    await assert.rejects(run(process.execPath, [...sourceArgs, 'completion', 'fish']));
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
