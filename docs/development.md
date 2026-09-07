@@ -18,7 +18,7 @@ npm run fam -- findmypast --help
 npm run fam -- findagrave --help
 ```
 
-These commands use the public checkout. They do not call a globally installed CLI.
+These commands run the shared fam source in this checkout. They do not call a globally installed CLI.
 
 ## Checks
 

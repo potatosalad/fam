@@ -45,7 +45,7 @@ Open the returned URL. After signing in, save the full `com.findmypast.prod://..
 fam findmypast auth --callback-file /private/path/callback.txt
 ```
 
-Delete the callback file afterward. This flow requires access to the callback URL; use HAR import if your browser does not expose it. Native login and token renewal are covered by mocked tests, but have not been verified against a live account in this public checkout.
+Delete the callback file afterward. This flow requires access to the callback URL; use HAR import if your browser does not expose it. Native login and token renewal are covered by mocked tests, but have not been verified against a live account in this project.
 
 API commands require a saved session and never start password login. Native sessions can renew once on expiry or HTTP 401; failed requests do not fall back to password login.
 
