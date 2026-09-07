@@ -1,4 +1,3 @@
-import { parseArgs } from 'node:util';
 import { inspectLoginCredentials, type Service } from './credentials.js';
 import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from './storage.js';
 import { DoctorIssue, object, failure, type CheckStatus, type DoctorCheck, type DoctorProvider, type SessionInfo } from './doctor-checks.js';
@@ -72,7 +71,7 @@ export async function diagnoseProvider(provider: DoctorProvider, live = true, de
         : `Login details are available from ${source === 'file' ? 'the saved login file' : 'environment variables'}; password validity is unverified.`});
   } catch {
     checks.push({id: 'credentials', status: 'error', code: 'credentials-invalid', scope: 'password-login', message: 'The effective credential source is unreadable, incomplete, or malformed.',
-      action: `Check ${provider.service.toUpperCase()}_USERNAME and ${provider.service.toUpperCase()}_PASSWORD, FAM_CREDENTIALS_COMMAND or config.json credentialsCommand, and the saved login file. Use fam ${provider.service} credentials to replace saved login details.`});
+      action: `Check ${provider.service.toUpperCase()}_USERNAME and ${provider.service.toUpperCase()}_PASSWORD, FAM_CREDENTIALS_COMMAND or config.json credentialsCommand, and the saved login file. Use fam ${provider.service}.credential set to replace saved login details.`});
   }
   for (const pending of provider.pending ?? []) {
     try {
@@ -175,12 +174,12 @@ export function formatDoctor(report: DoctorReport, verbose = false): string {
       if (issue?.action) actions.push(`${provider.provider}: ${issue.action.split(/(?<=\.)\s+/)[0]}`);
     }
     if (actions.length) lines.push('', ...actions);
-    lines.push('', report.mode === 'local' ? 'Offline: sessions are unverified. Run fam doctor to check online.'
+    lines.push('', report.mode === 'local' ? 'Offline: sessions are unverified. Run fam cli.health check to check online.'
       : 'Session checks only; other capabilities untested. Use --verbose for details.');
     return lines.join('\n');
   }
-  const lines = [`fam doctor — ${report.mode} checks`, `Profile: ${CREDENTIAL_DIR}`];
-  if (report.mode === 'local') lines.push('Online functionality is unverified. Run fam doctor to check online.');
+  const lines = [`fam cli.health check — ${report.mode} checks`, `Profile: ${CREDENTIAL_DIR}`];
+  if (report.mode === 'local') lines.push('Online functionality is unverified. Run fam cli.health check to check online.');
   else lines.push('Authenticated reads with automatic renewal when needed. No password login.');
   for (const provider of report.providers) {
     lines.push('', `${provider.provider}: ${provider.status.toUpperCase()}${provider.session ? ` (${provider.session.mode})` : ''}`);
@@ -195,45 +194,4 @@ export function formatDoctor(report: DoctorReport, verbose = false): string {
   lines.push('', `${counts.filter(c => c.status === 'error').length} errors, ${counts.filter(c => c.status === 'warning').length} warnings, ${counts.filter(c => c.status === 'skipped').length} skipped checks.`);
   if (report.providers.some(p => p.session && p.checks.some(c => c.scope === 'password-login'))) lines.push('Password-login restrictions are shown separately and do not change saved-session status.');
   return lines.join('\n');
-}
-
-const help = `Usage: fam doctor [PROVIDER ...] [--offline] [--verbose | --json]
-
-Check saved sessions online and renew them automatically when needed.
-  --offline Inspect local state only; no network requests or session changes
-  --live    Check online (the default; retained for compatibility)
-  --verbose Show individual checks, recovery steps, and coverage limits
-  --json    Print a structured report with stable check IDs and issue codes
-  --help    Show this help
-
-Examples:
-  fam doctor
-  fam doctor ancestry findmypast
-  fam doctor --offline --json
-
-One authenticated read per provider, plus at most one token renewal and retry if needed.
-Renewed tokens and browser session updates are saved. No password login or credential lookup.
-Password-login cooldowns do not block existing sessions. No searches or tree traversal.
-MyHeritage browser checks read one saved tree page and retain its current API token.
-Exit codes: 0 = no issues found in performed checks, 1 = warnings/errors,
-2 = invalid arguments. Skipped checks are never evidence of working functionality.
-Set FAM_CONFIG_DIR to choose the profile to inspect.
-`;
-
-export async function doctorMain(args: string[]) {
-  let parsed: {values: {help?: boolean; live?: boolean; offline?: boolean; json?: boolean; verbose?: boolean}; positionals: string[]};
-  try {
-    parsed = parseArgs({args, allowPositionals: true, options: {help: {type: 'boolean', short: 'h'}, live: {type: 'boolean'}, offline: {type: 'boolean'}, json: {type: 'boolean'}, verbose: {type: 'boolean'}}});
-    if (parsed.positionals.some(p => !Object.hasOwn(doctorProviders, p))) throw new Error('Unknown provider.');
-    if (parsed.values.json && parsed.values.verbose) throw new Error('Choose text details or JSON.');
-    if (parsed.values.live && parsed.values.offline) throw new Error('Choose online or offline checks.');
-  } catch {
-    console.error('Invalid doctor arguments. Run fam doctor --help.'); process.exitCode = 2; return;
-  }
-  if (parsed.values.help) {console.log(help); return;}
-  const services = [...new Set(parsed.positionals.length ? parsed.positionals : Object.keys(doctorProviders))] as Service[];
-  const progress = parsed.values.verbose ? (label: string) => console.error(`Checking ${label}…`) : undefined;
-  const report = await runDoctor(services, !parsed.values.offline, progress);
-  console.log(parsed.values.json ? JSON.stringify(report, null, 2) : formatDoctor(report, !!parsed.values.verbose));
-  process.exitCode = report.status === 'ok' ? 0 : 1;
 }

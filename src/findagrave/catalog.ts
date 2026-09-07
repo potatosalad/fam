@@ -8,7 +8,7 @@ export const aliases: Record<string, string> = {
 export function graphqlOperation(name: string) {
   const key = aliases[name] ?? name;
   const matches = contracts.graphql.filter(o => o.id === key || o.name === key);
-  if (matches.length !== 1) throw new Error(matches.length ? `Ambiguous operation ${name}; use a full ID from fam findagrave ops.` : `Unknown operation ${name}; use fam findagrave ops.`);
+  if (matches.length !== 1) throw new Error(matches.length ? `Ambiguous operation ${name}; use a full ID from fam findagrave.api list.` : `Unknown operation ${name}; use fam findagrave.api list.`);
   return matches[0]!;
 }
 export function validateDocument(document: string, variables: Record<string, unknown>, name?: string): string {

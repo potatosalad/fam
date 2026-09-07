@@ -256,11 +256,11 @@ test('schema examples and query flags prevent the recordDetails nesting detour',
 
 test('CLI help and schema examples use the installed command spelling; invalid research flags fail before network',async()=>{
   const run=promisify(execFile),options={cwd:resolveProject(),env:{...process.env},maxBuffer:1024*1024};
-  const help=await run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','--help'],options);
-  assert.match(help.stdout,/familysearch image download/);assert.ok(!help.stdout.includes('npm run fs --'));
-  const example=await run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','schema','sources.recordDetails','--example'],options);
-  assert.equal(typeof JSON.parse(example.stdout).query.recordUrl,'string');
-  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','film','images','5764700','--name','ignored'],options),/not supported/);
-  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','image','download','3:1:TEST'],options),/requires --out/);
+  const help=await run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch.image','download','--help'],options);
+  assert.match(help.stdout,/familysearch\.image download/);assert.ok(!help.stdout.includes('npm run fs --'));
+  const example=await run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch.api','describe','--operation','sources.recordDetails','--example','--json'],options);
+  assert.equal(typeof JSON.parse(example.stdout).data.query.recordUrl,'string');
+  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch.film','images','--dgs','5764700','--name','ignored'],options),/Unknown option/);
+  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch.image','download','--ark','3:1:TEST'],options),/required flag --out/);
 });
 function resolveProject(){return fileURLToPath(new URL('..',import.meta.url));}

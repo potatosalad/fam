@@ -107,7 +107,7 @@ export function operationQueryInput(name: string, supplied: unknown, flags: stri
     if (split < 1) throw new Error('--query requires parameter=value.');
     const key = flag.slice(0, split), text = flag.slice(split + 1);
     const parameter = operationContract(name).parameters.find(p => p.kind === 'query' && p.name === key);
-    if (!parameter) throw new Error(`Unknown query parameter. Use "fam familysearch schema ${name}".`);
+    if (!parameter) throw new Error(`Unknown query parameter. Use "fam familysearch.api describe --operation ${name}".`);
     if (Object.hasOwn(query, key)) throw new Error(`Query parameter ${key} was supplied more than once.`);
     let value: unknown = text;
     if (parameter.type.kind === 'boolean') {
@@ -164,7 +164,7 @@ export function prepareOperation(name: OperationName, supplied: unknown): { path
   const allowed = new Set(['query', 'headers', ...contract.parameters.filter(p => p.kind === 'path' || p.kind === 'body').map(p => p.name)]);
   for (const key of Object.keys(input).filter(k => !allowed.has(k))) {
     const parameter = contract.parameters.find(p => p.name === key && (p.kind === 'query' || p.kind === 'header'));
-    if (parameter) throw new Error(`Invalid input: ${parameter.name} belongs under ${parameter.kind === 'query' ? 'query' : 'headers'}. Use "fam familysearch schema ${name} --example" for the correct nesting.`);
+    if (parameter) throw new Error(`Invalid input: ${parameter.name} belongs under ${parameter.kind === 'query' ? 'query' : 'headers'}. Use "fam familysearch.api describe --operation ${name} --example" for the correct nesting.`);
     fail('input', 'documented input properties');
   }
   for (const kind of ['query', 'headers']) {

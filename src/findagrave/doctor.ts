@@ -11,7 +11,7 @@ export const doctorProvider: DoctorProvider = {
     cookies(s.cookies);
     return {mode: 'native', refreshAvailable: false};
   },
-  recovery: () => 'Run fam findagrave auth. If login fails, update credentials with fam findagrave credentials and complete any website verification. There is no token refresh command.',
+  recovery: () => 'Run fam findagrave.session login. If login fails, update credentials with fam findagrave.credential set and complete any website verification. There is no token refresh command.',
   probe: {id: 'account', label: 'Signed-in contributor', async run(value) {
       const s = value as FindagraveSession, op = graphqlOperation('SignedInContributor'), http = new FindagraveHttp(s.cookies);
       const data = await graphql(http, GRAPHQL, op, {}, {...op.headers, fgm: s.contributorId, fgmSeed: s.token});

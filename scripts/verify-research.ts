@@ -85,24 +85,24 @@ if (values.cli) {
   // from outside the checkout. Never include its raw research output in the report.
   const exec = promisify(execFile);
   async function command(args: string[]) {
-    return await exec(process.execPath, [fileURLToPath(new URL('../bin/fam.mjs', import.meta.url)), 'familysearch', ...args], { cwd: directory, maxBuffer: 4 * 1024 * 1024 });
+    return await exec(process.execPath, [fileURLToPath(new URL('../bin/fam.mjs', import.meta.url)), ...args, ...(args.includes('--help') ? [] : ['--json'])], { cwd: directory, maxBuffer: 4 * 1024 * 1024 });
   }
-  const help = (await command(['--help'])).stdout;
-  assert.ok(help.includes('fam familysearch image download'));
+  const help = (await command(['familysearch.image', 'download', '--help'])).stdout;
+  assert.ok(help.includes('fam familysearch.image download'));
   assert.ok(!help.includes('npm run fam -- familysearch'));
-  const example = JSON.parse((await command(['schema', 'sources.recordDetails', '--example'])).stdout);
+  const example = JSON.parse((await command(['familysearch.api', 'describe', '--operation', 'sources.recordDetails', '--example'])).stdout).data;
   assert.equal(typeof example.query.recordUrl, 'string');
   passed('installed CLI help and nested schema example');
-  const cliImage = JSON.parse((await command(['image', 'download', image408, '--original', '--out', 'cli-walton-408.jpg'])).stdout);
+  const cliImage = JSON.parse((await command(['familysearch.image', 'download', '--ark', image408, '--original', '--out', 'cli-walton-408.jpg'])).stdout).data;
   assert.equal(cliImage.imageNumber, 408);
   assert.equal(cliImage.width, 3532);
   assert.equal(cliImage.height, 4224);
   passed('installed CLI original download in fresh process', { imageNumber: 408, decoded: true });
-  const cliTranscript = JSON.parse((await command(['image', 'transcript', image408])).stdout);
+  const cliTranscript = JSON.parse((await command(['familysearch.image', 'transcript', '--ark', image408])).stdout).data;
   assert.equal(cliTranscript.available, true);
   assert.equal(cliTranscript.text, transcript.text);
   passed('installed CLI transcript in fresh process');
-  const cliSearch = JSON.parse((await command(['fulltext', 'search', '--name', 'Walton', '--dgs', '005764700', '--count', '2'])).stdout);
+  const cliSearch = JSON.parse((await command(['familysearch.fulltext', 'search', '--name', 'Walton', '--dgs', '005764700', '--count', '2'])).stdout).data;
   assert.equal(cliSearch.items.length, 2);
   assert.ok(cliSearch.items.every((hit: { imageArk: string }) => filmArks.has(hit.imageArk)));
   passed('installed CLI scoped Full-Text Search in fresh process');

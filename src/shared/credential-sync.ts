@@ -29,6 +29,6 @@ export async function syncCredentials(provider: string, directory: string, file?
     return true;
   } catch {
     // Helper arguments/output and parser errors may contain credentials.
-    throw new Error(`Credential sync hook failed for ${provider}; output was suppressed. Local credentials are saved. Retry with fam ${provider} sync.`);
+    throw new Error(`Credential sync hook failed for ${provider}; output was suppressed. Local credentials are saved. Retry with fam ${provider}.credential sync.`);
   }
 }

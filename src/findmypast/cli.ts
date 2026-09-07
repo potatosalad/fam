@@ -7,73 +7,11 @@ import { parseJson, stringifyJson } from '../shared/json.js';
 import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { authenticateFindmypast, beginBrowserAuthorization, finishBrowserAuthorization, sessionStatus, type SavedFindmypastSession } from './auth.js';
 import { importFindmypastHar } from './har.js';
+import { captureOptions } from '../shared/browser-capture.js';
 import { FindmypastClient, searchFilters, type SearchFilter } from './client.js';
 import { aliases, contracts, graphqlOperation, restOperation, type RestArguments } from './catalog.js';
 import { downloadRecordImage, newspaperVariables, recordOrder, searchNewspapers } from './research.js';
 
-const help = `Usage: fam findmypast COMMAND [arguments] [options]
-
-Account
-  credentials [--stdin]        Save login details (helper, environment, hidden prompt, or JSON stdin)
-  auth                         Native password sign-in; never retried automatically
-  auth --browser               Start the app's browser verification flow (PKCE)
-  auth --callback-file FILE     Exchange the completed browser callback URL
-  auth --har FILE               Import and validate a signed-in website HAR
-  status                       Saved-session metadata; no tokens or live login
-  refresh                      Renew native tokens or revalidate browser cookies
-  me                           Current user profile
-  subscription                 Current plan and subscription status
-
-Genealogy and records
-  trees [--limit N --offset N]
-  tree TREE                    Tree settings
-  people TREE                  People, tree metadata and root/last-viewed person IDs
-  person TREE PERSON           Summary from the tree's family view
-  relatives TREE PERSON        Family view around a person
-  facts PERSON                 Personal/family/name facts and source citations
-  hints TREE PERSON [--limit N --offset N]
-  media PERSON [--limit N --offset N]
-  search --first-name NAME --last-name NAME [--birth-year YYYY --death-year YYYY]
-         [--year YYYY --keywords WORDS --collection NAME --exact --page N]
-         [--country COUNTRY --year-range N --sort FIELD --descending]
-         [--filters JSON_OR_FILE]   Extra input: {"filter":[{"field":"...","values":["..."]}]}
-         Sort: relevance, first-name, last-name, birth, death, year, collection
-  collections [TEXT] [--limit N --offset N]
-  collection ID                Record-set metadata
-  entitlement RECORD           Transcript access decision
-  record RECORD                Transcript; does not confirm a credit purchase
-  image RECORD                 Image details from the record gateway
-  download RECORD --out FILE.jpg  Full-resolution image plus FILE.jpg.json source/checksum
-  newspapers [--name NAME --keywords WORDS --exact --publication TITLE]
-             [--country COUNTRY --county COUNTY --place PLACE]
-             [--from YYYY-MM-DD --to YYYY-MM-DD --sort relevance|date --descending]
-             [--limit N --offset N]  Repeat --name/--publication for multiple values
-  newspaper-manifest ID         Newspaper image manifest
-
-API catalog
-  ops [FILTER]                 Search 110 GraphQL operations and 17 REST declarations
-  schema NAME                  Exact APK document/variables or REST parameters
-  models [FILTER]              Recovered input-object field inventories
-  gql NAME [JSON_OR_FILE]       Execute an embedded query or mutation
-  query FILE [JSON_OR_FILE]     Execute one named custom GraphQL operation
-  call NAME [JSON_OR_FILE]      REST input: {path,query,headers,body,parts}
-  get PATH                     Read a Titan path or approved API URL
-
-Options
-  --anonymous                  Use public endpoints without a saved session
-  --query JSON_OR_FILE         REST query object
-  --out FILE                   Atomic owner-only output (required for binary)
-  --limit N                    Page size (default 20)
-  --offset N                   List offset (default 0)
-  --page N                     Record-search page number (default 1)
-  --help                       Show this help
-
-Credentials: FINDMYPAST_USERNAME + FINDMYPAST_PASSWORD. Run status to see storage. Credential helpers: fam --help.
-JSON_OR_FILE accepts an inline object, a filename, or - for stdin. Keep IDs as strings.
-Catalog mutations run when selected; GetTranscriptById has confirmedPurchase:true.
-Use record for a transcript read without confirming a purchase.
-See docs/findmypast/README.md for setup, examples, and limitations.
-`;
 async function writeOutput(path: string, output: string | Uint8Array) {
   await mkdir(dirname(path), {recursive: true, mode: 0o700});
   const temporary = `${path}.${randomUUID()}.tmp`;
@@ -89,10 +27,11 @@ async function jsonInput(value?: string): Promise<Record<string, unknown>> {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Input must be a JSON object.');
   return parsed as Record<string, unknown>;
 }
-async function main() {
-  const {values, positionals} = parseArgs({allowPositionals: true, options: {
+export async function runProvider(argv: string[]): Promise<unknown> {
+  const {values, positionals} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, anonymous: {type: 'boolean'}, browser: {type: 'boolean'},
     'callback-file': {type: 'string'}, har: {type: 'string'}, limit: {type: 'string'}, offset: {type: 'string'}, page: {type: 'string'},
+    capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, region: {type: 'string'},
     query: {type: 'string'}, 'first-name': {type: 'string'}, 'last-name': {type: 'string'},
     'birth-year': {type: 'string'}, 'death-year': {type: 'string'}, year: {type: 'string'}, keywords: {type: 'string'},
     collection: {type: 'string'}, exact: {type: 'boolean'}, filters: {type: 'string'},
@@ -101,17 +40,17 @@ async function main() {
     county: {type: 'string'}, place: {type: 'string'}, from: {type: 'string'}, to: {type: 'string'},
   }});
   const [command = 'help', first, second] = positionals;
-  if (command === 'help' || values.help) { console.log(help); return; }
-  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam findmypast credentials.');
+  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam findmypast.credential set.');
   const arity: Record<string, [number, number]> = {credentials: [0,0], auth: [0,0], status: [0,0], refresh: [0,0], me: [0,0], subscription: [0,0], trees: [0,0],
     tree: [1,1], people: [1,1], person: [2,2], relatives: [2,2], facts: [1,1], hints: [2,2], media: [1,1], search: [0,0],
     collections: [0,1], collection: [1,1], entitlement: [1,1], record: [1,1], image: [1,1], download: [1,1], newspapers: [0,0], 'newspaper-manifest': [1,1],
     ops: [0,1], models: [0,1], schema: [1,1], gql: [1,2], query: [1,2], call: [1,2], get: [1,1]};
   const expected = arity[command];
-  if (!expected) throw new Error(`Unknown command ${command}; see fam findmypast --help.`);
+  if (!expected) throw new Error(`Unknown command ${command}; see fam cli.command list --provider findmypast.`);
   if (positionals.length - 1 < expected[0] || positionals.length - 1 > expected[1]) throw new Error(`Invalid arguments for findmypast ${command}; see --help.`);
-  if (command !== 'auth' && (values.browser || values['callback-file'] || values.har)) throw new Error('Browser authorization options belong to auth.');
-  if ([values.browser, values['callback-file'], values.har].filter(Boolean).length > 1) throw new Error('Use --browser, --callback-file, or --har, one at a time.');
+  if (command !== 'auth' && (values.capture || values.browser || values['callback-file'] || values.har)) throw new Error('Browser authorization options belong to auth.');
+  if (!values.capture && (values['browser-channel'] !== undefined || values['capture-timeout'] !== undefined || values.region !== undefined)) throw new Error('Browser capture options require auth --capture.');
+  if ([values.capture, values.browser, values['callback-file'], values.har].filter(Boolean).length > 1) throw new Error('Use --capture, --browser, --callback-file, or --har, one at a time.');
   if (command === 'download' && (!values.out || !/\.jpe?g$/i.test(values.out))) throw new Error('download requires --out FILE.jpg (JPEG output).');
   if (command !== 'newspapers' && [values.name, values.publication, values.county, values.place, values.from, values.to].some(v => v !== undefined)) throw new Error('--name, --publication, --county, --place, --from and --to belong to newspapers.');
   if (command !== 'search' && values['year-range'] !== undefined) throw new Error('--year-range belongs to search.');
@@ -130,9 +69,13 @@ async function main() {
   if (command === 'status') result = {credentialDirectory: CREDENTIAL_DIR, ...sessionStatus(await readPrivateJson<SavedFindmypastSession>('findmypast/session.json')),
     browserAuthorizationPending: Boolean(await readPrivateJson('findmypast/pending-auth.json')),
     nativeVerificationRequired: Boolean(await readPrivateJson('findmypast/verification-required.json'))};
-  else if (command === 'credentials') { await configureCredentials('findmypast', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam findmypast auth'}; }
+  else if (command === 'credentials') { await configureCredentials('findmypast', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam findmypast.session login'}; }
   else if (command === 'auth') {
-    result = values.har ? sessionStatus(await importFindmypastHar(values.har)) : values.browser ? await beginBrowserAuthorization() : sessionStatus(values['callback-file'] ?
+    if (values.capture) {
+      const {captureFindmypast} = await import('./capture.js');
+      const captured = await captureFindmypast(captureOptions(values['browser-channel'], values['capture-timeout']), values.region);
+      result = {...sessionStatus(captured.session), harPath: captured.harPath};
+    } else result = values.har ? sessionStatus(await importFindmypastHar(values.har)) : values.browser ? await beginBrowserAuthorization() : sessionStatus(values['callback-file'] ?
       await finishBrowserAuthorization(await readFile(values['callback-file'], 'utf8')) : await authenticateFindmypast());
   } else if (command === 'ops') {
     result = [...contracts.graphql.map(op => ({name: op.name, kind: op.kind, variables: op.variables})),
@@ -196,8 +139,7 @@ async function main() {
   if (values.out) {
     await writeOutput(values.out, output);
     if (sidecar) await writeOutput(`${values.out}.json`, `${stringifyJson(sidecar, 2)}\n`);
-    console.log(`Saved ${values.out}`);
-    if (sidecar) console.log(`Saved ${values.out}.json`);
-  } else process.stdout.write(output as string);
+    return {saved: values.out, ...(sidecar ? {metadata: `${values.out}.json`, source: sidecar} : {}), ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};
+  }
+  return result;
 }
-main().catch(error => { console.error(error instanceof Error ? error.message : 'Findmypast command failed.'); process.exitCode = 1; });

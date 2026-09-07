@@ -1,4 +1,5 @@
 import { configureCredentials } from '../shared/credentials.js';
+import { captureOptions } from '../shared/browser-capture.js';
 import {buildRecordSearch, recordUrl, contextId, researchPage, type RecordSearchOptions, type CatalogOptions, type ResearchEvent} from './research.js';
 import {parse} from 'graphql';
 import {transferMyHeritage} from './http.js';
@@ -11,93 +12,6 @@ import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { MyHeritageClient } from './client.js';
 import { authenticateMyHeritage, importMyHeritageHar, type MyHeritageSession } from './auth.js';
 import { aliases, contracts, graphqlOperation, restOperation, prepareRest, validateVariables, type RestArguments } from './catalog.js';
-const help = `Usage: fam myheritage COMMAND [arguments] [options]
-
-Account
-  auth                         Native login using configured or saved credentials
-  auth --har FILE              Import your own successful browser API session from HAR
-  auth --code CODE              Native MFA; --verification-code CODE for verification
-  credentials [--stdin]        Save login details (helper, environment, hidden prompt, or JSON stdin)
-  status                       Show saved session metadata without secrets
-  refresh                      Renew the saved API token
-
-Historical record research
-  search [JSON_OR_FILE]         Search historical records by name, dates, places, relatives
-  record URL                   Record fields, citation and image links; --related for leads
-  catalog                      Browse/filter historical record collections
-  collections NAME             Find collections by title/description
-  collection ID                Collection details and supported search fields
-  search-fields COLLECTION     Discover collection-specific field names, types and choices
-  document URL                 Original document pages, image URLs and embedded text
-  download-document URL        Download a page; --page N --out FILE (plus FILE.json source)
-
-Genealogy
-  me                           Account and default tree
-  sites                        Family sites
-  trees SITE                   Trees in a family site
-  tree TREE                    Tree details
-  people TREE                  People, with --offset and --limit
-  find TREE NAME               Find a person in that tree
-  person PERSON                Full details, relatives, facts and record counts
-  insights PERSON              Website family groups, event facts, citations and notes
-  family FAMILY                Family object
-  events PERSON                Events for a person
-  timeline PERSON              Timeline events
-  facts PERSON                 Existing facts
-  matches PERSON               Smart and record matches
-  records PERSON               Attached records (--match-status confirmed)
-  media PARENT                 Photos/media for a person, tree or site
-  albums SITE                  Photo albums
-  consistency TREE             Cached tree consistency issues
-
-Complete APK catalog
-  ops [FILTER]                 Search aliases, REST declarations and GraphQL documents
-  schema OPERATION             Parameters, types, route and complete query document
-  models [FILTER]              Recovered FamilyGraph model fields
-  gql OPERATION [JSON_OR_FILE]  Execute any recovered query or mutation
-  call OPERATION [JSON_OR_FILE] Execute REST: {path,query,headers,body,bodyFile,url,response}
-  query DOCUMENT_FILE [JSON]   Execute a custom GraphQL document and variables
-  get PATH                     Read a FamilyGraph URL/path; --query JSON
-
-Options
-  --first-name NAME --last-name NAME --gender M|F
-  --first-name-match MODE       exact, similar, initials, prefix
-  --last-name-match MODE        exact, similar, soundex, metaphone, prefix
-  --no-translations            Disable translated-name matching
-  --field NAME=VALUE           Collection-specific criterion; repeatable, accepts JSON
-  --birth-year YEAR --birth-place PLACE
-  --death-year YEAR --death-place PLACE
-  --residence-year YEAR --residence-place PLACE
-  --marriage-year YEAR --marriage-place PLACE
-  --birth-year-range N          +/- years; also death/residence/marriage-year-range
-  --place PLACE --keyword TEXT  Any-event place and keywords for record search
-  --exact                      Exact names, years and places
-  --collection ID --category ID Select one scope for record search
-  --record-type TYPE           historical (default without scope), family-trees, all
-  Scoped search includes all record types; do not combine a type filter with a scope.
-  --after CURSOR               Continue within a split result page; preserve original offset
-  --location ID --years ID --images  Collection-catalog filters
-  --related                    Include related record/person leads with record
-  --page N                     Document page to download (starts at 1; default 1)
-  --related-document KEY       Select a related document from the viewer manifest
-  --query JSON_OR_FILE          Additional REST query parameters, e.g. fields
-  --limit N --offset N          Explicit pagination (defaults: 20, 0)
-  --out FILE                    Save results with owner-only permissions
-  --recaptcha-token-file FILE   Native login token obtained through legitimate verification
-  --help                       Show help
-
-Browser sessions: me, sites, trees, tree, people, find, person, events, timeline,
-facts, media (person), insights, matches (counts), and all historical record research commands.
-The remaining APK catalog operations need native auth.
-Browser sites covers the captured site; people lists its visible tree neighborhood.
-
-Set FAM_CONFIG_DIR to override the user config directory (absolute path).
-Credentials: MYHERITAGE_USERNAME + MYHERITAGE_PASSWORD. Run status to see storage. Credential helpers: fam --help.
-JSON_OR_FILE accepts inline JSON, a filename, or - for stdin. Keep IDs as strings.
-Multipart call input: {parts:{data:{value:"JSON"},file:{file:"photo.jpg",type:"image/jpeg"}}}.
-Writes run when you select a mutation or write operation. API access follows your account rights.
-See docs/myheritage/README.md for installation, authentication and coverage limits.
-`;
 async function jsonInput(value?: string): Promise<Record<string, unknown>> {
   if (!value) return {};
   let text: string;
@@ -108,9 +22,10 @@ async function jsonInput(value?: string): Promise<Record<string, unknown>> {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Input must be a JSON object.');
   return parsed as Record<string, unknown>;
 }
-async function main() {
-  const {values, positionals} = parseArgs({allowPositionals: true, options: {
+export async function runProvider(argv: string[]): Promise<unknown> {
+  const {values, positionals} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, har: {type: 'string'},
+    capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, 'tree-url': {type: 'string'},
     code: {type: 'string'}, 'verification-code': {type: 'string'}, 'recaptcha-token-file': {type: 'string'},
     'first-name': {type: 'string'}, 'last-name': {type: 'string'}, 'birth-year': {type: 'string'}, 'birth-place': {type: 'string'},
     'death-year': {type: 'string'}, 'death-place': {type: 'string'}, place: {type: 'string'}, keyword: {type: 'string'},
@@ -126,25 +41,25 @@ async function main() {
     limit: {type: 'string'}, offset: {type: 'string'}, query: {type: 'string'}, 'match-status': {type: 'string'},
   }});
   const [command = 'help', first, second] = positionals;
-  if (command === 'help' || values.help) {console.log(help); return;}
-  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam myheritage credentials.');
+  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam myheritage.credential set.');
   const arity: Record<string, number> = {auth: 0, status: 0, credentials: 0, refresh: 0, me: 0, sites: 0, catalog: 0,
     search: 1, record: 1, collection: 1, 'search-fields': 1, document: 1, 'download-document': 1, insights: 1, trees: 1, tree: 1, people: 1, person: 1, family: 1, events: 1, timeline: 1, facts: 1, matches: 1, records: 1,
     media: 1, albums: 1, consistency: 1, collections: 1, get: 1, find: 2, gql: 2, call: 2, query: 2, ops: 1, schema: 1, models: 1};
-  if (!(command in arity)) throw new Error(`Unknown command ${command}; see fam myheritage --help.`);
+  if (!(command in arity)) throw new Error(`Unknown command ${command}; see fam cli.command list --provider myheritage.`);
   if (positionals.length - 1 > arity[command]!) throw new Error(`Too many arguments for myheritage ${command}.`);
-  if (command !== 'auth' && (values.har || values.code || values['verification-code'] || values['recaptcha-token-file'])) throw new Error('Authentication flags belong to fam myheritage auth.');
-  const need = (v: string | undefined, label: string) => {if (!v) throw new Error(`Missing ${label}; see fam myheritage --help.`); return v;};
+  if (command !== 'auth' && (values.capture || values.har || values.code || values['verification-code'] || values['recaptcha-token-file'])) throw new Error('Authentication flags belong to fam myheritage.session login.');
+  if (!values.capture && (values['browser-channel'] !== undefined || values['capture-timeout'] !== undefined || values['tree-url'] !== undefined)) throw new Error('Browser capture options require auth --capture.');
+  const need = (v: string | undefined, label: string) => {if (!v) throw new Error(`Missing ${label}; see fam cli.command list --provider myheritage.`); return v;};
   if (arity[command] && !['ops', 'models', 'search'].includes(command)) need(first, 'argument');
   if (command === 'find') need(second, 'name');
   const integer = (v: string | undefined, fallback: number, min: number) => {const n = v === undefined ? fallback : Number(v); if (!Number.isSafeInteger(n) || n < min) throw new Error(`Expected an integer >= ${min}.`); return n;};
   const limit = integer(values.limit, 20, 1), offset = integer(values.offset, 0, 0);
   const searchFlags = ['first-name','last-name','birth-year','birth-place','death-year','death-place','place','keyword','exact','collection','record-type','after','gender','first-name-match','last-name-match','no-translations','field','residence-year','residence-place','marriage-year','marriage-place','birth-year-range','death-year-range','residence-year-range','marriage-year-range'];
   const flags = values as Record<string, unknown>;
-  if (command !== 'search' && searchFlags.some(k => flags[k] !== undefined)) throw new Error('Record-search flags belong to fam myheritage search.');
+  if (command !== 'search' && searchFlags.some(k => flags[k] !== undefined)) throw new Error('Record-search flags belong to fam myheritage.record search.');
   if (!['search','catalog','collections'].includes(command) && values.category) throw new Error('--category belongs to search, catalog or collections.');
   if (!['catalog','collections'].includes(command) && ['location','years','images'].some(k => flags[k] !== undefined)) throw new Error('Catalog filters belong to catalog or collections.');
-  if (values.related && command !== 'record') throw new Error('--related belongs to fam myheritage record.');
+  if (values.related && command !== 'record') throw new Error('--related belongs to fam myheritage.record get.');
   if (['search','record','catalog','collections','collection','search-fields'].includes(command) && (values.query || values['match-status'])) throw new Error('--query and --match-status are not research filters; use the documented search JSON or flags.');
   const documentCommands = ['document','download-document'];
   if (values.page !== undefined && command !== 'download-document') throw new Error('--page belongs to download-document.');
@@ -193,12 +108,18 @@ async function main() {
     const s = await readPrivateJson<MyHeritageSession>('myheritage/session.json');
     result = {credentialDirectory: CREDENTIAL_DIR, authenticated: !!s?.accessToken, mode: s?.mode ?? 'native', savedAt: s?.savedAt,
       verificationPending: !!await readPrivateJson('myheritage/pending-auth.json'), blockedUntil: (await readPrivateJson<{blockedUntil?: string}>('myheritage/login-block.json'))?.blockedUntil};
-  } else if (command === 'credentials') {await configureCredentials('myheritage', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam myheritage auth'};}
+  } else if (command === 'credentials') {await configureCredentials('myheritage', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam myheritage.session login'};}
   else if (command === 'auth') {
-    if (values.har && (values.code || values['verification-code'] || values['recaptcha-token-file'])) throw new Error('HAR import and native login flags cannot be combined.');
-    const session = values.har ? await importMyHeritageHar(await readFile(values.har, 'utf8')) : await authenticateMyHeritage({code: values.code,
-      verificationCode: values['verification-code'], recaptchaToken: values['recaptcha-token-file'] ? (await readFile(values['recaptcha-token-file'], 'utf8')).trim() : undefined});
-    result = new MyHeritageClient(session).status();
+    if ((values.capture && values.har) || ((values.capture || values.har) && (values.code || values['verification-code'] || values['recaptcha-token-file']))) throw new Error('Use --capture, --har, or native login flags, one at a time.');
+    if (values.capture) {
+      const {captureMyHeritage} = await import('./capture.js');
+      const captured = await captureMyHeritage(captureOptions(values['browser-channel'], values['capture-timeout']), values['tree-url']);
+      result = {...new MyHeritageClient(captured.session).status(), harPath: captured.harPath};
+    } else {
+      const session = values.har ? await importMyHeritageHar(await readFile(values.har, 'utf8')) : await authenticateMyHeritage({code: values.code,
+        verificationCode: values['verification-code'], recaptchaToken: values['recaptcha-token-file'] ? (await readFile(values['recaptcha-token-file'], 'utf8')).trim() : undefined});
+      result = new MyHeritageClient(session).status();
+    }
   } else if (command === 'ops') {
     result = [...Object.keys(aliases).map(id => ({id, kind: 'alias', path: restOperation(id).path})),
       ...contracts.rest.map(op => ({id: op.id, kind: 'REST', method: op.method, path: op.path})),
@@ -239,8 +160,7 @@ async function main() {
       case 'record': result = await client.record(first!, values.related); break;
       case 'document': result = await client.document(first!, values['related-document']); break;
       case 'download-document':
-        console.log(stringifyJson(await client.downloadDocument(first!, values.out!, documentPage, values['related-document']), 2));
-        return; // --out is the image destination, not the JSON summary destination.
+        return await client.downloadDocument(first!, values.out!, documentPage, values['related-document']); // --out is the image destination, not the JSON summary destination.
       case 'search-fields': result = await client.searchFields(first!); break;
       case 'collection': result = await client.collection(first!); break;
       case 'refresh': await client.refresh(); result = client.status(); break;
@@ -277,7 +197,7 @@ async function main() {
     const temporary = `${values.out}.${randomUUID()}.tmp`;
     try {await writeFile(temporary, output, {mode: 0o600, flag: 'wx'}); await rename(temporary, values.out);}
     finally {await rm(temporary, {force: true});}
-    console.log(`Saved ${values.out}`);
-  } else process.stdout.write(output);
+    return {saved: values.out, ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};
+  }
+  return result;
 }
-main().catch(error => {console.error(error instanceof Error ? error.message : 'MyHeritage command failed.'); process.exitCode = 1;});

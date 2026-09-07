@@ -7,13 +7,13 @@ Create output folders before using these examples: `mkdir -p research-output/anc
 ## Authenticate
 
 ```sh
-fam ancestry credentials
-fam ancestry auth
+fam ancestry.credential set
+fam ancestry.session login
 # Only if the service reports pending email verification:
-fam ancestry auth --send-code
-fam ancestry auth --code 123456
-fam ancestry status
-fam ancestry trees
+fam ancestry.session login --send-code
+fam ancestry.session login --code 123456
+fam ancestry.session get
+fam ancestry.tree list
 ```
 
 Credential setup follows the [shared lookup rules](../setup.md#credential-lookup): environment variables, configured helper, then a hidden prompt. `--stdin` supplies login JSON directly. Password login checks `ANCESTRY_USERNAME` / `ANCESTRY_PASSWORD`, then the helper, then saved login details. Existing sessions are reused. Login, device metadata, cookies, pending verification, and tokens are saved in `ancestry/` under the configuration root shown by `status`.
@@ -25,18 +25,18 @@ Run one process per profile when refreshing. Mandatory password changes and non-
 List your trees and use `treeId`, `rootPersonId`, or `userPersonId` from the response. Substitute actual IDs for `TREE` and `PERSON` below; these are Ancestry IDs, distinct from FamilySearch IDs.
 
 ```sh
-fam ancestry trees --limit 20
-fam ancestry tree TREE
-fam ancestry persons TREE --out research-output/ancestry/people.json
-fam ancestry person TREE PERSON
-fam ancestry relatives TREE PERSON
-fam ancestry relatives TREE PERSON --query '{"genup":4,"gendown":2,"childLimit":30}'
-fam ancestry research TREE PERSON --out research-output/ancestry/research.json
-fam ancestry story TREE PERSON
-fam ancestry hints TREE PERSON --limit 20
-fam ancestry media TREE PERSON --limit 20 --page 1
-fam ancestry citations TREE --limit 20 --page 1
-fam ancestry sources TREE --limit 20 --page 1
+fam ancestry.tree list --limit 20
+fam ancestry.tree get --tree-id TREE
+fam ancestry.person list --tree-id TREE --out research-output/ancestry/people.json
+fam ancestry.person get --tree-id TREE --person-id PERSON
+fam ancestry.person relatives --tree-id TREE --person-id PERSON
+fam ancestry.person relatives --tree-id TREE --person-id PERSON --query '{"genup":4,"gendown":2,"childLimit":30}'
+fam ancestry.person research --tree-id TREE --person-id PERSON --out research-output/ancestry/research.json
+fam ancestry.person story --tree-id TREE --person-id PERSON
+fam ancestry.person hints --tree-id TREE --person-id PERSON --limit 20
+fam ancestry.person media --tree-id TREE --person-id PERSON --limit 20 --page 1
+fam ancestry.tree citations --tree-id TREE --limit 20 --page 1
+fam ancestry.tree sources --tree-id TREE --limit 20 --page 1
 ```
 
 `research` returns facts, sources, web links, and family context. `relatives` defaults to two generations up and one down, including spouses and siblings. REST responses retain the app's wire names: for example `person` returns an envelope with `Persons`, `Names`, and `Events`. GraphQL commands return the `data` object and retain nested connections.
@@ -44,11 +44,11 @@ fam ancestry sources TREE --limit 20 --page 1
 Search historical records using known names, years, and places:
 
 ```sh
-fam ancestry search --given Abraham --surname Lincoln --birth-year 1809 --limit 5
-fam ancestry search --given Abraham --surname Lincoln --birth-year 1809 --limit 5 --page 2
-fam ancestry search --surname Lincoln --birth-place Kentucky --out research-output/ancestry/records.json
-fam ancestry record 1093 100012925800
-fam ancestry places Springfield --limit 5
+fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809 --limit 5
+fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809 --limit 5 --page 2
+fam ancestry.record search --last-name Lincoln --birth-place Kentucky --out research-output/ancestry/records.json
+fam ancestry.record get --collection-id 1093 --record-id 100012925800
+fam ancestry.place search --prefix Springfield --limit 5
 ```
 
 Search results expose `RecordView.Records[].Gid.Value` in `RECORD:COLLECTION` format. Pass those parts to `record` in **COLLECTION RECORD** order. `record` requests fields, household information, collection metadata, and rights. Returned content depends on the account's subscription and the collection's permissions. Inspect service `Status`, per-record status, and rights fields even when HTTP succeeds.
@@ -56,16 +56,16 @@ Search results expose `RecordView.Records[].Gid.Value` in `RECORD:COLLECTION` fo
 ## More operations and pagination
 
 ```sh
-fam ancestry ops hints
-fam ancestry ops citation
-fam ancestry schema persons.research
-fam ancestry schema GetHints
-fam ancestry call persons.weblinks '{"path":{"treeId":"TREE","personId":"PERSON"}}'
-fam ancestry call cache.persons '{"path":{"treeId":"TREE"},"query":{"page":1,"limit":100}}'
-fam ancestry gql GetRecentlyModifiedPersons '{"treeId":"TREE","limit":10}'
-fam ancestry gql PersonAlbumListConnection '{"treeId":"TREE","personId":"PERSON","limit":10}'
-fam ancestry gql GetPersonsHints '{"treeId":"TREE","personIds":["PERSON"],"limit":20}'
-fam ancestry gql GetTreeList '{"limit":20,"nextPageCursor":"CURSOR_FROM_RESPONSE"}'
+fam ancestry.api list --filter hints
+fam ancestry.api list --filter citation
+fam ancestry.api describe --operation persons.research
+fam ancestry.api describe --operation GetHints
+fam ancestry.api call --operation persons.weblinks --input '{"path":{"treeId":"TREE","personId":"PERSON"}}'
+fam ancestry.api call --operation cache.persons --input '{"path":{"treeId":"TREE"},"query":{"page":1,"limit":100}}'
+fam ancestry.api.gql query --operation GetRecentlyModifiedPersons --variables '{"treeId":"TREE","limit":10}'
+fam ancestry.api.gql query --operation PersonAlbumListConnection --variables '{"treeId":"TREE","personId":"PERSON","limit":10}'
+fam ancestry.api.gql query --operation GetPersonsHints --variables '{"treeId":"TREE","personIds":["PERSON"],"limit":20}'
+fam ancestry.api.gql query --operation GetTreeList --variables '{"limit":20,"nextPageCursor":"CURSOR_FROM_RESPONSE"}'
 ```
 
 `call` takes `{path,query,headers,body,base,response}`. `gql` takes the exact variables listed by `schema`. Either accepts inline JSON, a JSON filename, or `-` for stdin. IDs should be JSON strings; unquoted integers beyond JavaScript's safe range are preserved as `bigint` in the SDK. `--out FILE` atomically writes JSON with owner-only permissions. Put personal results under `research-output/` to keep them out of Git.

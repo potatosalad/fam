@@ -3,7 +3,7 @@ import { FS_ORIGIN, MOBILE_USER_AGENT, type HttpSession } from './http.js';
 
 /** Renew existing authorization only. Password login is a separate, explicit operation. */
 export async function refreshFamilySearchTokens(http: Pick<HttpSession, 'json'>, session: SavedSession): Promise<Tokens> {
-  if (!session.tokens.refresh_token) throw new Error('No FamilySearch refresh token; run fam familysearch auth.');
+  if (!session.tokens.refresh_token) throw new Error('No FamilySearch refresh token; run fam familysearch.session login.');
   const result = await http.json<Tokens>(`${FS_ORIGIN}/service/mobile/api/v1/login`, {
     grant_type: 'refresh_token', refresh_token: session.tokens.refresh_token, devkey: session.clientId, currentTreeId: '',
   }, {Accept: 'application/json', Authorization: `Bearer ${session.tokens.access_token}`,

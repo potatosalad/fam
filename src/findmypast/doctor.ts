@@ -26,14 +26,14 @@ export const doctorProvider: DoctorProvider = {
     requireSession(s.mode === undefined && nonempty(object(s.tokens).access_token) && typeof s.expiresAt === 'number' && s.expiresAt > 0);
     return {mode: 'native', expiresAt: expiry(s.expiresAt), refreshAvailable: nonempty(s.tokens.refresh_token)};
   },
-  recovery: info => info?.mode === 'native' ? 'Run fam findmypast auth --browser and complete account verification.'
-    : 'Sign in on Findmypast and import a fresh browser session with fam findmypast auth --har FILE.',
+  recovery: info => info?.mode === 'native' ? 'Run fam findmypast.session login --browser and complete account verification.'
+    : 'Sign in on Findmypast and import a fresh browser session with fam findmypast.session login --har FILE.',
   refresh(value) {return refreshFindmypast(value as FindmypastSession);},
   pending: [
     {file: 'findmypast/verification-required.json', check: () => ({id: 'verification', status: 'warning', code: 'verification-required', scope: 'password-login',
       message: 'Password login requires browser verification; imported browser sessions may still work.',
-      action: 'To restore native sign-in, run fam findmypast auth --browser and complete website verification.'})},
-    {file: 'findmypast/pending-auth.json', check: () => ({id: 'browser-auth', status: 'warning', code: 'authorization-pending', scope: 'password-login', message: 'Browser authorization has not been completed.', action: 'Finish with fam findmypast auth --callback-file FILE, or restart expired authorization with fam findmypast auth --browser.'})},
+      action: 'To restore native sign-in, run fam findmypast.session login --browser and complete website verification.'})},
+    {file: 'findmypast/pending-auth.json', check: () => ({id: 'browser-auth', status: 'warning', code: 'authorization-pending', scope: 'password-login', message: 'Browser authorization has not been completed.', action: 'Finish with fam findmypast.session login --callback-file FILE, or restart expired authorization with fam findmypast.session login --browser.'})},
   ],
   probe: {id: 'account', label: 'Current account', async run(s) {
       const {data, session} = await query(s, 'GetCurrentUserProfile');

@@ -32,7 +32,7 @@ export type Variables<N extends GraphQLName, V extends {name: string; type: stri
   {[P in V as P['required'] extends false ? P['name'] : never]?: Scalar<P['type']> | null};
 export function graphqlOperation(name: string): GraphQLOperation {
   const operation = contracts.graphql.find(op => op.name === name || op.id === name);
-  if (!operation) throw new Error(`Unknown GraphQL operation: ${name}. Use fam ancestry ops.`);
+  if (!operation) throw new Error(`Unknown GraphQL operation: ${name}. Use fam ancestry.api list.`);
   return operation;
 }
 export function validateVariables(operation: GraphQLOperation, variables: Record<string, unknown>): void {
@@ -47,7 +47,7 @@ export function restOperation(name: string) {
   const alias = aliases[name as RestAlias];
   const id = alias ? alias.startsWith('rest.') ? alias : `rest.com.ancestry.service.apis.${alias}` : name;
   const operation = contracts.rest.find(op => op.id === id);
-  if (!operation) throw new Error(`Unknown REST operation: ${name}. Use fam ancestry ops.`);
+  if (!operation) throw new Error(`Unknown REST operation: ${name}. Use fam ancestry.api list.`);
   return operation;
 }
 export interface RestArguments {
@@ -76,7 +76,7 @@ export function prepareRest(name: string, args: RestArguments = {}, userId?: str
   const headers: Record<string, string> = {...operation.headers, ...args.headers};
   let body = args.body;
   let encoding: ApiRequest['encoding'] = 'json';
-  if (operation.parameters.some(p => p.kind === 'Body' || p.kind === 'FieldMap') && body === undefined) throw new Error(`${name} requires body; inspect fam ancestry schema ${name}.`);
+  if (operation.parameters.some(p => p.kind === 'Body' || p.kind === 'FieldMap') && body === undefined) throw new Error(`${name} requires body; inspect fam ancestry.api describe --operation ${name}.`);
   if (operation.encoding === 'form') {
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Form body must be an object.');
     body = new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)])).toString();

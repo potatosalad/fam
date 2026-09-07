@@ -13,7 +13,7 @@ export const aliases: Record<string, string> = {
 };
 export function graphqlOperation(name: string): GraphQLOperation {
   const op = contracts.graphql.find(op => op.id === name || op.name === name);
-  if (!op) throw new Error(`Unknown operation ${name}; use fam findmypast ops.`);
+  if (!op) throw new Error(`Unknown operation ${name}; use fam findmypast.api list.`);
   return op;
 }
 export function validateDocument(document: string, variables: Record<string, unknown>, name?: string): string {
@@ -46,7 +46,7 @@ export function validateDocument(document: string, variables: Record<string, unk
 }
 export function restOperation(name: string) {
   const op = contracts.rest.find(op => op.id === (aliases[name] ?? name));
-  if (!op) throw new Error(`Unknown REST operation ${name}; use fam findmypast ops.`);
+  if (!op) throw new Error(`Unknown REST operation ${name}; use fam findmypast.api list.`);
   return op;
 }
 export interface RestArguments { path?: Record<string, string | number | bigint>; query?: Query; headers?: Record<string, string>; body?: unknown; response?: ApiRequest['response']; }

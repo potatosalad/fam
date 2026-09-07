@@ -126,7 +126,7 @@ for (const service of services) {
     const config = join(directory, 'profile');
     const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
     const run = (args: string[], input = '', env: NodeJS.ProcessEnv = {}) => new Promise<{code: number | null; stdout: string; stderr: string}>((resolve, reject) => {
-      const child = spawn(process.execPath, ['--import', import.meta.resolve('tsx'), cli, service, ...args], {
+      const child = spawn(process.execPath, ['--import', import.meta.resolve('tsx'), cli, ...args, '--json'], {
         cwd: directory, env: { ...process.env, FAM_CONFIG_DIR: config, ...env }, stdio: 'pipe',
       });
       let stdout = '', stderr = '';
@@ -137,27 +137,27 @@ for (const service of services) {
       child.stdin.end(input);
     });
     const input = { username: 'fixture-user', password: ' private ünicode password\n' };
-    const result = await run(['credentials', '--stdin'], JSON.stringify(input), { [`${service.toUpperCase()}_PASSWORD`]: 'ignored partial environment' });
+    const result = await run([`${service}.credential`, 'set', '--stdin'], JSON.stringify(input), { [`${service.toUpperCase()}_PASSWORD`]: 'ignored partial environment' });
     assert.equal(result.code, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).credentialDirectory, config);
+    assert.equal(JSON.parse(result.stdout).data.credentialDirectory, config);
     assert.ok(!result.stdout.includes(input.username) && !result.stderr.includes('private'));
     assert.deepEqual(JSON.parse(await readFile(join(config, loginFile(service)), 'utf8')), input);
-    const status = await run(['status']);
+    const status = await run([`${service}.session`, 'get']);
     assert.equal(status.code, 0, status.stderr);
-    assert.equal(JSON.parse(status.stdout).credentialDirectory, config);
+    assert.equal(JSON.parse(status.stdout).data.credentialDirectory, config);
     for (const malformed of ['secret-not-json', '{"password":"secret"}', 'x'.repeat(65_537)]) {
-      const rejected = await run(['credentials', '--stdin'], malformed);
+      const rejected = await run([`${service}.credential`, 'set', '--stdin'], malformed);
       assert.equal(rejected.code, 1);
       assert.ok(!rejected.stderr.includes('secret'));
       assert.deepEqual(JSON.parse(await readFile(join(config, loginFile(service)), 'utf8')), input);
     }
-    const noTerminal = await run(['credentials'], '', { PATH: '' });
+    const noTerminal = await run([`${service}.credential`, 'set'], '', { PATH: '' });
     assert.equal(noTerminal.code, 1);
     assert.match(noTerminal.stderr, /needs a terminal/);
-    const wrongFlag = await run(['status', '--stdin']);
-    assert.equal(wrongFlag.code, 1);
-    assert.match(wrongFlag.stderr, /belongs to/);
-    const envResult = await run(['credentials'], '', {
+    const wrongFlag = await run([`${service}.session`, 'get', '--stdin']);
+    assert.equal(wrongFlag.code, 2);
+    assert.match(wrongFlag.stderr, /Unknown option/);
+    const envResult = await run([`${service}.credential`, 'set'], '', {
       [`${service.toUpperCase()}_USERNAME`]: 'env user', [`${service.toUpperCase()}_PASSWORD`]: 'env pass',
     });
     assert.equal(envResult.code, 0, envResult.stderr);

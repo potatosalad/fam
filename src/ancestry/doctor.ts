@@ -16,10 +16,10 @@ export const doctorProvider: DoctorProvider = {
     cookies(s.cookies, true);
     return {mode: 'native', expiresAt: expiry(s.expiresAt), refreshAvailable: nonempty(tokens.refresh_token)};
   },
-  recovery: () => 'Run fam ancestry auth and complete any account verification.',
+  recovery: () => 'Run fam ancestry.session login and complete any account verification.',
   refresh(value) {const s = value as AncestrySession; return refreshAncestrySession(new AncestryHttp(s.cookies), s);},
   pending: [{file: 'ancestry/pending-auth.json', check: () => ({id: 'verification', status: 'warning', code: 'verification-pending', scope: 'password-login',
-    message: 'A sign-in is awaiting account verification.', action: 'Run fam ancestry auth --send-code, then fam ancestry auth --code CODE. Complete other verification methods on Ancestry.'})}],
+    message: 'A sign-in is awaiting account verification.', action: 'Run fam ancestry.session login --send-code, then fam ancestry.session login --code CODE. Complete other verification methods on Ancestry.'})}],
   probe: {id: 'trees', label: 'Authenticated tree listing', async run(value) {
       const s = value as AncestrySession, http = new AncestryHttp(s.cookies);
       const data = await graphql(http, `${GATEWAY}/graphql/federation`, graphqlOperation('GetTreeList'), {limit: 1}, headers(s));

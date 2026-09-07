@@ -18,7 +18,7 @@ export const doctorProvider = {
     new GeneanetHttp(session.cookies);
     return {mode: 'browser' as const, refreshAvailable: false};
   },
-  recovery: () => 'Run fam geneanet auth. Complete any browser verification on Geneanet; failed reads do not retry passwords.',
+  recovery: () => 'Run fam geneanet.session login. Complete any browser verification on Geneanet; failed reads do not retry passwords.',
   probe,
   probes: [probe],
   limitations: ['Account only. Search, library/tree browser challenges, media, downloads, subscription-specific collections, and writes are not probed.'],

@@ -13,7 +13,7 @@ export class GeneanetClient {
   static async open(anonymous = false) {
     if (anonymous) return new GeneanetClient(new GeneanetHttp());
     const session = await loadSession();
-    if (session?.version !== 1 || !session.username || !session.cookies?.cookies?.length) throw new Error('No usable Geneanet session. Run fam geneanet auth, or use --anonymous for public reads.');
+    if (session?.version !== 1 || !session.username || !session.cookies?.cookies?.length) throw new Error('No usable Geneanet session. Run fam geneanet.session login, or use --anonymous for public reads.');
     return new GeneanetClient(new GeneanetHttp(session.cookies), session);
   }
   private async saved() {

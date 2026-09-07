@@ -16,7 +16,7 @@ export function checkUrl(url: URL) {
 }
 export class FindagraveHttpError extends Error {
   constructor(readonly status: number, readonly path: string, readonly retryAfter?: string) {
-    super(`Find a Grave HTTP ${status} from ${path}${status === 401 ? '; run fam findagrave auth.' : ''}`);
+    super(`Find a Grave HTTP ${status} from ${path}${status === 401 ? '; run fam findagrave.session login.' : ''}`);
     this.name = 'FindagraveHttpError';
   }
 }

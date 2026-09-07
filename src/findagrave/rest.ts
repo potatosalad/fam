@@ -46,7 +46,7 @@ export const restOperations: RestOperation[] = [
 export interface RestArguments {path?: Record<string, string | number>; query?: Query; body?: unknown;}
 export function restOperation(name: string) {
   const op = restOperations.find(o => o.name === name);
-  if (!op) throw new Error(`Unknown REST operation ${name}; use fam findagrave ops.`);
+  if (!op) throw new Error(`Unknown REST operation ${name}; use fam findagrave.api list.`);
   return op;
 }
 export function prepareRest(name: string, input: RestArguments = {}) {

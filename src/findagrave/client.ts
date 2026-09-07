@@ -18,7 +18,7 @@ export class FindagraveClient {
     private readonly save: (session: FindagraveSession) => Promise<void> = saveSession) {}
   static async open(anonymous = false) {
     const session = anonymous ? undefined : await readPrivateJson<FindagraveSession>('findagrave/session.json');
-    if (!anonymous && (!session?.token || !session.contributorId)) throw new Error('No Find a Grave session; run fam findagrave credentials and fam findagrave auth, or use --anonymous for public reads.');
+    if (!anonymous && (!session?.token || !session.contributorId)) throw new Error('No Find a Grave session; run fam findagrave.credential set and fam findagrave.session login, or use --anonymous for public reads.');
     return new FindagraveClient(session);
   }
   status() { return sessionStatus(this.session); }
@@ -38,7 +38,7 @@ export class FindagraveClient {
       if ('kind' in node && node.kind === Kind.FIELD && 'name' in node && authFields.includes((node.name as {value: string}).value)) return true;
       return Object.entries(node).some(([key,value]) => key !== 'loc' && (Array.isArray(value) ? value.some(hasAuth) : hasAuth(value)));
     };
-    if (hasAuth(ast)) throw new Error('Authentication operations are managed by fam findagrave auth.');
+    if (hasAuth(ast)) throw new Error('Authentication operations are managed by fam findagrave.session login.');
     const {data} = await this.request<{data?: T; errors?: {extensions?: {code?: string}}[]}>(GRAPHQL,
       {method: 'POST', headers, body: {operationName, query: document, variables}});
     if (data.errors?.length) {
@@ -57,7 +57,7 @@ export class FindagraveClient {
   async me(): Promise<Record<string,unknown>> {
     const result = await this.graphql<{signedInContributor?: Record<string,unknown>}>('SignedInContributor');
     const profile = result.signedInContributor;
-    if (!profile?.id || this.session && String(profile.id) !== this.session.contributorId) throw new Error('Find a Grave session is invalid; run fam findagrave auth.');
+    if (!profile?.id || this.session && String(profile.id) !== this.session.contributorId) throw new Error('Find a Grave session is invalid; run fam findagrave.session login.');
     return profile;
   }
   async validateSession() {

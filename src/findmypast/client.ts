@@ -1,4 +1,5 @@
 import { readPrivateJson } from '../shared/storage.js';
+import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
 import type { ApiRequest, ApiResponse } from '../familysearch/transport-types.js';
 import { AUTH, CONTENT, GRAPHQL, TITAN, FindmypastHttp, FindmypastHttpError, checkFindmypastUrl } from './http.js';
 import { refreshFindmypast, saveFindmypastSession, sessionStatus, isBrowserSession, type SavedFindmypastSession, type FindmypastSession } from './auth.js';
@@ -14,13 +15,13 @@ export class FindmypastClient {
   static async open(anonymous = false): Promise<FindmypastClient> {
     if (anonymous) return new FindmypastClient();
     const session = await readPrivateJson<SavedFindmypastSession>('findmypast/session.json');
-    if (!session || !isBrowserSession(session) && !session.tokens.access_token) throw new Error('No Findmypast session; run fam findmypast auth.');
+    if (!session || !isBrowserSession(session) && !session.tokens.access_token) throw new Error('No Findmypast session; run fam findmypast.session login.');
     return new FindmypastClient(session);
   }
   status() { return sessionStatus(this.session); }
   async refresh(): Promise<void> {
     if (this.refreshing) return this.refreshing;
-    if (!this.session) throw new Error('No Findmypast session; run fam findmypast auth.');
+    if (!this.session) throw new Error('No Findmypast session; run fam findmypast.session login.');
     if (isBrowserSession(this.session)) {
       const profile = await this.graphql<{currentUserProfile?: {id?: string}}>('GetCurrentUserProfile');
       if (!profile.currentUserProfile?.id) throw new Error('Browser session expired; import a fresh HAR.');
@@ -41,7 +42,7 @@ export class FindmypastClient {
   }
   async request<T = unknown>(path: string, options: ApiRequest = {}, anonymous = false): Promise<ApiResponse<T>> {
     const url = new URL(path.startsWith('/') ? `${TITAN}${path}` : path); checkFindmypastUrl(url);
-    if (url.origin === AUTH) throw new Error('Auth routes are managed by fam findmypast auth/refresh.');
+    if (url.origin === AUTH) throw new Error('Auth routes are managed by fam findmypast.session login/refresh.');
     const browser = isBrowserSession(this.session) ? this.session : undefined;
     if (browser && url.pathname.startsWith('/titan/marshal/')) {
       if (!['https://www.findmypast.co.uk/titan/marshal', 'https://www.findmypast.com/titan/marshal'].includes(browser.apiBase)) throw new Error('Invalid browser API base.');
@@ -49,17 +50,19 @@ export class FindmypastClient {
     }
     if (browser && url.origin === 'https://tree.findmypast.co.uk') throw new Error('The legacy asset service requires native authentication; use media for browser sessions.');
     const authorized = !anonymous && url.origin !== new URL(CONTENT).origin && Boolean(this.session) && !browser;
-    if (authorized && (this.session as FindmypastSession).expiresAt <= Date.now() + 30_000) await this.refresh();
     const token = authorized ? (this.session as FindmypastSession).tokens.access_token : undefined;
-    const send = () => this.http.exchange<T>(url, {...options, headers: {...options.headers,
+    const send = async () => {
+      const result = await this.http.exchange<T>(url, {...options, headers: {...options.headers,
       ...(browser && url.pathname.startsWith('/titan/marshal/') ? browser.headers : {}),
       ...(authorized ? {Authorization: `Bearer ${(this.session as FindmypastSession).tokens.access_token}`} : {})}});
-    try { const result = await send(); if (browser) await this.saveBrowserCookies(); return result; }
-    catch (error) {
-      if (!authorized || !(error instanceof FindmypastHttpError) || error.status !== 401) throw error;
+      if (url.pathname.endsWith('/graphql') && isGraphQLAuthenticationFailure(result.data)) throw new FindmypastHttpError(401, url.pathname);
+      return result;
+    };
+    const result = await withSessionRefresh(send, authorized ? async () => {
       if (token === (this.session as FindmypastSession).tokens.access_token) await this.refresh();
-      return send();
-    }
+    } : undefined, authorized && (this.session as FindmypastSession).expiresAt <= Date.now() + 30_000);
+    if (browser) await this.saveBrowserCookies();
+    return result;
   }
   async query<T = unknown>(document: string, variables: Record<string, unknown> = {}, name?: string): Promise<T> {
     const operationName = validateDocument(document, variables, name);

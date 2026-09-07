@@ -7,20 +7,17 @@ The Android app has historical-record research. Its `MHResearchView` opens `/FP/
 ## Search records
 
 ```sh
-fam myheritage search --first-name Abraham --last-name Lincoln \
-  --birth-year 1809 --birth-place Kentucky --exact \
-  --limit 20 --out research-output/myheritage/results.json
+fam myheritage.record search --first-name Abraham --last-name Lincoln  --birth-year 1809 --birth-place Kentucky --exact  --limit 20 --out research-output/myheritage/results.json
 
 # Use the same criteria for another page; nextOffset is returned in the JSON.
-fam myheritage search --first-name Abraham --last-name Lincoln \
-  --birth-year 1809 --birth-place Kentucky --exact --offset 20
+fam myheritage.record search --first-name Abraham --last-name Lincoln  --birth-year 1809 --birth-place Kentucky --exact --offset 20
 
 # Restrict to a collection, or to a category such as census and voter lists.
-fam myheritage search --first-name Abraham --last-name Lincoln --collection 10826 --exact
-fam myheritage search --first-name Abraham --last-name Lincoln --category 1000 --exact
+fam myheritage.record search --first-name Abraham --last-name Lincoln --collection 10826 --exact
+fam myheritage.record search --first-name Abraham --last-name Lincoln --category 1000 --exact
 
 # Search family-tree records across the research index.
-fam myheritage search --first-name Abraham --last-name Lincoln --record-type family-trees
+fam myheritage.record search --first-name Abraham --last-name Lincoln --record-type family-trees
 ```
 
 Unscoped searches default to the website's `historical` record-type filter. `--record-type all` includes family-tree results; `--record-type family-trees` selects those results. These are the website's classifications, which can include third-party tree-derived collections among historical records.
@@ -55,9 +52,9 @@ For more than the simple flags, pass a JSON file, inline JSON object, or `-` for
 ```
 
 ```sh
-fam myheritage search research-query.json --out research-output/myheritage/results.json
-fam myheritage search --last-name Lincoln --death-year 1865 --death-place Washington
-fam myheritage search --last-name Lincoln --place Illinois --keyword lawyer
+fam myheritage.record search --input research-query.json --out research-output/myheritage/results.json
+fam myheritage.record search --last-name Lincoln --death-year 1865 --death-place Washington
+fam myheritage.record search --last-name Lincoln --place Illinois --keyword lawyer
 ```
 
 Events support birth, death, marriage, residence, immigration, military and any, with optional year/month/day/place and a year range. Relatives support father, mother, spouse, child, sibling and any. `gender` accepts `M` or `F`. Names, event fields, relative pointers and keyword values use the web search form's encoding. Some criteria affect ranking rather than strict exclusion, depending on collection support. Unknown JSON keys and malformed filters fail locally. CLI flags override matching JSON fields; event flags append events.
@@ -66,16 +63,13 @@ Events support birth, death, marriage, residence, immigration, military and any,
 
 ```sh
 # Keep the first name exact while allowing phonetic surname matches.
-fam myheritage search --first-name Abraham --last-name Lincoln \
-  --first-name-match exact --last-name-match soundex \
-  --birth-year 1809 --birth-year-range 2 --residence-place Illinois
+fam myheritage.record search --first-name Abraham --last-name Lincoln  --first-name-match exact --last-name-match soundex  --birth-year 1809 --birth-year-range 2 --residence-place Illinois
 
 # Discover the actual form fields and choices for this collection.
-fam myheritage search-fields 10826
+fam myheritage.collection fields --collection-id 10826
 
 # Supply the collection's birth component directly.
-fam myheritage search --collection 10826 --first-name Abraham --last-name Lincoln \
-  --field 'birth={"year":1809,"exactYear":true,"yearRange":2}' --limit 10
+fam myheritage.record search --collection 10826 --first-name Abraham --last-name Lincoln  --field 'birth={"year":1809,"exactYear":true,"yearRange":2}' --limit 10
 ```
 
 First-name modes: `exact`, `similar`, `initials`, `prefix`. Last-name modes: `exact`, `similar`, `soundex`, `metaphone`, `prefix`. `--no-translations` disables translated-name matching. Explicit name modes override the name portion of `--exact`; it still controls ordinary event years and places. `--gender M|F` adds the gender criterion. Residence and marriage have the same year/place/year-range flags as birth and death.
@@ -96,14 +90,14 @@ These controls use the website's component encoder and collection form identifie
 ## Find collections and read a record
 
 ```sh
-fam myheritage catalog --limit 20
-fam myheritage collections census --limit 20
-fam myheritage catalog --category 1000 --images --limit 20
-fam myheritage collection 10826
+fam myheritage.collection list --limit 20
+fam myheritage.collection search --name census --limit 20
+fam myheritage.collection list --category 1000 --images --limit 20
+fam myheritage.collection get --collection-id 10826
 
 RECORD_URL=$(jq -r '.data[0].link' research-output/myheritage/results.json)
-fam myheritage record "$RECORD_URL" --out research-output/myheritage/record.json
-fam myheritage record "$RECORD_URL" --related
+fam myheritage.record get --url "$RECORD_URL" --out research-output/myheritage/record.json
+fam myheritage.record get --url "$RECORD_URL" --related
 ```
 
 `collections` searches names and descriptions. The catalog returns collection IDs, descriptions, counts, image/free flags, links, and summary facets. `--category`, `--location` and `--years` accept IDs from those facets; `--images` selects collections with images. `collection` returns description, category ancestry, a sample record, related collections and the website's search-form configuration. `search-fields` decodes that configuration; `search --field` submits the supported collection-specific components described above.
@@ -117,9 +111,8 @@ fam myheritage record "$RECORD_URL" --related
 ```sh
 # Use the complete link from a search result that has an image.
 RECORD_URL=$(jq -r '.data[0].link' research-output/myheritage/results.json)
-fam myheritage document "$RECORD_URL" --out research-output/myheritage/document.json
-fam myheritage download-document "$RECORD_URL" --page 1 \
-  --out research-output/myheritage/census-page.jpg
+fam myheritage.document get --url "$RECORD_URL" --out research-output/myheritage/document.json
+fam myheritage.document download --url "$RECORD_URL" --page 1  --out research-output/myheritage/census-page.jpg
 ```
 
 `document` reads the record's document viewer and returns all available pages, their `originalUrl`, a preview URL when distinct, page labels, the initially selected page, and indexed records associated with each page when present. It also includes embedded OCR text when the page contains it. Search highlight terms are not treated as a transcription. `transcriptionAvailable` reports the website's feature flag; this CLI does not invoke AI transcription or create OCR text.

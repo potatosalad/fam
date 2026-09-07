@@ -28,7 +28,7 @@ export const doctorProvider: DoctorProvider = {
     return {mode: 'native', refreshAvailable: nonempty(tokens.refresh_token),
       expiresAt: expiry(tokens.expires_in === undefined ? undefined : Date.parse(s.obtainedAt) + tokens.expires_in * 1000)};
   },
-  recovery: () => 'Run fam familysearch auth and complete any Church Account verification.',
+  recovery: () => 'Run fam familysearch.session login and complete any Church Account verification.',
   async refresh(value) {
     const s = value as SavedSession, http = new HttpSession(s.cookies);
     const tokens = await refreshFamilySearchTokens(http, s);

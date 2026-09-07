@@ -23,6 +23,6 @@ These 16 traced routes support the commands in the [provider guide](README.md). 
 
 Authentication uses GET `/connexion/`, POST `/connexion/login_check`, then an account read. Only explicit `auth` submits a password.
 
-`fam geneanet routes FILTER` inspects 228 additional website route declarations. Their methods, hosts, paths and defaults come from the public route map. They are inventory only: paths may require undocumented query/body fields, a method omitted by Symfony does not establish read-only behavior, and some GET routes mutate state. The CLI does not execute them. No complete GraphQL or GeneWeb protobuf schema is claimed.
+`fam geneanet.api.route list --filter FILTER` inspects 228 additional website route declarations. Their methods, hosts, paths and defaults come from the public route map. They are inventory only: paths may require undocumented query/body fields, a method omitted by Symfony does not establish read-only behavior, and some GET routes mutate state. The CLI does not execute them. No complete GraphQL or GeneWeb protobuf schema is claimed.
 
 The maintained JSON is [contracts.json](contracts.json). Regenerate it into TypeScript with `npm run generate:catalogs`; check drift with `npm run check:catalogs`. Neither command contacts Geneanet.

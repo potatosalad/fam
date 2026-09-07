@@ -33,7 +33,7 @@ function dependencies(p: DoctorProvider, session: unknown, extra: Record<string,
 }
 const run = promisify(execFile);
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
-const invoke = (...args: string[]) => run(process.execPath, ['--import', import.meta.resolve('tsx'), cli, ...args, ...args[0] === 'doctor' ? ['--offline'] : []], {
+const invoke = (...args: string[]) => run(process.execPath, ['--import', import.meta.resolve('tsx'), cli, ...args, ...args[0] === 'cli.health' ? ['--offline'] : []], {
   cwd: CREDENTIAL_DIR, env: {...process.env, FAM_CREDENTIALS_COMMAND: '["helper-must-never-run"]'},
 });
 
@@ -46,9 +46,9 @@ test('CLI checks online by default and reports only verified sessions as OK', as
       return new Response('{"data":{"signedInContributor":{"id":"123"}}}');
     };`);
   try {
-    const result = await run(process.execPath, ['--import', preload, '--import', import.meta.resolve('tsx'), cli, 'doctor', 'findagrave', '--json'],
+    const result = await run(process.execPath, ['--import', preload, '--import', import.meta.resolve('tsx'), cli, 'cli.health', 'check', '--provider', 'findagrave', '--json'],
       {cwd: CREDENTIAL_DIR, env: {...process.env, FAM_CREDENTIALS_COMMAND: '["helper-must-never-run"]'}});
-    const report = JSON.parse(result.stdout);
+    const report = JSON.parse(result.stdout).data;
     assert.equal(report.mode, 'live'); assert.equal(report.status, 'ok'); assert.equal(result.stderr, '');
     assert.ok(report.providers[0].checks.some((c: any) => c.code === 'probe-passed'));
   } finally {await rm(preload); await rm(join(CREDENTIAL_DIR, 'findagrave/session.json'));}
@@ -136,12 +136,12 @@ test('offline never renews or writes and password configuration cannot block onl
 });
 
 test('doctor help, filtering, JSON, local-only behavior, and exit codes work outside the checkout', async () => {
-  for (const args of [['doctor', '--help'], ['help', 'doctor']]) assert.match((await invoke(...args)).stdout, /Usage: fam doctor/);
-  for (const args of [['doctor', 'toString'], ['doctor', '--bogus'], ['doctor', '--live=yes'], ['doctor', '--verbose', '--json']]) {
+  for (const args of [['cli.health', 'check', '--help']]) assert.match((await invoke(...args)).stdout, /fam cli\.health check/);
+  for (const args of [['cli.health', 'check', '--provider', 'toString'], ['cli.health', 'check', '--bogus'], ['cli.health', 'check', '--live=yes'], ['cli.health', 'check', '--format', 'invalid']]) {
     await assert.rejects(invoke(...args), error => (error as any).code === 2);
   }
-  await assert.rejects(invoke('doctor', 'ancestry', '--json'), error => {
-    const e = error as any, report = JSON.parse(e.stdout);
+  await assert.rejects(invoke('cli.health', 'check', '--provider', 'ancestry', '--json'), error => {
+    const e = error as any, report = JSON.parse(e.stdout).data;
     assert.equal(e.code, 1); assert.equal(e.stderr, ''); assert.equal(report.mode, 'local');
     assert.deepEqual(report.providers.map((p: any) => p.provider), ['ancestry']);
     assert.equal(report.providers[0].checks.find((c: any) => c.id === 'credentials').code, 'credentials-helper');
@@ -150,14 +150,14 @@ test('doctor help, filtering, JSON, local-only behavior, and exit codes work out
   });
   await writePrivateJson('ancestry/session.json', sessions.ancestry);
   try {
-    const {stdout} = await invoke('doctor', 'ancestry', 'ancestry', '--json');
-    const report = JSON.parse(stdout);
+    const {stdout} = await invoke('cli.health', 'check', '--provider', 'ancestry', '--provider', 'ancestry', '--json');
+    const report = JSON.parse(stdout).data;
     assert.equal(report.status, 'ok'); assert.equal(report.providers.length, 1);
-    const compact = await invoke('doctor', 'ancestry');
+    const compact = await invoke('cli.health', 'check', '--provider', 'ancestry', '--format', 'text');
     assert.match(compact.stdout, /ancestry\s+SAVED/); assert.equal(compact.stderr, '');
     assert.ok(compact.stdout.split('\n').length < 6);
     assert.doesNotMatch(compact.stdout, /Profile:|Coverage:|credentials:/);
-    assert.match((await invoke('doctor', 'ancestry', '--verbose')).stdout, /Profile:|credentials:/);
+    assert.match((await invoke('cli.health', 'check', '--provider', 'ancestry', '--verbose', '--format', 'text')).stdout, /Profile:|credentials:/);
     assert.doesNotMatch(stdout, /synthetic-access|synthetic-refresh|synthetic-user|synthetic-cookie|helper-must-never-run/);
   } finally {await rm(join(CREDENTIAL_DIR, 'ancestry/session.json'));}
 });
@@ -208,7 +208,7 @@ test('known expiry and pending verification include provider-specific recovery; 
     const p = await provider(service), s = structuredClone(sessions[service]);
     if (service === 'familysearch') {s.obtainedAt = new Date(now - 7200_000).toISOString();} else s.expiresAt = now - 1;
     const r = await diagnoseProvider(p, false, dependencies(p, s));
-    assert.equal(r.checks[0].code, 'session-expired'); assert.match(r.checks[0].action!, new RegExp(`fam ${service} auth`));
+    assert.equal(r.checks[0].code, 'session-expired'); assert.match(r.checks[0].action!, new RegExp(`fam ${service}\\.session login`));
     s.expiresAt = 1e30;
     if (service !== 'familysearch') assert.throws(() => p.inspect(s));
   }
@@ -244,7 +244,7 @@ test('HTTP, GraphQL, schema, network and account failures remain distinct and re
     [new Error('Network request failed for https://private.invalid/SECRET'), 'network'],
     [new Error('Expected JSON SECRET'), 'api-changed'], [new Error('SECRET'), 'check-failed'],
   ] as const) {
-    const r = failure(error, 'Run fam findagrave auth.');
+    const r = failure(error, 'Run fam findagrave.session login.');
     assert.equal(r.code, code); assert.doesNotMatch(JSON.stringify(r), /SECRET|private.invalid/);
   }
   for (const [extensions, code] of [[{code: 'UNAUTHENTICATED'}, 'session-rejected'], [{code: 'FORBIDDEN'}, 'access-denied'], [{code: 'SECRET'}, 'api-changed']] as const) {
@@ -319,7 +319,7 @@ test('Findmypast browser routing uses captured origin and MyHeritage expired pag
   const mh = await provider('myheritage'), browser = {...sessions.myheritage, mode: 'browser', browser: {pageUrl: 'https://www.myheritage.com/family-trees/synthetic'}};
   const r = await diagnoseProvider(mh, true, dependencies(mh, browser));
   assert.equal(r.checks.find(c => c.id === 'account')?.code, 'session-rejected');
-  assert.match(r.checks.find(c => c.id === 'account')?.action!, /fam myheritage auth --har FILE/);
+  assert.match(r.checks.find(c => c.id === 'account')?.action!, /fam myheritage\.session login --har FILE/);
   assert.equal(fetch.mock.callCount(), 2); // One Findmypast request, one MyHeritage request.
 });
 
@@ -431,9 +431,9 @@ test('password-login-only notices do not fail the installed CLI or erase the coo
   await writePrivateJson(filename, {blockedUntil: new Date(now + 60_000).toISOString()});
   const before = await readFile(join(CREDENTIAL_DIR, filename), 'utf8');
   try {
-    const {stdout, stderr} = await invoke('doctor', 'myheritage');
+    const {stdout, stderr} = await invoke('cli.health', 'check', '--provider', 'myheritage', '--format', 'text');
     assert.equal(stderr, ''); assert.match(stdout, /myheritage\s+SAVED\s+Browser session/); assert.doesNotMatch(stdout, /BLOCKED/);
-    const json = JSON.parse((await invoke('doctor', 'myheritage', '--json')).stdout);
+    const json = JSON.parse((await invoke('cli.health', 'check', '--provider', 'myheritage', '--json')).stdout).data;
     assert.equal(json.status, 'ok');
     assert.equal(json.providers[0].checks.find((c: any) => c.code === 'login-blocked').scope, 'password-login');
     assert.equal(await readFile(join(CREDENTIAL_DIR, filename), 'utf8'), before);

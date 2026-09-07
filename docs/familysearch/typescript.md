@@ -30,7 +30,7 @@ const matches = await tree.hints.recordMatches({ pid: details.id }); // undefine
 
 All operations are listed in the [reference](operations.md). Path parameters and `body` are top-level input properties; query/header parameters are nested. Calls validate the input before authentication. The app uses the string selector `oneHops: 'summaries'`, not a boolean.
 
-Use `fam familysearch schema OPERATION --example` for correctly nested input. `fam familysearch call OPERATION --input -` reads JSON from stdin; repeated `--query key=value` flags use the operation's scalar types. `fam familysearch record details RECORD_ARK` handles `sources.recordDetails` nesting for you.
+Use `fam familysearch.api describe --operation OPERATION --example` for correctly nested input. `fam familysearch.api call --operation OPERATION --input -` reads JSON from stdin; repeated `--query key=value` flags use the operation's scalar types. `fam familysearch.record get --ark RECORD_ARK` handles `sources.recordDetails` nesting for you.
 
 The following example **creates a live note when executed**:
 
@@ -44,7 +44,7 @@ const note = await tree.persons.addNote({
 // Typed operations apply the APK's UTF-8 form encoding to that header.
 ```
 
-Use `client.operation('persons.get', input)` to select by name, or `operationDetailed()` for HTTP status, pagination/location headers, and binary responses. The CLI equivalent is `npm run fam -- familysearch call persons.get research-output/familysearch/input.json --out research-output/familysearch/person.json`, with input `{ "pid": "XXXX-XXX" }`. CLI `call` can also execute mutations; the operation reference identifies the HTTP verb.
+Use `client.operation('persons.get', input)` to select by name, or `operationDetailed()` for HTTP status, pagination/location headers, and binary responses. The CLI equivalent is `npm run fam -- familysearch.api call --operation persons.get --input research-output/familysearch/input.json --out research-output/familysearch/person.json`, with input `{ "pid": "XXXX-XXX" }`. CLI `call` can also execute mutations; the operation reference identifies the HTTP verb.
 
 `personChanges()` follows change-history cursors and `searchResults()` follows search offsets with bounded page counts and cancellation between requests. `memoryUpload()` and `groupImageUpload()` build the recovered multipart formats; `memories.replaceFile` takes plain story text. These helpers are exported from `@potatosalad/fam/familysearch` and the package root. A memory upload requires an explicit `isPrivate` boolean.
 

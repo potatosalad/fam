@@ -9,7 +9,7 @@ export function prepareCall(op: Operation, input: CallInput = {}) {
   for (const section of ['path', 'query'] as const) {
     const data = input[section] ?? {};
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(`${section} must be an object.`);
-    for (const key of Object.keys(data)) if (!op.parameters.some(p => p.in === section && p.name === key)) throw new Error(`Unknown ${section} parameter. Run fam storied schema.`);
+    for (const key of Object.keys(data)) if (!op.parameters.some(p => p.in === section && p.name === key)) throw new Error(`Unknown ${section} parameter. Run fam storied.api describe.`);
     for (const param of op.parameters.filter(p => p.in === section)) {
       const present = Object.hasOwn(data, param.name) && data[param.name] !== undefined;
       if (!present && param.required) throw new Error(`${section}.${param.name} is required.`);
@@ -34,7 +34,7 @@ export function prepareCall(op: Operation, input: CallInput = {}) {
     if (!op.requestBody) throw new Error('This operation has no request body.');
     if (!op.requestBody.contentType.startsWith('application/json')) throw new Error('This operation requires a non-JSON body; it is catalog-only.');
     validate(input.body, op.requestBody.schema, 'body');
-  } else if (op.requestBody) throw new Error('Supply the request body shown by fam storied schema.');
+  } else if (op.requestBody) throw new Error('Supply the request body shown by fam storied.api describe.');
   return {path, method: op.method, version: op.version, body: input.body};
 }
 
@@ -43,7 +43,7 @@ export class StoriedClient {
   static async open(anonymous = false): Promise<StoriedClient> {
     if (anonymous) return new StoriedClient();
     const s = await loadSession();
-    if (!validSession(s)) throw new Error('No valid Storied session saved. Run fam storied auth.');
+    if (!validSession(s)) throw new Error('No valid Storied session saved. Run fam storied.session login.');
     return new StoriedClient(s);
   }
   async refresh(): Promise<void> {

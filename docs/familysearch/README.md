@@ -1,6 +1,6 @@
 # FamilySearch
 
-Use `fam familysearch COMMAND` for FamilySearch trees, genealogy operations, images, and historical-record research. Start with the [installation and sign-in guide](../../README.md#familysearch), or run `fam familysearch --help`.
+Use `fam familysearch.OBJECT ACTION --flags` for FamilySearch trees, genealogy operations, images, and historical-record research. Start with the [installation and sign-in guide](../../README.md#familysearch), or run `fam cli.command list --provider familysearch`.
 
 - [TypeScript API](typescript.md)
 - [Genealogy operation reference](operations.md)

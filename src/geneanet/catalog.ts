@@ -3,7 +3,7 @@ export const operations = contracts.operations;
 export const routes = contracts.routes;
 export function operation(name: string) {
   const result = operations.find(o => o.name === name);
-  if (!result) throw new Error('Unknown Geneanet operation. Run fam geneanet ops.');
+  if (!result) throw new Error('Unknown Geneanet operation. Run fam geneanet.api list.');
   return {...result, write: false};
 }
 

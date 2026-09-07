@@ -16,7 +16,7 @@ export function checkUrl(value: string | URL): URL {
 export class GeneanetError extends Error {
   constructor(readonly code: 'http' | 'verification-required' | 'session-rejected' | 'api-changed', readonly status?: number) {
     super(code === 'verification-required' ? 'Geneanet requires browser verification for this request. Open the page on the website; the request was not retried.'
-      : code === 'session-rejected' ? 'Geneanet did not return the expected signed-in account. Run fam geneanet auth.'
+      : code === 'session-rejected' ? 'Geneanet did not return the expected signed-in account. Run fam geneanet.session login.'
       : code === 'api-changed' ? 'Geneanet response format changed or this capability is unavailable.'
       : `Geneanet HTTP ${status}; check access rights or subscription on the website. The request was not retried.`);
     this.name = 'GeneanetError';
@@ -33,7 +33,7 @@ export class GeneanetHttp {
   private readonly transport: Transport;
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0], transport?: Transport) {
     try { this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar(); }
-    catch { throw new Error('Invalid saved Geneanet cookies. Run fam geneanet auth.'); }
+    catch { throw new Error('Invalid saved Geneanet cookies. Run fam geneanet.session login.'); }
     const impit = new Impit({browser: 'chrome', timeout: 30_000});
     this.transport = transport ?? ((url, init) => impit.fetch(url, init));
   }

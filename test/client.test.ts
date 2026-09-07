@@ -155,3 +155,32 @@ test('permission errors are not refreshed and repeated 401s have a bounded retry
     assert.equal(refreshes, status === 401 ? 1 : 0);
   }
 });
+
+test('FamilySearch refresh rejection never falls back to password login', async () => {
+  for (const available of [false, true]) {
+    const {client, internal, session} = syntheticClient();
+    if (!available) delete (session.tokens as any).refresh_token;
+    internal.login = async () => assert.fail('password login must be explicit after session expiry');
+    let refreshes = 0;
+    internal.http.json = async (_url: unknown, body: any) => {
+      if (body) {refreshes++; throw new HttpError(400, '/refresh');}
+      throw new HttpError(401, '/platform/users/current');
+    };
+    await assert.rejects(client.get('/platform/users/current'));
+    assert.equal(refreshes, available ? 1 : 0);
+  }
+});
+
+test('FamilySearch proactively refreshes expiry once and retains the new expiry', async () => {
+  const {client, internal, session, persisted} = syntheticClient();
+  (session.tokens as any).expires_in = 1;
+  session.obtainedAt = new Date(Date.now() - 60_000).toISOString();
+  let refreshes = 0, reads = 0;
+  internal.http.json = async (_url: unknown, body: any) => {
+    if (body) {refreshes++; return {access_token: 'new', refresh_token: 'rotated', expires_in: 3600};}
+    reads++; throw new HttpError(401, '/platform/users/current');
+  };
+  await assert.rejects(client.get('/platform/users/current'));
+  assert.equal(refreshes, 1); assert.equal(reads, 1);
+  assert.equal((persisted[0] as any).expires_in, 3600);
+});

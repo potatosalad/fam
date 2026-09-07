@@ -101,9 +101,9 @@ test('catalog filters remain scoped in the authenticated website query',async()=
   const r=await f.client.catalog({category:'1000',images:true,offset:5,limit:5});assert.equal(r.count,12);
 });
 test('CLI exposes record search and rejects invalid research flags before authentication',()=>{
-  const cli=['--import','tsx','src/cli.ts', 'myheritage'];
-  const help=execFileSync(process.execPath,[...cli,'--help'],{encoding:'utf8'});assert.match(help,/search \[JSON_OR_FILE\]/);assert.match(help,/--birth-year/);
-  for(const args of [['search','--birth-year','oops'],['person','123','--first-name','A'],['search','{"lastName":"Smith","unexpected":true}']]) assert.throws(()=>execFileSync(process.execPath,[...cli,...args],{stdio:'pipe'}));
+  const cli=['--import','tsx','src/cli.ts'];
+  const help=execFileSync(process.execPath,[...cli,'myheritage.record','search','--help'],{encoding:'utf8'});assert.match(help,/myheritage\.record search/);assert.match(help,/--birth-year/);
+  for(const args of [['myheritage.record','search','--birth-year','oops'],['myheritage.person','get','--person-id','123','--first-name','A'],['myheritage.record','search','--input','{"lastName":"Smith","unexpected":true}']]) assert.throws(()=>execFileSync(process.execPath,[...cli,...args],{stdio:'pipe'}));
 });
 
 test('record type filters cannot override a collection or category silently',async()=>{

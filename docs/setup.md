@@ -25,19 +25,19 @@ Use the same prefix when updating or uninstalling. To keep the credentials separ
 
 ## Shell completion
 
-After installing `fam`, run `fam completion install` once, then open a new shell. It detects bash or zsh from `$SHELL` and adds a marked, guarded hook to your startup files. You can select explicitly with `fam completion install bash` or `fam completion install zsh`.
+After installing `fam`, run `fam cli.completion install` once, then open a new shell. It detects bash or zsh from `$SHELL` and adds a marked, guarded hook to your startup files. You can select explicitly with `fam cli.completion install --shell bash` or `fam cli.completion install --shell zsh`.
 
 Bash setup covers `.bashrc` and the first existing login profile (`.bash_profile`, `.bash_login`, or `.profile`; a new `.bash_profile` is created if none exists). Zsh uses `$ZDOTDIR/.zshrc` when set, otherwise `~/.zshrc`, and initializes its completion system if needed. Repeating installation does not duplicate the hooks. It does not require a separate bash-completion package.
 
 For the current shell, or to manage the startup hook yourself:
 
 ```sh
-eval "$(fam completion bash)" # bash
+eval "$(fam --completions bash)" # bash
 # or
-eval "$(fam completion zsh)"  # zsh
+eval "$(fam --completions zsh)"  # zsh
 ```
 
-Try `fam fam<TAB>`, `fam familysearch image <TAB>`, or `fam ancestry search --birth-<TAB>`. File arguments such as `--out` use file completion, including paths containing spaces. Provider options are offered throughout that provider's command line; run `fam PROVIDER --help` to see which commands accept each option. Suggestions come from a catalog generated during the build, without loading credentials or contacting services. Updating fam also updates the suggestions.
+Try `fam fam<TAB>`, `fam familysearch.image <TAB>`, or `fam ancestry.record search --birth-<TAB>`. File arguments such as `--out` use file completion, including paths containing spaces. Flags are scoped to the selected command; append `--help` for its generated schema and examples. Suggestions come from a catalog generated during the build, without loading credentials or contacting services. Updating fam also updates the suggestions.
 
 To uninstall completion, remove the marked `fam bash completion` or `fam zsh completion` blocks from the files printed by the installer. The installer changes files for the current user; run it as the user who will use the CLI.
 
@@ -45,7 +45,7 @@ To uninstall completion, remove the marked `fam bash completion` or `fam zsh com
 
 When a login is needed, fam reads its username and password from the environment first, then an explicitly configured credential helper, then its saved login file. A partial or empty environment pair is an error. API commands never prompt for a password.
 
-`fam PROVIDER credentials` is explicit setup: it uses environment values, then a configured helper, then a hidden interactive prompt. It saves the resulting login details rather than reusing an existing login file. `credentials --stdin` uses only the supplied JSON.
+`fam PROVIDER.credential set` is explicit setup: it uses environment values, then a configured helper, then a hidden interactive prompt. It saves the resulting login details rather than reusing an existing login file. `credentials --stdin` uses only the supplied JSON.
 
 Environment-only login saves session tokens but does not save the password. Running `credentials` with an environment pair saves that username and password. Replacing login details does not switch an active session; run `auth` to sign in with the new account.
 
@@ -63,14 +63,14 @@ No environment variable is needed for the persistent file setting. `FAM_CREDENTI
 
 The helper must exit successfully and print only a JSON object with nonempty string `username` and `password` fields. Password whitespace is preserved. Output is limited to 64 KiB and execution to two minutes. Failures suppress command output and stop lookup; fam never silently falls back to an older saved password. Use this hook for a password manager, local executable, or SSH-backed helper. No helper runs unless configured, and help/status commands do not look up passwords.
 
-The helper takes precedence over saved passwords. Normal authentication does not cache its returned password; `fam PROVIDER credentials` explicitly saves it. `credentials --stdin` bypasses both the helper and environment. Existing sessions are still reused until `auth` or a new password login is needed. Library clients use the same lookup rules.
+The helper takes precedence over saved passwords. Normal authentication does not cache its returned password; `fam PROVIDER.credential set` explicitly saves it. `credentials --stdin` bypasses both the helper and environment. Existing sessions are still reused until `auth` or a new password login is needed. Library clients use the same lookup rules.
 
 ### JSON input
 
 For noninteractive setup, pipe a JSON object with string `username` and `password` fields to `credentials --stdin`:
 
 ```sh
-fam familysearch credentials --stdin < /private/path/login.json
+fam familysearch.credential set --stdin < /private/path/login.json
 ```
 
 The same option works with `ancestry`, `myheritage`, `findmypast`, `findagrave`, `geneanet`, and `storied`. It takes precedence over environment variables. The CLI preserves the password exactly and does not print it. Keep the input file private.
@@ -95,27 +95,31 @@ To use a separate profile, set an absolute configuration path before running com
 
 ```sh
 export FAM_CONFIG_DIR="$HOME/.config/fam-work"
-fam familysearch credentials
-fam familysearch auth
+fam familysearch.credential set
+fam familysearch.session login
 ```
 
 Keep that variable set for subsequent commands. Each process reads it at startup. No CLI imports credentials from an older checkout's `.credentials/` directory.
+
+Provider commands renew saved sessions automatically before known token expiry or after an authentication rejection, save rotated credentials, and continue the command. This includes GraphQL authentication errors returned with HTTP 200. Each operation makes at most one renewal attempt; permission errors, rate limits, network failures, and server errors do not trigger renewal. MyHeritage browser commands load current API credentials from the authenticated website. A rejected browser login, revoked refresh token, or required verification needs a fresh sign-in; commands do not fall back to password login after renewal fails.
 
 Run one process per profile when renewing sessions. Separate processes do not coordinate token refreshes.
 
 ### Reset a session
 
+Run `fam cli.health check --provider PROVIDER` to verify the session and automatically renew it if needed before resetting anything. Use `--offline` only for local inspection. See [doctor coverage](doctor.md) for details.
+
 Run the CLI's `status` command to find its configuration directory. Remove that service's `session.json`, then run `auth`. Remove its `login.json` too if you want to forget the saved password. This clears local files; it does not revoke the session on the service.
 
-For an expired MyHeritage or Findmypast browser session, import a fresh HAR instead. Complete any website verification before capturing it. Findmypast's `refresh` revalidates browser cookies; it does not renew an expired browser login.
+For an expired MyHeritage or Findmypast browser session, run `fam myheritage.session login --capture` or `fam findmypast.session login --capture` and sign in in the window that opens. The command saves and imports a fresh HAR automatically; see [browser capture](browser-capture.md). Existing HAR files can still be imported with `auth --har FILE`. Findmypast's `refresh` revalidates browser cookies; it does not renew an expired browser login.
 
-Find a Grave has no token refresh command. `fam findagrave verify` checks the saved session without extending it; use `fam findagrave auth` to replace an expired session.
+Find a Grave has no token refresh command. `fam findagrave.session verify` checks the saved session without extending it; use `fam findagrave.session login` to replace an expired session.
 
 ## Optional credential sync hook
 
 Set `credentialsSyncCommand` in your profile's `config.json` to an executable and argument array, for example `["node", "/absolute/path/to/sync-helper.mjs"]`. `FAM_CREDENTIALS_SYNC_COMMAND` overrides it using the same JSON format. Fam runs the helper after saving a provider's login, session, or device file. The helper receives the provider as its final argument and JSON on stdin: `{ "version": 1, "provider": "myheritage", "credentialDirectory": "/absolute/profile/path", "file": "myheritage/session.json", "reason": "save" }`.
 
-The helper decides what to upload and where. Fam waits up to 30 seconds, suppresses helper output, and warns on failure while retaining the saved local credentials. Run `fam PROVIDER sync` to retry manually; this passes `reason: "manual"` and `file: null`. Child processes inherit `FAM_CONFIG_DIR` and `FAM_CREDENTIALS_SYNC_DISABLED=1` to prevent recursive hooks.
+The helper decides what to upload and where. Fam waits up to 30 seconds, suppresses helper output, and warns on failure while retaining the saved local credentials. Run `fam PROVIDER.credential sync` to retry manually; this passes `reason: "manual"` and `file: null`. Child processes inherit `FAM_CONFIG_DIR` and `FAM_CREDENTIALS_SYNC_DISABLED=1` to prevent recursive hooks.
 
 ## Migration from familysearch
 

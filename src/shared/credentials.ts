@@ -69,7 +69,7 @@ export async function loadLoginCredentials(service: Service): Promise<Credential
   if (external) return external;
   const saved = await readPrivateJson<unknown>(loginFile(service));
   if (saved !== undefined) return validate(saved, service);
-  throw new Error(`No ${service} credentials configured. Run "fam ${service} credentials" or set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD.`);
+  throw new Error(`No ${service} credentials configured. Run "fam ${service}.credential set" or set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD.`);
 }
 
 /** Inspect the effective source without running a helper, prompting, or testing a password. */
@@ -84,7 +84,7 @@ export async function inspectLoginCredentials(service: Service): Promise<'enviro
 
 async function promptCredentials(service: Service): Promise<Credentials> {
   if (!process.stdin.isTTY || !process.stderr.isTTY) {
-    throw new Error(`Credential setup needs a terminal. Set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD, or pipe a JSON object to "fam ${service} credentials --stdin".`);
+    throw new Error(`Credential setup needs a terminal. Set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD, or pipe a JSON object to "fam ${service}.credential set --stdin".`);
   }
   let hidden = false;
   const output = new Writable({ write(chunk, _encoding, done) { if (!hidden) process.stderr.write(chunk); done(); } });

@@ -1,0 +1,365 @@
+/** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
+export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied'] as const;
+export const providerInfo: Record<string, {name: string; description: string}> = {
+  familysearch: {name: 'FamilySearch', description: 'Family trees, historical records, original images, and full-text research.'},
+  ancestry: {name: 'Ancestry', description: 'Family trees, people, historical records, hints, and media.'},
+  myheritage: {name: 'MyHeritage', description: 'Family sites and trees, record collections, matches, and documents.'},
+  findmypast: {name: 'Findmypast', description: 'Family trees, historical records, newspapers, and record images.'},
+  findagrave: {name: 'Find a Grave', description: 'Memorials, cemeteries, relatives, biographies, and photographs.'},
+  geneanet: {name: 'Geneanet', description: 'Archival records, family trees, portraits, registers, and library material.'},
+  storied: {name: 'Storied', description: 'Family trees, stories, media, hints, and historical records.'},
+  cli: {name: 'CLI', description: 'Command discovery, provider information, health checks, and shell completion.'},
+};
+export type Provider = typeof providerNames[number];
+/** Shared object descriptions used by provider help and command correction. */
+export const objectDescriptions: Record<string, string> = {
+  account: 'Account profiles and current user information.', album: 'Photo albums and their contents.',
+  api: 'Provider API catalogs, contracts, and operation execution.',
+  'api.enum': 'Enumerated values from provider API contracts.', 'api.gql': 'Cataloged and custom GraphQL operations.',
+  'api.http-site': 'Provider website HTTP endpoints.', 'api.model': 'Provider API data models.', 'api.route': 'Provider API routes.',
+  cemetery: 'Cemeteries and burial locations.', 'cemetery.virtual': 'Virtual cemetery collections.',
+  collection: 'Historical record collections and catalogs.', command: 'Command discovery and inspection.',
+  completion: 'Shell completion scripts and setup.', context: 'Resolve provider URLs into command parameters.',
+  contributor: 'Contributor profiles and contributions.', credential: 'Saved login credentials and synchronization.',
+  document: 'Source documents and document pages.', family: 'Family groups and relationships.', feed: 'Activity feeds.',
+  film: 'Digitized films and their images.', fulltext: 'Full-text historical record research.', group: 'Groups and membership.',
+  health: 'Provider authentication and access checks.', hint: 'Suggested records and research hints.',
+  image: 'Document images, downloads, and transcriptions.', library: 'Books and archival library material.',
+  location: 'Geographic locations and location lookup.', media: 'Linked photographs and other media.',
+  memorial: 'Memorials, biographies, relatives, and photographs.', 'mobile.version': 'Mobile application version information.',
+  newspaper: 'Historical newspaper research.', notification: 'Account notifications.', person: 'People and genealogy profiles.',
+  'person.mobile': 'Person information through mobile API operations.', photo: 'Photographs and photo metadata.',
+  'photo.request': 'Grave photograph requests.', place: 'Place names and geographic information.',
+  provider: 'Available genealogy providers.', record: 'Historical records and record search.',
+  register: 'Digitized archival registers.', session: 'Sign-in, saved sessions, and access verification.',
+  'session.metadata': 'Saved session metadata.', site: 'Family sites and site membership.',
+  story: 'Family stories and their contents.', subscription: 'Account subscription information.', tag: 'Tags and tagged content.',
+  tree: 'Family trees and their contents.', version: 'Installed CLI version.',
+};
+export interface Flag {
+  name: string;
+  type: 'string' | 'boolean' | 'integer' | 'number';
+  description: string;
+  required: boolean;
+  multiple?: boolean;
+  default?: string | number | boolean;
+  choices?: string[];
+  minimum?: number;
+  maximum?: number;
+  file?: boolean;
+  sensitive?: boolean;
+  /** Option name accepted by the provider adapter; false means handled centrally. */
+  binding?: string | false;
+}
+export interface Command {
+  id: string;
+  provider: Provider | 'cli';
+  object: string;
+  action: string;
+  description: string;
+  examples: string[];
+  flags: Flag[];
+  outputSchema: Record<string, unknown>;
+  schemaMode: 'advisory';
+  confirmationRequirement: 'none';
+  risk: {level: 'read' | 'local' | 'write' | 'operation-dependent'; description: string};
+  pagination?: {mode: 'provider'; description: string};
+  binding: {command: string[]; positionals: string[]};
+}
+
+const descriptions: Record<string, string> = {
+  out: 'Destination file. JSON uses private permissions; downloads retain their source/checksum sidecars.',
+  input: 'Additional input as inline JSON, a JSON file, or - for stdin (see the operation schema).',
+  variables: 'GraphQL variables as inline JSON, a JSON file, or - for stdin.',
+  document: 'File containing a custom GraphQL document.',
+  operation: 'Exact operation name or ID from this provider’s API catalog.',
+  query: 'Additional provider query input; use the provider API schema for field names.',
+  filter: 'Filter the catalog, or a provider-native search expression where documented.',
+  path: 'Provider API path or approved URL. Existing origin restrictions apply.',
+  url: 'Provider record, document, or viewer URL.',
+  stdin: 'Read a username/password JSON object from stdin without echoing credentials.',
+  anonymous: 'Use public access without loading a saved provider session.',
+  har: 'Import a signed-in browser HAR file.', capture: 'Open a browser and capture/import a validated session.',
+  'browser-channel': 'Browser used for sign-in or capture.', 'capture-timeout': 'Browser capture timeout in seconds.',
+  'tree-url': 'MyHeritage family tree URL to capture.', browser: 'Start browser authorization (PKCE).',
+  'callback-file': 'File containing the completed browser authorization callback URL.',
+  interactive: 'Sign in interactively in the browser instead of filling configured credentials.',
+  code: 'Account verification code.', 'verification-code': 'Native account verification code.',
+  'send-code': 'Send the pending account verification email.',
+  'recaptcha-token-file': 'File containing a native sign-in verification token.',
+  limit: 'Provider page size or result limit; existing provider semantics apply.', offset: 'Zero-based provider result offset.',
+  page: 'One-based provider result or document page.', cursor: 'Opaque continuation token from the provider.',
+  after: 'MyHeritage continuation within a split result page; preserve the original offset.',
+  count: 'FamilySearch page size.', all: 'Follow all available pages, subject to an explicit --limit.',
+  resume: 'FamilySearch continuation URL from an earlier response.',
+  depth: 'Number of pedigree generations.', generations: 'Number of pedigree generations.',
+  original: 'Download the original full-resolution distribution image.',
+  image: 'One-based image number in the film.', dgs: 'FamilySearch digital film (DGS) number.',
+  ark: 'FamilySearch image or indexed-record ARK, including its 3:1: or 1:1: prefix.',
+  related: 'Include related record and person leads.', 'related-document': 'Related document key from the viewer manifest.',
+  'match-status': 'Provider record match status, for example confirmed.',
+  field: 'Collection-specific NAME=VALUE criterion; repeatable and accepts JSON values.',
+  'no-translations': 'Disable translated-name matching.',
+  'first-name-match': 'Provider given-name matching mode.', 'last-name-match': 'Provider surname matching mode.',
+  'record-type': 'MyHeritage historical, family-trees, or all; scoped searches have their own semantics.',
+  'with-images': 'Only results with images.', images: 'Only catalog collections with images.',
+  'from-page': 'First register image page, inclusive.', 'to-page': 'Last register image page, inclusive; maximum 100 pages.',
+  index: 'Geneanet person index within a tree.', occurrence: 'Geneanet occurrence number when resolving a name.',
+  exact: 'Use the provider’s exact-match search behavior.', descending: 'Sort in descending order.',
+  'include-maiden-name': 'Include maiden names in memorial matching.', 'include-nickname': 'Include nicknames in memorial matching.',
+  similar: 'Include similar memorial names.', 'has-gps': 'Only memorials with GPS coordinates.',
+  famous: 'Only famous memorials.', veteran: 'Only veteran memorials.',
+  'birth-filter': 'Birth date comparison.', 'death-filter': 'Death date comparison.',
+  bio: 'Keywords in the memorial biography.', relative: 'Relative’s name.', plot: 'Burial plot text.',
+  base: 'Explicit, evidenced API base for a catalog route; origin restrictions still apply.',
+  example: 'Return a schema-derived input example instead of the API contract.',
+  json: 'Emit structured JSON instead of readable text, including errors.', 'dry-run': 'Validate CLI flags and show the invocation without executing the provider or writing files.',
+  help: 'Show this command’s generated usage and flags.',
+};
+const booleans = new Set('stdin anonymous capture browser interactive send-code all original related no-translations exact images with-images descending include-maiden-name include-nickname similar has-gps famous veteran example json dry-run help offline live verbose'.split(' '));
+const integers = new Set('limit offset page count depth generations image capture-timeout birth-year death-year residence-year marriage-year year year-range birth-year-range death-year-range residence-year-range marriage-year-range from-page to-page occurrence'.split(' '));
+const files = new Set('out input variables document har callback-file recaptcha-token-file'.split(' '));
+const options: Record<string, Partial<Flag>> = {
+  limit: {default: 20, minimum: 1}, offset: {default: 0, minimum: 0}, page: {default: 1, minimum: 1},
+  count: {default: 100, minimum: 1, maximum: 1000}, depth: {default: 2, minimum: 1},
+  generations: {default: 4, minimum: 1, maximum: 8}, 'capture-timeout': {default: 600, minimum: 1},
+  'browser-channel': {choices: ['chrome', 'msedge', 'chromium']},
+  gender: {choices: ['M', 'F']},
+  'first-name-match': {choices: ['exact', 'similar', 'initials', 'prefix']},
+  'last-name-match': {choices: ['exact', 'similar', 'soundex', 'metaphone', 'prefix']},
+  'birth-filter': {choices: ['exact', 'before', 'after', 'unknown']},
+  'death-filter': {choices: ['exact', 'before', 'after', 'unknown']},
+  'record-type': {choices: ['historical', 'family-trees', 'all']},
+  code: {sensitive: true}, 'verification-code': {sensitive: true},
+  latitude: {type: 'number', minimum: -90, maximum: 90}, longitude: {type: 'number', minimum: -180, maximum: 180},
+  distance: {type: 'integer', minimum: 1},
+  'dry-run': {binding: false}, json: {binding: false}, help: {binding: false},
+};
+function flag(name: string, override: Partial<Flag> = {}): Flag {
+  return {name, type: booleans.has(name) ? 'boolean' : integers.has(name) ? 'integer' : 'string',
+    description: descriptions[name] ?? `${name.replaceAll('-', ' ')}${name.endsWith('-id') ? ' (opaque provider ID; kept as a string)' : ' criterion or provider value'}.`,
+    required: false, ...(booleans.has(name) ? {default: false} : {}), ...(files.has(name) ? {file: true} : {}),
+    ...options[name], ...override};
+}
+type Extras = {flags?: Record<string, Partial<Flag>>; pagination?: string; risk?: Command['risk']; examples?: string[]; outputSchema?: Record<string, unknown>};
+const registry: Command[] = [];
+function add(provider: Command['provider'], legacy: string, objectAction: string, description: string,
+  positional: string[] = [], names = '', extra: Extras = {}) {
+  const [object, action] = objectAction.split(' ');
+  const positionals = positional.map(name => name.replace(/^\?/, ''));
+  const flagList = [...positional.map(name => flag(name.replace(/^\?/, ''), {required: !name.startsWith('?')})),
+    ...names.split(' ').filter(Boolean).map(name => flag(name)),
+    ...['out', 'json', 'dry-run', 'help'].filter(name => !names.split(' ').includes(name) && !positionals.includes(name)).map(name => flag(name))];
+  for (const f of flagList) Object.assign(f, extra.flags?.[f.name]);
+  const cmd: Command = {id: `${provider}.${object} ${action}`, provider, object, action, description,
+    flags: flagList, examples: [], schemaMode: 'advisory', confirmationRequirement: 'none',
+    outputSchema: extra.outputSchema ?? {description: 'Provider data, preserved without response validation. Fields and shapes may change.', type: ['object', 'array'], additionalProperties: true},
+    risk: extra.risk ?? {level: 'read', description: 'Reads provider data. Existing session renewal and an explicit --out may write local files.'},
+    ...(extra.pagination ? {pagination: {mode: 'provider' as const, description: extra.pagination}} : {}),
+    binding: {command: legacy.split(' '), positionals}};
+  cmd.examples = extra.examples ?? [syntax(cmd)];
+  registry.push(cmd);
+}
+export function syntax(command: Command): string {
+  return `fam ${command.id}${command.flags.filter(f => f.required).map(f => ` --${f.name}${f.type === 'boolean' ? '' : ` <${f.name.toUpperCase().replaceAll('-', '_')}>`}`).join('')}`;
+}
+const local: Command['risk'] = {level: 'local', description: 'Local metadata or catalog; no provider requests.'};
+const login: Command['risk'] = {level: 'write', description: 'Signs in or renews authentication and saves private credentials/session state. May initiate account verification.'};
+const api: Command['risk'] = {level: 'operation-dependent', description: 'Executes the selected operation immediately, including writes, deletes, and possible credit purchases. Inspect the provider API contract. HTTP GET and GraphQL query do not guarantee absence of side effects.'};
+const paging = 'Returns the existing provider page or subset. Provider continuation fields and totals remain in data; an absent continuation field does not prove completeness.';
+const names = 'first-name last-name birth-year death-year';
+const page = 'limit offset';
+const commonRead = 'query';
+
+for (const provider of providerNames) {
+  add(provider, 'credentials', 'credential set', 'Save login credentials from helper, environment, prompt, or JSON stdin.', [], 'stdin', {risk: {level: 'local', description: 'Writes private credentials and may invoke the configured credential sync helper.'}});
+  add(provider, 'sync', 'credential sync', 'Run the explicitly configured credential synchronization helper.', [], '', {risk: {level: 'write', description: 'Invokes the user-configured synchronization helper, which may contact another host.'}});
+  const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
+    : provider === 'findmypast' ? 'capture har browser callback-file browser-channel capture-timeout region' : provider === 'storied' ? 'interactive browser-channel' : '';
+  add(provider, 'auth', 'session login', 'Sign in and save a session; use the provider-specific authentication options.', [], auth, {risk: login, flags: provider === 'findmypast' ? {region: {choices: ['com', 'co.uk']}} : undefined});
+  add(provider, 'status', 'session get', 'Inspect saved session metadata without tokens or live authentication.', [], '', {risk: local});
+  if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
+  if (['familysearch', 'findagrave', 'geneanet', 'storied'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
+  if (provider !== 'ancestry') add(provider, provider === 'familysearch' ? 'whoami' : 'me', 'account get', 'Read the current account profile and available tree context.', [], provider === 'myheritage' ? 'query' : '');
+  add(provider, 'ops', 'api list', 'List and filter the provider’s known API operations and aliases.', ['?filter'], '', {risk: local});
+  add(provider, 'schema', 'api describe', 'Inspect the contract, inputs, response information, and availability of one provider API operation.', ['operation'], provider === 'familysearch' ? 'example' : '', {risk: local});
+  if (!['familysearch', 'geneanet', 'storied'].includes(provider)) {
+    add(provider, 'gql', 'api.gql query', 'Execute a cataloged GraphQL query or mutation with variables.', ['operation', '?variables'], '', {risk: api});
+    if (provider !== 'ancestry') add(provider, 'query', 'api.gql execute', 'Execute a custom GraphQL document from a file.', ['document', '?variables'], '', {risk: api});
+  }
+  if (provider !== 'geneanet') add(provider, 'call', 'api call', 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
+    provider === 'familysearch' ? ['operation'] : ['operation', '?input'], provider === 'familysearch' ? 'input query' : provider === 'ancestry' ? 'query base' : ['myheritage', 'findmypast'].includes(provider) ? 'query' : '',
+    {risk: api, flags: provider === 'familysearch' ? {input: {description: 'JSON input file or - for stdin.'}, query: {multiple: true, description: 'Typed key=value query binding; repeatable.'}} : undefined});
+  if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});
+  if (['myheritage', 'findmypast', 'findagrave', 'storied'].includes(provider)) add(provider, 'models', 'api.model list', 'List and filter recovered provider model fields.', ['?filter'], '', {risk: local});
+}
+
+add('familysearch', 'metadata', 'session.metadata get', 'Read mobile login metadata with tokens removed.');
+add('familysearch', 'tree-status', 'tree status', 'Read FamilySearch tree status.');
+add('familysearch', 'person', 'person get', 'Read a GEDCOM X person.', ['person-id']);
+add('familysearch', 'ancestry', 'person ancestry', 'Read GEDCOM X ancestors and pedigree.', ['person-id', '?depth']);
+add('familysearch', 'mobile-person', 'person.mobile get', 'Read the mobile v2 person DTO.', ['person-id']);
+add('familysearch', 'mobile-pedigree', 'person.mobile pedigree', 'Read the mobile pedigree.', ['person-id', '?depth']);
+add('familysearch', 'image info', 'image get', 'Inspect an image ARK, image URLs, and available original scan metadata.', ['ark']);
+add('familysearch', 'image download', 'image download', 'Download an original full-resolution document image scan with provenance.', ['ark'], 'original', {flags: {out: {required: true}}, examples: ['fam familysearch.image download --ark 3:1:EXAMPLE --original --out scan.jpg']});
+add('familysearch', 'image transcript', 'image transcript', 'Read machine transcription and OCR text for a document image.', ['ark'], 'format', {flags: {format: {default: 'text', choices: ['json', 'text']}}});
+const fsPaging = 'count offset all limit resume format';
+const fsPageExtra: Extras = {pagination: 'One page by default. --all follows pages, --limit bounds items, --resume continues a returned URL. Completeness and continuation remain in data.', flags: {limit: {default: undefined}, format: {default: 'text', choices: ['text', 'json', 'jsonl']}}};
+add('familysearch', 'collection browse', 'collection browse', 'Browse a collection or waypoint URL and its children.', ['collection'], fsPaging, fsPageExtra);
+add('familysearch', 'film images', 'film images', 'List the images in a digital film (DGS).', ['dgs'], fsPaging, fsPageExtra);
+add('familysearch', 'film image', 'film image', 'Resolve a single numbered image in a digital film.', ['dgs'], 'image', {flags: {image: {required: true, minimum: 1}}});
+add('familysearch', 'fulltext available', 'fulltext available', 'Check whether a digital film has full-text research coverage.', ['dgs']);
+add('familysearch', 'fulltext search', 'fulltext search', 'Search historical full-text document transcriptions by names, keywords, place, and years.', [], `name keywords place years dgs collection record-type ${fsPaging}`, {...fsPageExtra, flags: {...fsPageExtra.flags, 'record-type': {choices: undefined}}});
+add('familysearch', 'record details', 'record get', 'Read details of an indexed historical record ARK (1:1:).', ['ark']);
+
+add('ancestry', 'trees', 'tree list', 'List account trees with cursor pagination.', [], 'limit cursor', {pagination: paging});
+add('ancestry', 'tree', 'tree get', 'Read tree metadata and its root person ID.', ['tree-id']);
+add('ancestry', 'persons', 'person list', 'Read the first person connection in a tree; use the API catalog for bulk paging.', ['tree-id'], '', {pagination: 'This convenience command returns the first person connection only. Its provider pageInfo is preserved; use ancestry.api.gql query for further pages.'});
+for (const [legacy, objectAction, description] of [
+  ['person', 'person get', 'Read person details in a tree.'], ['relatives', 'person relatives', 'Read ancestors, descendants, siblings, and spouses.'],
+  ['research', 'person research', 'Read facts, citations, and research details.'], ['story', 'person story', 'Read the life story and person card.'],
+  ['hints', 'person hints', 'List record hints for a person.'], ['media', 'person media', 'Read person media.'],
+]) add('ancestry', legacy, objectAction, description, ['tree-id', 'person-id'], legacy === 'hints' ? 'limit' : legacy === 'media' ? 'query limit page' : legacy === 'relatives' ? commonRead : '', {pagination: ['hints', 'media'].includes(legacy) ? paging : undefined});
+for (const noun of ['citations', 'sources']) add('ancestry', noun, `tree ${noun}`, `Read cached tree ${noun}.`, ['tree-id'], 'query limit page', {pagination: paging});
+add('ancestry', 'record', 'record get', 'Read record fields, collection metadata, and rights.', ['collection-id', 'record-id']);
+add('ancestry', 'search', 'record search', 'Search historical genealogy records by name, life dates, and places.', [], `${names} birth-place death-place limit page cursor filter`, {flags: {'first-name': {binding: 'given'}, 'last-name': {binding: 'surname'}, filter: {multiple: true}}, pagination: paging,
+  examples: ['fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809']});
+add('ancestry', 'places', 'place search', 'Autocomplete place names.', ['prefix'], 'query limit', {pagination: paging});
+
+add('myheritage', 'sites', 'site list', 'List family sites.', [], 'query limit offset', {pagination: paging});
+add('myheritage', 'trees', 'tree list', 'List trees in a family site.', ['site-id'], 'query limit offset', {pagination: paging});
+add('myheritage', 'tree', 'tree get', 'Read tree details.', ['tree-id'], 'query');
+add('myheritage', 'people', 'person list', 'List people in a tree; browser sessions retain their existing neighborhood scope.', ['tree-id'], page, {pagination: paging});
+add('myheritage', 'find', 'person search', 'Find a person by name in a tree.', ['tree-id', 'name']);
+for (const [legacy, action] of [['person', 'get'], ['insights', 'insights'], ['events', 'events'], ['timeline', 'timeline'], ['facts', 'facts'], ['matches', 'matches'], ['records', 'records']])
+  add('myheritage', legacy, `person ${action}`, `Read a person’s ${legacy === 'person' ? 'details and relatives' : legacy}.`, ['person-id'], ['events', 'matches'].includes(legacy) ? 'query limit offset' : legacy === 'records' ? 'limit offset match-status' : '', {pagination: ['events', 'matches', 'records'].includes(legacy) ? paging : undefined});
+add('myheritage', 'family', 'family get', 'Read a family object.', ['family-id'], 'query');
+add('myheritage', 'media', 'media list', 'List media for a person, tree, or site.', ['parent-id'], 'query limit offset', {pagination: paging});
+add('myheritage', 'albums', 'album list', 'List photo albums for a family site.', ['site-id']);
+add('myheritage', 'consistency', 'tree consistency', 'Read cached tree consistency issues.', ['tree-id'], page, {pagination: paging});
+add('myheritage', 'search', 'record search', 'Search historical records by names, dates, places, relatives, and collection-specific fields.', ['?input'],
+  `${names} birth-place death-place residence-year residence-place marriage-year marriage-place birth-year-range death-year-range residence-year-range marriage-year-range place keyword exact collection category record-type after gender first-name-match last-name-match no-translations field limit offset`,
+  {flags: {field: {multiple: true}, limit: {default: undefined}}, pagination: paging,
+    examples: ['fam myheritage.record search --first-name Abraham --last-name Lincoln --birth-year 1809']});
+add('myheritage', 'record', 'record get', 'Read record fields, citations, image links, and optionally related leads.', ['url'], 'related');
+add('myheritage', 'catalog', 'collection list', 'Browse and filter historical record collections.', [], 'category location years images limit offset', {pagination: paging});
+add('myheritage', 'collections', 'collection search', 'Find historical collections by title or description.', ['name'], 'category location years images limit offset', {pagination: paging});
+add('myheritage', 'collection', 'collection get', 'Read collection details and supported fields.', ['collection-id']);
+add('myheritage', 'search-fields', 'collection fields', 'Discover collection-specific search fields, types, and choices.', ['collection-id']);
+add('myheritage', 'document', 'document get', 'Read original document pages, image URLs, and embedded text.', ['url'], 'related-document');
+add('myheritage', 'download-document', 'document download', 'Download an original document page and source metadata.', ['url'], 'page related-document', {flags: {out: {required: true}}});
+
+add('findmypast', 'subscription', 'subscription get', 'Read current plan and subscription status.');
+add('findmypast', 'trees', 'tree list', 'List account trees.', [], page, {pagination: paging});
+add('findmypast', 'tree', 'tree get', 'Read tree settings.', ['tree-id']);
+add('findmypast', 'people', 'person list', 'Read people, tree metadata, and root/last-viewed person IDs.', ['tree-id']);
+for (const [legacy, action] of [['person', 'get'], ['relatives', 'relatives'], ['hints', 'hints']]) add('findmypast', legacy, `person ${action}`, `Read a person’s ${legacy === 'person' ? 'summary' : legacy}.`, ['tree-id', 'person-id'], legacy === 'hints' ? page : '', {pagination: legacy === 'hints' ? paging : undefined});
+add('findmypast', 'facts', 'person facts', 'Read personal, family, and name facts and citations.', ['person-id']);
+add('findmypast', 'media', 'person media', 'List person media.', ['person-id'], page, {pagination: paging});
+add('findmypast', 'search', 'record search', 'Search historical records by names, dates, keywords, and provider filters.', [], `${names} year keywords collection exact filters country year-range sort descending page`, {pagination: 'One provider-sized page; use --page to continue. This provider does not support --limit or --offset here.', flags: {sort: {choices: ['relevance', 'first-name', 'last-name', 'birth', 'death', 'year', 'collection']}}});
+add('findmypast', 'collections', 'collection search', 'Find historical record sets.', ['?name'], page, {pagination: paging});
+add('findmypast', 'collection', 'collection get', 'Read record-set metadata.', ['collection-id']);
+add('findmypast', 'entitlement', 'record entitlement', 'Read the transcript access decision without confirming a purchase.', ['record-id']);
+add('findmypast', 'record', 'record get', 'Read a transcript without confirming a credit purchase.', ['record-id']);
+add('findmypast', 'image', 'image get', 'Read record image gateway details.', ['record-id']);
+add('findmypast', 'download', 'image download', 'Download a full-resolution record image with source/checksum metadata.', ['record-id'], '', {flags: {out: {required: true, description: 'JPEG destination ending in .jpg or .jpeg; also writes FILE.json.'}}});
+add('findmypast', 'newspapers', 'newspaper search', 'Search historical newspapers by person, publication, dates, and location.', [], `name keywords exact publication country county place from to sort descending ${page}`, {pagination: paging, flags: {name: {multiple: true}, publication: {multiple: true}, sort: {choices: ['relevance', 'date']}}});
+add('findmypast', 'newspaper-manifest', 'newspaper manifest', 'Read the newspaper image manifest.', ['newspaper-id']);
+
+add('findagrave', 'search', 'memorial search', 'Search cemetery memorials, grave biographies, dates, names, and relatives.', [], `name ${names} middle-name year-range birth-filter death-filter bio relative include-maiden-name include-nickname similar plot location cemetery exact famous veteran has-gps sort descending input ${page}`,
+  {pagination: paging, flags: {cemetery: {multiple: true}, limit: {maximum: 100}, sort: {choices: ['relevance', 'name', 'birth', 'death', 'cemetery', 'created', 'modified', 'plot']}}});
+add('findagrave', 'memorial', 'memorial get', 'Read a memorial, dates, biography, burial, photos, and relatives.', ['memorial-id']);
+add('findagrave', 'relatives', 'memorial relatives', 'Read relationships attached to a memorial.', ['memorial-id']);
+add('findagrave', 'photos', 'memorial photos', 'List memorial photographs.', ['memorial-id'], page, {pagination: paging});
+add('findagrave', 'download', 'photo download', 'Download the original memorial photograph with source/checksum metadata.', ['memorial-id', 'photo-id'], '', {flags: {out: {required: true}}});
+add('findagrave', 'cemeteries', 'cemetery search', 'Search cemeteries by name, location, or coordinates.', ['?name'], `location latitude longitude distance input ${page}`, {pagination: paging});
+add('findagrave', 'cemetery', 'cemetery get', 'Read cemetery details.', ['cemetery-id']);
+add('findagrave', 'locations', 'location search', 'Look up location IDs for memorial and cemetery search.', ['name'], page, {pagination: paging});
+add('findagrave', 'contributor', 'contributor get', 'Read a contributor’s public profile.', ['contributor-id']);
+add('findagrave', 'my-cemeteries', 'cemetery saved', 'List your saved cemeteries.', [], page, {pagination: paging});
+add('findagrave', 'virtual-cemeteries', 'cemetery.virtual list', 'List virtual cemeteries; contributor defaults to the current account.', ['?contributor-id'], page, {pagination: paging});
+add('findagrave', 'virtual-cemetery', 'cemetery.virtual get', 'Read memorials in a virtual cemetery.', ['cemetery-id'], page, {pagination: paging});
+add('findagrave', 'volunteer-cemeteries', 'cemetery volunteer', 'Read your volunteer cemeteries.');
+add('findagrave', 'tags', 'tag list', 'Read global memorial tags.');
+add('findagrave', 'requests', 'photo.request list', 'List your, claimed, or volunteer photo requests.', ['?scope'], page, {pagination: paging, flags: {scope: {default: 'mine', choices: ['mine', 'claimed', 'volunteer']}}});
+for (const [legacy, obj, description] of [['enums', 'api.enum', 'APK enum wire values'], ['http-sites', 'api.http-site', 'HTTP call sites including catalog-only routes']]) add('findagrave', legacy, `${obj} list`, `List ${description}.`, ['?filter'], '', {risk: local});
+
+const geneanetSearch = `${names.split(' ').slice(0, 2).join(' ')} place from to event spouse-last-name spouse-first-name category with-images keywords page limit input`;
+for (const [legacy, obj, description] of [['search', 'record', 'genealogy records and archival transcriptions'], ['photos', 'photo', 'old portraits and photographs'], ['library', 'library', 'books and newspapers']])
+  add('geneanet', legacy, `${obj} search`, `Search ${description}.`, [], geneanetSearch, {pagination: paging, flags: {limit: {default: 10, choices: ['10', '20', '30', '40', '50', '100']}, event: {choices: ['all', 'birth', 'wedding', 'death']}}});
+add('geneanet', 'collections', 'collection list', 'Read collection and theme links for a zone (default all).', ['?zone']);
+add('geneanet', 'record', 'record get', 'Read a record, viewer, collection, or person page.', ['url']);
+add('geneanet', 'person', 'person get', 'Read a tree person using --index, or first/last name and occurrence.', ['tree-id'], 'index first-name last-name occurrence');
+add('geneanet', 'tree-media', 'person media', 'Read linked documents, deposit IDs, and view IDs.', ['tree-id', 'person-index']);
+add('geneanet', 'media', 'media get', 'Read deposit metadata and image variants.', ['deposit-id']);
+add('geneanet', 'media-references', 'media references', 'Read named persons and indexing on one media view.', ['deposit-id', 'view-id']);
+add('geneanet', 'images', 'register images', 'Read an inclusive register image range, up to 100 pages.', ['register-id'], 'from-page to-page', {pagination: 'An explicitly selected page range; the provider’s register can contain additional pages.'});
+add('geneanet', 'download', 'record download', 'Resolve and download a permitted image or PDF from a record viewer.', ['url'], '', {flags: {out: {required: true}}});
+add('geneanet', 'download-media', 'media download', 'Download an original media view with source/checksum metadata.', ['deposit-id', 'view-id'], '', {flags: {out: {required: true}}});
+add('geneanet', 'routes', 'api.route list', 'List broader observed website routes; this inventory includes non-executable routes.', ['?filter'], '', {risk: local});
+
+for (const [legacy, objectAction, description, args] of [
+  ['trees', 'tree list', 'List account trees.', ''], ['tree', 'tree get', 'Read tree details.', 'tree-id'],
+  ['people', 'person list', 'Read people in a tree.', 'tree-id'], ['find-people', 'person search', 'Search people linked to the account.', 'name'],
+  ['person', 'person get', 'Read person details.', 'person-id'], ['pedigree', 'person pedigree', 'Read a tree pedigree.', 'tree-id person-id'],
+  ['family', 'person family', 'Read immediate family.', 'tree-id person-id'], ['events', 'person events', 'Read life events.', 'tree-id person-id'],
+  ['hints', 'person hints', 'Read record hints.', 'person-id'], ['records', 'person records', 'Read saved records.', 'person-id'],
+  ['stories', 'story list', 'List your stories.', ''], ['person-stories', 'person stories', 'List stories attached to a person.', 'person-id'],
+  ['story', 'story get', 'Read story details.', 'story-id'], ['comments', 'story comments', 'Read story comments.', 'story-id'],
+  ['feed', 'feed get', 'Read the home feed.', ''], ['media', 'media list', 'Read your media gallery.', ''],
+  ['media-item', 'media get', 'Read media metadata.', 'media-id'], ['groups', 'group list', 'Read your groups.', ''],
+  ['notifications', 'notification list', 'Read your notifications.', ''], ['subscription', 'subscription get', 'Read subscription details.', ''],
+  ['recent-people', 'person recent', 'Read recently viewed people.', ''], ['home-hints', 'hint list', 'Read homepage hints.', ''],
+  ['mobile-version', 'mobile.version get', 'Read public minimum supported app versions.', ''],
+  ['search', 'record search', 'Search historical records by name, keywords, and extra native fields.', ''],
+]) {
+  const paginated = ['stories', 'person-stories', 'comments', 'feed', 'media', 'notifications', 'search', 'find-people'].includes(legacy);
+  add('storied', legacy, objectAction, description, args.split(' ').filter(Boolean),
+    `input${paginated ? legacy === 'find-people' ? ' page' : ' page limit' : ''}${legacy === 'pedigree' ? ' generations' : ''}${legacy === 'search' ? ' first-name last-name keyword' : ''}`,
+    {pagination: paginated ? paging : undefined, flags: {limit: {maximum: 100}}});
+}
+add('storied', 'model', 'api.model get', 'Read a recovered model schema.', ['name'], '', {risk: local});
+
+// Anonymous mode is limited to providers and workflows that already support it.
+for (const cmd of registry) if (['findmypast', 'findagrave', 'geneanet', 'storied'].includes(cmd.provider)
+  && !['credential', 'session', 'account'].includes(cmd.object)) cmd.flags.push(flag('anonymous'));
+
+const cliRisk: Extras = {risk: local};
+add('cli', 'search', 'command search', 'Find commands by intent using local keyword and concept retrieval. Never executes a provider.', [], 'query provider context limit offset',
+  {...cliRisk, flags: {query: {required: true, description: 'What you want to do, in your own words.'}, provider: {choices: [...providerNames, 'cli']}, context: {description: 'Optional provider URL or ID to resolve locally and prefill matching flags.'}, limit: {default: 3, maximum: 100}}});
+add('cli', 'describe', 'command describe', 'Read the complete registry entry: syntax, typed flags, examples, output schema, and risk.', [], 'command', {...cliRisk, flags: {command: {required: true, description: 'Command identity, for example familysearch.image download.'}}});
+add('cli', 'list', 'command list', 'List every registered command, optionally restricted to a provider.', [], 'provider', {...cliRisk, flags: {provider: {choices: [...providerNames, 'cli']}}});
+add('cli', 'providers', 'provider list', 'List available providers and what each one supports.', [], '', cliRisk);
+add('cli', 'resolve', 'context resolve', 'Resolve known provider URLs and IDs locally into candidate commands and prefilled flags.', [], 'context provider', {...cliRisk, flags: {context: {required: true}, provider: {choices: [...providerNames]}}});
+add('cli', 'doctor', 'health check', 'Check saved sessions using existing provider health probes and bounded renewal.', [], 'provider offline live verbose format',
+  {risk: {level: 'read', description: 'Live account checks may renew and save sessions. --offline performs no provider requests or session changes.'}, flags: {provider: {multiple: true, choices: [...providerNames]}, format: {default: 'text', choices: ['json', 'text']}}});
+add('cli', 'version', 'version get', 'Read the installed fam version.', [], '', cliRisk);
+add('cli', 'completion-script', 'completion script', 'Print bash or zsh completion code for use with eval.', [], 'shell format',
+  {...cliRisk, flags: {shell: {required: true, choices: ['bash', 'zsh']}, format: {default: 'text', choices: ['json', 'text']}}});
+add('cli', 'completion-install', 'completion install', 'Install or update a guarded completion hook in your shell startup files.', [], 'shell',
+  {risk: {level: 'local', description: 'Updates only the marked fam completion hook in shell startup files.'}, flags: {shell: {description: 'Shell to configure; defaults to $SHELL.', choices: ['bash', 'zsh']}}});
+add('cli', 'completion-query', 'completion query', 'Return local shell completion candidates from the command registry.', [], 'word format',
+  {...cliRisk, flags: {word: {multiple: true, description: 'Command word, repeated in order; include the current incomplete word.'}, format: {default: 'text', choices: ['json', 'text']}}});
+
+export const commands: readonly Command[] = registry;
+export const commandById = new Map(commands.map(command => [command.id, command]));
+
+/** Common tasks are part of the registry, so overview help cannot invent commands. */
+export const commonTasks = [
+  {command: 'ancestry.record search', title: 'Search historical records', example: 'fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809'},
+  {command: 'familysearch.person get', title: 'Read a person in FamilySearch', example: 'fam familysearch.person get --person-id <PERSON_ID>'},
+  {command: 'familysearch.image download', title: 'Download an original document image', example: 'fam familysearch.image download --ark <IMAGE_ARK> --original --out scan.jpg'},
+  {command: 'familysearch.image transcript', title: 'Read a document transcription', example: 'fam familysearch.image transcript --ark <IMAGE_ARK>'},
+  {command: 'findagrave.memorial search', title: 'Find a grave or memorial', example: 'fam findagrave.memorial search --last-name Lincoln --anonymous'},
+  {command: 'findmypast.newspaper search', title: 'Search historical newspapers', example: 'fam findmypast.newspaper search --name "Ada Lovelace"'},
+  {command: 'myheritage.collection search', title: 'Find a historical record collection', example: 'fam myheritage.collection search --name census'},
+  {command: 'geneanet.record search', title: 'Search archival records', example: 'fam geneanet.record search --last-name Martin --place Paris'},
+  {command: 'storied.tree list', title: 'List your Storied trees', example: 'fam storied.tree list'},
+  {command: 'myheritage.session login', title: 'Sign in through a browser', example: 'fam myheritage.session login --capture'},
+  {command: 'ancestry.api.gql query', title: 'Run a cataloged GraphQL operation', example: 'fam ancestry.api.gql query --operation GetTreeList --variables \'{"limit":20}\''},
+  {command: 'cli.health check', title: 'Check account access', example: 'fam cli.health check'},
+];
+for (const task of commonTasks) {
+  const command = commandById.get(task.command)!;
+  if (!command.examples.includes(task.example)) command.examples.push(task.example);
+}

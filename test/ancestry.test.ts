@@ -107,6 +107,21 @@ test('Ancestry bounds retries and does not refresh on permission/rate-limit/serv
   await expired.client.request('/test'); assert.equal(expired.refreshes(), 1);
 });
 
+test('Ancestry commands recover GraphQL authentication errors and persist renewal before a failed retry', async () => {
+  const denied = {errors: [{extensions: {code: 'UNAUTHENTICATED'}}]};
+  const mock = mockClient(async options => options.headers?.Authorization === 'Bearer old-test' ? denied
+    : {data: {trees: {treeConnection: {nodes: []}}}});
+  assert.deepEqual((await mock.client.trees()).trees.treeConnection.nodes, []);
+  assert.equal(mock.refreshes(), 1);
+  for (const expired of [false, true]) {
+    let calls = 0;
+    const failed = mockClient(async () => {calls++; return denied;}, expired ? 1 : Date.now() + 3600_000);
+    await assert.rejects(failed.client.trees());
+    assert.equal(failed.refreshes(), 1); assert.equal(calls, expired ? 1 : 2);
+    assert.equal(failed.saved[0]?.tokens.refresh_token, 'rotated-test');
+  }
+});
+
 test('catalog aliases resolve, IDs are unique and embedded documents match their hashes', () => {
   assert.equal(contracts.rest.length, 267); assert.equal(contracts.graphql.length, 208);
   assert.equal(new Set(contracts.rest.map(op => op.id)).size, contracts.rest.length);

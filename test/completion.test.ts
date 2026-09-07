@@ -6,15 +6,13 @@ import { mkdtemp, readFile, rm, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { complete, completionScript, installCompletion, type CompletionNode } from '../src/shared/completion.js';
+import { complete, completionScript, installCompletion, completionCatalog } from '../src/shared/completion.js';
 
 const run = promisify(execFile);
 const root = fileURLToPath(new URL('../', import.meta.url));
 const sourceCli = join(root, 'src/cli.ts');
 const sourceArgs = ['--import', import.meta.resolve('tsx'), sourceCli];
-// Refresh the catalog for source tests, including provider changes since the build.
-await run(process.execPath, [join(root, 'scripts/generate-completions.mjs')]);
-const catalog = JSON.parse(await readFile(join(root, 'dist/shared/completion-data.json'), 'utf8')) as CompletionNode;
+const catalog = completionCatalog();
 const query = (...words: string[]) => complete(catalog, words);
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 
@@ -25,53 +23,48 @@ after(() => rm(launcherDirectory, { recursive: true, force: true }));
 const cli = join(launcherDirectory, 'fam');
 await writeFile(cli, `#!/bin/sh\nexec ${[process.execPath, ...sourceArgs].map(quote).join(' ')} "$@"\n`, { mode: 0o700 });
 
-test('completion covers every provider, nested commands, flags and option values', () => {
-  assert.deepEqual(query('fam').candidates, ['familysearch']);
-  for (const provider of ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet']) {
-    assert.ok(query('').candidates.includes(provider));
-    assert.ok(query(provider, '').candidates.includes('credentials'));
-    assert.ok(query(provider, '--').candidates.includes('--out'));
-    assert.ok(query('help', provider.slice(0, 4)).candidates.includes(provider));
+test('completion covers dotted objects, actions, flags and option values from the registry', () => {
+  assert.deepEqual(query('familysearch.im').candidates, ['familysearch.image']);
+  for (const provider of ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied']) {
+    assert.ok(query('').candidates.includes(`${provider}.session`));
+    assert.ok(query(`${provider}.session`, '').candidates.includes('login'));
+    assert.ok(query(`${provider}.session`, 'get', '--').candidates.includes('--out'));
   }
-  assert.deepEqual(query('familysearch', 'image', '').candidates, ['download', 'info', 'transcript']);
-  assert.deepEqual(query('familysearch', 'film', 'im').candidates, ['image', 'images']);
-  assert.deepEqual(query('ancestry', 'search', '--birth-').candidates, ['--birth-place', '--birth-year']);
-  assert.deepEqual(query('findagrave', '--anonymous', 'sea').candidates, ['search']);
-  assert.deepEqual(query('ancestry', '--out', 'some file.json', 'sea').candidates, ['search']);
-  assert.deepEqual(query('geneanet', 'search', '--event', 'b').candidates, ['birth']);
-  assert.deepEqual(query('myheritage', 'search', '--gender', '').candidates, ['F', 'M']);
-  assert.deepEqual(query('geneanet', 'search', '--event=b').candidates, ['--event=birth']);
-  assert.deepEqual(query('geneanet', 'search', '--event', '=', 'b').candidates, ['birth']);
-  assert.deepEqual(query('findagrave', 'requests', 'v').candidates, ['volunteer']);
-  assert.deepEqual(query('completion', 'install', '').candidates, ['bash', 'zsh']);
-  for (const words of [['ancestry', 'search', '--given', ''], ['ancestry', 'search', '--', '--'], ['toString', ''], ['ancestry', '--unknown', ''], ['ancestry', 'person', '']]) {
-    assert.equal(query(...words).kind, 'none', words.join(' '));
-  }
+  assert.deepEqual(query('familysearch.image', '').candidates, ['download', 'get', 'transcript']);
+  assert.deepEqual(query('familysearch.film', 'im').candidates, ['image', 'images']);
+  assert.deepEqual(query('ancestry.record', 'search', '--birth-').candidates, ['--birth-place', '--birth-year']);
+  assert.deepEqual(query('geneanet.record', 'search', '--event', 'b').candidates, ['birth']);
+  assert.deepEqual(query('myheritage.record', 'search', '--gender', '').candidates, ['F', 'M']);
+  assert.deepEqual(query('geneanet.record', 'search', '--event=b').candidates, ['--event=birth']);
+  assert.deepEqual(query('geneanet.record', 'search', '--event', '=', 'b').candidates, ['birth']);
+  assert.deepEqual(query('findagrave.photo.request', 'list', '--scope', 'v').candidates, ['volunteer']);
+  assert.deepEqual(query('cli.completion', 'install', '--shell', '').candidates, ['bash', 'zsh']);
+  for (const words of [['ancestry.record', 'search', '--first-name', ''], ['ancestry.record', 'search', '--', '--'], ['toString', ''], ['ancestry.record', 'search', '--unknown', '']]) assert.equal(query(...words).kind, 'none', words.join(' '));
 });
 
 test('file completion is limited to file arguments and preserves whitespace and metacharacters', () => {
-  for (const words of [['ancestry', 'trees', '--out', 'a b'], ['myheritage', 'auth', '--har', 'a b'],
-    ['familysearch', 'call', 'operation', 'a b'], ['findmypast', 'query', 'a b'],
-    ['geneanet', 'search', '--input', 'a b'], ['geneanet', 'search', '--out=a b']]) {
+  for (const words of [['ancestry.tree', 'list', '--out', 'a b'], ['myheritage.session', 'login', '--har', 'a b'],
+    ['familysearch.api', 'call', '--input', 'a b'], ['findmypast.api.gql', 'execute', '--document', 'a b'],
+    ['geneanet.record', 'search', '--input', 'a b'], ['geneanet.record', 'search', '--out=a b']]) {
     const result = query(...words);
     assert.equal(result.kind, 'files', words.join(' '));
     assert.equal(result.prefix, 'a b');
   }
   const literal = '$(must-not-run); `also-not`';
-  assert.equal(query('ancestry', '--out', literal).prefix, literal);
+  assert.equal(query('ancestry.tree', 'list', '--out', literal).prefix, literal);
 });
 
 test('completion CLI runs outside the checkout without accessing credentials', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'fam-completion-'));
   try {
-    const { stdout, stderr } = await run(process.execPath, [...sourceArgs, '__complete', 'familysearch', 'image', 'd'], {
+    const { stdout, stderr } = await run(process.execPath, [...sourceArgs, 'cli.completion', 'query', '--format', 'text', '--word=familysearch.image', '--word=d'], {
       cwd: directory, env: { ...process.env, FAM_CONFIG_DIR: join(directory, 'no-profile'), FAM_CREDENTIALS_COMMAND: '["must-not-run"]' },
     });
     assert.equal(stdout, 'words\nd\ndownload\n');
     assert.equal(stderr, '');
     await assert.rejects(stat(join(directory, 'no-profile')), { code: 'ENOENT' });
-    for (const shell of ['bash', 'zsh']) assert.equal((await run(process.execPath, [...sourceArgs, 'completion', shell])).stdout, completionScript(shell));
-    await assert.rejects(run(process.execPath, [...sourceArgs, 'completion', 'fish']));
+    for (const shell of ['bash', 'zsh']) assert.equal((await run(process.execPath, [...sourceArgs, 'cli.completion', 'script', '--shell', shell, '--format', 'text'])).stdout, completionScript(shell));
+    await assert.rejects(run(process.execPath, [...sourceArgs, 'cli.completion', 'script', '--shell', 'fish']));
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
@@ -103,17 +96,17 @@ for (const shell of ['/bin/bash', 'bash']) test(`${shell} completion function re
   try {
     await writeFile(join(directory, 'a space.json'), '{}');
     const invoke = async (words: string[]) => (await run(shell, ['--noprofile', '--norc', '-c', `${completionScript('bash')}\nCOMP_WORDS=(${[cli, ...words].map(quote).join(' ')})\nCOMP_CWORD=${words.length}\n_fam_complete\nprintf '%s\\n' "\${COMPREPLY[@]}"`], { cwd: directory })).stdout;
-    assert.equal(await invoke(['fam']), 'familysearch\n');
-    assert.equal(await invoke(['familysearch', 'image', 'd']), 'download\n');
-    assert.equal(await invoke(['ancestry', 'trees', '--out', 'a']), 'a space.json\n');
-    assert.equal(await invoke(['ancestry', 'trees', '--out=a']), 'a space.json\n');
-    assert.equal(await invoke(['geneanet', 'search', '--event', '=', 'b']), 'birth\n');
-    assert.equal(await invoke(['geneanet', 'search', '--event=b']), 'birth\n');
+    assert.equal(await invoke(['familysearch.im']), 'familysearch.image\n');
+    assert.equal(await invoke(['familysearch.image', 'd']), 'download\n');
+    assert.equal(await invoke(['ancestry.tree', 'list', '--out', 'a']), 'a space.json\n');
+    assert.equal(await invoke(['ancestry.tree', 'list', '--out=a']), 'a space.json\n');
+    assert.equal(await invoke(['geneanet.record', 'search', '--event', '=', 'b']), 'birth\n');
+    assert.equal(await invoke(['geneanet.record', 'search', '--event=b']), 'birth\n');
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
 test('native zsh completion passes candidates to compadd and delegates filenames', async t => {
   try { await run('zsh', ['--version']); } catch { t.skip('zsh unavailable'); return; }
-  const script = `compdef() { :; }\n${completionScript('zsh')}\ncompadd() { shift 2; print -rl -- "$@"; }\n_files() { print -r -- FILES; }\nwords=(${quote(cli)} familysearch image d)\nCURRENT=4\n_fam_complete\nwords=(${quote(cli)} ancestry trees --out a)\nCURRENT=5\nPREFIX=a\n_fam_complete`;
+  const script = `compdef() { :; }\n${completionScript('zsh')}\ncompadd() { shift 2; print -rl -- "$@"; }\n_files() { print -r -- FILES; }\nwords=(${quote(cli)} familysearch.image d)\nCURRENT=3\n_fam_complete\nwords=(${quote(cli)} ancestry.tree list --out a)\nCURRENT=5\nPREFIX=a\n_fam_complete`;
   assert.equal((await run('zsh', ['-f', '-c', script])).stdout, 'download\nFILES\n');
 });

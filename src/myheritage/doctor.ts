@@ -12,11 +12,11 @@ export const doctorProvider: DoctorProvider = {
     if (s.mode === 'browser') {requireSession(nonempty(object(s.browser).pageUrl)); checkTreePageUrl(s.browser.pageUrl);}
     return {mode: s.mode ?? 'native', refreshAvailable: s.mode !== 'browser'};
   },
-  recovery: () => 'Sign in on MyHeritage and import a fresh browser session with fam myheritage auth --har FILE.',
+  recovery: () => 'Sign in on MyHeritage and import a fresh browser session with fam myheritage.session login --har FILE.',
   refresh(value) {const s = value as MyHeritageSession; return renewMyHeritage(new MyHeritageHttp(s.cookies), s);},
   pending: [
     {file: 'myheritage/pending-auth.json', check: () => ({id: 'verification', status: 'warning', code: 'verification-pending', scope: 'password-login', message: 'Password sign-in requires verification.',
-      action: 'Complete website verification and import a fresh HAR with fam myheritage auth --har FILE; for native MFA, use fam myheritage auth --code CODE.'})},
+      action: 'Complete website verification and import a fresh HAR with fam myheritage.session login --har FILE; for native MFA, use fam myheritage.session login --code CODE.'})},
     {file: 'myheritage/login-block.json', check(value, now) {
       const date = Date.parse(object(value).blockedUntil);
       requireSession(Number.isFinite(date));

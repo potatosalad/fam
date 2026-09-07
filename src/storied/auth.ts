@@ -48,7 +48,7 @@ export async function validateAccess(http: StoriedHttp, s: StoriedSession): Prom
 }
 /** One refresh request, no password fallback; callers save successful rotation before further reads. */
 export async function refreshStoried(s: StoriedSession, http = new StoriedHttp()): Promise<StoriedSession> {
-  if (!validSession(s) || !s.refreshToken) throw new Error('No Storied refresh token is available. Run fam storied auth.');
+  if (!validSession(s) || !s.refreshToken) throw new Error('No Storied refresh token is available. Run fam storied.session login.');
   return tokenSession(await http.request('/oauth/token', {auth: true, method: 'POST', body: {
     grant_type: 'refresh_token', client_id: CLIENT_ID, refresh_token: s.refreshToken,
   }}), s);

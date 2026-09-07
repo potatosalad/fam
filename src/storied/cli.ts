@@ -9,66 +9,6 @@ import { loadSession, sessionStatus } from './auth.js';
 import { aliases, contracts, operation, model } from './catalog.js';
 import { StoriedClient, prepareCall, type CallInput } from './client.js';
 
-const help = `Usage: fam storied COMMAND [arguments] [options]
-
-Account
-  credentials [--stdin]           Save credentials using the shared fam configuration
-  auth [--interactive] [--browser-channel chrome|msedge|chromium]
-                                  Sign in through Auth0 with PKCE; default fills configured credentials
-  status                          Saved session metadata, without tokens or network access
-  verify                          Verify account API access and save the validation time
-  refresh                         Renew the saved token once, then verify API access
-  me                              Auth0 account profile
-
-Genealogy and content
-  trees                           Account trees
-  tree TREE                       Tree details
-  people TREE                     People in a tree
-  find-people NAME                 Search people linked to the account
-  person PERSON                   Person details
-  pedigree TREE PERSON            Pedigree (--generations 1–8; default 4)
-  family TREE PERSON              Immediate family
-  events TREE PERSON              Life events
-  hints PERSON                    Record hints
-  records PERSON                  Saved records
-  stories                         Your stories
-  person-stories PERSON           Stories attached to a person
-  story STORY                     Story detail
-  comments STORY                  Story comments
-  feed                            Home feed
-  media                           Your media gallery
-  media-item MEDIA                Media metadata
-  groups                          Your groups
-  notifications                   Your notifications
-  subscription                    Subscription details
-  recent-people                   Recently viewed people
-  home-hints                      Homepage hints
-  mobile-version                  Public minimum supported app versions
-  search [--first-name NAME --last-name NAME --keyword TEXT --input JSON_OR_FILE]
-                                  Historical records; one result page
-
-API catalog
-  ops [FILTER]                    List current REST declarations and APK method aliases
-  schema OPERATION                Path/query/body and response schemas for an operation
-  models [FILTER]                 List model names
-  model NAME                      Show a model schema
-  call OPERATION [JSON_OR_FILE]    Execute a catalog route with {path,query,body}
-
-Options
-  --anonymous                     Omit the saved session (server permissions still apply)
-  --page N                        One-based page number (default 1)
-  --limit N                       Page size, 1–100 (default 20)
-  --generations N                 Pedigree depth, 1–8
-  --input JSON_OR_FILE            Additional search body or named-command query fields
-  --out FILE                      Write the result atomically with owner-only permissions
-  --help                          Show help
-
-JSON_OR_FILE accepts an inline object, a filename, or - for stdin. IDs stay strings.
-call executes immediately, including writes; inspect schema first. Multipart routes are catalog-only.
-Read requests can renew once. Writes are never replayed after an authentication rejection.
-Credentials: STORIED_USERNAME and STORIED_PASSWORD, or fam's configured helper.
-Sessions live under the profile's storied/ directory. See docs/storied/README.md.
-`;
 
 async function input(value?: string): Promise<Record<string, unknown>> {
   if (value === undefined) return {};
@@ -85,15 +25,14 @@ function integer(value: string | undefined, fallback: number, max = 1_000_000) {
   if (!Number.isSafeInteger(n) || n < 1 || n > max) throw new Error(`Numeric option must be an integer between 1 and ${max}.`);
   return n;
 }
-async function main() {
-  const {values: v, positionals: p} = parseArgs({allowPositionals: true, options: {
+export async function runProvider(argv: string[]): Promise<unknown> {
+  const {values: v, positionals: p} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, input: {type: 'string'},
     anonymous: {type: 'boolean'}, page: {type: 'string'}, limit: {type: 'string'}, generations: {type: 'string'},
     'first-name': {type: 'string'}, 'last-name': {type: 'string'}, keyword: {type: 'string'}, interactive: {type: 'boolean'},
     'browser-channel': {type: 'string'},
   }});
   const [command = 'help', first, second] = p;
-  if (command === 'help' || v.help) {console.log(help); return;}
   const arities: Record<string, [number, number]> = {
     credentials: [0,0], auth: [0,0], status: [0,0], verify: [0,0], refresh: [0,0], me: [0,0],
     trees: [0,0], tree: [1,1], people: [1,1], 'find-people': [1,1], person: [1,1], pedigree: [2,2], family: [2,2], events: [2,2],
@@ -102,7 +41,7 @@ async function main() {
     'home-hints': [0,0], 'mobile-version': [0,0], search: [0,0], ops: [0,1], schema: [1,1], models: [0,1], model: [1,1], call: [1,2],
   };
   const arity = Object.hasOwn(arities, command) ? arities[command] : undefined;
-  if (!arity || p.length - 1 < arity[0] || p.length - 1 > arity[1]) throw new Error('Invalid Storied command or arguments. Run fam storied --help.');
+  if (!arity || p.length - 1 < arity[0] || p.length - 1 > arity[1]) throw new Error('Invalid Storied command or arguments. Run fam cli.command list --provider storied.');
   const paginated = ['stories', 'person-stories', 'comments', 'feed', 'media', 'notifications', 'search', 'find-people'];
   if ((v.page !== undefined || v.limit !== undefined) && !paginated.includes(command)) throw new Error('Pagination options do not apply to this command.');
   if (v.limit !== undefined && command === 'find-people') throw new Error('find-people does not accept --limit.');
@@ -115,7 +54,7 @@ async function main() {
   const pageNumber = integer(v.page, 1), pageSize = integer(v.limit, 20, 100);
   let result: unknown;
   if (command === 'status') result = {credentialDirectory: CREDENTIAL_DIR, ...sessionStatus(await loadSession())};
-  else if (command === 'credentials') {await configureCredentials('storied', {stdin: v.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam storied auth'};}
+  else if (command === 'credentials') {await configureCredentials('storied', {stdin: v.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam storied.session login'};}
   else if (command === 'auth') {
     const {authenticateBrowser} = await import('./browser-auth.js');
     result = sessionStatus(await authenticateBrowser({interactive: v.interactive, channel: v['browser-channel']}));
@@ -157,11 +96,11 @@ async function main() {
     else result = await client.call(name, request);
   }
   const text = stringifyJson(result, 2) + '\n';
-  if (!v.out) process.stdout.write(text);
-  else {
+  if (v.out) {
     await mkdir(dirname(v.out), {recursive: true, mode: 0o700});
     const temp = `${v.out}.${randomUUID()}.tmp`;
     try {await writeFile(temp, text, {mode: 0o600, flag: 'wx'}); await rename(temp, v.out);} finally {await rm(temp, {force: true});}
+    return {saved: v.out};
   }
+  return result;
 }
-main().catch(error => {console.error(error instanceof Error ? error.message : 'Storied command failed.'); process.exitCode = 1;});

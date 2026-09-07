@@ -60,7 +60,7 @@ export async function authenticateBrowser(options: {interactive?: boolean; chann
     if (credentials) {
       if (new URL(page.url()).origin !== AUTH_ORIGIN || new URL(page.url()).pathname !== '/login') throw new Error('Storied login page changed; credentials were not submitted.');
       const email = page.locator('input[id="email-login"]:visible'), password = page.locator('input[id="password-login"]:visible');
-      if (await email.count() !== 1 || await password.count() !== 1) throw new Error('Storied login form changed; use fam storied auth --interactive.');
+      if (await email.count() !== 1 || await password.count() !== 1) throw new Error('Storied login form changed; use fam storied.session login --interactive.');
       await email.fill(credentials.username);
       await password.fill(credentials.password);
       await page.getByRole('button', {name: 'Sign In', exact: true}).filter({visible: true}).click({timeout: 15_000});
@@ -75,13 +75,13 @@ export async function authenticateBrowser(options: {interactive?: boolean; chann
       await delay(250);
     }
     if (failure) throw failure;
-    if (stopped || !code) throw new Error('Storied sign-in did not complete. Use fam storied auth --interactive to finish any required verification.');
+    if (stopped || !code) throw new Error('Storied sign-in did not complete. Use fam storied.session login --interactive to finish any required verification.');
     await browser.close();
     return await acceptAuthorizationCode(code, request.verifier);
   } catch (error) {
     // Browser errors may contain filled values or callback URLs. Only our fixed errors are safe.
     if (error instanceof Error && error.message.startsWith('Storied ')) throw error;
-    throw new Error('Storied browser sign-in failed; browser details were suppressed. Try fam storied auth --interactive.');
+    throw new Error('Storied browser sign-in failed; browser details were suppressed. Try fam storied.session login --interactive.');
   } finally {
     for (const signal of signals) process.off(signal, onSignal);
     await browser.close().catch(() => {});

@@ -108,6 +108,18 @@ test('401 refreshes once, 429 does not refresh or retry, and caller headers cann
   const limited = new MyHeritageClient(session(), mock(async () => {throw new MyHeritageHttpError(429, '/me');}), {save: noSave, refresh: async () => {assert.fail('must not refresh on 429');}});
   await assert.rejects(limited.me(), /429/);
 });
+
+test('MyHeritage GraphQL commands renew explicit authentication rejection and save before retry', async () => {
+  let calls = 0, refreshes = 0, saves = 0;
+  const client = new MyHeritageClient(session(), mock(async () => {
+    calls++;
+    if (calls === 1) return {errors: [{extensions: {code: 'UNAUTHENTICATED'}}]};
+    assert.equal(saves, 1);
+    return {data: {ok: true}};
+  }), {save: async () => {saves++;}, refresh: async s => {refreshes++; return {...s, accessToken: 'renewed'};}});
+  assert.deepEqual(await client.query('query { me { id } }'), {ok: true});
+  assert.equal(calls, 2); assert.equal(refreshes, 1);
+});
 test('concurrent authentication failures share one refresh and invalid origins never send', async () => {
   let refreshes = 0, sends = 0;
   const client = new MyHeritageClient(session(), mock(async (_, r) => {
@@ -146,9 +158,9 @@ test('signed file transfers strip credentials and never follow redirects', async
 test('CLI help and invalid catalog requests work without authentication', async () => {
   const {execFile} = await import('node:child_process');
   const {promisify} = await import('node:util'); const exec = promisify(execFile);
-  const {stdout} = await exec(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'myheritage', '--help']);
-  assert.match(stdout, /Usage: fam myheritage COMMAND/); assert(!stdout.includes('npm run fs'));
-  await assert.rejects(exec(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'myheritage', 'call', 'person']), (e: unknown) => {
+  const {stdout} = await exec(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'myheritage.api', 'call', '--help']);
+  assert.match(stdout, /fam myheritage\.api call/); assert(!stdout.includes('npm run fs'));
+  await assert.rejects(exec(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'myheritage.api', 'call', '--operation', 'person']), (e: unknown) => {
     assert.match((e as {stderr: string}).stderr, /Missing or invalid path parameter individualId/); return true;
   });
 });
@@ -167,6 +179,19 @@ test('browser page parsing accepts JSON literals, never executes scripts and rej
   assert.throws(() => parseTreePage(browserPage.replace('isLoggedIn = true', 'isLoggedIn = false')), /expired/);
   assert.throws(() => checkTreePageUrl('https://evil.example/family-trees/a'), /family-tree/);
   assert.throws(() => checkTreePageUrl('https://www.myheritage.com/FP/API/Mobile/login.php'), /family-tree/);
+});
+
+test('HAR import accepts signed-in tree response credentials without requiring a person request', () => {
+  const entry = {request: {url: 'https://www.myheritage.com/family-trees/fixture/SITE', headers: [{name: 'Cookie', value: 'PHPSESSID=fixture-session'}]},
+    response: {status: 200, content: {text: browserPage}}};
+  const serialize = (value: unknown) => JSON.stringify({log: {entries: [value]}});
+  const parsed = sessionFromHar(serialize(entry));
+  assert.equal(parsed.accessToken, 'fresh-token');
+  assert.equal(parsed.http.jar.getCookieStringSync('https://www.myheritage.com'), 'PHPSESSID=fixture-session');
+  assert(parsed.browser);
+  assert.equal(sessionFromHar(serialize({...entry, response: {status: 200, content: {text: Buffer.from(browserPage).toString('base64'), encoding: 'base64'}}})).accessToken, 'fresh-token');
+  assert.throws(() => sessionFromHar(serialize({...entry, response: {status: 200, content: {text: browserPage.replace('isLoggedIn = true', 'isLoggedIn = false')}}})), /No successful/);
+  assert.throws(() => sessionFromHar(serialize({...entry, request: {...entry.request, url: 'https://evil.example/family-trees/fixture/SITE'}})), /No successful/);
 });
 
 test('HAR import retains only browser API cookies, user agent and a permitted tree page URL', () => {

@@ -6,30 +6,10 @@ import { FamilySearchClient } from './client.js';
 import { stringifyJson } from '../shared/json.js';
 import type { ImageTranscript, PageOptions, ResearchPage } from './research.js';
 
-export const researchHelp = `
-fam familysearch image info IMAGE_ARK
-fam familysearch image download IMAGE_ARK --original --out FILE.jpg
-fam familysearch image transcript IMAGE_ARK [--out FILE.txt] [--format json|text]
-fam familysearch collection browse COLLECTION_ID|WAYPOINT_URL [pagination]
-fam familysearch film images DGS [pagination]
-fam familysearch film image DGS --image NUMBER
-fam familysearch fulltext available DGS
-fam familysearch fulltext search [--name NAME] [--keywords WORDS] [--place PLACE]
-    [--years FROM:TO] [--dgs DGS] [--collection ID] [--record-type TYPE] [pagination]
-fam familysearch record details RECORD_ARK
 
-Pagination: --count N --offset N --all --limit N --resume NEXT_URL
-  Page size defaults to 100 (maximum 1000). --all follows every page.
-  --limit bounds returned items. --offset is zero-based; image numbers are one-based.
-  --resume uses a waypoint/search next URL; DGS listings resume with --offset.
-  --format jsonl emits one item per line and continuation details on stderr.
-Image/transcript downloads also save FILE.json provenance and refuse overwrites.
---original selects FamilySearch's full-resolution distribution image.
-`;
-
-export async function runResearchCli(argv: string[], output?: string): Promise<boolean> {
+export async function runResearchCli(argv: string[], output?: string): Promise<{data: unknown} | undefined> {
   const [command] = argv;
-  if (!['image','collection','film','fulltext','record'].includes(command)) return false;
+  if (!['image','collection','film','fulltext','record'].includes(command)) return undefined;
   const { positionals: args, values: flags } = parseArgs({ args: argv.slice(1), allowPositionals: true, options: {
     format: { type: 'string' }, original: { type: 'boolean' }, image: { type: 'string' },
     count: { type: 'string' }, offset: { type: 'string' }, all: { type: 'boolean' }, limit: { type: 'string' }, resume: { type: 'string' },
@@ -45,11 +25,11 @@ export async function runResearchCli(argv: string[], output?: string): Promise<b
     'fulltext available': [], 'fulltext search': [...pagination,'format','name','keywords','place','years','dgs','collection','record-type'],
     'record details': [],
   };
-  if (!allowed[key]) throw new Error('Unknown research command. Use "fam familysearch --help".');
-  if (args.length !== (key === 'fulltext search' ? 1 : 2)) throw new Error('Missing or extra research arguments. Use "fam familysearch --help".');
+  if (!allowed[key]) throw new Error('Unknown research command. Use "fam cli.command list --provider familysearch".');
+  if (args.length !== (key === 'fulltext search' ? 1 : 2)) throw new Error('Missing or extra research arguments. Use "fam cli.command list --provider familysearch".');
   for (const flag of Object.keys(flags)) if (!allowed[key].includes(flag)) throw new Error(`--${flag} is not supported for ${key}.`);
   const format = flags.format ?? 'json';
-  if (!['json','jsonl','text'].includes(format) || format === 'text' && key !== 'image transcript' || format === 'jsonl' && !['collection browse','film images','fulltext search'].includes(key)) throw new Error('Use --format json; jsonl is for listings/search and text is for transcripts.');
+  if (!['json','jsonl','text'].includes(format) || format === 'jsonl' && !['collection browse','film images','fulltext search'].includes(key)) throw new Error('Use --format text or json; jsonl is for listings/search.');
   if (flags.resume && flags.offset !== undefined) throw new Error('Use either --resume or --offset.');
   if (flags.resume && ['name','keywords','place','years','dgs','collection','record-type'].some(k => Object.hasOwn(flags,k))) throw new Error('--resume already contains search criteria; do not combine it with new filters.');
   const page: PageOptions = { count: numberFlag(flags.count), offset: numberFlag(flags.offset), all: flags.all,
@@ -62,13 +42,13 @@ export async function runResearchCli(argv: string[], output?: string): Promise<b
   let result: unknown;
   switch (key) {
     case 'image info': result = await client.research.imageInfo(value); break;
-    case 'image download': result = await client.research.downloadOriginal(value, output!); console.log(stringifyJson(result,2)); return true;
+    case 'image download': return {data: await client.research.downloadOriginal(value, output!)};
     case 'image transcript': {
       const data = await client.research.imageTranscript(value);
-      if (output) { await saveTranscript(data, output); console.log(`Saved ${resolve(output)} and its provenance JSON`); return true; }
+      if (output) { await saveTranscript(data, output); return {data: {saved: resolve(output), metadata: `${resolve(output)}.json`}}; }
       if (format === 'text') {
         if (!data.available) throw new Error('No machine transcript is available for this image.');
-        process.stdout.write(`${data.text}\n`); return true;
+        return {data};
       }
       result = data; break;
     }
@@ -89,11 +69,10 @@ export async function runResearchCli(argv: string[], output?: string): Promise<b
   if (format === 'jsonl') {
     const { items, ...continuation } = result as ResearchPage<unknown>;
     text = items.map(x => stringifyJson(x)).join('\n') + (items.length ? '\n' : '');
-    console.error(stringifyJson({ ...continuation, returned: items.length }));
+    // Completion metadata is retained in the returned data envelope.
   } else text = `${stringifyJson(result,2)}\n`;
-  if (output) { await writeFile(resolve(output), text, { mode: 0o600 }); await chmod(resolve(output), 0o600); console.log(`Saved ${resolve(output)}`); }
-  else process.stdout.write(text);
-  return true;
+  if (output) { await writeFile(resolve(output), text, { mode: 0o600 }); await chmod(resolve(output), 0o600); return {data: {saved: resolve(output), ...(format === 'jsonl' ? {pagination: Object.fromEntries(Object.entries(result as object).filter(([key]) => key !== 'items'))} : {})}}; }
+  return {data: result};
 }
 
 function numberFlag(value?: string): number | undefined {

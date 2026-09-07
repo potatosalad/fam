@@ -7,30 +7,25 @@ The CLI resolves image ARKs, downloads and validates original distribution image
 Install or update fam using the [main README](../../README.md#install). Run these examples from the checkout so the output stays in its ignored `artifacts/` folder:
 
 ```sh
-fam familysearch --help
+fam cli.command list --provider familysearch
 mkdir -p artifacts/document-research
 ```
 
 ```sh
 # Image 3 of the 736-image estate index.
-fam familysearch image info 3:1:3QSQ-G935-BNWL
-fam familysearch image download 3:1:3QSQ-G935-BNWL --original \
-  --out artifacts/document-research/walton-003.jpg
+fam familysearch.image get --ark 3:1:3QSQ-G935-BNWL
+fam familysearch.image download --ark 3:1:3QSQ-G935-BNWL --original  --out artifacts/document-research/walton-003.jpg
 
 # Image 408, printed page 80.
-fam familysearch image download 3:1:3QS7-8935-BJZR --original \
-  --out artifacts/document-research/walton-408.jpg
-fam familysearch image transcript 3:1:3QS7-8935-BJZR \
-  --out artifacts/document-research/walton-408.txt
+fam familysearch.image download --ark 3:1:3QS7-8935-BJZR --original  --out artifacts/document-research/walton-408.jpg
+fam familysearch.image transcript --ark 3:1:3QS7-8935-BJZR  --out artifacts/document-research/walton-408.txt
 
 # The DGS discovered from these images is 005764700.
-fam familysearch film image 005764700 --image 408
-fam familysearch film images 005764700 --all \
-  --out artifacts/document-research/walton-images.json
+fam familysearch.film image --dgs 005764700 --image 408
+fam familysearch.film images --dgs 005764700 --all  --out artifacts/document-research/walton-images.json
 
-fam familysearch fulltext available 005764700
-fam familysearch fulltext search --name Walton --dgs 005764700 --count 5 --all \
-  --out artifacts/document-research/walton-matches.json
+fam familysearch.fulltext available --dgs 005764700
+fam familysearch.fulltext search --name Walton --dgs 005764700 --count 5 --all  --out artifacts/document-research/walton-matches.json
 ```
 
 Full FamilySearch image URLs work too, including viewer query parameters. Indexed-record ARKs (`1:1:...`) and image ARKs (`3:1:...` or `3:2:...`) are distinct; the CLI validates the identifier kind. An [ARK is a persistent identifier](https://developers.familysearch.org/main/docs/persistent-identifiers), so downloading it requires resolving the current image service rather than assuming the ARK itself returns JPEG bytes.
@@ -58,15 +53,12 @@ No browser cookie export is required for the verified examples. The same local s
 Collection 1999178 → Walton → Estate index 1820–1938 vol A–Q:
 
 ```sh
-fam familysearch collection browse 1999178 --all
-fam familysearch collection browse \
-  'https://www.familysearch.org/service/cds/recapi/waypoints/9SB9-ZNL:267814801?cc=1999178'
-fam familysearch collection browse \
-  'https://www.familysearch.org/service/cds/recapi/waypoints/9SB9-N3F:267814801,267838601?cc=1999178' \
-  --count 100 --all --out artifacts/document-research/estate-images.json
+fam familysearch.collection browse --collection 1999178 --all
+fam familysearch.collection browse --collection 'https://www.familysearch.org/service/cds/recapi/waypoints/9SB9-ZNL:267814801?cc=1999178'
+fam familysearch.collection browse --collection 'https://www.familysearch.org/service/cds/recapi/waypoints/9SB9-N3F:267814801,267838601?cc=1999178'  --count 100 --all --out artifacts/document-research/estate-images.json
 
 # Generic GET accepts the observed read-only recapi paths too.
-fam familysearch get '/service/cds/recapi/collections/1999178/waypoints?count=10'
+fam familysearch.api get --path '/service/cds/recapi/collections/1999178/waypoints?count=10'
 ```
 
 Each listing returns `items`, `total` when supplied by the server, zero-based `offset`, `complete`, and a continuation when more results remain. A waypoint item has a title, URL, kind, and image ARK/one-based image number where applicable. Ancestor source descriptions are excluded from the children.
@@ -80,18 +72,17 @@ Each listing returns `items`, `total` when supplied by the server, zero-based `o
 | `--resume NEXT_URL` | Continue using a prior waypoint/search `next` URL and the same collection/waypoint argument. The URL supplies its page size, offset, and search filters. |
 | `--format jsonl` | One item per stdout/output-file line; continuation metadata goes to stderr. |
 
-For example, save a bounded slice with `--count 100 --all --limit 200`, then pass its `next` to `--resume`. Full-text resumption uses `fam familysearch fulltext search --resume 'NEXT_URL'`; do not add new filters. DGS listings resume using `--offset NEXT_OFFSET`, as returned in `nextOffset`.
+For example, save a bounded slice with `--count 100 --all --limit 200`, then pass its `next` to `--resume`. Full-text resumption uses `fam familysearch.fulltext search --resume 'NEXT_URL'`; do not add new filters. DGS listings resume using `--offset NEXT_OFFSET`, as returned in `nextOffset`.
 
 The film-data service returns a complete image list in one response. DGS pagination bounds the CLI output, not that server response. Waypoint and search pagination follows the actual server links; it rejects repeated/skipped offsets, changed routes, and a missing continuation before the reported total. Pages are accumulated before output, and pagination is not a stable snapshot if server data changes during traversal.
 
 ## Full-Text Search and transcripts
 
 ```sh
-fam familysearch fulltext search --name 'John Smith' --place Georgia \
-  --years 1820:1938 --keywords estate --limit 20
-fam familysearch fulltext search --keywords Walton --dgs 005764700 --format jsonl
-fam familysearch image transcript 3:1:3QS7-8935-BJZR --format text
-fam familysearch image transcript 3:1:3QS7-8935-BJZR --format json
+fam familysearch.fulltext search --name 'John Smith' --place Georgia  --years 1820:1938 --keywords estate --limit 20
+fam familysearch.fulltext search --keywords Walton --dgs 005764700 --format jsonl
+fam familysearch.image transcript --ark 3:1:3QS7-8935-BJZR --format text
+fam familysearch.image transcript --ark 3:1:3QS7-8935-BJZR --format json
 ```
 
 Search supports name, keywords, place, an inclusive year range (`FROM:TO`, `FROM:`, or `:TO`), DGS, collection ID, and the service's record-type value. The CLI sends the website's `m.queryRequireDefault=on` setting so supplied search criteria are required together. Without it, a name plus DGS can return matches outside that film. These fields correspond to the website's [Full-Text Search controls](https://www.familysearch.org/en/help/helpcenter/article/how-do-i-use-fulltext-search).
@@ -105,13 +96,11 @@ No transcript is represented as `available: false` in JSON. Plain-text/file requ
 ## Easier operation input
 
 ```sh
-fam familysearch schema sources.recordDetails --example
-fam familysearch record details '1:1:REPLACE-WITH-REAL-RECORD-ARK'
-fam familysearch call sources.recordDetails \
-  --query 'recordUrl=https://www.familysearch.org/ark:/61903/1:1:REPLACE-WITH-REAL-RECORD-ARK' \
-  --query hideSectionFields=false
+fam familysearch.api describe --operation sources.recordDetails --example
+fam familysearch.record get --ark '1:1:REPLACE-WITH-REAL-RECORD-ARK'
+fam familysearch.api call --operation sources.recordDetails  --query 'recordUrl=https://www.familysearch.org/ark:/61903/1:1:REPLACE-WITH-REAL-RECORD-ARK'  --query hideSectionFields=false
 
-fam familysearch call persons.get --input - <<'JSON'
+fam familysearch.api call --operation persons.get --input - <<'JSON'
 {"pid":"XXXX-XXX","query":{"oneHops":"summaries"}}
 JSON
 ```

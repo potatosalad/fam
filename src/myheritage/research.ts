@@ -125,7 +125,7 @@ export function parseRecordPage(html: string, url: string) {
     notices: $('.record_main_content .paywall, .record_main_content .recordPaywall').toArray().map(n => plainHtml($(n).html() ?? '')).filter(Boolean)};
 }
 export class MyHeritageResearchVerificationError extends Error {
-  constructor() {super('MyHeritage requires website verification (HTTP 406). Search stopped without retries. Complete verification on the website, then import a fresh session with fam myheritage auth --har FILE.'); this.name = 'MyHeritageResearchVerificationError';}
+  constructor() {super('MyHeritage requires website verification (HTTP 406). Search stopped without retries. Complete verification on the website, then import a fresh session with fam myheritage.session login --har FILE.'); this.name = 'MyHeritageResearchVerificationError';}
 }
 export class MyHeritageResearch {
   private contextPromise?: Promise<ResearchContext>;
@@ -135,7 +135,7 @@ export class MyHeritageResearch {
     this.contextPromise ??= (async () => {
       const r = await this.http.exchange<string>(`${WEB}/research`, {headers: this.headers(), response: 'text'});
       const data = pageJson<ObjectData>(r.data, 'clientData'), csrf = pageJson<string>(r.data, 'mhXsrfToken');
-      if (data?.user?.isLoggedIn !== true || typeof data.fgToken !== 'string' || !csrf) throw new Error('Record research needs a signed-in website session. Import a fresh HAR with fam myheritage auth --har FILE.');
+      if (data?.user?.isLoggedIn !== true || typeof data.fgToken !== 'string' || !csrf) throw new Error('Record research needs a signed-in website session. Import a fresh HAR with fam myheritage.session login --har FILE.');
       this.session.accessToken = data.fgToken; await this.persist();
       return {token: data.fgToken, guestId: String(data.user.guestId), siteId: String(data.user.siteId), lang: String(data.lang), csrf};
     })().catch(error => {this.contextPromise = undefined; throw error;});

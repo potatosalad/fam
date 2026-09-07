@@ -1,11 +1,12 @@
 {
   "name": "@potatosalad/fam",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "type": "module",
   "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, and Storied",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
+    "test:browser": "node --import ./test/setup.mjs --import tsx --test test/browser-capture.integration.ts",
     "build": "node scripts/clean-dist.mjs && tsc && node scripts/generate-completions.mjs",
     "extract:ancestry": "python3 scripts/extract-ancestry.py",
     "check:ancestry": "python3 scripts/extract-ancestry.py --check",

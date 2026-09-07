@@ -34,12 +34,12 @@ export const aliases: Record<string, string> = {
 export function operation(name: string): Operation {
   const id = Object.hasOwn(aliases, name) ? aliases[name] : name;
   const matches = contracts.operations.filter(o => o.id === id || o.apkMethods.some(m => m.name === name || `${o.tags[0]}.${m.name}` === name));
-  if (matches.length !== 1) throw new Error(matches.length ? 'Ambiguous Storied operation; use its complete method and route ID.' : 'Unknown Storied operation. Run fam storied ops.');
+  if (matches.length !== 1) throw new Error(matches.length ? 'Ambiguous Storied operation; use its complete method and route ID.' : 'Unknown Storied operation. Run fam storied.api list.');
   return matches[0];
 }
 export function model(name: string): Schema {
   const names = Object.keys(contracts.models).filter(n => n === name || n.split('.').at(-1) === name);
-  if (names.length !== 1) throw new Error('Unknown or ambiguous model; use the full name from fam storied models.');
+  if (names.length !== 1) throw new Error('Unknown or ambiguous model; use the full name from fam storied.api.model list.');
   return contracts.models[names[0]];
 }
 
@@ -64,7 +64,7 @@ export function validate(value: unknown, s: Schema, label: string, depth = 0): v
     for (const key of s.required ?? []) if (!Object.hasOwn(obj, key)) throw new Error(`${label}.${key} is required.`);
     for (const [key, val] of Object.entries(obj)) {
       if (s.properties && Object.hasOwn(s.properties, key)) validate(val, s.properties[key], `${label}.${key}`, depth + 1);
-      else if (s.additionalProperties === false) throw new Error(`${label} has an unknown field. Check fam storied schema or model.`);
+      else if (s.additionalProperties === false) throw new Error(`${label} has an unknown field. Check fam storied.api describe or model.`);
     }
   }
   if (s.type === 'array') {

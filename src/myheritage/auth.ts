@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../shared/storage.js';
 import { loadMyHeritageCredentials } from './credentials.js';
 import { MyHeritageHttp, FAMILYGRAPH, WEB } from './http.js';
+import { parseTreePage } from './browser.js';
 
 export interface MyHeritageAuthResponse {
   resultCode: number; description: string; accessToken?: string; accountId?: string; userId?: string;
@@ -66,7 +67,7 @@ export async function authenticateMyHeritage(options: {code?: string; verificati
   if (response.resultCode !== 0) {
     await writePrivateJson('myheritage/pending-auth.json', {resultCode: response.resultCode, description: response.description,
       method: response.tfaMethod, phoneLast4Digits: response.tfaPhoneLast4Digits, savedAt: new Date().toISOString()});
-    throw new Error(`MyHeritage sign-in needs attention (code ${response.resultCode}${response.tfaMethod ? `, method ${response.tfaMethod}` : ''}).${response.tfaMethod ? ' Run fam myheritage auth --code CODE to complete MFA.' : response.resultCode === -1003 ? ' reCAPTCHA is required. Complete normal browser sign-in when permitted, then use fam myheritage auth --har FILE. Do not retry during a temporary access block.' : ''}`);
+    throw new Error(`MyHeritage sign-in needs attention (code ${response.resultCode}${response.tfaMethod ? `, method ${response.tfaMethod}` : ''}).${response.tfaMethod ? ' Run fam myheritage.session login --code CODE to complete MFA.' : response.resultCode === -1003 ? ' reCAPTCHA is required. Complete normal browser sign-in when permitted, then use fam myheritage.session login --har FILE. Do not retry during a temporary access block.' : ''}`);
   }
   if (!response.accessToken || !response.accountId) throw new Error('MyHeritage sign-in returned incomplete credentials.');
   return saveMyHeritageSession(http, {accessToken: response.accessToken, accountId: response.accountId, userId: response.userId, data12p: response.data12p, deviceId});
@@ -82,7 +83,7 @@ export async function renewMyHeritage(http: MyHeritageHttp, session: MyHeritageS
     method: 'POST', headers: {Authorization: `Bearer ${session.accessToken}`, Accept: 'application/xml', 'Content-Type': 'application/x-www-form-urlencoded'},
     encoding: 'raw', body: new URLSearchParams(deviceFields(session.deviceId)).toString(), response: 'text',
   })).data);
-  if (response.resultCode !== 0 || !response.accessToken) throw new Error(`MyHeritage session refresh failed (code ${response.resultCode}); run fam myheritage auth.`);
+  if (response.resultCode !== 0 || !response.accessToken) throw new Error(`MyHeritage session refresh failed (code ${response.resultCode}); run fam myheritage.session login.`);
   return {...session, accessToken: response.accessToken, accountId: response.accountId ?? session.accountId,
     userId: response.userId ?? session.userId, data12p: response.data12p ?? session.data12p,
     savedAt: new Date().toISOString(), cookies: http.jar.serializeSync()};
@@ -92,23 +93,32 @@ export async function renewMyHeritage(http: MyHeritageHttp, session: MyHeritageS
  * Never persist the HAR, response bodies, or unrelated origins. */
 export function sessionFromHar(text: string): {accessToken: string; http: MyHeritageHttp; browser?: MyHeritageSession['browser']} {
   if (text.length > 100_000_000) throw new Error('HAR exceeds 100 MB; export only MyHeritage API requests.');
-  let har: {log?: {entries?: {request?: {url?: string; headers?: {name: string; value: string}[]; cookies?: {name: string; value: string}[]; queryString?: {name: string; value: string}[]; postData?: {mimeType?: string; text?: string; params?: {name: string; value: string}[]}}; response?: {status?: number}}[]}};
+  let har: {log?: {entries?: {request?: {url?: string; headers?: {name: string; value: string}[]; cookies?: {name: string; value: string}[]; queryString?: {name: string; value: string}[]; postData?: {mimeType?: string; text?: string; params?: {name: string; value: string}[]}}; response?: {status?: number; content?: {text?: string; encoding?: string}}}[]}};
   try {har = JSON.parse(text);} catch {throw new Error('Invalid HAR JSON.');}
   const http = new MyHeritageHttp(); let accessToken: string | undefined, pageUrl: string | undefined, userAgent: string | undefined;
   if (!har || !Array.isArray(har.log?.entries)) throw new Error('HAR must contain log.entries.');
   for (const entry of har.log.entries) {
     const r = entry?.request; if (typeof r?.url !== 'string' || !entry.response?.status || entry.response.status < 200 || entry.response.status >= 300) continue;
     let url: URL; try {url = new URL(r.url);} catch {continue;}
-    if (url.origin === WEB && !url.username && !url.password && (/^\/family-trees\//.test(url.pathname) || url.pathname === '/FP/family-tree.php')) pageUrl = url.href;
+    const treePage = url.origin === WEB && !url.username && !url.password && (/^\/family-trees\//.test(url.pathname) || url.pathname === '/FP/family-tree.php');
+    let pageToken: string | undefined;
+    if (treePage) {
+      pageUrl = url.href;
+      const content = entry.response.content;
+      if (typeof content?.text === 'string') {
+        try {pageToken = parseTreePage(content.encoding === 'base64' ? Buffer.from(content.text, 'base64').toString('utf8') : content.text).token;}
+        catch { /* A public/signed-out tree page is not authentication evidence. */ }
+      }
+    }
     if (url.username || url.password || !([FAMILYGRAPH, 'https://familygraphql.myheritage.com'].includes(url.origin) ||
-      url.origin === WEB && /^\/web-family-graph(?:ql)?(?:\/|$)/.test(url.pathname))) continue;
+      url.origin === WEB && /^\/web-family-graph(?:ql)?(?:\/|$)/.test(url.pathname) || treePage && pageToken)) continue;
     const auth = r.headers?.find(h => h.name.toLowerCase() === 'authorization')?.value;
     let formToken = r.postData?.params?.find(p => ['bearer_token', 'access_token'].includes(p.name))?.value;
     if (!formToken && r.postData?.text) {
       if (r.postData.mimeType?.includes('application/x-www-form-urlencoded')) {const form = new URLSearchParams(r.postData.text); formToken = form.get('bearer_token') ?? form.get('access_token') ?? undefined;}
       else if (r.postData.mimeType?.includes('application/json')) {try {const body = JSON.parse(r.postData.text); formToken = body?.bearer_token ?? body?.access_token;} catch {}}
     }
-    const token = auth?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? r.queryString?.find(q => q.name === 'access_token')?.value ?? url.searchParams.get('access_token') ?? formToken;
+    const token = pageToken ?? auth?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? r.queryString?.find(q => q.name === 'access_token')?.value ?? url.searchParams.get('access_token') ?? formToken;
     if (typeof token === 'string' && token && !/[\r\n]/.test(token)) accessToken = token;
     if (url.origin === WEB) userAgent = r.headers?.find(h => h.name.toLowerCase() === 'user-agent')?.value;
     const headerCookies = r.headers?.find(h => h.name.toLowerCase() === 'cookie')?.value?.split(/;\s*/).map(c => {

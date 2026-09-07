@@ -7,35 +7,11 @@ import type { OperationName, OperationInput } from './generated/operations.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { researchHelp, runResearchCli } from './research-cli.js';
+import { runResearchCli } from './research-cli.js';
 
-const help = `FamilySearch CLI
 
-fam familysearch auth                    Authenticate and save the session
-fam familysearch status                  Inspect local session status (no tokens)
-fam familysearch credentials [--stdin]   Save login details (helper, environment, hidden prompt, or JSON stdin)
-fam familysearch refresh                 Renew the saved access token
-fam familysearch verify                  Read-only live smoke test, summarized
-fam familysearch whoami                  Read the current user
-fam familysearch metadata                Read mobile login metadata (tokens removed)
-fam familysearch person ID               Read a GEDCOM X person
-fam familysearch ancestry ID [DEPTH]      Read GEDCOM X ancestors (default 2)
-fam familysearch mobile-person ID        Read the mobile v2 person DTO
-fam familysearch mobile-pedigree ID [DEPTH]
-fam familysearch tree-status
-fam familysearch get /platform/...       GET an API path (quote query strings)
-fam familysearch ops [GROUP]             List typed genealogy operations
-fam familysearch schema OPERATION [--example]  Show contract or correctly nested example
-fam familysearch call OPERATION [FILE] [--input FILE|-] [--query key=value ...]
-${researchHelp}
-
-Append --out FILE to save JSON with mode 0600 instead of printing it.
-Set FAM_CONFIG_DIR to an absolute path to override the user config directory.
-Run status to see the directory. Credentials: FAMILYSEARCH_USERNAME + FAMILYSEARCH_PASSWORD.
-`;
-
-async function main() {
-  const args = process.argv.slice(2);
+export async function runProvider(argv: string[]): Promise<unknown> {
+  const args = [...argv];
   const outputIndex = args.indexOf('--out');
   let output: string | undefined;
   if (outputIndex !== -1) {
@@ -44,23 +20,24 @@ async function main() {
     args.splice(outputIndex, 2);
   }
   const [command, id, depth] = args;
-  if (!command || command === 'help' || args.includes('--help') || args.includes('-h')) { console.log(help); return; }
   if (command === 'credentials') {
-    if (args.length > 2 || id && id !== '--stdin') throw new Error('Use fam familysearch credentials [--stdin].');
+    if (args.length > 2 || id && id !== '--stdin') throw new Error('Use fam familysearch.credential set [--stdin].');
     await configureCredentials('familysearch', { stdin: id === '--stdin' });
-    console.log(stringifyJson({ saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam familysearch auth' }, 2));
-    return;
+    const data = { saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam familysearch.session login' };
+    if (output) {await writeFile(resolve(output), stringifyJson(data, 2) + '\n', {mode: 0o600}); await chmod(resolve(output), 0o600); return {saved: resolve(output)};}
+    return data;
   }
-  if (args.includes('--stdin')) throw new Error('--stdin belongs to fam familysearch credentials.');
-  if (await runResearchCli(args, output)) return;
+  if (args.includes('--stdin')) throw new Error('--stdin belongs to fam familysearch.credential set.');
+  const research = await runResearchCli(args, output);
+  if (research) return research.data;
   const supported = new Set(['auth','status','credentials','refresh','verify','whoami','metadata','person','ancestry','mobile-person','mobile-pedigree','tree-status','get','ops','schema','call']);
-  if (!supported.has(command)) throw new Error(`Unknown command. Use "fam familysearch --help".`);
-  const client = await FamilySearchClient.open();
+  if (!supported.has(command)) throw new Error(`Unknown command. Use "fam cli.command list --provider familysearch".`);
+  const client = ['ops', 'schema'].includes(command) ? undefined! : await FamilySearchClient.open();
   let result: unknown;
   switch (command) {
     case 'ops': result = listOperations(id).map(({ name, method, path }) => ({ name, method, path })); break;
     case 'schema': {
-      if (args.length > 3 || depth && depth !== '--example') throw new Error('Use fam familysearch schema OPERATION [--example].');
+      if (args.length > 3 || depth && depth !== '--example') throw new Error('Use fam familysearch.api describe --operation OPERATION [--example].');
       result = depth === '--example' ? operationExample(required(id)) : operationContract(required(id)); break;
     }
     case 'call': {
@@ -102,8 +79,10 @@ async function main() {
   if (output) {
     await writeFile(resolve(output), result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`, { mode: 0o600 });
     await chmod(resolve(output), 0o600);
-    console.log(`Saved ${resolve(output)}`);
-  } else console.log(stringifyJson(result instanceof Uint8Array ? { bytes: result.byteLength, note: 'Use --out to save the binary response.' } : result ?? { status: 'ok' }, 2));
+    return {saved: resolve(output), ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};
+  }
+  if (result instanceof Uint8Array) throw new Error('Binary responses require --out FILE.');
+  return result ?? null;
 }
 function required(value?: string): string {
   if (!value) throw new Error('This command requires an ID or API path.');
@@ -120,7 +99,3 @@ async function readStdin(): Promise<string> {
   }
   return input;
 }
-main().catch(error => {
-  console.error((error as NodeJS.ErrnoException)?.code === 'EEXIST' ? 'Output or provenance file already exists; choose a new --out path.' : error instanceof Error ? error.message : 'Operation failed.');
-  process.exitCode = 1;
-});

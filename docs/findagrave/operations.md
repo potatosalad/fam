@@ -1,6 +1,6 @@
 # Find a Grave operation index
 
-Recovered from Android 4.0.2 (138). `fam findagrave schema NAME` returns the complete document or route. Full GraphQL documents and source references are in [contracts.json](contracts.json).
+Recovered from Android 4.0.2 (138). `fam findagrave.api describe --operation NAME` returns the complete document or route. Full GraphQL documents and source references are in [contracts.json](contracts.json).
 
 ## GraphQL
 
@@ -39,7 +39,7 @@ Recovered from Android 4.0.2 (138). `fam findagrave schema NAME` returns the com
 | `graphql.createOrUpdateMemorial.e65ef579` | mutation | memorial: MemorialInput! |  |
 | `graphql.getDefaultPhotos.f36fe96e` | query | ids: [ID!]! |  |
 
-Authentication/linking documents are cataloged; generic execution is reserved for non-authentication operations. Use `fam findagrave auth` for the native password flow.
+Authentication/linking documents are cataloged; generic execution is reserved for non-authentication operations. Use `fam findagrave.session login` for the native password flow.
 
 ## Executable REST
 

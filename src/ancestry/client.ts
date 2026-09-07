@@ -1,7 +1,9 @@
-import { readPrivateJson } from '../shared/storage.js';
+import { readPrivateJson, writePrivateJson } from '../shared/storage.js';
+import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
+import { refreshAncestrySession } from './session.js';
 import type { ApiRequest, ApiResponse, Query } from '../familysearch/transport-types.js';
 import { AncestryHttp, AncestryHttpError, GATEWAY, checkAncestryUrl } from './http.js';
-import { authenticateAncestry, saveAncestrySession, tokenRequest, type AncestrySession } from './auth.js';
+import { authenticateAncestry, saveAncestrySession, type AncestrySession } from './auth.js';
 import { graphqlOperation, prepareRest, validateVariables, type GraphQLName, type Variables, type RestArguments } from './catalog.js';
 import { recordSearchBody, type RecordSearchOptions } from './search.js';
 
@@ -22,37 +24,34 @@ export class AncestryClient {
   constructor(private session: AncestrySession, private readonly http: Pick<AncestryHttp, 'exchange' | 'jar'> = new AncestryHttp(session.cookies), private readonly hooks: SessionHooks = {}) {}
   static async open(): Promise<AncestryClient> {
     const session = await readPrivateJson<AncestrySession>('ancestry/session.json') ?? await authenticateAncestry();
-    if (!session.tokens?.access_token || !session.tokens.refresh_token || !session.tokens.user_id) throw new Error('Invalid Ancestry session; run fam ancestry auth.');
+    if (!session.tokens?.access_token || !session.tokens.refresh_token || !session.tokens.user_id) throw new Error('Invalid Ancestry session; run fam ancestry.session login.');
     return new AncestryClient(session);
   }
   status() { return {authenticated: true, savedAt: this.session.savedAt, expiresAt: this.session.expiresAt ? new Date(this.session.expiresAt).toISOString() : null}; }
   async refresh(): Promise<void> {
     if (!this.refreshing) this.refreshing = (async () => {
-      if (this.hooks.refresh) this.session = await this.hooks.refresh(this.session);
-      else {
-        const tokens = await tokenRequest(this.http as AncestryHttp, {grant_type: 'refresh_token', refresh_token: this.session.tokens.refresh_token}, true);
-        tokens.user_id ??= this.session.tokens.user_id;
-        this.session = await saveAncestrySession(this.http as AncestryHttp, tokens, this.session.deviceId);
-      }
+      const next = this.hooks.refresh ? await this.hooks.refresh(this.session) : await refreshAncestrySession(this.http as AncestryHttp, this.session);
+      // Rotated refresh tokens must reach disk even if the next API request fails.
+      await (this.hooks.save ?? (s => writePrivateJson('ancestry/session.json', s)))(next);
+      this.session = next;
     })().finally(() => { this.refreshing = undefined; });
     await this.refreshing;
   }
   async request<T = unknown>(path: string, options: ApiRequest = {}): Promise<ApiResponse<T>> {
     const url = new URL(path, `${GATEWAY}/`);
     checkAncestryUrl(url); // Before refresh, so invalid requests never access credentials/network.
-    if (this.session.expiresAt && this.session.expiresAt <= Date.now() + 30_000) await this.refresh();
     const access = this.session.tokens.access_token;
-    const send = () => this.http.exchange<T>(url, {...options, headers: {
+    const send = async () => {
+      const result = await this.http.exchange<T>(url, {...options, headers: {
       'Ancestry-ClientPath': 'Mobile.AndroidApp', 'Ancestry-CultureId': 'en-US', 'X-PreferredCountry': 'US',
       ...options.headers, Authorization: `Bearer ${this.session.tokens.access_token}`, 'Ancestry-UserId': this.session.tokens.user_id!,
-    }});
-    let response;
-    try { response = await send(); }
-    catch (error) {
-      if (!(error instanceof AncestryHttpError) || error.status !== 401) throw error;
+      }});
+      if (url.pathname === '/graphql/federation' && isGraphQLAuthenticationFailure(result.data)) throw new AncestryHttpError(401, url.pathname);
+      return result;
+    };
+    const response = await withSessionRefresh(send, async () => {
       if (this.session.tokens.access_token === access) await this.refresh();
-      response = await send(); // One retry only after a definitive 401, including read POSTs.
-    }
+    }, !!this.session.expiresAt && this.session.expiresAt <= Date.now() + 30_000);
     if (this.hooks.save) await this.hooks.save(this.session);
     else this.session = await saveAncestrySession(this.http as AncestryHttp, this.session.tokens, this.session.deviceId, this.session.expiresAt);
     return response;

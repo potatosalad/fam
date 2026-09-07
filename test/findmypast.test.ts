@@ -131,6 +131,19 @@ test('bad routes and input fail before refresh; public content does not refresh 
   await m.client.call('content.repository'); assert.equal(m.refreshes(), 0);
   await m.client.request('/test'); assert.equal(m.refreshes(), 1);
 });
+
+test('Findmypast commands renew GraphQL authentication failures, including proactive expiry without a second renewal', async () => {
+  const denied = {errors: [{extensions: {code: 'UNAUTHENTICATED'}}]};
+  const mock = mockClient(async (_url, options) => options.headers?.Authorization === 'Bearer old-test' ? denied : {data: {currentUserProfile: {id: '123'}}});
+  assert.deepEqual(await mock.client.me(), {currentUserProfile: {id: '123'}}); assert.equal(mock.refreshes(), 1);
+  for (const expired of [false, true]) {
+    let calls = 0;
+    const failed = mockClient(async () => {calls++; return denied;}, expired ? 1 : Date.now() + 3600_000);
+    await assert.rejects(failed.client.me());
+    assert.equal(failed.refreshes(), 1); assert.equal(calls, expired ? 1 : 2);
+    assert.equal(failed.saved[0]?.tokens.refresh_token, 'rotated-test');
+  }
+});
 test('GraphQL errors keep partial data available but never masquerade as success', async () => {
   const m = mockClient(async () => ({data: {person: null}, errors: [{message: 'private diagnostic'}]}));
   await assert.rejects(m.client.graphql('GetCurrentUserProfile'), e => {

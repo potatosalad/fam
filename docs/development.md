@@ -11,11 +11,11 @@ Use Node.js 22.16 or newer, npm, and Python 3. Run `npm ci` to install dependenc
 ## Run from source
 
 ```sh
-npm run fam -- familysearch --help
-npm run fam -- ancestry --help
-npm run fam -- myheritage --help
-npm run fam -- findmypast --help
-npm run fam -- findagrave --help
+npm run fam -- cli.command list --provider familysearch
+npm run fam -- cli.command list --provider ancestry
+npm run fam -- cli.command list --provider myheritage
+npm run fam -- cli.command list --provider findmypast
+npm run fam -- cli.command list --provider findagrave
 ```
 
 These commands run the shared fam source in this checkout. They do not call a globally installed CLI.
@@ -27,6 +27,8 @@ npm run check
 ```
 
 This runs TypeScript checks, generated-file checks, mocked tests, and a build. Tests use temporary configuration directories and remove inherited login variables. CI runs them on Linux and macOS with Node 22 and 24.
+
+`npm run test:browser` additionally exercises HAR capture in headless Chromium. Install its binary with `npx playwright install chromium`, or set `FAM_TEST_BROWSER_CHANNEL=chrome` to use installed Chrome. These tests intercept every browser request and mock the importer's HTTP transport; they use synthetic logins, HTTP-only cookies, form tokens, and both Findmypast regions. They require no live accounts and use disposable profiles. Run them when changing browser capture or HAR import.
 
 ## Generated code
 
@@ -71,3 +73,7 @@ Find a Grave verification also uses an existing session. `npm run verify:findagr
 Account reports go into the private configuration directory. Document checks save downloads under the checkout's ignored `artifacts/` directory and print a summary. Keep live reports, HARs, credentials, and personal exports out of commits.
 
 Geneanet uses website contracts instead of APK extraction. Its checked-in JSON also regenerates with `npm run generate:catalogs`. See [Geneanet protocol and evidence](geneanet/protocol.md).
+
+## CLI contracts
+
+Public command definitions live in `src/shared/command-registry.ts`. Update a definition and its provider binding together; help, search, inspection, and completion derive from the registry. Provider adapters take explicit arguments and return data to the shared JSON writer. Response schemas are advisory. See [the CLI contract](cli.md).

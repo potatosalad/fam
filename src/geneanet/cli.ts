@@ -8,47 +8,6 @@ import { GeneanetClient } from './client.js';
 import { operations, routes, operation, integer, type SearchInput, type SearchKind } from './catalog.js';
 import { downloadRecord, downloadMedia, saveDownload, saveOutput } from './download.js';
 
-const help = `Usage: fam geneanet COMMAND [arguments] [options]
-
-Account
-  credentials [--stdin]          Save login details through helper/env/prompt or JSON stdin
-  auth                           Web password login; validate and save cookies
-  status                         Saved metadata without secrets or a network request
-  me | verify                    Validate the same account through the website and JSON API
-
-Research
-  search | photos | library      Search all records, old portraits, or books/newspapers
-      --last-name NAME --first-name NAME [--place PLACE --from YEAR --to YEAR]
-      [--event all|birth|wedding|death --spouse-last-name NAME --spouse-first-name NAME]
-      [--category CATEGORY --with-images --keywords TEXT --page N --limit N]
-      [--input JSON_OR_FILE]
-  collections [ZONE]              Collection/theme links (default all)
-  record URL                     Read a record, viewer, collection, or person page
-  person TREE                    --index ID or --first-name NAME --last-name NAME [--occurrence N]
-  tree-media TREE PERSON_INDEX    Linked documents, deposit IDs and view IDs
-  media DEPOSIT_ID               Document metadata and its views/image variants
-  media-references DEPOSIT VIEW   Named persons/indexing on one view
-  images REGISTER_ID             [--from-page N --to-page N] inclusive range, max 100 pages
-  download RECORD_URL --out FILE  Resolve a viewer's permitted image/PDF download
-  download-media DEPOSIT VIEW --out FILE   Resolve and download a media view
-
-Catalog
-  ops [FILTER]                   List observed read contracts
-  schema NAME                    Show one route, response and verification status
-  routes [FILTER]                Broader website route inventory; not executable contracts
-
-Options
-  --anonymous                    Public reads without loading a saved session
-  --out FILE                     Owner-only JSON; downloads also write a checksum/source sidecar
-  --help                         Show this help
-
-Search pages are one-based; --limit accepts 10,20,30,40,50,100 (default 10).
-Category examples: archives, arbres, ouvrages, presse. Extra wire fields use --input.
-JSON_OR_FILE is an inline object, file, or - for stdin. Keep IDs as strings.
-Credentials: GENEANET_USERNAME + GENEANET_PASSWORD; helpers and profiles: fam --help.
-Login is explicit and never retried. Browser challenges and subscription restrictions remain in force.
-Read docs/geneanet/README.md for coverage, download semantics, and known limits.
-`;
 async function input(value?: string): Promise<SearchInput> {
   if (!value) return {};
   let text: string;
@@ -59,8 +18,8 @@ async function input(value?: string): Promise<SearchInput> {
   if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('Search input must be a JSON object.');
   return result as SearchInput;
 }
-async function main() {
-  const {values: v, positionals: p} = parseArgs({allowPositionals: true, options: {
+export async function runProvider(argv: string[]): Promise<unknown> {
+  const {values: v, positionals: p} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, anonymous: {type: 'boolean'}, out: {type: 'string'},
     input: {type: 'string'}, 'last-name': {type: 'string'}, 'first-name': {type: 'string'}, place: {type: 'string'},
     from: {type: 'string'}, to: {type: 'string'}, event: {type: 'string'}, category: {type: 'string'}, keywords: {type: 'string'},
@@ -69,12 +28,11 @@ async function main() {
     'from-page': {type: 'string'}, 'to-page': {type: 'string'},
   }});
   const [command = 'help', first, second] = p;
-  if (v.help || command === 'help') {console.log(help); return;}
   const arities: Record<string, [number, number]> = {credentials: [0,0], auth: [0,0], status: [0,0], me: [0,0], verify: [0,0],
     search: [0,0], photos: [0,0], library: [0,0], collections: [0,1], record: [1,1], person: [1,1], 'tree-media': [2,2],
     media: [1,1], 'media-references': [2,2], images: [1,1], download: [1,1], 'download-media': [2,2], ops: [0,1], schema: [1,1], routes: [0,1]};
   const arity = arities[command];
-  if (!arity || p.length - 1 < arity[0] || p.length - 1 > arity[1]) throw new Error('Invalid command or arguments; run fam geneanet --help.');
+  if (!arity || p.length - 1 < arity[0] || p.length - 1 > arity[1]) throw new Error('Invalid command or arguments; run fam cli.command list --provider geneanet.');
   const search = ['search','photos','library'].includes(command);
   if (v.stdin && command !== 'credentials') throw new Error('--stdin belongs to credentials.');
   if (v.anonymous && ['credentials','auth','me','verify','status'].includes(command)) throw new Error('--anonymous is a research option.');
@@ -84,7 +42,7 @@ async function main() {
   if (command !== 'images' && [v['from-page'],v['to-page']].some(x => x !== undefined)) throw new Error('Page-range options belong to images.');
   if (command.startsWith('download') && !v.out) throw new Error('Downloads require --out FILE.');
   let result: unknown;
-  if (command === 'credentials') {await configureCredentials('geneanet', {stdin: v.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam geneanet auth'};}
+  if (command === 'credentials') {await configureCredentials('geneanet', {stdin: v.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam geneanet.session login'};}
   else if (command === 'auth') result = sessionStatus(await authenticateGeneanet());
   else if (command === 'status') result = {credentialDirectory: CREDENTIAL_DIR, ...sessionStatus(await loadSession())};
   else if (command === 'ops') result = operations.filter(o => JSON.stringify(o).toLowerCase().includes((first ?? '').toLowerCase()));
@@ -115,11 +73,11 @@ async function main() {
       case 'images': {const from = integer(v['from-page'], 1, 1, 100000); result = await client.images(first!, from, integer(v['to-page'], from, 1, 100000)); break;}
       case 'download': case 'download-media': {
         const data = command === 'download' ? await downloadRecord(client, first!) : await downloadMedia(client, first!, second!);
-        await saveDownload(v.out!, data); console.log(JSON.stringify({saved: v.out, metadata: `${v.out}.json`, bytes: data.bytes.length})); return;
+        await saveDownload(v.out!, data); return {saved: v.out, metadata: `${v.out}.json`, bytes: data.bytes.length};
       }
     }
   }
   const text = `${stringifyJson(result, 2)}\n`;
-  if (v.out) await saveOutput(v.out, text); else process.stdout.write(text);
+  if (v.out) {await saveOutput(v.out, text); return {saved: v.out};}
+  return result;
 }
-main().catch(error => {console.error(error instanceof Error ? error.message : 'Geneanet command failed.'); process.exitCode = 1;});

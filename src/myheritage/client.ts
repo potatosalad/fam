@@ -3,6 +3,7 @@ import {MyHeritageResearch, type RecordSearchOptions, type CatalogOptions} from 
 import {MyHeritageBrowser} from './browser.js';
 import {parse} from 'graphql';
 import { readPrivateJson } from '../shared/storage.js';
+import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
 import type { ApiRequest, ApiResponse, Query } from '../familysearch/transport-types.js';
 import { MyHeritageHttp, MyHeritageHttpError, FAMILYGRAPH, GRAPHQL, transferMyHeritage, checkMyHeritageUrl } from './http.js';
 import { authenticateMyHeritage, refreshMyHeritage, saveMyHeritageSession, type MyHeritageSession } from './auth.js';
@@ -42,14 +43,16 @@ export class MyHeritageClient {
   constructor(private session: MyHeritageSession, private readonly http: Pick<MyHeritageHttp, 'exchange' | 'jar'> = new MyHeritageHttp(session.cookies), private readonly hooks: Hooks = {}) {}
   static async open() {
     const session = await readPrivateJson<MyHeritageSession>('myheritage/session.json') ?? await authenticateMyHeritage();
-    if (!session.accessToken) throw new Error('Invalid session; run fam myheritage auth.');
+    if (!session.accessToken) throw new Error('Invalid session; run fam myheritage.session login.');
     return new MyHeritageClient(session);
   }
   status() {return {authenticated: true, savedAt: this.session.savedAt, mode: this.session.mode ?? 'native'};}
   async refresh() {
     if (this.session.mode === 'browser') {await this.web().refresh(); return;}
     this.refreshing ??= (async () => {
-      this.session = this.hooks.refresh ? await this.hooks.refresh(this.session) : await refreshMyHeritage(this.http as MyHeritageHttp, this.session);
+      const next = this.hooks.refresh ? await this.hooks.refresh(this.session) : await refreshMyHeritage(this.http as MyHeritageHttp, this.session);
+      if (this.hooks.refresh && this.hooks.save) await this.hooks.save(next);
+      this.session = next;
     })().finally(() => {this.refreshing = undefined;});
     await this.refreshing;
   }
@@ -58,14 +61,14 @@ export class MyHeritageClient {
     const url = new URL(path, `${FAMILYGRAPH}/`); checkMyHeritageUrl(url);
     // Never attach bearer credentials to signed media URLs or unapproved origins.
     const access = this.session.accessToken;
-    const send = () => {const headers = new Headers(options.headers); headers.set('Authorization', `Bearer ${this.session.accessToken}`);
-      return this.http.exchange<T>(url, {...options, query: {lang: 'EN', app_version: '7.5.44', ...options.query}, headers: Object.fromEntries(headers)});};
-    let response;
-    try {response = await send();} catch (error) {
-      if (!(error instanceof MyHeritageHttpError) || error.status !== 401) throw error;
+    const send = async () => {const headers = new Headers(options.headers); headers.set('Authorization', `Bearer ${this.session.accessToken}`);
+      const result = await this.http.exchange<T>(url, {...options, query: {lang: 'EN', app_version: '7.5.44', ...options.query}, headers: Object.fromEntries(headers)});
+      if (url.origin === GRAPHQL && isGraphQLAuthenticationFailure(result.data)) throw new MyHeritageHttpError(401, url.pathname);
+      return result;
+    };
+    const response = await withSessionRefresh(send, async () => {
       if (this.session.accessToken === access) await this.refresh();
-      response = await send(); // Only one retry after a definitive authentication failure, never 429 or 5xx.
-    }
+    });
     if (this.hooks.save) await this.hooks.save(this.session);
     else this.session = await saveMyHeritageSession(this.http as MyHeritageHttp, this.session);
     return response;

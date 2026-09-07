@@ -7,6 +7,7 @@ import { createGenealogyApi, decodeOperationResponse, prepareOperation } from '.
 import type { GenealogyApi, OperationArgs, OperationName, OperationOutput } from './generated/operations.js';
 import { ResearchClient } from './research.js';
 import { ResearchTransport, isResearchPath, researchUrl } from './research-transport.js';
+import { refreshFamilySearchTokens } from './session.js';
 
 export function apiUrl(path: string, query: Query = {}): URL {
   if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) throw new Error('Supply an absolute API path, not a URL.');
@@ -41,7 +42,7 @@ export class FamilySearchClient {
     this.http = new HttpSession(session?.cookies);
     this.genealogy = createGenealogyApi(this);
     this.research = new ResearchClient(new ResearchTransport(async action => {
-      await this.ensureSession();
+      const renewed = await this.ensureSession();
       const accessToken = this.session!.tokens.access_token;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -49,7 +50,7 @@ export class FamilySearchClient {
           await this.persist();
           return result;
         } catch (error) {
-          if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0) throw error;
+          if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0 || renewed) throw error;
           if (this.session!.tokens.access_token === accessToken) await this.renew();
         }
       }
@@ -99,34 +100,24 @@ export class FamilySearchClient {
   async refresh(): Promise<void> {
     if (this.authenticating) return this.authenticating;
     this.authenticating = (async () => {
-      if (!this.session?.tokens.refresh_token) {
-        this.http = new HttpSession();
-        this.session = await authenticateChurch(this.http, await loadCredentials());
-        return;
-      }
-      const result = await this.http.json<MobileLogin>(`${FS_ORIGIN}/service/mobile/api/v1/login`, {
-        grant_type: 'refresh_token', refresh_token: this.session.tokens.refresh_token,
-        devkey: this.session.clientId, currentTreeId: '',
-      }, this.headers());
-      if (!result.access_token) throw new Error('Refresh response has no access token.');
-      // Persist a rotated refresh token before doing any subsequent API work.
-      await this.persist({ access_token: result.access_token, refresh_token: result.refresh_token ?? this.session.tokens.refresh_token, token_type: this.session.tokens.token_type });
+      if (!this.session) throw new Error('No FamilySearch session; run fam familysearch.session login.');
+      await this.persist(await refreshFamilySearchTokens(this.http, this.session));
     })().finally(() => { this.authenticating = undefined; });
     await this.authenticating;
   }
 
-  private async ensureSession(): Promise<void> {
-    if (this.authenticating) await this.authenticating;
-    if (!this.session) await this.login();
-    else if (this.session.tokens.expires_in !== undefined && Date.now() >= Date.parse(this.session.obtainedAt) + this.session.tokens.expires_in * 1000 - 30_000) await this.renew();
+  private async ensureSession(): Promise<boolean> {
+    if (this.authenticating) {await this.authenticating; return true;}
+    if (!this.session) {await this.login(); return true;}
+    if (this.session.tokens.refresh_token && this.session.tokens.expires_in !== undefined
+      && Date.now() >= Date.parse(this.session.obtainedAt) + this.session.tokens.expires_in * 1000 - 30_000) {
+      await this.renew(); return true;
+    }
+    return false;
   }
 
   private async renew(): Promise<void> {
-    try { await this.refresh(); }
-    catch (error) {
-      if (!(error instanceof HttpError) || ![400, 401].includes(error.status)) throw error;
-      await this.login();
-    }
+    await this.refresh();
   }
 
   async get<T = unknown>(path: string, query: Record<string, string | number | boolean | undefined> = {}, accept = 'application/json'): Promise<T> {
@@ -153,7 +144,7 @@ export class FamilySearchClient {
     }
     if (options.body !== undefined && (options.method ?? 'GET') === 'GET') throw new Error('GET requests cannot have a body.');
     if (options.encoding === 'raw' && options.body !== undefined && !(typeof options.body === 'string' || options.body instanceof FormData || options.body instanceof Blob || options.body instanceof Uint8Array)) throw new Error('Raw request bodies must be replayable text, bytes, Blob, or FormData.');
-    await this.ensureSession();
+    const renewed = await this.ensureSession();
     const accessToken = this.session!.tokens.access_token;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -165,7 +156,7 @@ export class FamilySearchClient {
       } catch (error) {
         // Only a definitive authentication rejection is retried; network errors and 5xx
         // are ambiguous for writes and are returned without replaying the mutation.
-        if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0) throw error;
+        if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0 || renewed) throw error;
         if (this.session!.tokens.access_token === accessToken) await this.renew();
       }
     }
@@ -183,7 +174,7 @@ export class FamilySearchClient {
   }
 
   private async authenticatedJson<T>(url: URL, body?: unknown, accept = 'application/json'): Promise<T> {
-    await this.ensureSession();
+    const renewed = await this.ensureSession();
     const accessToken = this.session!.tokens.access_token;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -191,7 +182,7 @@ export class FamilySearchClient {
         await this.persist();
         return result;
       } catch (error) {
-        if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0) throw error;
+        if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0 || renewed) throw error;
         // Another concurrent request may already have renewed this token.
         if (this.session!.tokens.access_token === accessToken) await this.renew();
       }

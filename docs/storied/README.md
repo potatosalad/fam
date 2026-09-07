@@ -7,63 +7,63 @@ Use the [shared setup guide](../setup.md) to install `fam`. Node 22.16+ is requi
 ## Sign in
 
 ```sh
-fam storied credentials
-fam storied auth
-fam storied verify
-fam doctor storied
-fam storied status
+fam storied.credential set
+fam storied.session login
+fam storied.session verify
+fam cli.health check --provider storied
+fam storied.session get
 ```
 
 Credentials use the shared precedence: `STORIED_USERNAME` and `STORIED_PASSWORD`, configured credential helper, saved `storied/login.json`. Passwords are not command-line arguments. The default `auth` command submits configured credentials once to the real Storied login form in an ephemeral headless browser. It exchanges the native callback's authorization code using PKCE, validates `/userinfo`, and checks the account tree list before saving the session. Direct password grants are disabled for this mobile client.
 
-For Google, Apple, MFA, or another interactive verification step, use `fam storied auth --interactive` on a machine with a display. No browser profile or HAR is saved. Passwords, callback codes, and PKCE verifiers are not persisted. Browser exceptions are suppressed because they can contain credentials.
+For Google, Apple, MFA, or another interactive verification step, use `fam storied.session login --interactive` on a machine with a display. No browser profile or HAR is saved. Passwords, callback codes, and PKCE verifiers are not persisted. Browser exceptions are suppressed because they can contain credentials.
 
-Session files live under `~/.config/fam/storied/`, or the directory selected by `FAM_CONFIG_DIR`. Files are written atomically with mode 0600 in private directories. `status` reports local metadata only. `verify` and `fam doctor storied` check current API access. `refresh` explicitly renews and validates the session. Normal reads renew at most once; writes are never replayed after an auth rejection. A rotated token is saved before subsequent API work. A configured post-save sync hook also applies to Storied.
+Session files live under `~/.config/fam/storied/`, or the directory selected by `FAM_CONFIG_DIR`. Files are written atomically with mode 0600 in private directories. `status` reports local metadata only. `verify` and `fam cli.health check --provider storied` check current API access. `refresh` explicitly renews and validates the session. Normal reads renew at most once; writes are never replayed after an auth rejection. A rotated token is saved before subsequent API work. A configured post-save sync hook also applies to Storied.
 
 ## Genealogy and content
 
 ```sh
-fam storied trees
-fam storied tree TREE_UUID
-fam storied people TREE_UUID
-fam storied find-people Lincoln
-fam storied person PERSON_UUID
-fam storied pedigree TREE_UUID PERSON_UUID --generations 4
-fam storied family TREE_UUID PERSON_UUID
-fam storied events TREE_UUID PERSON_UUID
-fam storied hints PERSON_UUID
-fam storied records PERSON_UUID
-fam storied person-stories PERSON_UUID --page 1 --limit 20
-fam storied stories
-fam storied story STORY_UUID
-fam storied feed
-fam storied media --limit 20
-fam storied groups
-fam storied subscription
-fam storied me
+fam storied.tree list
+fam storied.tree get --tree-id TREE_UUID
+fam storied.person list --tree-id TREE_UUID
+fam storied.person search --name Lincoln
+fam storied.person get --person-id PERSON_UUID
+fam storied.person pedigree --tree-id TREE_UUID --person-id PERSON_UUID --generations 4
+fam storied.person family --tree-id TREE_UUID --person-id PERSON_UUID
+fam storied.person events --tree-id TREE_UUID --person-id PERSON_UUID
+fam storied.person hints --person-id PERSON_UUID
+fam storied.person records --person-id PERSON_UUID
+fam storied.person stories --person-id PERSON_UUID --page 1 --limit 20
+fam storied.story list
+fam storied.story get --story-id STORY_UUID
+fam storied.feed get
+fam storied.media list --limit 20
+fam storied.group list
+fam storied.subscription get
+fam storied.account get
 ```
 
 IDs are strings, usually UUIDs. `people` returns objects whose person identifier is `id`; tree lists use `treeId` and `homePersonId`. Paginated commands return one page, with `--page` starting at 1 and `--limit` between 1 and 100. `trees` and `people` use unpaginated provider routes. `--out FILE` saves JSON with owner-only permissions. Full responses may contain personal data.
 
 ```sh
-fam storied search --first-name Abraham --last-name Lincoln --limit 10
-fam storied search --input search.json --page 2
-fam storied media --input '{"mediaTypes":["Photo"]}'
-fam storied mobile-version
+fam storied.record search --first-name Abraham --last-name Lincoln --limit 10
+fam storied.record search --input search.json --page 2
+fam storied.media list --input '{"mediaTypes":["Photo"]}'
+fam storied.mobile.version get
 ```
 
-Search uses the current structured universal-search API. `--input` accepts its body fields; inspect `fam storied model UniversalSearchDynamicQuery` and referenced models for available filters. Search results can be masked by the account's subscription; an HTTP success does not establish access to every record or image. `--anonymous` omits credentials, with access still enforced by the server. `mobile-version` is public and needs no account.
+Search uses the current structured universal-search API. `--input` accepts its body fields; inspect `fam storied.api.model get --name UniversalSearchDynamicQuery` and referenced models for available filters. Search results can be masked by the account's subscription; an HTTP success does not establish access to every record or image. `--anonymous` omits credentials, with access still enforced by the server. `mobile-version` is public and needs no account.
 
 ## Operation and model catalog
 
 ```sh
-fam storied ops pedigree
-fam storied schema pedigree
-fam storied schema getFamilyTrees
-fam storied models TreeDto
-fam storied model TreeDto
-fam storied call trees '{"query":{"includePersonCount":true}}'
-fam storied call 'GET /api/Persons/{personId}/savedrecords' request.json
+fam storied.api list --filter pedigree
+fam storied.api describe --operation pedigree
+fam storied.api describe --operation getFamilyTrees
+fam storied.api.model list --filter TreeDto
+fam storied.api.model get --name TreeDto
+fam storied.api call --operation trees --input '{"query":{"includePersonCount":true}}'
+fam storied.api call --operation 'GET /api/Persons/{personId}/savedrecords' --input request.json
 ```
 
 `call` accepts `{path,query,body}`. Inline JSON, a filename, and `-` for stdin are supported. Required path parameters and structural request types are validated. Arrays in query strings repeat their parameter name. Unknown query keys are rejected. Long integers remain exact. Each operation includes its method, route, API version, parameter schemas, body schema, response schemas, and any matched APK method/function IDs. Model references use the full names from `models` when short names are ambiguous.

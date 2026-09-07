@@ -1,14 +1,14 @@
 # Provider health checks
 
 ```sh
-fam doctor                         # Verify sessions online and renew when needed
-fam doctor ancestry findmypast     # Check selected providers
-fam doctor --verbose               # Individual checks and recovery details
-fam doctor --json                  # Structured online report
-fam doctor --offline               # Local inspection, no requests or changes
+fam cli.health check                         # Verify sessions online and renew when needed
+fam cli.health check --provider ancestry --provider findmypast     # Check selected providers
+fam cli.health check --verbose               # Individual checks and recovery details
+fam cli.health check --json                  # Structured online report
+fam cli.health check --offline               # Local inspection, no requests or changes
 ```
 
-Doctor prints one row per provider and an actionable next step for failures. `OK` means an authenticated request succeeded during this run. `Session refreshed and verified` means doctor also renewed and saved the session first. An offline `SAVED` result only describes local files; it cannot establish that credentials still work. `--live` remains accepted as an alias for the default online behavior.
+Doctor prints one row per provider and an actionable next step for failures. Add `--json` for a structured report. `OK` means an authenticated request succeeded during this run. `Session refreshed and verified` means doctor also renewed and saved the session first. An offline `SAVED` result only describes local files; it cannot establish that credentials still work. `--live` remains accepted as an alias for the default online behavior.
 
 ## Session validation and renewal
 
@@ -28,10 +28,13 @@ Permission errors, verification challenges, rate limits, server errors, and conn
 | Findmypast browser | Current account on the captured regional API | Retain updated cookies; an expired website login requires sign-in |
 | Find a Grave | Signed-in contributor | No known renewal endpoint |
 | Geneanet | Signed-in account | Retain updated cookies; an expired website login requires sign-in |
-| Storied | Account tree list | Saved refresh token |
+
+The same automatic token renewal applies to ordinary authenticated provider commands. You do not need to run `refresh` or `auth` first when the existing authorization can be renewed. An expired browser login or rejected refresh token can require sign-in or website verification; doctor reports the relevant recovery step. Password validity and unused refresh tokens are not tested speculatively when a session already works.
 
 ## Output and exit codes
 
 Use `--verbose` for individual checks, scoped password-login notices, and coverage limits. JSON contains stable check IDs and issue codes, including `session-rejected`, `refresh-rejected`, `session-save-failed`, `access-denied`, and `rate-limited`. Reports omit tokens, passwords, cookie values, account details, and raw response bodies. `FAM_CONFIG_DIR` selects the profile using the normal CLI rules.
 
 Exit code `0` means no warnings or errors affecting the saved session in performed checks; `1` means attention is needed; `2` means invalid arguments. Offline success never establishes online readiness. Session validation does not prove every search, subscription feature, download, or write capability works. Select providers to avoid setup warnings for services you have never configured.
+
+Health checks now use `fam cli.health check`. The compact table is the default; add `--verbose` for details or `--json` for a structured report. Provider filtering uses repeated `--provider NAME` flags.
