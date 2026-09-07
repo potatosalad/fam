@@ -39,7 +39,7 @@ for path in sorted((ROOT / "analysis/smali").rglob("*.smali")):
                            "line": text[:match.start()].count("\n") + 1,
                            "member": block.splitlines()[0]})
 routes.sort(key=lambda x: (x["path"], x["method"]))
-out = ROOT / "docs/endpoints.json"
+out = ROOT / "docs/familysearch/endpoints.json"
 out.write_text(json.dumps({"package": "org.familysearch.mobile", "version": "5.4.4", "versionCode": 43530,
                            "source": "Retrofit annotations in APK smali; presence does not establish live availability",
                            "endpoints": routes}, indent=2) + "\n")

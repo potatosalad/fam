@@ -30,7 +30,9 @@ This runs TypeScript checks, generated-file checks, mocked tests, and a build. T
 
 ## Generated code
 
-Edit the contracts under `docs/`, then regenerate:
+Provider guides and contracts live under `docs/<provider>/`. FamilySearch reference docs, APK metadata, endpoint inventory, operation selection, and TypeScript examples are in `docs/familysearch/`. Only shared setup and development documentation lives at the docs root.
+
+Edit the contracts under `docs/<provider>/`, then regenerate:
 
 ```sh
 npm run generate

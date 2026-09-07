@@ -1,6 +1,6 @@
-# TypeScript API
+# FamilySearch TypeScript API
 
-Create output folders before using these examples: `mkdir -p research-output/fam ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
+Create output folders before using these examples: `mkdir -p research-output/familysearch`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
 
 ```ts

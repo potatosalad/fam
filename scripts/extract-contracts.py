@@ -197,8 +197,8 @@ def recover_model(name):
     return {'source': str(path.relative_to(ROOT)), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'fields': fields}
 
 
-inventory = json.loads((ROOT / 'docs/endpoints.json').read_text())['endpoints']
-selection = json.loads((ROOT / 'docs/operation-selection.json').read_text())
+inventory = json.loads((ROOT / 'docs/familysearch/endpoints.json').read_text())['endpoints']
+selection = json.loads((ROOT / 'docs/familysearch/operation-selection.json').read_text())
 operations = []
 for chosen in selection['operations']:
     if chosen.get('unsupported'):
@@ -237,5 +237,5 @@ while pending:
         models[name] = recover_model(name)
 
 out = {'version': 1, 'apkVersion': '5.4.4 (43530)', 'scope': selection['scope'], 'operations': operations, 'models': dict(sorted(models.items()))}
-(ROOT / 'docs/contracts.json').write_text(json.dumps(out, indent=2) + '\n')
+(ROOT / 'docs/familysearch/contracts.json').write_text(json.dumps(out, indent=2) + '\n')
 print(f'Recovered {len(operations)} operations and {len(models)} models.')

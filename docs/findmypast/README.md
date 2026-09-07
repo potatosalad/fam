@@ -1,6 +1,6 @@
 # Findmypast
 
-The `findmypast` command browses trees, searches records and newspapers, and downloads record images. Install it with the other commands using the [main README](../../README.md#install).
+The `fam findmypast` command browses trees, searches records and newspapers, and downloads record images. Install fam using the [main README](../../README.md#install).
 
 ## Sign in
 

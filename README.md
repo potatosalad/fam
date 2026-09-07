@@ -125,13 +125,14 @@ Replace `PERSON_ID` and `IMAGE_ARK` with IDs from the service. Run `fam --help` 
 
 The `call` and `gql` commands can execute writes and deletions. Check the operation's schema before running it.
 
-- [FamilySearch operations](docs/operations.md) and [coverage](docs/coverage.md)
-- [FamilySearch images, films, full-text search, and transcripts](docs/document-research.md)
+- [FamilySearch guide](docs/familysearch/README.md)
+- [FamilySearch operations](docs/familysearch/operations.md) and [coverage](docs/familysearch/coverage.md)
+- [FamilySearch images, films, full-text search, and transcripts](docs/familysearch/document-research.md)
 - [Ancestry commands](docs/ancestry/README.md)
 - [MyHeritage record research](docs/myheritage/research.md)
 - [Findmypast commands](docs/findmypast/README.md)
 - [Find a Grave commands](docs/findagrave/README.md)
-- [TypeScript API](docs/typescript.md)
+- [FamilySearch TypeScript API](docs/familysearch/typescript.md)
 
 ## Configuration
 

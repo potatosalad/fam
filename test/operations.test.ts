@@ -33,8 +33,8 @@ function example(type: WireType): any {
 }
 
 test('every selected operation traverses the authenticated transport with the APK verb, route, parameters, and response mode', async () => {
-  const endpoints = JSON.parse(readFileSync(new URL('../docs/endpoints.json', import.meta.url), 'utf8')).endpoints;
-  const selection = JSON.parse(readFileSync(new URL('../docs/operation-selection.json', import.meta.url), 'utf8')).operations;
+  const endpoints = JSON.parse(readFileSync(new URL('../docs/familysearch/endpoints.json', import.meta.url), 'utf8')).endpoints;
+  const selection = JSON.parse(readFileSync(new URL('../docs/familysearch/operation-selection.json', import.meta.url), 'utf8')).operations;
   assert.equal(listOperations().length, selection.filter((s: any) => !s.unsupported).length);
   const original = Impit.prototype.fetch;
   let count = 0;

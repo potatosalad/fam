@@ -1,6 +1,6 @@
 # Find a Grave
 
-The `findagrave` command searches memorials and cemeteries, reads biographies and relationships, and lists photographs. Install it with the other commands using the [main README](../../README.md#install).
+The `fam findagrave` command searches memorials and cemeteries, reads biographies and relationships, and lists photographs. Install fam using the [main README](../../README.md#install).
 
 ## Sign in
 

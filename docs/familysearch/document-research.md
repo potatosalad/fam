@@ -4,7 +4,7 @@ The CLI can now resolve image ARKs, download and validate original distribution 
 
 ## Start with the Walton examples
 
-Install or update the commands using the [main README](../README.md#install). Run these examples from the checkout so the output stays in its ignored `artifacts/` folder:
+Install or update the commands using the [main README](../../README.md#install). Run these examples from the checkout so the output stays in its ignored `artifacts/` folder:
 
 ```sh
 fam familysearch --help

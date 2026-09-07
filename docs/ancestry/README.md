@@ -1,8 +1,8 @@
 # Ancestry CLI
 
-Create output folders before using these examples: `mkdir -p research-output/fam ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
+Create output folders before using these examples: `mkdir -p research-output/ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
-`ancestry` provides a TypeScript client and CLI based on Ancestry Android 18.16.3 contracts. See the [main README](../../README.md) for npm installation, storage locations, environment variables, and isolated installations. Authentication and data are separate from the other providers.
+`fam ancestry` provides a TypeScript client and CLI based on Ancestry Android 18.16.3 contracts. See the [main README](../../README.md) for npm installation, storage locations, environment variables, and isolated installations. Authentication and data are separate from the other providers.
 
 ## Authenticate
 

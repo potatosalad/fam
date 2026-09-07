@@ -1,6 +1,6 @@
 # Historical-record research
 
-Create output folders before using these examples: `mkdir -p research-output/fam ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
+Create output folders before using these examples: `mkdir -p research-output/ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
 The Android app has historical-record research. Its `MHResearchView` opens `/FP/genealogySearchMobile.php`, and `ResearchFragment` opens `/research/collection-ID/` through `HybridWebView`. The native APK's REST/GraphQL catalog alone does not include the main search request: that request is implemented in the JavaScript downloaded by these WebViews. The CLI follows that web application protocol with the saved authenticated session, using direct HTTP without a running browser.
 

@@ -4,7 +4,7 @@ Generated from APK 5.4.4 contracts. Use `client.genealogy.<group>.<method>(input
 
 Path values and `body` are top-level input properties. Optional query/header values go inside `query` / `headers`. Their omission is supported by Retrofit; server requirements may be stricter. All path values are accepted unescaped and encoded once by this client.
 
-A model’s required fields reflect the APK decoder. Optional non-null fields can be absent because the app has a default. Server-side create/update requirements can differ. Unknown response fields are preserved. See [contracts.json](contracts.json) for every nested field, nullability, and source provenance, and [generated types](../src/familysearch/generated/models.ts) for TypeScript.
+A model’s required fields reflect the APK decoder. Optional non-null fields can be absent because the app has a default. Server-side create/update requirements can differ. Unknown response fields are preserved. See [contracts.json](contracts.json) for every nested field, nullability, and source provenance, and [generated types](../../src/familysearch/generated/models.ts) for TypeScript.
 
 Use `client.operationDetailed()` for status, headers, and binary downloads. Response bodies for `void` operations are drained and discarded. `JsonValue` means the APK itself declares an unstructured acknowledgement.
 
