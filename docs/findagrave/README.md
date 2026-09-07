@@ -7,33 +7,33 @@ The `findagrave` command searches memorials and cemeteries, reads biographies an
 Use your Find a Grave email address when `credentials` asks for a username:
 
 ```sh
-findagrave credentials
-findagrave auth
-findagrave me
+fam findagrave credentials
+fam findagrave auth
+fam findagrave me
 ```
 
-The password is hidden while you type. Scripts can set `FINDAGRAVE_USERNAME` and `FINDAGRAVE_PASSWORD`, or pipe login JSON to `findagrave credentials --stdin`. The CLI validates the contributor profile before saving a session. It does not support Ancestry account linking or browser-session import.
+The password is hidden while you type. Scripts can set `FINDAGRAVE_USERNAME` and `FINDAGRAVE_PASSWORD`, or pipe login JSON to `fam findagrave credentials --stdin`. The CLI validates the contributor profile before saving a session. It does not support Ancestry account linking or browser-session import.
 
-`findagrave status` shows the configuration directory and saved-session metadata without a network request. `findagrave verify` checks that the session still identifies the same contributor. It does not extend the session; run `auth` again after expiry. Login and failed API requests are never retried automatically.
+`fam findagrave status` shows the configuration directory and saved-session metadata without a network request. `fam findagrave verify` checks that the session still identifies the same contributor. It does not extend the session; run `auth` again after expiry. Login and failed API requests are never retried automatically.
 
 Credentials and sessions use the `findagrave/` subdirectory of the shared configuration directory. See [setup details](../setup.md) for profiles, permissions, and resetting a session.
 
 For public research, you can skip sign-in:
 
 ```sh
-findagrave --anonymous search --first-name Abraham --last-name Lincoln --birth-year 1809
+fam findagrave --anonymous search --first-name Abraham --last-name Lincoln --birth-year 1809
 ```
 
 ## Memorial search
 
 ```sh
-findagrave search --first-name Abraham --last-name Lincoln --birth-year 1809 --exact
-findagrave search --last-name Lincoln --bio president --limit 5 --offset 5
-findagrave search --first-name Mary --last-name Todd --include-maiden-name
-findagrave search --first-name Wyatt --last-name Earp --relative "Nicholas Earp"
-findagrave search --last-name Smith --birth-year 1850 --year-range 2
-findagrave search --last-name Smith --death-year 1900 --death-filter before
-findagrave search --last-name Smith --death-filter unknown
+fam findagrave search --first-name Abraham --last-name Lincoln --birth-year 1809 --exact
+fam findagrave search --last-name Lincoln --bio president --limit 5 --offset 5
+fam findagrave search --first-name Mary --last-name Todd --include-maiden-name
+fam findagrave search --first-name Wyatt --last-name Earp --relative "Nicholas Earp"
+fam findagrave search --last-name Smith --birth-year 1850 --year-range 2
+fam findagrave search --last-name Smith --death-year 1900 --death-filter before
+fam findagrave search --last-name Smith --death-filter unknown
 ```
 
 Lists use zero-based offsets; `--limit` accepts 1–100. Use `--sort name`, `birth`, `death`, `cemetery`, `created`, or `modified`, with optional `--descending`. `relevance` and `plot` have no descending variant.
@@ -45,9 +45,9 @@ Lists use zero-based offsets; `--limit` accepts 1–100. Use `--sort name`, `bir
 For native fields without a flag, pass a JSON object or file to `--input`. Explicit flags override matching fields:
 
 ```sh
-findagrave search --input '{"lastName":"Lincoln","isVeteran":true,"size":10,"from":0}'
-findagrave models MemorialSearchInput
-findagrave enums MemorialSearchYearFilter
+fam findagrave search --input '{"lastName":"Lincoln","isVeteran":true,"size":10,"from":0}'
+fam findagrave models MemorialSearchInput
+fam findagrave enums MemorialSearchYearFilter
 ```
 
 The recovered model inventory is incomplete: the server's `bio` field is absent from the APK inventory. Advanced filter combinations and ranking remain service-dependent.
@@ -55,15 +55,15 @@ The recovered model inventory is incomplete: the server's `bio` field is absent 
 ## Memorials and cemeteries
 
 ```sh
-findagrave memorial MEMORIAL_ID
-findagrave relatives MEMORIAL_ID
-findagrave photos MEMORIAL_ID --limit 20 --offset 0
-findagrave locations "Springfield, Illinois"
-findagrave search --last-name Lincoln --location LOCATION_ID
-findagrave cemeteries "Oak Ridge Cemetery"
-findagrave cemetery CEMETERY_ID
-findagrave search --cemetery CEMETERY_ID --plot "Section 3"
-findagrave contributor CONTRIBUTOR_ID
+fam findagrave memorial MEMORIAL_ID
+fam findagrave relatives MEMORIAL_ID
+fam findagrave photos MEMORIAL_ID --limit 20 --offset 0
+fam findagrave locations "Springfield, Illinois"
+fam findagrave search --last-name Lincoln --location LOCATION_ID
+fam findagrave cemeteries "Oak Ridge Cemetery"
+fam findagrave cemetery CEMETERY_ID
+fam findagrave search --cemetery CEMETERY_ID --plot "Section 3"
+fam findagrave contributor CONTRIBUTOR_ID
 ```
 
 Copy IDs from responses and keep them as strings. Location IDs have prefixes such as `city_`, `county_`, or `state_`. A memorial includes names, dates, biography, burial information, relationships, and the first 20 photos. Use `photos` for further pages. Most other commands retain the service's response envelope; `cemetery`, for example, returns `cemeteries.cemeteries[]`.
@@ -75,8 +75,8 @@ Signed-in account commands include `my-cemeteries`, `virtual-cemeteries`, `volun
 Photo metadata, pagination, and original-image downloads are supported. An original-photo download was verified against a public memorial without signing in. If the CDN denies a request, open the memorial's Photos tab in a browser.
 
 ```sh
-findagrave photos MEMORIAL_ID
-findagrave download MEMORIAL_ID PHOTO_ID --out headstone.jpg
+fam findagrave photos MEMORIAL_ID
+fam findagrave download MEMORIAL_ID PHOTO_ID --out headstone.jpg
 ```
 
 The downloader resolves the photo within the memorial, requests its returned URL, and decodes the image before saving it. The `.json` sidecar records its source, attribution, dimensions, and SHA-256. Downloads omit account headers and cookies, reject redirects and foreign image hosts, and refuse to overwrite either file. A denied CDN response produces no image file. Photo lookup is bounded to 10,000 entries.
@@ -84,12 +84,12 @@ The downloader resolves the photo within the memorial, requests its returned URL
 ## API catalog
 
 ```sh
-findagrave ops memorial
-findagrave schema memorial
-findagrave gql MemorialSearch '{"input":{"lastName":"Lincoln","size":5,"from":0}}'
-findagrave call requests.mine '{"query":{"limit":5,"skip":0}}'
-findagrave query /path/to/query.graphql /path/to/variables.json
-findagrave http-sites transcription
+fam findagrave ops memorial
+fam findagrave schema memorial
+fam findagrave gql MemorialSearch '{"input":{"lastName":"Lincoln","size":5,"from":0}}'
+fam findagrave call requests.mine '{"query":{"limit":5,"skip":0}}'
+fam findagrave query /path/to/query.graphql /path/to/variables.json
+fam findagrave http-sites transcription
 ```
 
 JSON input accepts inline objects, filenames, or `-` for stdin. Commands print JSON by default; `--out FILE` saves it. Keep personal research outside Git.
@@ -103,7 +103,7 @@ The catalog has 32 GraphQL documents, 36 executable REST routes, and 47 HTTP cal
 ## TypeScript
 
 ```ts
-import { FindagraveClient, searchInput, memorialPhotos } from '@potatosalad/familysearch/findagrave';
+import { FindagraveClient, searchInput, memorialPhotos } from '@potatosalad/fam/findagrave';
 
 const client = await FindagraveClient.open(); // Uses the session saved by the CLI.
 const results = await client.search(searchInput({lastName: 'Lincoln', size: 5}));

@@ -1,7 +1,7 @@
 /** Read-only live checks. No password login, writes, or personal response data in reports. */
 import assert from 'node:assert/strict';
 import { parseArgs } from 'node:util';
-import { writePrivateJson } from '../src/storage.js';
+import { writePrivateJson } from '../src/shared/storage.js';
 import { FindagraveClient } from '../src/findagrave/client.js';
 import { FindagraveHttpError } from '../src/findagrave/http.js';
 import { searchInput, memorialPhotos, downloadPhoto } from '../src/findagrave/research.js';

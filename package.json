@@ -1,14 +1,12 @@
 {
-  "name": "@potatosalad/familysearch",
-  "version": "0.1.0",
+  "name": "@potatosalad/fam",
+  "version": "0.2.0",
   "type": "module",
-  "description": "TypeScript clients and command-line tools for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave",
+  "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave",
   "scripts": {
-    "fs": "tsx src/cli.ts",
-    "ancestry": "tsx src/ancestry/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
-    "build": "tsc",
+    "build": "node scripts/clean-dist.mjs && tsc",
     "extract:ancestry": "python3 scripts/extract-ancestry.py",
     "check:ancestry": "python3 scripts/extract-ancestry.py --check",
     "verify:ancestry": "tsx scripts/verify-ancestry.ts",
@@ -17,7 +15,6 @@
     "test:types": "tsc -p test/tsconfig.json",
     "verify:genealogy": "tsx scripts/verify-genealogy.ts",
     "verify:research": "tsx scripts/verify-research.ts",
-    "myheritage": "tsx src/myheritage/cli.ts",
     "extract:myheritage": "python3 scripts/extract-myheritage.py",
     "check:myheritage": "python3 scripts/extract-myheritage.py --check",
     "verify:myheritage": "tsx scripts/verify-myheritage.ts",
@@ -26,15 +23,14 @@
     "generate:catalogs": "python3 scripts/generate-catalogs.py",
     "check:catalogs": "python3 scripts/generate-catalogs.py --check",
     "check": "npm run typecheck && npm run test:types && npm run check:generated && npm run check:catalogs && npm test && npm run build",
-    "findmypast": "tsx src/findmypast/cli.ts",
     "extract:findmypast": "python3 scripts/extract-findmypast.py",
     "check:findmypast": "python3 scripts/extract-findmypast.py --check",
     "verify:findmypast": "tsx scripts/verify-findmypast.ts",
-    "findagrave": "tsx src/findagrave/cli.ts",
     "extract:findagrave": "python3 scripts/extract-findagrave.py",
     "check:findagrave": "python3 scripts/extract-findagrave.py --check",
     "verify:findagrave": "tsx scripts/verify-findagrave.ts",
-    "verify:findagrave:search": "tsx scripts/verify-findagrave-search.ts"
+    "verify:findagrave:search": "tsx scripts/verify-findagrave-search.ts",
+    "fam": "tsx src/cli.ts"
   },
   "engines": {
     "node": ">=22.16"
@@ -54,14 +50,10 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/potatosalad/familysearch.git"
+    "url": "git+ssh://git@github.com/potatosalad/fam.git"
   },
   "bin": {
-    "familysearch": "bin/familysearch.mjs",
-    "ancestry": "bin/ancestry.mjs",
-    "myheritage": "bin/myheritage.mjs",
-    "findmypast": "bin/findmypast.mjs",
-    "findagrave": "bin/findagrave.mjs"
+    "fam": "bin/fam.mjs"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -85,6 +77,10 @@
     "./findagrave": {
       "types": "./dist/findagrave/index.d.ts",
       "import": "./dist/findagrave/index.js"
+    },
+    "./familysearch": {
+      "types": "./dist/familysearch/index.d.ts",
+      "import": "./dist/familysearch/index.js"
     }
   },
   "files": [

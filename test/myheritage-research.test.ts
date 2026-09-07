@@ -7,7 +7,7 @@ import {pageJson} from '../src/myheritage/page-data.js';
 import {buildRecordSearch, MyHeritageResearch, parseRecordPage, recordUrl} from '../src/myheritage/research.js';
 import {historicalRecordsQuery, collectionCatalogQuery, collectionPageQuery} from '../src/myheritage/research-queries.js';
 import {MyHeritageHttpError} from '../src/myheritage/http.js';
-import type {ApiRequest, ApiResponse} from '../src/transport-types.js';
+import type {ApiRequest, ApiResponse} from '../src/familysearch/transport-types.js';
 import type {MyHeritageSession} from '../src/myheritage/auth.js';
 
 const context = {user:{isLoggedIn:true,siteId:'SITE',guestId:'GUEST'},fgToken:'fresh-research-token',lang:'EN'};
@@ -101,7 +101,7 @@ test('catalog filters remain scoped in the authenticated website query',async()=
   const r=await f.client.catalog({category:'1000',images:true,offset:5,limit:5});assert.equal(r.count,12);
 });
 test('CLI exposes record search and rejects invalid research flags before authentication',()=>{
-  const cli=['--import','tsx','src/myheritage/cli.ts'];
+  const cli=['--import','tsx','src/cli.ts', 'myheritage'];
   const help=execFileSync(process.execPath,[...cli,'--help'],{encoding:'utf8'});assert.match(help,/search \[JSON_OR_FILE\]/);assert.match(help,/--birth-year/);
   for(const args of [['search','--birth-year','oops'],['person','123','--first-name','A'],['search','{"lastName":"Smith","unexpected":true}']]) assert.throws(()=>execFileSync(process.execPath,[...cli,...args],{stdio:'pipe'}));
 });

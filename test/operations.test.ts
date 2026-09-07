@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Impit } from 'impit';
 import { FamilySearchClient, factPayload, notePayload, memoryUpload, groupImageUpload, listOperations, validateOperationResponse, personChanges, searchResults } from '../src/index.js';
-import { HttpError, HttpSession } from '../src/http.js';
-import { CHURCH_CLIENT_ID } from '../src/auth.js';
-import { contracts } from '../src/generated/schema.js';
-import type { WireType } from '../src/contract-types.js';
-import { prepareOperation } from '../src/operations.js';
-import { parseJson, stringifyJson } from '../src/json.js';
+import { HttpError, HttpSession } from '../src/familysearch/http.js';
+import { CHURCH_CLIENT_ID } from '../src/familysearch/auth.js';
+import { contracts } from '../src/familysearch/generated/schema.js';
+import type { WireType } from '../src/familysearch/contract-types.js';
+import { prepareOperation } from '../src/familysearch/operations.js';
+import { parseJson, stringifyJson } from '../src/shared/json.js';
 
 function client() {
   const session = { version: 1, clientId: CHURCH_CLIENT_ID, tokens: { access_token: 'test-only-access', refresh_token: 'test-only-refresh' }, obtainedAt: new Date().toISOString(), cookies: new HttpSession().jar.serializeSync() };

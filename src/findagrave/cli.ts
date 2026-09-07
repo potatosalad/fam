@@ -1,20 +1,20 @@
-import { configureCredentials } from '../credentials.js';
+import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
 import { readFile, writeFile, mkdir, rename, rm, access } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { parseJson, stringifyJson } from '../json.js';
-import { CREDENTIAL_DIR, readPrivateJson } from '../storage.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
+import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { authenticateFindagrave, sessionStatus, type FindagraveSession } from './auth.js';
 import { aliases, contracts, graphqlOperation } from './catalog.js';
 import { FindagraveClient } from './client.js';
 import { restOperations, restOperation, type RestArguments } from './rest.js';
 import { integer, searchInput, memorialPhotos, downloadPhoto } from './research.js';
 
-const help = `Usage: findagrave COMMAND [arguments] [options]
+const help = `Usage: fam findagrave COMMAND [arguments] [options]
 
 Account
-  credentials [--stdin]           Save login details (hidden prompt, environment, or JSON stdin)
+  credentials [--stdin]           Save login details (helper, environment, hidden prompt, or JSON stdin)
   auth                            Sign in and validate the native session
   status                          Saved metadata, without tokens or a network request
   verify                          Validate the session with a live profile read
@@ -62,7 +62,7 @@ Options
   --out FILE                      Atomic owner-only output
   --help                          Show this help
 
-Credentials: FINDAGRAVE_USERNAME (email) + FINDAGRAVE_PASSWORD. Run status to see storage.
+Credentials: FINDAGRAVE_USERNAME (email) + FINDAGRAVE_PASSWORD. Run status to see storage. Credential helpers: fam --help.
 JSON_OR_FILE accepts an inline object, filename, or - for stdin. Keep IDs as strings.
 Selected mutations and REST writes execute immediately; some write routes use GET.
 Login is explicit and never retried automatically. No token refresh endpoint was found.
@@ -95,13 +95,13 @@ async function main() {
   }});
   const [command='help', first, second] = p;
   if (command === 'help' || v.help) {console.log(help);return;}
-  if (v.stdin && command !== 'credentials') throw new Error('--stdin belongs to findagrave credentials.');
+  if (v.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam findagrave credentials.');
   const arities: Record<string,[number,number]> = {credentials:[0,0],auth:[0,0],status:[0,0],verify:[0,0],me:[0,0],search:[0,0],
     memorial:[1,1],relatives:[1,1],photos:[1,1],download:[2,2],cemeteries:[0,1],cemetery:[1,1],locations:[1,1],contributor:[1,1],
     'my-cemeteries':[0,0],'virtual-cemeteries':[0,1],'virtual-cemetery':[1,1],'volunteer-cemeteries':[0,0],tags:[0,0],requests:[0,1],
     ops:[0,1],schema:[1,1],models:[0,1],enums:[0,1],'http-sites':[0,1],gql:[1,2],query:[1,2],call:[1,2]};
   const arity = arities[command];
-  if (!arity || p.length-1 < arity[0] || p.length-1 > arity[1]) throw new Error(`Invalid command or arguments; see findagrave --help.`);
+  if (!arity || p.length-1 < arity[0] || p.length-1 > arity[1]) throw new Error(`Invalid command or arguments; see fam findagrave --help.`);
   const searchFlags = ['name','first-name','middle-name','last-name','birth-year','death-year','year-range','cemetery','exact','famous','veteran','has-gps','sort','descending',
     'bio','relative','include-maiden-name','include-nickname','similar','plot','birth-filter','death-filter'] as const;
   if (command !== 'search' && searchFlags.some(k=>v[k] !== undefined)) throw new Error('Memorial search options belong to search.');
@@ -119,7 +119,7 @@ async function main() {
   const size = integer(v.limit,20,1,100), from = integer(v.offset,0);
   const filter = (value: unknown) => stringifyJson(value).toLowerCase().includes((first??'').toLowerCase());
   let result: unknown;
-  if (command === 'credentials') {await configureCredentials('findagrave',{stdin:v.stdin});result={saved:true,credentialDirectory:CREDENTIAL_DIR,next:'findagrave auth'};}
+  if (command === 'credentials') {await configureCredentials('findagrave',{stdin:v.stdin});result={saved:true,credentialDirectory:CREDENTIAL_DIR,next:'fam findagrave auth'};}
   else if (command === 'auth') result=sessionStatus(await authenticateFindagrave());
   else if (command === 'status') result={credentialDirectory:CREDENTIAL_DIR,...sessionStatus(await readPrivateJson<FindagraveSession>('findagrave/session.json'))};
   else if (command === 'ops') result=[...contracts.graphql.map(o=>({id:o.id,name:o.name,kind:o.kind,variables:o.variables,aliases:Object.keys(aliases).filter(k=>aliases[k]===o.id)})),...restOperations].filter(filter);

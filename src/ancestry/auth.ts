@@ -1,8 +1,8 @@
-import { loadLoginCredentials } from '../credentials.js';
+import { loadLoginCredentials } from '../shared/credentials.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../storage.js';
+import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../shared/storage.js';
 import { AncestryHttp, AUTH, GATEWAY, USER_AGENT } from './http.js';
 
 // Public Android application identifiers extracted from signed build 18.16.3, auth/a.a().
@@ -35,13 +35,13 @@ export async function tokenRequest(http: AncestryHttp, fields: Record<string, st
     method: 'POST', encoding: 'raw', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams({client_id: CLIENT_ID, client_secret: CLIENT_SECRET, ...fields}).toString(),
   })).data;
-  if (data.must_change_password_before_next_login) throw new Error('Ancestry requires a password change. Complete it on Ancestry, then run ancestry auth again.');
+  if (data.must_change_password_before_next_login) throw new Error('Ancestry requires a password change. Complete it on Ancestry, then run fam ancestry auth again.');
   if (!data.access_token || !data.refresh_token) {
     if (fields.service_provider === 'user_credentials' && typeof (data as unknown as PendingAuth).verification_token === 'string') {
       await writePrivateJson('ancestry/pending-auth.json', {...data, savedAt: new Date().toISOString()});
-      throw new Error('Ancestry requires email verification. Run ancestry auth --send-code, then ancestry auth --code CODE.');
+      throw new Error('Ancestry requires email verification. Run fam ancestry auth --send-code, then fam ancestry auth --code CODE.');
     }
-    throw new Error('Ancestry returned an incomplete token response; run ancestry auth to sign in again.');
+    throw new Error('Ancestry returned an incomplete token response; run fam ancestry auth to sign in again.');
   }
   return data;
 }
@@ -54,7 +54,7 @@ export async function saveAncestrySession(http: AncestryHttp, tokens: AncestryTo
 }
 async function pendingAuth(): Promise<PendingAuth> {
   const pending = await readPrivateJson<PendingAuth>('ancestry/pending-auth.json');
-  if (!pending?.verification_token) throw new Error('No pending Ancestry verification; run ancestry auth first.');
+  if (!pending?.verification_token) throw new Error('No pending Ancestry verification; run fam ancestry auth first.');
   return pending;
 }
 export async function sendAncestryCode(): Promise<{sent: boolean; method?: string; destination?: string}> {
@@ -70,7 +70,7 @@ export async function verifyAncestryCode(code: string): Promise<AncestrySession>
   if (!/^\d{4,10}$/.test(code)) throw new Error('Enter the numeric Ancestry verification code.');
   const pending = await pendingAuth();
   const device = await readPrivateJson<{id: string}>('ancestry/device.json');
-  if (!device?.id) throw new Error('Missing Ancestry device state; run ancestry auth again.');
+  if (!device?.id) throw new Error('Missing Ancestry device state; run fam ancestry auth again.');
   const http = new AncestryHttp();
   const tokens = await tokenRequest(http, {service_provider: 'mfa_credentials', scope: '*', mfa_code: code, verification_token: pending.verification_token,
     device_name: 'Android', os_version: '16', app_name: 'Ancestry Mobile App', os: 'Android'});

@@ -4,13 +4,14 @@ import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 
 export function credentialDirectory(env: NodeJS.ProcessEnv = process.env, platform = process.platform, home = homedir()): string {
-  const override = env.FAMILYSEARCH_CONFIG_DIR;
+  const setting = env.FAM_CONFIG_DIR !== undefined ? 'FAM_CONFIG_DIR' : 'FAMILYSEARCH_CONFIG_DIR';
+  const override = env[setting];
   if (override !== undefined) {
-    if (!isAbsolute(override)) throw new Error('FAMILYSEARCH_CONFIG_DIR must be an absolute path.');
+    if (!isAbsolute(override)) throw new Error(`${setting} must be an absolute path.`);
     return resolve(override);
   }
   const base = platform === 'win32' ? env.APPDATA : env.XDG_CONFIG_HOME;
-  return join(base && isAbsolute(base) ? base : join(home, '.config'), 'familysearch');
+  return join(base && isAbsolute(base) ? base : join(home, '.config'), 'fam');
 }
 
 export const CREDENTIAL_DIR = credentialDirectory();

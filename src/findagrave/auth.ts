@@ -1,5 +1,5 @@
-import { loadLoginCredentials, type Credentials } from '../credentials.js';
-import { writePrivateJson } from '../storage.js';
+import { loadLoginCredentials, type Credentials } from '../shared/credentials.js';
+import { writePrivateJson } from '../shared/storage.js';
 import { FindagraveHttp, GRAPHQL } from './http.js';
 import { contracts } from './generated/contracts.js';
 import type { CookieJar } from 'tough-cookie';

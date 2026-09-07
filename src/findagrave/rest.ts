@@ -1,5 +1,5 @@
 import { ORIGIN } from './http.js';
-import type { ApiRequest, HttpMethod, Query } from '../transport-types.js';
+import type { ApiRequest, HttpMethod, Query } from '../familysearch/transport-types.js';
 
 export interface RestOperation {name: string; method: HttpMethod; path: string; write: boolean; source: string; query?: readonly string[]; body?: 'json' | 'form'; defaults?: Query;}
 const route = (name: string, method: HttpMethod, path: string, source: string, options: Partial<RestOperation> = {}): RestOperation =>
@@ -46,7 +46,7 @@ export const restOperations: RestOperation[] = [
 export interface RestArguments {path?: Record<string, string | number>; query?: Query; body?: unknown;}
 export function restOperation(name: string) {
   const op = restOperations.find(o => o.name === name);
-  if (!op) throw new Error(`Unknown REST operation ${name}; use findagrave ops.`);
+  if (!op) throw new Error(`Unknown REST operation ${name}; use fam findagrave ops.`);
   return op;
 }
 export function prepareRest(name: string, input: RestArguments = {}) {

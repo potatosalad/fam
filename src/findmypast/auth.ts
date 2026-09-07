@@ -1,8 +1,8 @@
-import { loadLoginCredentials, type Credentials } from '../credentials.js';
+import { loadLoginCredentials, type Credentials } from '../shared/credentials.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../storage.js';
+import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../shared/storage.js';
 import { AUTH, FindmypastHttp, FindmypastHttpError } from './http.js';
 import type { CookieJar } from 'tough-cookie';
 
@@ -27,14 +27,14 @@ export function sessionFromTokens(tokens: FindmypastTokens, previous?: Findmypas
     expiresAt: Date.now() + tokens.expires_in * 1000, savedAt: new Date().toISOString()};
 }
 export async function authenticateFindmypast(http = new FindmypastHttp()): Promise<FindmypastSession> {
-  if (await readPrivateJson('findmypast/verification-required.json')) throw new Error('Findmypast requires browser verification. Run findmypast auth --browser.');
+  if (await readPrivateJson('findmypast/verification-required.json')) throw new Error('Findmypast requires browser verification. Run fam findmypast auth --browser.');
   const credentials = await loadFindmypastCredentials();
   let data: FindmypastTokens;
   try { ({data} = await http.exchange<FindmypastTokens>(`${AUTH}/oauth/token`, {method: 'POST', body: loginBody(credentials)})); }
   catch (error) {
     if (error instanceof FindmypastHttpError && ['requires_verification', 'mfa_required', 'mfa_registration_required', 'too_many_attempts'].includes(error.code ?? '')) {
       await writePrivateJson('findmypast/verification-required.json', {code: error.code, at: new Date().toISOString()});
-      throw new Error(`Findmypast ${error.code}; complete findmypast auth --browser before another password login.`);
+      throw new Error(`Findmypast ${error.code}; complete fam findmypast auth --browser before another password login.`);
     }
     throw error;
   }
@@ -43,7 +43,7 @@ export async function authenticateFindmypast(http = new FindmypastHttp()): Promi
   return session;
 }
 export async function refreshFindmypast(session: FindmypastSession, http = new FindmypastHttp()): Promise<FindmypastSession> {
-  if (!session.tokens.refresh_token) throw new Error('No Findmypast refresh token; run findmypast auth.');
+  if (!session.tokens.refresh_token) throw new Error('No Findmypast refresh token; run fam findmypast auth.');
   const {data} = await http.exchange<FindmypastTokens>(`${AUTH}/oauth/token`, {method: 'POST',
     body: {client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: session.tokens.refresh_token}});
   return sessionFromTokens(data, session);
@@ -63,12 +63,12 @@ export async function beginBrowserAuthorization(): Promise<{url: string; instruc
   const params = new URLSearchParams({client_id: CLIENT_ID, response_type: 'code', redirect_uri: REDIRECT_URI,
     audience: AUDIENCE, scope: 'offline_access openid profile email', connection: 'account', mode: 'mobile', prompt: 'login',
     state: pending.state, code_challenge: createHash('sha256').update(pending.verifier).digest('base64url'), code_challenge_method: 'S256'});
-  return {url: `${AUTH}/authorize?${params}`, instructions: 'Complete sign-in in your browser, then save the com.findmypast.prod:// callback URL to a private file and run findmypast auth --callback-file FILE. The browser console may show the callback when no Android app is installed.'};
+  return {url: `${AUTH}/authorize?${params}`, instructions: 'Complete sign-in in your browser, then save the com.findmypast.prod:// callback URL to a private file and run fam findmypast auth --callback-file FILE. The browser console may show the callback when no Android app is installed.'};
 }
 export function validateCallback(value: string, pending: PendingAuthorization): string {
   const url = new URL(value.trim());
   if (`${url.protocol}//${url.host}${url.pathname}` !== REDIRECT_URI || url.username || url.password || url.hash) throw new Error('Invalid Findmypast callback URL.');
-  if (Date.now() - pending.createdAt > 30 * 60_000) throw new Error('Browser authorization expired; start findmypast auth --browser again.');
+  if (Date.now() - pending.createdAt > 30 * 60_000) throw new Error('Browser authorization expired; start fam findmypast auth --browser again.');
   const state = Buffer.from(url.searchParams.get('state') ?? ''), expected = Buffer.from(pending.state);
   if (state.length !== expected.length || !timingSafeEqual(state, expected)) throw new Error('Findmypast callback state mismatch.');
   if (url.searchParams.has('error')) throw new Error('Browser authorization was declined or failed.');
@@ -78,7 +78,7 @@ export function validateCallback(value: string, pending: PendingAuthorization): 
 }
 export async function finishBrowserAuthorization(callback: string, http = new FindmypastHttp()) {
   const pending = await readPrivateJson<PendingAuthorization>('findmypast/pending-auth.json');
-  if (!pending) throw new Error('Start findmypast auth --browser first.');
+  if (!pending) throw new Error('Start fam findmypast auth --browser first.');
   const code = validateCallback(callback, pending);
   const {data} = await http.exchange<FindmypastTokens>(`${AUTH}/oauth/token`, {method: 'POST', body: {
     client_id: CLIENT_ID, grant_type: 'authorization_code', code, code_verifier: pending.verifier, redirect_uri: REDIRECT_URI,

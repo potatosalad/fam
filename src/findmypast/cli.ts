@@ -1,20 +1,20 @@
-import { configureCredentials } from '../credentials.js';
+import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
 import { readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises';
 import { dirname, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { parseJson, stringifyJson } from '../json.js';
-import { CREDENTIAL_DIR, readPrivateJson } from '../storage.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
+import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { authenticateFindmypast, beginBrowserAuthorization, finishBrowserAuthorization, sessionStatus, type SavedFindmypastSession } from './auth.js';
 import { importFindmypastHar } from './har.js';
 import { FindmypastClient, searchFilters, type SearchFilter } from './client.js';
 import { aliases, contracts, graphqlOperation, restOperation, type RestArguments } from './catalog.js';
 import { downloadRecordImage, newspaperVariables, recordOrder, searchNewspapers } from './research.js';
 
-const help = `Usage: findmypast COMMAND [arguments] [options]
+const help = `Usage: fam findmypast COMMAND [arguments] [options]
 
 Account
-  credentials [--stdin]        Save login details (hidden prompt, environment, or JSON stdin)
+  credentials [--stdin]        Save login details (helper, environment, hidden prompt, or JSON stdin)
   auth                         Native password sign-in; never retried automatically
   auth --browser               Start the app's browser verification flow (PKCE)
   auth --callback-file FILE     Exchange the completed browser callback URL
@@ -68,7 +68,7 @@ Options
   --page N                     Record-search page number (default 1)
   --help                       Show this help
 
-Credentials: FINDMYPAST_USERNAME + FINDMYPAST_PASSWORD. Run status to see storage.
+Credentials: FINDMYPAST_USERNAME + FINDMYPAST_PASSWORD. Run status to see storage. Credential helpers: fam --help.
 JSON_OR_FILE accepts an inline object, a filename, or - for stdin. Keep IDs as strings.
 Catalog mutations run when selected; GetTranscriptById has confirmedPurchase:true.
 Use record for a transcript read without confirming a purchase.
@@ -102,13 +102,13 @@ async function main() {
   }});
   const [command = 'help', first, second] = positionals;
   if (command === 'help' || values.help) { console.log(help); return; }
-  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to findmypast credentials.');
+  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam findmypast credentials.');
   const arity: Record<string, [number, number]> = {credentials: [0,0], auth: [0,0], status: [0,0], refresh: [0,0], me: [0,0], subscription: [0,0], trees: [0,0],
     tree: [1,1], people: [1,1], person: [2,2], relatives: [2,2], facts: [1,1], hints: [2,2], media: [1,1], search: [0,0],
     collections: [0,1], collection: [1,1], entitlement: [1,1], record: [1,1], image: [1,1], download: [1,1], newspapers: [0,0], 'newspaper-manifest': [1,1],
     ops: [0,1], models: [0,1], schema: [1,1], gql: [1,2], query: [1,2], call: [1,2], get: [1,1]};
   const expected = arity[command];
-  if (!expected) throw new Error(`Unknown command ${command}; see findmypast --help.`);
+  if (!expected) throw new Error(`Unknown command ${command}; see fam findmypast --help.`);
   if (positionals.length - 1 < expected[0] || positionals.length - 1 > expected[1]) throw new Error(`Invalid arguments for findmypast ${command}; see --help.`);
   if (command !== 'auth' && (values.browser || values['callback-file'] || values.har)) throw new Error('Browser authorization options belong to auth.');
   if ([values.browser, values['callback-file'], values.har].filter(Boolean).length > 1) throw new Error('Use --browser, --callback-file, or --har, one at a time.');
@@ -130,7 +130,7 @@ async function main() {
   if (command === 'status') result = {credentialDirectory: CREDENTIAL_DIR, ...sessionStatus(await readPrivateJson<SavedFindmypastSession>('findmypast/session.json')),
     browserAuthorizationPending: Boolean(await readPrivateJson('findmypast/pending-auth.json')),
     nativeVerificationRequired: Boolean(await readPrivateJson('findmypast/verification-required.json'))};
-  else if (command === 'credentials') { await configureCredentials('findmypast', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'findmypast auth'}; }
+  else if (command === 'credentials') { await configureCredentials('findmypast', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam findmypast auth'}; }
   else if (command === 'auth') {
     result = values.har ? sessionStatus(await importFindmypastHar(values.har)) : values.browser ? await beginBrowserAuthorization() : sessionStatus(values['callback-file'] ?
       await finishBrowserAuthorization(await readFile(values['callback-file'], 'utf8')) : await authenticateFindmypast());

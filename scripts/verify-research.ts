@@ -85,11 +85,11 @@ if (values.cli) {
   // from outside the checkout. Never include its raw research output in the report.
   const exec = promisify(execFile);
   async function command(args: string[]) {
-    return await exec(process.execPath, [fileURLToPath(new URL('../bin/familysearch.mjs', import.meta.url)), ...args], { cwd: directory, maxBuffer: 4 * 1024 * 1024 });
+    return await exec(process.execPath, [fileURLToPath(new URL('../bin/fam.mjs', import.meta.url)), 'familysearch', ...args], { cwd: directory, maxBuffer: 4 * 1024 * 1024 });
   }
   const help = (await command(['--help'])).stdout;
-  assert.ok(help.includes('familysearch image download'));
-  assert.ok(!help.includes('npm run fs --'));
+  assert.ok(help.includes('fam familysearch image download'));
+  assert.ok(!help.includes('npm run fam -- familysearch'));
   const example = JSON.parse((await command(['schema', 'sources.recordDetails', '--example'])).stdout);
   assert.equal(typeof example.query.recordUrl, 'string');
   passed('installed CLI help and nested schema example');

@@ -1,5 +1,5 @@
 import {WEB, type MyHeritageHttp} from './http.js';
-import type {Query} from '../transport-types.js';
+import type {Query} from '../familysearch/transport-types.js';
 import type {MyHeritageSession} from './auth.js';
 import {individualWithHints} from './web-queries.js';
 
@@ -29,7 +29,7 @@ export function pageValue(html: string, name: string): unknown {
 export function parseTreePage(html: string): TreePage {
   const get = (key: string) => pageValue(html, key);
   if (get('isLoggedIn') !== true || typeof get('currentUserAccountID') !== 'string') {
-    throw new Error('MyHeritage browser session expired or this is not a signed-in tree page. Import a fresh HAR with myheritage auth --har FILE.');
+    throw new Error('MyHeritage browser session expired or this is not a signed-in tree page. Import a fresh HAR with fam myheritage auth --har FILE.');
   }
   const media = get('mediaUploaderData') as {fgToken?: string} | undefined;
   const trees = get('treeSelectionMenuEntries');

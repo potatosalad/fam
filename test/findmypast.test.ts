@@ -9,9 +9,9 @@ import { FindmypastHttp, FindmypastHttpError, checkFindmypastUrl, GRAPHQL, AUTH,
 import { FindmypastClient, FindmypastGraphQLError, searchFilters } from '../src/findmypast/client.js';
 import { contracts, graphqlOperation, validateDocument, prepareRest } from '../src/findmypast/catalog.js';
 import { CLIENT_ID, AUDIENCE, REDIRECT_URI, authenticateFindmypast, loadFindmypastCredentials, loginBody, sessionFromTokens, validateCallback, type FindmypastSession } from '../src/findmypast/auth.js';
-import type { ApiRequest } from '../src/transport-types.js';
+import type { ApiRequest } from '../src/familysearch/transport-types.js';
 import { browserSessionFromHar, importFindmypastHar } from '../src/findmypast/har.js';
-import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/storage.js';
+import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/shared/storage.js';
 import { CookieJar } from 'tough-cookie';
 import sharp from 'sharp';
 import { downloadRecordImage, newspaperVariables, recordOrder } from '../src/findmypast/research.js';

@@ -7,7 +7,7 @@ import {WEB, MyHeritageHttpError, type MyHeritageHttp} from './http.js';
 import type {MyHeritageSession} from './auth.js';
 import {pageJson} from './page-data.js';
 import {parseRecordPage, recordUrl, MyHeritageResearchVerificationError} from './research.js';
-import {stringifyJson} from '../json.js';
+import {stringifyJson} from '../shared/json.js';
 
 export interface DocumentPage {page: number; name: string; originalUrl: string; previewUrl?: string; records: unknown[];}
 export interface DocumentManifest {recordId: string; recordUrl: string; title: string; pageCount: number; initialPage: number; pages: DocumentPage[]; embeddedText?: string; transcriptionAvailable: boolean; relatedDocuments: {key: string; pageCount: number}[];}
@@ -23,7 +23,7 @@ export function parseDocumentPage(html: string, url: string, relatedKey?: string
   const record = parseRecordPage(html, url);
   const initial = pageJson<Record<string, any>>(html, 'documentViewerOptions');
   if (!initial) throw new Error('No document viewer is available for this record with the saved session.');
-  if (relatedKey && !initial.relatedRecords?.[relatedKey]) throw new Error('Unknown related document key; see myheritage document URL.');
+  if (relatedKey && !initial.relatedRecords?.[relatedKey]) throw new Error('Unknown related document key; see fam myheritage document URL.');
   const viewer = relatedKey ? {...initial,...initial.relatedRecords[relatedKey]} : initial;
   const source = viewer.sources, links: unknown[] = Array.isArray(source) ? source : source?.links ?? [];
   if (!Array.isArray(links) || !links.length) throw new Error('This record has no accessible document pages.');

@@ -2,14 +2,20 @@
 
 Use Node.js 22.16 or newer, npm, and Python 3. Run `npm ci` to install dependencies and build the commands.
 
+## Source layout
+
+`src/cli.ts` contains only the `fam` dispatcher and top-level help. Each service owns its client, authentication, CLI, and generated contracts under `src/familysearch/`, `src/ancestry/`, `src/myheritage/`, `src/findmypast/`, or `src/findagrave/`.
+
+`src/shared/` contains credential lookup, private storage, and lossless JSON utilities used across providers. `src/index.ts` preserves the root library export; FamilySearch is also available through `@potatosalad/fam/familysearch`, alongside the other provider subpaths. Builds clear old output before compiling so renamed modules do not remain in installed packages.
+
 ## Run from source
 
 ```sh
-npm run fs -- --help
-npm run ancestry -- --help
-npm run myheritage -- --help
-npm run findmypast -- --help
-npm run findagrave -- --help
+npm run fam -- familysearch --help
+npm run fam -- ancestry --help
+npm run fam -- myheritage --help
+npm run fam -- findmypast --help
+npm run fam -- findagrave --help
 ```
 
 These commands use the public checkout. They do not call a globally installed CLI.

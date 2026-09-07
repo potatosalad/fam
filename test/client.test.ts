@@ -4,10 +4,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { stat, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Impit } from 'impit';
-import { apiUrl, FamilySearchClient } from '../src/client.js';
-import { CHURCH_CLIENT_ID, createAuthorization, extractStateToken, parseCallback, REDIRECT_URI, validateTokens } from '../src/auth.js';
-import { checkOrigin, HttpError, HttpSession } from '../src/http.js';
-import { CREDENTIAL_DIR, writePrivateJson } from '../src/storage.js';
+import { apiUrl, FamilySearchClient } from '../src/familysearch/client.js';
+import { CHURCH_CLIENT_ID, createAuthorization, extractStateToken, parseCallback, REDIRECT_URI, validateTokens } from '../src/familysearch/auth.js';
+import { checkOrigin, HttpError, HttpSession } from '../src/familysearch/http.js';
+import { CREDENTIAL_DIR, writePrivateJson } from '../src/shared/storage.js';
 
 test('OAuth requests use unique state and a correct S256 challenge', () => {
   const a = createAuthorization();

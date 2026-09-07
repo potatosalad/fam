@@ -1,4 +1,4 @@
-import { configureCredentials } from '../credentials.js';
+import { configureCredentials } from '../shared/credentials.js';
 import {buildRecordSearch, recordUrl, contextId, researchPage, type RecordSearchOptions, type CatalogOptions, type ResearchEvent} from './research.js';
 import {parse} from 'graphql';
 import {transferMyHeritage} from './http.js';
@@ -6,18 +6,18 @@ import { parseArgs } from 'node:util';
 import { readFile, writeFile, rename, rm, mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { dirname, basename } from 'node:path';
-import { parseJson, stringifyJson } from '../json.js';
-import { CREDENTIAL_DIR, readPrivateJson } from '../storage.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
+import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { MyHeritageClient } from './client.js';
 import { authenticateMyHeritage, importMyHeritageHar, type MyHeritageSession } from './auth.js';
 import { aliases, contracts, graphqlOperation, restOperation, prepareRest, validateVariables, type RestArguments } from './catalog.js';
-const help = `Usage: myheritage COMMAND [arguments] [options]
+const help = `Usage: fam myheritage COMMAND [arguments] [options]
 
 Account
-  auth                         Native login using environment or saved credentials
+  auth                         Native login using configured or saved credentials
   auth --har FILE              Import your own successful browser API session from HAR
   auth --code CODE              Native MFA; --verification-code CODE for verification
-  credentials [--stdin]        Save login details (hidden prompt, environment, or JSON stdin)
+  credentials [--stdin]        Save login details (helper, environment, hidden prompt, or JSON stdin)
   status                       Show saved session metadata without secrets
   refresh                      Renew the saved API token
 
@@ -91,8 +91,8 @@ facts, media (person), insights, matches (counts), and all historical record res
 The remaining APK catalog operations need native auth.
 Browser sites covers the captured site; people lists its visible tree neighborhood.
 
-Set FAMILYSEARCH_CONFIG_DIR to override the user config directory (absolute path).
-Credentials: MYHERITAGE_USERNAME + MYHERITAGE_PASSWORD. Run status to see storage.
+Set FAM_CONFIG_DIR to override the user config directory (absolute path).
+Credentials: MYHERITAGE_USERNAME + MYHERITAGE_PASSWORD. Run status to see storage. Credential helpers: fam --help.
 JSON_OR_FILE accepts inline JSON, a filename, or - for stdin. Keep IDs as strings.
 Multipart call input: {parts:{data:{value:"JSON"},file:{file:"photo.jpg",type:"image/jpeg"}}}.
 Writes run when you select a mutation or write operation. API access follows your account rights.
@@ -127,24 +127,24 @@ async function main() {
   }});
   const [command = 'help', first, second] = positionals;
   if (command === 'help' || values.help) {console.log(help); return;}
-  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to myheritage credentials.');
+  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam myheritage credentials.');
   const arity: Record<string, number> = {auth: 0, status: 0, credentials: 0, refresh: 0, me: 0, sites: 0, catalog: 0,
     search: 1, record: 1, collection: 1, 'search-fields': 1, document: 1, 'download-document': 1, insights: 1, trees: 1, tree: 1, people: 1, person: 1, family: 1, events: 1, timeline: 1, facts: 1, matches: 1, records: 1,
     media: 1, albums: 1, consistency: 1, collections: 1, get: 1, find: 2, gql: 2, call: 2, query: 2, ops: 1, schema: 1, models: 1};
-  if (!(command in arity)) throw new Error(`Unknown command ${command}; see myheritage --help.`);
+  if (!(command in arity)) throw new Error(`Unknown command ${command}; see fam myheritage --help.`);
   if (positionals.length - 1 > arity[command]!) throw new Error(`Too many arguments for myheritage ${command}.`);
-  if (command !== 'auth' && (values.har || values.code || values['verification-code'] || values['recaptcha-token-file'])) throw new Error('Authentication flags belong to myheritage auth.');
-  const need = (v: string | undefined, label: string) => {if (!v) throw new Error(`Missing ${label}; see myheritage --help.`); return v;};
+  if (command !== 'auth' && (values.har || values.code || values['verification-code'] || values['recaptcha-token-file'])) throw new Error('Authentication flags belong to fam myheritage auth.');
+  const need = (v: string | undefined, label: string) => {if (!v) throw new Error(`Missing ${label}; see fam myheritage --help.`); return v;};
   if (arity[command] && !['ops', 'models', 'search'].includes(command)) need(first, 'argument');
   if (command === 'find') need(second, 'name');
   const integer = (v: string | undefined, fallback: number, min: number) => {const n = v === undefined ? fallback : Number(v); if (!Number.isSafeInteger(n) || n < min) throw new Error(`Expected an integer >= ${min}.`); return n;};
   const limit = integer(values.limit, 20, 1), offset = integer(values.offset, 0, 0);
   const searchFlags = ['first-name','last-name','birth-year','birth-place','death-year','death-place','place','keyword','exact','collection','record-type','after','gender','first-name-match','last-name-match','no-translations','field','residence-year','residence-place','marriage-year','marriage-place','birth-year-range','death-year-range','residence-year-range','marriage-year-range'];
   const flags = values as Record<string, unknown>;
-  if (command !== 'search' && searchFlags.some(k => flags[k] !== undefined)) throw new Error('Record-search flags belong to myheritage search.');
+  if (command !== 'search' && searchFlags.some(k => flags[k] !== undefined)) throw new Error('Record-search flags belong to fam myheritage search.');
   if (!['search','catalog','collections'].includes(command) && values.category) throw new Error('--category belongs to search, catalog or collections.');
   if (!['catalog','collections'].includes(command) && ['location','years','images'].some(k => flags[k] !== undefined)) throw new Error('Catalog filters belong to catalog or collections.');
-  if (values.related && command !== 'record') throw new Error('--related belongs to myheritage record.');
+  if (values.related && command !== 'record') throw new Error('--related belongs to fam myheritage record.');
   if (['search','record','catalog','collections','collection','search-fields'].includes(command) && (values.query || values['match-status'])) throw new Error('--query and --match-status are not research filters; use the documented search JSON or flags.');
   const documentCommands = ['document','download-document'];
   if (values.page !== undefined && command !== 'download-document') throw new Error('--page belongs to download-document.');
@@ -193,7 +193,7 @@ async function main() {
     const s = await readPrivateJson<MyHeritageSession>('myheritage/session.json');
     result = {credentialDirectory: CREDENTIAL_DIR, authenticated: !!s?.accessToken, mode: s?.mode ?? 'native', savedAt: s?.savedAt,
       verificationPending: !!await readPrivateJson('myheritage/pending-auth.json'), blockedUntil: (await readPrivateJson<{blockedUntil?: string}>('myheritage/login-block.json'))?.blockedUntil};
-  } else if (command === 'credentials') {await configureCredentials('myheritage', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'myheritage auth'};}
+  } else if (command === 'credentials') {await configureCredentials('myheritage', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam myheritage auth'};}
   else if (command === 'auth') {
     if (values.har && (values.code || values['verification-code'] || values['recaptcha-token-file'])) throw new Error('HAR import and native login flags cannot be combined.');
     const session = values.har ? await importMyHeritageHar(await readFile(values.har, 'utf8')) : await authenticateMyHeritage({code: values.code,

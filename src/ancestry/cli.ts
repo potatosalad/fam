@@ -1,21 +1,21 @@
-import { configureCredentials } from '../credentials.js';
+import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
 import { readFile, writeFile, rename, rm, mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { dirname } from 'node:path';
-import { parseJson, stringifyJson } from '../json.js';
-import { CREDENTIAL_DIR, readPrivateJson } from '../storage.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
+import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { AncestryClient } from './client.js';
 import { authenticateAncestry, sendAncestryCode, verifyAncestryCode, type AncestrySession } from './auth.js';
 import { aliases, contracts, graphqlOperation, restOperation, type GraphQLName, type RestArguments } from './catalog.js';
 
-const help = `Usage: ancestry COMMAND [arguments] [options]
+const help = `Usage: fam ancestry COMMAND [arguments] [options]
 
 Account
-  auth                         Sign in using environment or saved credentials
+  auth                         Sign in using configured or saved credentials
   auth --send-code              Send the pending email verification code
   auth --code CODE              Finish verification and save tokens
-  credentials [--stdin]        Save login details (hidden prompt, environment, or JSON stdin)
+  credentials [--stdin]        Save login details (helper, environment, hidden prompt, or JSON stdin)
   status                       Show saved session metadata without tokens
   refresh                      Refresh and persist the session
 
@@ -53,8 +53,8 @@ Options
   --base URL                   Base for REST declarations without a confirmed mapping
   --help                       Show this help
 
-Set FAMILYSEARCH_CONFIG_DIR to override the user config directory (absolute path).
-Credentials: ANCESTRY_USERNAME + ANCESTRY_PASSWORD. Run status to see storage.
+Set FAM_CONFIG_DIR to override the user config directory (absolute path).
+Credentials: ANCESTRY_USERNAME + ANCESTRY_PASSWORD. Run status to see storage. Credential helpers: fam --help.
 JSON_OR_FILE accepts inline JSON, a filename, or - for stdin. IDs should be strings.
 Pagination is explicit; responses contain the service's next-page information.
 Mutations/writes run only when you explicitly select them. See docs/ancestry/README.md.
@@ -79,13 +79,13 @@ async function main() {
   }});
   const [command = 'help', first, second] = positionals;
   if (command === 'help' || values.help) { console.log(help); return; }
-  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to ancestry credentials.');
+  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam ancestry credentials.');
   const arity: Record<string, number> = {status: 0, credentials: 0, auth: 0, refresh: 0, trees: 0, search: 0, ops: 1, schema: 1,
     tree: 1, persons: 1, person: 2, relatives: 2, research: 2, story: 2, hints: 2, media: 2, citations: 1, sources: 1,
     record: 2, places: 1, gql: 2, call: 2, get: 1};
   if (arity[command] !== undefined && positionals.length - 1 > arity[command]!) throw new Error(`Too many arguments for ancestry ${command}.`);
-  if (command !== 'auth' && (values.code || values['send-code'])) throw new Error('Verification options belong to ancestry auth.');
-  const need = (value: string | undefined, label: string): string => { if (!value) throw new Error(`Missing ${label}. See ancestry --help.`); return value; };
+  if (command !== 'auth' && (values.code || values['send-code'])) throw new Error('Verification options belong to fam ancestry auth.');
+  const need = (value: string | undefined, label: string): string => { if (!value) throw new Error(`Missing ${label}. See fam ancestry --help.`); return value; };
   const integer = (value: string | undefined, fallback: number): number => { const n = value === undefined ? fallback : Number(value); if (!Number.isSafeInteger(n) || n < 1) throw new Error('Expected a positive integer.'); return n; };
   const limit = integer(values.limit, 20), page = integer(values.page, 1);
   let result: unknown;
@@ -94,7 +94,7 @@ async function main() {
     result = {credentialDirectory: CREDENTIAL_DIR, authenticated: Boolean(session?.tokens?.user_id && session.tokens.access_token), savedAt: session?.savedAt,
       expiresAt: session?.expiresAt ? new Date(session.expiresAt).toISOString() : null,
       verificationPending: Boolean(await readPrivateJson('ancestry/pending-auth.json'))};
-  } else if (command === 'credentials') { await configureCredentials('ancestry', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'ancestry auth'}; }
+  } else if (command === 'credentials') { await configureCredentials('ancestry', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam ancestry auth'}; }
   else if (command === 'auth') {
     if (values['send-code'] && values.code) throw new Error('Use --send-code or --code, one at a time.');
     if (values['send-code']) result = await sendAncestryCode();
@@ -111,7 +111,7 @@ async function main() {
     result = contracts.graphql.some(op => op.name === name || op.id === name) ? graphqlOperation(name) : restOperation(name);
   } else {
     const known = ['refresh', 'trees', 'tree', 'persons', 'person', 'relatives', 'research', 'story', 'hints', 'media', 'citations', 'sources', 'record', 'search', 'places', 'gql', 'call', 'get'];
-    if (!known.includes(command)) throw new Error(`Unknown command ${command}. See ancestry --help.`);
+    if (!known.includes(command)) throw new Error(`Unknown command ${command}. See fam ancestry --help.`);
     if (!['refresh', 'trees', 'search'].includes(command)) need(first, command === 'call' || command === 'gql' ? 'operation' : 'argument');
     if (['person', 'relatives', 'research', 'story', 'hints', 'media'].includes(command)) need(second, 'person ID');
     if (command === 'record') need(second, 'record ID');

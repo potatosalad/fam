@@ -1,6 +1,6 @@
-import { writePrivateJson } from '../src/storage.js';
+import { writePrivateJson } from '../src/shared/storage.js';
 /** Read-only smoke checks. Requires an existing session; never attempts password login. */
-import {readPrivateJson} from '../src/storage.js';
+import {readPrivateJson} from '../src/shared/storage.js';
 import {MyHeritageClient} from '../src/myheritage/client.js';
 import type {MyHeritageSession} from '../src/myheritage/auth.js';
 

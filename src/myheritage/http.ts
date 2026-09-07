@@ -1,7 +1,7 @@
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
-import { parseJson, stringifyJson } from '../json.js';
-import type { ApiRequest, ApiResponse, UploadBody } from '../transport-types.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
+import type { ApiRequest, ApiResponse, UploadBody } from '../familysearch/transport-types.js';
 
 export const FAMILYGRAPH = 'https://familygraph.myheritage.com';
 export const GRAPHQL = 'https://familygraphql.myheritage.com';

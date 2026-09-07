@@ -1,6 +1,6 @@
 import { Impit, type ImpitResponse } from 'impit';
 import { FS_ORIGIN, HttpError, type HttpSession } from './http.js';
-import { parseJson, stringifyJson } from './json.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
 
 export type ResearchErrorCode = 'access-denied' | 'security-challenge' | 'not-found' | 'throttled' | 'temporary-failure' | 'unexpected-content' | 'schema-change' | 'pagination';
 export class ResearchError extends Error {

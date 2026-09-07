@@ -1,7 +1,7 @@
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
-import { parseJson, stringifyJson } from '../json.js';
-import type { ApiRequest, ApiResponse, UploadBody } from '../transport-types.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
+import type { ApiRequest, ApiResponse, UploadBody } from '../familysearch/transport-types.js';
 
 export const ORIGIN = 'https://www.findagrave.com';
 export const GRAPHQL = `${ORIGIN}/orc/graphql`;
@@ -16,7 +16,7 @@ export function checkUrl(url: URL) {
 }
 export class FindagraveHttpError extends Error {
   constructor(readonly status: number, readonly path: string, readonly retryAfter?: string) {
-    super(`Find a Grave HTTP ${status} from ${path}${status === 401 ? '; run findagrave auth.' : ''}`);
+    super(`Find a Grave HTTP ${status} from ${path}${status === 401 ? '; run fam findagrave auth.' : ''}`);
     this.name = 'FindagraveHttpError';
   }
 }

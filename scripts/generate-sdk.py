@@ -32,7 +32,7 @@ for key, model in c['models'].items():
     for name, f in model['fields'].items():
         model_lines += [f'  {json.dumps(name)}{"" if f["required"] else "?"}: {ts(f["type"])}{" | null" if f["nullable"] else ""};']
     model_lines += ['}\n']
-outputs['src/generated/models.ts'] = '\n'.join(model_lines)
+outputs['src/familysearch/generated/models.ts'] = '\n'.join(model_lines)
 
 lines = [header, "import type * as M from './models.js';", "import type { UploadBody } from '../transport-types.js';", 'export interface OperationTypes {']
 for op in c['operations']:
@@ -54,15 +54,15 @@ lines += ['}', 'export type OperationName = keyof OperationTypes;',
           'export type OperationArgs<K extends OperationName> = {} extends OperationInput<K> ? [input?: OperationInput<K>] : [input: OperationInput<K>];',
           "type Group = OperationName extends `${infer G}.${string}` ? G : never;",
           'export type GenealogyApi = { [G in Group]: { [K in OperationName as K extends `${G}.${infer Method}` ? Method : never]: (...args: OperationArgs<K>) => Promise<OperationOutput<K>> } };\n']
-outputs['src/generated/operations.ts'] = '\n'.join(lines)
+outputs['src/familysearch/generated/operations.ts'] = '\n'.join(lines)
 
 runtime = {'operations': {o['name']: {k:v for k,v in o.items() if k!='evidence'} for o in c['operations']},
            'models': {k:v['fields'] for k,v in c['models'].items()}}
-outputs['src/generated/schema.ts'] = header + "import type { ContractData } from '../contract-types.js';\nexport const contracts: ContractData = " + json.dumps(runtime, separators=(',',':')) + ';\n'
+outputs['src/familysearch/generated/schema.ts'] = header + "import type { ContractData } from '../contract-types.js';\nexport const contracts: ContractData = " + json.dumps(runtime, separators=(',',':')) + ';\n'
 
 doc = ['# Genealogy operation reference', '', 'Generated from APK 5.4.4 contracts. Use `client.genealogy.<group>.<method>(input)` or `client.operation(name, input)`.',
        '', 'Path values and `body` are top-level input properties. Optional query/header values go inside `query` / `headers`. Their omission is supported by Retrofit; server requirements may be stricter. All path values are accepted unescaped and encoded once by this client.',
-       '', 'A model’s required fields reflect the APK decoder. Optional non-null fields can be absent because the app has a default. Server-side create/update requirements can differ. Unknown response fields are preserved. See [contracts.json](contracts.json) for every nested field, nullability, and source provenance, and [generated types](../src/generated/models.ts) for TypeScript.',
+       '', 'A model’s required fields reflect the APK decoder. Optional non-null fields can be absent because the app has a default. Server-side create/update requirements can differ. Unknown response fields are preserved. See [contracts.json](contracts.json) for every nested field, nullability, and source provenance, and [generated types](../src/familysearch/generated/models.ts) for TypeScript.',
        '', 'Use `client.operationDetailed()` for status, headers, and binary downloads. Response bodies for `void` operations are drained and discarded. `JsonValue` means the APK itself declares an unstructured acknowledgement.', '']
 for group in sorted({o['name'].split('.')[0] for o in c['operations']}):
     doc += [f'## {group}', '', '| Operation | HTTP path | Inputs | Response |', '| --- | --- | --- | --- |']

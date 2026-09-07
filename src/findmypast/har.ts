@@ -1,6 +1,6 @@
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CREDENTIAL_DIR } from '../storage.js';
+import { CREDENTIAL_DIR } from '../shared/storage.js';
 import { CookieJar } from 'tough-cookie';
 import { FindmypastClient } from './client.js';
 import { saveFindmypastSession, type FindmypastBrowserSession } from './auth.js';

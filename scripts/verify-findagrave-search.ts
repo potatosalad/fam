@@ -1,7 +1,7 @@
 /** Bounded public searches; no account data or response bodies are saved. */
 import assert from 'node:assert/strict';
 import {parseArgs} from 'node:util';
-import {writePrivateJson} from '../src/storage.js';
+import {writePrivateJson} from '../src/shared/storage.js';
 import {FindagraveClient} from '../src/findagrave/client.js';
 import {searchInput, type SearchOptions} from '../src/findagrave/research.js';
 

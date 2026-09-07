@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../storage.js';
+import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../shared/storage.js';
 import { loadMyHeritageCredentials } from './credentials.js';
 import { MyHeritageHttp, FAMILYGRAPH, WEB } from './http.js';
 
@@ -66,7 +66,7 @@ export async function authenticateMyHeritage(options: {code?: string; verificati
   if (response.resultCode !== 0) {
     await writePrivateJson('myheritage/pending-auth.json', {resultCode: response.resultCode, description: response.description,
       method: response.tfaMethod, phoneLast4Digits: response.tfaPhoneLast4Digits, savedAt: new Date().toISOString()});
-    throw new Error(`MyHeritage sign-in needs attention (code ${response.resultCode}${response.tfaMethod ? `, method ${response.tfaMethod}` : ''}).${response.tfaMethod ? ' Run myheritage auth --code CODE to complete MFA.' : response.resultCode === -1003 ? ' reCAPTCHA is required. Complete normal browser sign-in when permitted, then use myheritage auth --har FILE. Do not retry during a temporary access block.' : ''}`);
+    throw new Error(`MyHeritage sign-in needs attention (code ${response.resultCode}${response.tfaMethod ? `, method ${response.tfaMethod}` : ''}).${response.tfaMethod ? ' Run fam myheritage auth --code CODE to complete MFA.' : response.resultCode === -1003 ? ' reCAPTCHA is required. Complete normal browser sign-in when permitted, then use fam myheritage auth --har FILE. Do not retry during a temporary access block.' : ''}`);
   }
   if (!response.accessToken || !response.accountId) throw new Error('MyHeritage sign-in returned incomplete credentials.');
   return saveMyHeritageSession(http, {accessToken: response.accessToken, accountId: response.accountId, userId: response.userId, data12p: response.data12p, deviceId});
@@ -77,7 +77,7 @@ export async function refreshMyHeritage(http: MyHeritageHttp, session: MyHeritag
     method: 'POST', headers: {Authorization: `Bearer ${session.accessToken}`, Accept: 'application/xml', 'Content-Type': 'application/x-www-form-urlencoded'},
     encoding: 'raw', body: new URLSearchParams(deviceFields(session.deviceId)).toString(), response: 'text',
   })).data);
-  if (response.resultCode !== 0 || !response.accessToken) throw new Error(`MyHeritage session refresh failed (code ${response.resultCode}); run myheritage auth.`);
+  if (response.resultCode !== 0 || !response.accessToken) throw new Error(`MyHeritage session refresh failed (code ${response.resultCode}); run fam myheritage auth.`);
   return saveMyHeritageSession(http, {...session, accessToken: response.accessToken, accountId: response.accountId ?? session.accountId,
     userId: response.userId ?? session.userId, data12p: response.data12p ?? session.data12p});
 }

@@ -1,9 +1,9 @@
-import { writePrivateJson } from '../src/storage.js';
+import { writePrivateJson } from '../src/shared/storage.js';
 /** Uses the saved session and a public historical example; never logs in or edits genealogy data. */
 import assert from 'node:assert/strict';
 import {MyHeritageResearchVerificationError} from '../src/myheritage/research.js';
 import {MyHeritageClient} from '../src/myheritage/client.js';
-import {readPrivateJson} from '../src/storage.js';
+import {readPrivateJson} from '../src/shared/storage.js';
 import type {MyHeritageSession} from '../src/myheritage/auth.js';
 
 async function main() {

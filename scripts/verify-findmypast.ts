@@ -1,6 +1,6 @@
 /** Account-dependent reads; never attempts password login or confirms purchases. */
 import assert from 'node:assert/strict';
-import { writePrivateJson } from '../src/storage.js';
+import { writePrivateJson } from '../src/shared/storage.js';
 import { FindmypastClient, searchFilters } from '../src/findmypast/client.js';
 import { FindmypastHttpError } from '../src/findmypast/http.js';
 import { downloadRecordImage, recordOrder, searchNewspapers } from '../src/findmypast/research.js';

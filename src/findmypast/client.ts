@@ -1,5 +1,5 @@
-import { readPrivateJson } from '../storage.js';
-import type { ApiRequest, ApiResponse } from '../transport-types.js';
+import { readPrivateJson } from '../shared/storage.js';
+import type { ApiRequest, ApiResponse } from '../familysearch/transport-types.js';
 import { AUTH, CONTENT, GRAPHQL, TITAN, FindmypastHttp, FindmypastHttpError, checkFindmypastUrl } from './http.js';
 import { refreshFindmypast, saveFindmypastSession, sessionStatus, isBrowserSession, type SavedFindmypastSession, type FindmypastSession } from './auth.js';
 import { graphqlOperation, prepareRest, validateDocument, type RestArguments } from './catalog.js';
@@ -14,13 +14,13 @@ export class FindmypastClient {
   static async open(anonymous = false): Promise<FindmypastClient> {
     if (anonymous) return new FindmypastClient();
     const session = await readPrivateJson<SavedFindmypastSession>('findmypast/session.json');
-    if (!session || !isBrowserSession(session) && !session.tokens.access_token) throw new Error('No Findmypast session; run findmypast auth.');
+    if (!session || !isBrowserSession(session) && !session.tokens.access_token) throw new Error('No Findmypast session; run fam findmypast auth.');
     return new FindmypastClient(session);
   }
   status() { return sessionStatus(this.session); }
   async refresh(): Promise<void> {
     if (this.refreshing) return this.refreshing;
-    if (!this.session) throw new Error('No Findmypast session; run findmypast auth.');
+    if (!this.session) throw new Error('No Findmypast session; run fam findmypast auth.');
     if (isBrowserSession(this.session)) {
       const profile = await this.graphql<{currentUserProfile?: {id?: string}}>('GetCurrentUserProfile');
       if (!profile.currentUserProfile?.id) throw new Error('Browser session expired; import a fresh HAR.');
@@ -41,7 +41,7 @@ export class FindmypastClient {
   }
   async request<T = unknown>(path: string, options: ApiRequest = {}, anonymous = false): Promise<ApiResponse<T>> {
     const url = new URL(path.startsWith('/') ? `${TITAN}${path}` : path); checkFindmypastUrl(url);
-    if (url.origin === AUTH) throw new Error('Auth routes are managed by findmypast auth/refresh.');
+    if (url.origin === AUTH) throw new Error('Auth routes are managed by fam findmypast auth/refresh.');
     const browser = isBrowserSession(this.session) ? this.session : undefined;
     if (browser && url.pathname.startsWith('/titan/marshal/')) {
       if (!['https://www.findmypast.co.uk/titan/marshal', 'https://www.findmypast.com/titan/marshal'].includes(browser.apiBase)) throw new Error('Invalid browser API base.');

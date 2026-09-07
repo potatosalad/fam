@@ -9,12 +9,12 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { Impit } from 'impit';
-import { FamilySearchClient } from '../src/client.js';
-import { CHURCH_CLIENT_ID } from '../src/auth.js';
-import { HttpSession, MOBILE_USER_AGENT } from '../src/http.js';
-import { ResearchClient, decodeTranscript, imageArk, dgsNumber, type ImageTranscript } from '../src/research.js';
-import { ResearchError, ResearchTransport, researchUrl, retryDelay } from '../src/research-transport.js';
-import { operationExample, operationQueryInput, prepareOperation } from '../src/operations.js';
+import { FamilySearchClient } from '../src/familysearch/client.js';
+import { CHURCH_CLIENT_ID } from '../src/familysearch/auth.js';
+import { HttpSession, MOBILE_USER_AGENT } from '../src/familysearch/http.js';
+import { ResearchClient, decodeTranscript, imageArk, dgsNumber, type ImageTranscript } from '../src/familysearch/research.js';
+import { ResearchError, ResearchTransport, researchUrl, retryDelay } from '../src/familysearch/research-transport.js';
+import { operationExample, operationQueryInput, prepareOperation } from '../src/familysearch/operations.js';
 
 const ark = 'https://www.familysearch.org/ark:/61903/3:1:TEST-IMAGE';
 const storage = '/service/records/storage/dascloud/das/v2/TH-TEST-IMAGE';
@@ -256,11 +256,11 @@ test('schema examples and query flags prevent the recordDetails nesting detour',
 
 test('CLI help and schema examples use the installed command spelling; invalid research flags fail before network',async()=>{
   const run=promisify(execFile),options={cwd:resolveProject(),env:{...process.env},maxBuffer:1024*1024};
-  const help=await run(process.execPath,['--import','tsx','src/cli.ts','--help'],options);
+  const help=await run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','--help'],options);
   assert.match(help.stdout,/familysearch image download/);assert.ok(!help.stdout.includes('npm run fs --'));
-  const example=await run(process.execPath,['--import','tsx','src/cli.ts','schema','sources.recordDetails','--example'],options);
+  const example=await run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','schema','sources.recordDetails','--example'],options);
   assert.equal(typeof JSON.parse(example.stdout).query.recordUrl,'string');
-  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts','film','images','5764700','--name','ignored'],options),/not supported/);
-  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts','image','download','3:1:TEST'],options),/requires --out/);
+  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','film','images','5764700','--name','ignored'],options),/not supported/);
+  await assert.rejects(run(process.execPath,['--import','tsx','src/cli.ts', 'familysearch','image','download','3:1:TEST'],options),/requires --out/);
 });
 function resolveProject(){return fileURLToPath(new URL('..',import.meta.url));}

@@ -3,20 +3,20 @@ import { writeFile, chmod, link, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { FamilySearchClient } from './client.js';
-import { stringifyJson } from './json.js';
+import { stringifyJson } from '../shared/json.js';
 import type { ImageTranscript, PageOptions, ResearchPage } from './research.js';
 
 export const researchHelp = `
-familysearch image info IMAGE_ARK
-familysearch image download IMAGE_ARK --original --out FILE.jpg
-familysearch image transcript IMAGE_ARK [--out FILE.txt] [--format json|text]
-familysearch collection browse COLLECTION_ID|WAYPOINT_URL [pagination]
-familysearch film images DGS [pagination]
-familysearch film image DGS --image NUMBER
-familysearch fulltext available DGS
-familysearch fulltext search [--name NAME] [--keywords WORDS] [--place PLACE]
+fam familysearch image info IMAGE_ARK
+fam familysearch image download IMAGE_ARK --original --out FILE.jpg
+fam familysearch image transcript IMAGE_ARK [--out FILE.txt] [--format json|text]
+fam familysearch collection browse COLLECTION_ID|WAYPOINT_URL [pagination]
+fam familysearch film images DGS [pagination]
+fam familysearch film image DGS --image NUMBER
+fam familysearch fulltext available DGS
+fam familysearch fulltext search [--name NAME] [--keywords WORDS] [--place PLACE]
     [--years FROM:TO] [--dgs DGS] [--collection ID] [--record-type TYPE] [pagination]
-familysearch record details RECORD_ARK
+fam familysearch record details RECORD_ARK
 
 Pagination: --count N --offset N --all --limit N --resume NEXT_URL
   Page size defaults to 100 (maximum 1000). --all follows every page.
@@ -45,8 +45,8 @@ export async function runResearchCli(argv: string[], output?: string): Promise<b
     'fulltext available': [], 'fulltext search': [...pagination,'format','name','keywords','place','years','dgs','collection','record-type'],
     'record details': [],
   };
-  if (!allowed[key]) throw new Error('Unknown research command. Use "familysearch --help".');
-  if (args.length !== (key === 'fulltext search' ? 1 : 2)) throw new Error('Missing or extra research arguments. Use "familysearch --help".');
+  if (!allowed[key]) throw new Error('Unknown research command. Use "fam familysearch --help".');
+  if (args.length !== (key === 'fulltext search' ? 1 : 2)) throw new Error('Missing or extra research arguments. Use "fam familysearch --help".');
   for (const flag of Object.keys(flags)) if (!allowed[key].includes(flag)) throw new Error(`--${flag} is not supported for ${key}.`);
   const format = flags.format ?? 'json';
   if (!['json','jsonl','text'].includes(format) || format === 'text' && key !== 'image transcript' || format === 'jsonl' && !['collection browse','film images','fulltext search'].includes(key)) throw new Error('Use --format json; jsonl is for listings/search and text is for transcripts.');

@@ -1,7 +1,7 @@
 /** Opt-in live reads. Saves only operation names/status/schema results, never genealogy data. */
-import { writePrivateJson } from '../src/storage.js';
+import { writePrivateJson } from '../src/shared/storage.js';
 import { FamilySearchClient, operationContract, validateOperationResponse, type OperationName } from '../src/index.js';
-import { HttpError } from '../src/http.js';
+import { HttpError } from '../src/familysearch/http.js';
 
 const client = await FamilySearchClient.open();
 const me = await client.currentUser();

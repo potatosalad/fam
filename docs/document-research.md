@@ -7,29 +7,29 @@ The CLI can now resolve image ARKs, download and validate original distribution 
 Install or update the commands using the [main README](../README.md#install). Run these examples from the checkout so the output stays in its ignored `artifacts/` folder:
 
 ```sh
-familysearch --help
+fam familysearch --help
 mkdir -p artifacts/document-research
 ```
 
 ```sh
 # Image 3 of the 736-image estate index.
-familysearch image info 3:1:3QSQ-G935-BNWL
-familysearch image download 3:1:3QSQ-G935-BNWL --original \
+fam familysearch image info 3:1:3QSQ-G935-BNWL
+fam familysearch image download 3:1:3QSQ-G935-BNWL --original \
   --out artifacts/document-research/walton-003.jpg
 
 # Image 408, printed page 80.
-familysearch image download 3:1:3QS7-8935-BJZR --original \
+fam familysearch image download 3:1:3QS7-8935-BJZR --original \
   --out artifacts/document-research/walton-408.jpg
-familysearch image transcript 3:1:3QS7-8935-BJZR \
+fam familysearch image transcript 3:1:3QS7-8935-BJZR \
   --out artifacts/document-research/walton-408.txt
 
 # The DGS discovered from these images is 005764700.
-familysearch film image 005764700 --image 408
-familysearch film images 005764700 --all \
+fam familysearch film image 005764700 --image 408
+fam familysearch film images 005764700 --all \
   --out artifacts/document-research/walton-images.json
 
-familysearch fulltext available 005764700
-familysearch fulltext search --name Walton --dgs 005764700 --count 5 --all \
+fam familysearch fulltext available 005764700
+fam familysearch fulltext search --name Walton --dgs 005764700 --count 5 --all \
   --out artifacts/document-research/walton-matches.json
 ```
 
@@ -58,15 +58,15 @@ No browser cookie export is required for the verified examples. The same local s
 Collection 1999178 → Walton → Estate index 1820–1938 vol A–Q:
 
 ```sh
-familysearch collection browse 1999178 --all
-familysearch collection browse \
+fam familysearch collection browse 1999178 --all
+fam familysearch collection browse \
   'https://www.familysearch.org/service/cds/recapi/waypoints/9SB9-ZNL:267814801?cc=1999178'
-familysearch collection browse \
+fam familysearch collection browse \
   'https://www.familysearch.org/service/cds/recapi/waypoints/9SB9-N3F:267814801,267838601?cc=1999178' \
   --count 100 --all --out artifacts/document-research/estate-images.json
 
 # Generic GET now accepts the observed read-only recapi paths too.
-familysearch get '/service/cds/recapi/collections/1999178/waypoints?count=10'
+fam familysearch get '/service/cds/recapi/collections/1999178/waypoints?count=10'
 ```
 
 Each listing returns `items`, `total` when supplied by the server, zero-based `offset`, `complete`, and a continuation when more results remain. A waypoint item has a title, URL, kind, and image ARK/one-based image number where applicable. Ancestor source descriptions are excluded from the children.
@@ -80,18 +80,18 @@ Each listing returns `items`, `total` when supplied by the server, zero-based `o
 | `--resume NEXT_URL` | Continue using a prior waypoint/search `next` URL and the same collection/waypoint argument. The URL supplies its page size, offset, and search filters. |
 | `--format jsonl` | One item per stdout/output-file line; continuation metadata goes to stderr. |
 
-For example, save a bounded slice with `--count 100 --all --limit 200`, then pass its `next` to `--resume`. Full-text resumption uses `familysearch fulltext search --resume 'NEXT_URL'`; do not add new filters. DGS listings resume using `--offset NEXT_OFFSET`, as returned in `nextOffset`.
+For example, save a bounded slice with `--count 100 --all --limit 200`, then pass its `next` to `--resume`. Full-text resumption uses `fam familysearch fulltext search --resume 'NEXT_URL'`; do not add new filters. DGS listings resume using `--offset NEXT_OFFSET`, as returned in `nextOffset`.
 
 The film-data service returns a complete image list in one response. DGS pagination bounds the CLI output, not that server response. Waypoint and search pagination follows the actual server links; it rejects repeated/skipped offsets, changed routes, and a missing continuation before the reported total. Pages are accumulated before output, and pagination is not a stable snapshot if server data changes during traversal.
 
 ## Full-Text Search and transcripts
 
 ```sh
-familysearch fulltext search --name 'John Smith' --place Georgia \
+fam familysearch fulltext search --name 'John Smith' --place Georgia \
   --years 1820:1938 --keywords estate --limit 20
-familysearch fulltext search --keywords Walton --dgs 005764700 --format jsonl
-familysearch image transcript 3:1:3QS7-8935-BJZR --format text
-familysearch image transcript 3:1:3QS7-8935-BJZR --format json
+fam familysearch fulltext search --keywords Walton --dgs 005764700 --format jsonl
+fam familysearch image transcript 3:1:3QS7-8935-BJZR --format text
+fam familysearch image transcript 3:1:3QS7-8935-BJZR --format json
 ```
 
 Search supports name, keywords, place, an inclusive year range (`FROM:TO`, `FROM:`, or `:TO`), DGS, collection ID, and the service's record-type value. The CLI sends the website's `m.queryRequireDefault=on` setting so supplied search criteria are required together. Without it, a name plus DGS can return matches outside that film. These fields correspond to the website's [Full-Text Search controls](https://www.familysearch.org/en/help/helpcenter/article/how-do-i-use-fulltext-search).
@@ -105,13 +105,13 @@ No transcript is represented as `available: false` in JSON. Plain-text/file requ
 ## Easier operation input
 
 ```sh
-familysearch schema sources.recordDetails --example
-familysearch record details '1:1:REPLACE-WITH-REAL-RECORD-ARK'
-familysearch call sources.recordDetails \
+fam familysearch schema sources.recordDetails --example
+fam familysearch record details '1:1:REPLACE-WITH-REAL-RECORD-ARK'
+fam familysearch call sources.recordDetails \
   --query 'recordUrl=https://www.familysearch.org/ark:/61903/1:1:REPLACE-WITH-REAL-RECORD-ARK' \
   --query hideSectionFields=false
 
-familysearch call persons.get --input - <<'JSON'
+fam familysearch call persons.get --input - <<'JSON'
 {"pid":"XXXX-XXX","query":{"oneHops":"summaries"}}
 JSON
 ```
@@ -121,7 +121,7 @@ Replace placeholder ARKs and person IDs before running. `schema --example` gener
 ## TypeScript
 
 ```ts
-import { FamilySearchClient } from '@potatosalad/familysearch';
+import { FamilySearchClient } from '@potatosalad/fam';
 const client = await FamilySearchClient.open();
 const info = await client.research.imageInfo('3:1:3QS7-8935-BJZR');
 const download = await client.research.downloadOriginal(info.imageArk, 'walton-408.jpg');

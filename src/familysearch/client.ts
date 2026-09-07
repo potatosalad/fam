@@ -1,6 +1,6 @@
 import { authenticateChurch, CHURCH_CLIENT_ID, loadCredentials, validateTokens, type SavedSession, type Tokens } from './auth.js';
 import { FS_ORIGIN, HttpError, HttpSession, MOBILE_USER_AGENT } from './http.js';
-import { readPrivateJson, writePrivateJson } from './storage.js';
+import { readPrivateJson, writePrivateJson } from '../shared/storage.js';
 import type { FamilySearchUser, GedcomX, MobileDocument, MobileLogin } from './types.js';
 import type { ApiRequest, ApiResponse, Query } from './transport-types.js';
 import { createGenealogyApi, decodeOperationResponse, prepareOperation } from './operations.js';

@@ -1,7 +1,7 @@
 import { Kind, parse, type TypeNode } from 'graphql';
 import { contracts } from './generated/contracts.js';
 import { ASSETS, CONTENT, TITAN, checkFindmypastUrl } from './http.js';
-import type { ApiRequest, HttpMethod, Query } from '../transport-types.js';
+import type { ApiRequest, HttpMethod, Query } from '../familysearch/transport-types.js';
 export { contracts };
 export type GraphQLOperation = typeof contracts.graphql[number];
 export type GraphQLName = GraphQLOperation['name'];
@@ -13,7 +13,7 @@ export const aliases: Record<string, string> = {
 };
 export function graphqlOperation(name: string): GraphQLOperation {
   const op = contracts.graphql.find(op => op.id === name || op.name === name);
-  if (!op) throw new Error(`Unknown operation ${name}; use findmypast ops.`);
+  if (!op) throw new Error(`Unknown operation ${name}; use fam findmypast ops.`);
   return op;
 }
 export function validateDocument(document: string, variables: Record<string, unknown>, name?: string): string {
@@ -46,7 +46,7 @@ export function validateDocument(document: string, variables: Record<string, unk
 }
 export function restOperation(name: string) {
   const op = contracts.rest.find(op => op.id === (aliases[name] ?? name));
-  if (!op) throw new Error(`Unknown REST operation ${name}; use findmypast ops.`);
+  if (!op) throw new Error(`Unknown REST operation ${name}; use fam findmypast ops.`);
   return op;
 }
 export interface RestArguments { path?: Record<string, string | number | bigint>; query?: Query; headers?: Record<string, string>; body?: unknown; response?: ApiRequest['response']; }

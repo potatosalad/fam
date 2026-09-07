@@ -8,7 +8,7 @@ import { AncestryClient, AncestryGraphQLError } from '../src/ancestry/client.js'
 import { solvePreAuth, tokenRequest, type AncestrySession } from '../src/ancestry/auth.js';
 import { aliases, contracts, graphqlOperation, prepareRest, restOperation, validateVariables } from '../src/ancestry/catalog.js';
 import { recordSearchBody } from '../src/ancestry/search.js';
-import type { ApiRequest } from '../src/transport-types.js';
+import type { ApiRequest } from '../src/familysearch/transport-types.js';
 
 test('Ancestry pre-auth proof hashes the APK field order and satisfies the modulus', () => {
   const challenge = {algorithm: 'sha256-mod-v1', sessionId: 'test-session', algorithmParameters: {n: 31, r: 7}};

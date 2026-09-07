@@ -1,7 +1,7 @@
-import { loadLoginCredentials } from './credentials.js';
+import { loadLoginCredentials } from '../shared/credentials.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { CHURCH_ORIGIN, HttpSession, HttpError, IDENT_ORIGIN } from './http.js';
-import { writePrivateJson } from './storage.js';
+import { writePrivateJson } from '../shared/storage.js';
 
 // Public OAuth client identifier embedded in FamilySearch Tree 5.4.4 (wmf).
 // This identifies the Church provider; it is not a client secret.

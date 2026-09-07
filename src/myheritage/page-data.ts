@@ -1,4 +1,4 @@
-import {parseJson} from '../json.js';
+import {parseJson} from '../shared/json.js';
 /** Read JSON assigned by a page without evaluating any JavaScript. */
 export function pageJson<T = unknown>(html: string, name: string): T | undefined {
   if (!/^\w+$/.test(name)) throw new Error('Invalid page data name.');

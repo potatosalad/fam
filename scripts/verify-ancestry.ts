@@ -2,8 +2,8 @@
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import { AncestryClient, AncestryGraphQLError } from '../src/ancestry/client.js';
 import { AncestryHttpError } from '../src/ancestry/http.js';
-import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/storage.js';
-import { stringifyJson } from '../src/json.js';
+import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/shared/storage.js';
+import { stringifyJson } from '../src/shared/json.js';
 
 const client = await AncestryClient.open();
 const report: {operation: string; ok: boolean; status?: number; error?: string}[] = [];

@@ -1,7 +1,7 @@
 import { Impit, type ImpitResponse } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import type { ApiRequest, ApiResponse, HttpMethod, UploadBody } from './transport-types.js';
-import { parseJson, stringifyJson } from './json.js';
+import { parseJson, stringifyJson } from '../shared/json.js';
 
 export const FS_ORIGIN = 'https://www.familysearch.org';
 export const IDENT_ORIGIN = 'https://ident.familysearch.org';

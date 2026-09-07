@@ -1,6 +1,6 @@
-# FamilySearch CLI
+# fam
 
-Command-line tools for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave. Browse family trees, search historical records and memorials, and download original documents.
+One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave. Browse family trees, search historical records and memorials, and download original documents.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
@@ -9,13 +9,15 @@ These are unofficial clients. They use mobile and website APIs that can change w
 Requires Node.js 22.16 or newer, npm, and Git.
 
 ```sh
-git clone https://github.com/potatosalad/familysearch.git
-cd familysearch
+git clone https://github.com/potatosalad/fam.git
+cd fam
 npm ci
 npm install --global .
 ```
 
-This installs `familysearch`, `ancestry`, `myheritage`, `findmypast`, and `findagrave` from the checkout. Keep the directory in place. To update, run `git pull` and `npm ci` in it. Run `npm install --global .` again to link any newly added commands.
+This installs one executable, `fam`, from the checkout. Keep the directory in place. To update, run `git pull`, `npm ci`, and `npm install --global .` in it. All commands use `fam PROVIDER COMMAND`.
+
+Upgrading an older installation? See [migration from familysearch](docs/setup.md#migration-from-familysearch) to remove the old executables and retain saved sessions.
 
 If installation fails or your shell can't find the commands, see [installation help](docs/setup.md#installation).
 
@@ -28,9 +30,9 @@ Set up the services you use. The `credentials` command asks for your username an
 Use the Church Account linked to your FamilySearch account. Direct FamilySearch username, Google, Apple, and Facebook sign-in are not supported.
 
 ```sh
-familysearch credentials
-familysearch auth
-familysearch whoami
+fam familysearch credentials
+fam familysearch auth
+fam familysearch whoami
 ```
 
 `whoami` returns your account details, including your tree person ID. If sign-in requires a password reset or additional verification, complete it on the website before retrying.
@@ -38,18 +40,18 @@ familysearch whoami
 ### Ancestry
 
 ```sh
-ancestry credentials
-ancestry auth
+fam ancestry credentials
+fam ancestry auth
 ```
 
 If Ancestry asks for email verification, request a code and enter the one you receive:
 
 ```sh
-ancestry auth --send-code
-ancestry auth --code 123456
+fam ancestry auth --send-code
+fam ancestry auth --code 123456
 ```
 
-Then run `ancestry trees` to list your trees.
+Then run `fam ancestry trees` to list your trees.
 
 ### MyHeritage
 
@@ -61,8 +63,8 @@ Start by importing a browser session. Native password login can be blocked by re
 4. Import it:
 
 ```sh
-myheritage auth --har /path/to/session.har
-myheritage me
+fam myheritage auth --har /path/to/session.har
+fam myheritage me
 ```
 
 Delete the HAR after importing it. It contains session credentials. If MyHeritage later asks for website verification, complete it in the browser and import a fresh HAR.
@@ -79,8 +81,8 @@ Import a browser session:
 4. Import it:
 
 ```sh
-findmypast auth --har /path/to/session.har
-findmypast me
+fam findmypast auth --har /path/to/session.har
+fam findmypast me
 ```
 
 Delete the HAR after importing it. It contains session credentials. Import a fresh HAR when the session expires; browser import does not require saving your password.
@@ -92,34 +94,34 @@ See the [Findmypast guide](docs/findmypast/README.md) for native login, record a
 Use your Find a Grave email address when prompted for a username:
 
 ```sh
-findagrave credentials
-findagrave auth
-findagrave me
+fam findagrave credentials
+fam findagrave auth
+fam findagrave me
 ```
 
-Run `findagrave verify` to check a saved session, or `auth` to sign in again when it expires. Public searches also work with `--anonymous`, without credentials.
+Run `fam findagrave verify` to check a saved session, or `auth` to sign in again when it expires. Public searches also work with `--anonymous`, without credentials.
 
 See the [Find a Grave guide](docs/findagrave/README.md) for memorials, cemeteries, biography search, and photo downloads.
 
 ## Use the commands
 
 ```sh
-familysearch person PERSON_ID
-familysearch ancestry PERSON_ID 3
-familysearch image download IMAGE_ARK --original --out scan.jpg
+fam familysearch person PERSON_ID
+fam familysearch ancestry PERSON_ID 3
+fam familysearch image download IMAGE_ARK --original --out scan.jpg
 
-ancestry search --given Abraham --surname Lincoln --birth-year 1809
+fam ancestry search --given Abraham --surname Lincoln --birth-year 1809
 
-myheritage search --first-name Abraham --last-name Lincoln --birth-year 1809
-myheritage collections census
+fam myheritage search --first-name Abraham --last-name Lincoln --birth-year 1809
+fam myheritage collections census
 
-findmypast search --first-name Ada --last-name Lovelace --birth-year 1815
-findmypast newspapers --name "Ada Lovelace" --country England
+fam findmypast search --first-name Ada --last-name Lovelace --birth-year 1815
+fam findmypast newspapers --name "Ada Lovelace" --country England
 
-findagrave --anonymous search --first-name Abraham --last-name Lincoln --birth-year 1809
+fam findagrave --anonymous search --first-name Abraham --last-name Lincoln --birth-year 1809
 ```
 
-Replace `PERSON_ID` and `IMAGE_ARK` with IDs from the service. Each CLI accepts `--help`. Commands print JSON by default; use `--out FILE` to save results. Keep personal data outside Git.
+Replace `PERSON_ID` and `IMAGE_ARK` with IDs from the service. Run `fam --help` or `fam PROVIDER --help`. Commands print JSON by default; use `--out FILE` to save results. Keep personal data outside Git.
 
 The `call` and `gql` commands can execute writes and deletions. Check the operation's schema before running it.
 
@@ -133,9 +135,9 @@ The `call` and `gql` commands can execute writes and deletions. Check the operat
 
 ## Configuration
 
-Credentials and sessions live in `~/.config/familysearch` on macOS and Linux, or `%APPDATA%\familysearch` on Windows. On macOS and Linux, `XDG_CONFIG_HOME` overrides `~/.config`. Each service keeps its own files. Run a CLI's `status` command to see its storage directory and session status.
+Credentials and sessions live in `~/.config/fam` on macOS and Linux, or `%APPDATA%\fam` on Windows. On macOS and Linux, `XDG_CONFIG_HOME` overrides `~/.config`. Each service keeps its own files. Run `fam PROVIDER status` to see its storage directory and session status.
 
-Passwords and tokens are plaintext files. The CLIs restrict file permissions on macOS and Linux; Windows uses your user profile's permissions.
+Passwords and tokens are plaintext files. The CLI restricts file permissions on macOS and Linux; Windows uses your user profile's permissions.
 
 For scripts, set both environment variables for the service:
 
@@ -147,7 +149,9 @@ For scripts, set both environment variables for the service:
 | Findmypast | `FINDMYPAST_USERNAME` | `FINDMYPAST_PASSWORD` |
 | Find a Grave | `FINDAGRAVE_USERNAME` (email) | `FINDAGRAVE_PASSWORD` |
 
-Environment credentials take precedence over saved passwords. Existing sessions remain active until a new login is needed or you run `auth`. The CLIs do not load `.env` files.
+Environment credentials take precedence over a configured credential helper, then saved passwords. Existing sessions remain active until a new login is needed or you run `auth`. The CLI does not load `.env` files.
+
+To use a password manager or another external source, configure `credentialsCommand` in the profile's `config.json`, or set `FAM_CREDENTIALS_COMMAND` to a JSON array of executable and arguments. The helper receives the provider name and returns a JSON object with `username` and `password`. See the [credential helper contract](docs/setup.md#external-credential-helpers).
 
 See [setup details](docs/setup.md) for separate profiles, JSON credential input, and resetting a session.
 
@@ -166,7 +170,7 @@ See [development notes](docs/development.md) for running from source, regenerati
 ## Uninstall
 
 ```sh
-npm uninstall --global @potatosalad/familysearch
+npm uninstall --global @potatosalad/fam
 ```
 
 This removes the commands. Your credentials and saved research remain on disk.

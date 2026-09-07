@@ -2,8 +2,8 @@ import {MyHeritageDocuments} from './documents.js';
 import {MyHeritageResearch, type RecordSearchOptions, type CatalogOptions} from './research.js';
 import {MyHeritageBrowser} from './browser.js';
 import {parse} from 'graphql';
-import { readPrivateJson } from '../storage.js';
-import type { ApiRequest, ApiResponse, Query } from '../transport-types.js';
+import { readPrivateJson } from '../shared/storage.js';
+import type { ApiRequest, ApiResponse, Query } from '../familysearch/transport-types.js';
 import { MyHeritageHttp, MyHeritageHttpError, FAMILYGRAPH, GRAPHQL, transferMyHeritage, checkMyHeritageUrl } from './http.js';
 import { authenticateMyHeritage, refreshMyHeritage, saveMyHeritageSession, type MyHeritageSession } from './auth.js';
 import { graphqlOperation, validateVariables, prepareRest, type GraphQLId, type Variables, type RestArguments } from './catalog.js';
@@ -42,7 +42,7 @@ export class MyHeritageClient {
   constructor(private session: MyHeritageSession, private readonly http: Pick<MyHeritageHttp, 'exchange' | 'jar'> = new MyHeritageHttp(session.cookies), private readonly hooks: Hooks = {}) {}
   static async open() {
     const session = await readPrivateJson<MyHeritageSession>('myheritage/session.json') ?? await authenticateMyHeritage();
-    if (!session.accessToken) throw new Error('Invalid session; run myheritage auth.');
+    if (!session.accessToken) throw new Error('Invalid session; run fam myheritage auth.');
     return new MyHeritageClient(session);
   }
   status() {return {authenticated: true, savedAt: this.session.savedAt, mode: this.session.mode ?? 'native'};}

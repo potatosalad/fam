@@ -23,7 +23,7 @@ GraphQL is HTTP POST with JSON:
 }
 ```
 
-The snippet abbreviates the query; executable complete documents are in `contracts.json` and `findmypast schema NAME`. Apollo headers are `apollographql-client-name: fmp-mobile-app-android` and `apollographql-client-version: 2.59.0`. Native authorization is `Bearer ACCESS_TOKEN`. The user-agent format is `Findmypast/VERSION (Android RELEASE; SDK NUMBER; MANUFACTURER MODEL)`.
+The snippet abbreviates the query; executable complete documents are in `contracts.json` and `fam findmypast schema NAME`. Apollo headers are `apollographql-client-name: fmp-mobile-app-android` and `apollographql-client-version: 2.59.0`. Native authorization is `Bearer ACCESS_TOKEN`. The user-agent format is `Findmypast/VERSION (Android RELEASE; SDK NUMBER; MANUFACTURER MODEL)`.
 
 GraphQL success is `{data:...}`. HTTP 200 may still carry an `errors` array and partial data; the client throws a `FindmypastGraphQLError` retaining the partial response for programmatic inspection. CLI errors avoid printing private server diagnostics. HTTP 401 is eligible for one native renewal/retry; HTTP 403/429/5xx are not. Browser sessions do not attempt native renewal.
 

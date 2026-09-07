@@ -1,6 +1,6 @@
 import { contracts } from './generated/contracts.js';
 import { checkMyHeritageUrl } from './http.js';
-import type { ApiRequest, HttpMethod, Query } from '../transport-types.js';
+import type { ApiRequest, HttpMethod, Query } from '../familysearch/transport-types.js';
 export { contracts };
 export type GraphQLOperation = typeof contracts.graphql[number];
 export type GraphQLId = GraphQLOperation['id'];
@@ -36,7 +36,7 @@ export function graphqlOperation(name: string): GraphQLOperation {
   if (exact) return exact;
   const matches = contracts.graphql.filter(op => op.name === name);
   if (matches.length === 1) return matches[0]!;
-  throw new Error(matches.length ? `Ambiguous operation ${name}; use its full ID from myheritage ops.` : `Unknown operation ${name}; use myheritage ops.`);
+  throw new Error(matches.length ? `Ambiguous operation ${name}; use its full ID from fam myheritage ops.` : `Unknown operation ${name}; use fam myheritage ops.`);
 }
 export function validateVariables(operation: GraphQLOperation, variables: Record<string, unknown>): void {
   for (const v of operation.variables) {
@@ -55,7 +55,7 @@ export function restOperation(name: string) {
   const alias = aliases[name as keyof typeof aliases];
   const id = alias ? `rest.${alias}` : name;
   const op = contracts.rest.find(op => op.id === id);
-  if (!op) throw new Error(`Unknown REST operation ${name}; use myheritage ops.`);
+  if (!op) throw new Error(`Unknown REST operation ${name}; use fam myheritage ops.`);
   return op;
 }
 export interface RestArguments {
@@ -79,7 +79,7 @@ export function prepareRest(name: string, args: RestArguments = {}): {url: strin
   const headers: Record<string, string> = {...op.headers, ...args.headers};
   if (args.body !== undefined && op.encoding !== 'multipart' && !op.parameters.some(p => p.kind === 'Body' || p.kind === 'FieldMap')) throw new Error(`${name} does not declare a request body.`);
   let body = args.body, encoding: ApiRequest['encoding'] = 'json';
-  if (op.parameters.some(p => p.kind === 'Body' || p.kind === 'FieldMap') && body === undefined) throw new Error(`${name} requires body; use myheritage schema ${name}.`);
+  if (op.parameters.some(p => p.kind === 'Body' || p.kind === 'FieldMap') && body === undefined) throw new Error(`${name} requires body; use fam myheritage schema ${name}.`);
   if (op.encoding === 'form') {
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Form body must be an object.');
     body = new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)])).toString();

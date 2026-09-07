@@ -1,5 +1,5 @@
-import { readPrivateJson } from '../storage.js';
-import type { ApiRequest, ApiResponse, Query } from '../transport-types.js';
+import { readPrivateJson } from '../shared/storage.js';
+import type { ApiRequest, ApiResponse, Query } from '../familysearch/transport-types.js';
 import { AncestryHttp, AncestryHttpError, GATEWAY, checkAncestryUrl } from './http.js';
 import { authenticateAncestry, saveAncestrySession, tokenRequest, type AncestrySession } from './auth.js';
 import { graphqlOperation, prepareRest, validateVariables, type GraphQLName, type Variables, type RestArguments } from './catalog.js';
@@ -22,7 +22,7 @@ export class AncestryClient {
   constructor(private session: AncestrySession, private readonly http: Pick<AncestryHttp, 'exchange' | 'jar'> = new AncestryHttp(session.cookies), private readonly hooks: SessionHooks = {}) {}
   static async open(): Promise<AncestryClient> {
     const session = await readPrivateJson<AncestrySession>('ancestry/session.json') ?? await authenticateAncestry();
-    if (!session.tokens?.access_token || !session.tokens.refresh_token || !session.tokens.user_id) throw new Error('Invalid Ancestry session; run ancestry auth.');
+    if (!session.tokens?.access_token || !session.tokens.refresh_token || !session.tokens.user_id) throw new Error('Invalid Ancestry session; run fam ancestry auth.');
     return new AncestryClient(session);
   }
   status() { return {authenticated: true, savedAt: this.session.savedAt, expiresAt: this.session.expiresAt ? new Date(this.session.expiresAt).toISOString() : null}; }

@@ -15,8 +15,8 @@ import { join } from 'node:path';
 import { Impit } from 'impit';
 import { loadFindagraveCredentials } from '../src/findagrave/auth.js';
 import { FindagraveHttp, GRAPHQL } from '../src/findagrave/http.js';
-import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/storage.js';
-import type { ApiRequest, ApiResponse } from '../src/transport-types.js';
+import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/shared/storage.js';
+import type { ApiRequest, ApiResponse } from '../src/familysearch/transport-types.js';
 
 const session: FindagraveSession = {contributorId:'synthetic-contributor',token:'synthetic-token',savedAt:'2026-01-01T00:00:00Z',validatedAt:'2026-01-01T00:00:00Z'};
 function mock(fn: (url:string, options:ApiRequest) => unknown | Promise<unknown>) {

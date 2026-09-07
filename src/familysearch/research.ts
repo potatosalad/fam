@@ -3,7 +3,7 @@ import { link, open, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 import { FS_ORIGIN } from './http.js';
-import { stringifyJson } from './json.js';
+import { stringifyJson } from '../shared/json.js';
 import { ResearchError, ResearchTransport, researchUrl } from './research-transport.js';
 
 interface Link { href?: string; results?: number; offset?: number }

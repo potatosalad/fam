@@ -4,21 +4,86 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { credentialDirectory, CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/storage.js';
-import { loadLoginCredentials, type Service } from '../src/credentials.js';
+import { credentialDirectory, CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/shared/storage.js';
+import { configureCredentials, loadLoginCredentials, type Service } from '../src/shared/credentials.js';
 
 const services: Service[] = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave'];
 const loginFile = (service: Service) => service === 'familysearch' ? 'login.json' : `${service}/login.json`;
 
 test('storage is independent of the working directory and honors explicit profiles', () => {
   const home = join(CREDENTIAL_DIR, 'home'), xdg = join(home, 'xdg');
-  assert.equal(credentialDirectory({}, 'linux', home), join(home, '.config', 'familysearch'));
-  assert.equal(credentialDirectory({}, 'darwin', home), join(home, '.config', 'familysearch'));
-  assert.equal(credentialDirectory({ XDG_CONFIG_HOME: xdg }, 'linux', home), join(xdg, 'familysearch'));
-  assert.equal(credentialDirectory({ XDG_CONFIG_HOME: 'relative' }, 'linux', home), join(home, '.config', 'familysearch'));
-  assert.equal(credentialDirectory({ APPDATA: xdg }, 'win32', home), join(xdg, 'familysearch'));
+  assert.equal(credentialDirectory({}, 'linux', home), join(home, '.config', 'fam'));
+  assert.equal(credentialDirectory({}, 'darwin', home), join(home, '.config', 'fam'));
+  assert.equal(credentialDirectory({ XDG_CONFIG_HOME: xdg }, 'linux', home), join(xdg, 'fam'));
+  assert.equal(credentialDirectory({ XDG_CONFIG_HOME: 'relative' }, 'linux', home), join(home, '.config', 'fam'));
+  assert.equal(credentialDirectory({ APPDATA: xdg }, 'win32', home), join(xdg, 'fam'));
+  assert.equal(credentialDirectory({ FAM_CONFIG_DIR: xdg }, 'linux', home), xdg);
   assert.equal(credentialDirectory({ FAMILYSEARCH_CONFIG_DIR: xdg }, 'linux', home), xdg);
-  for (const value of ['', 'relative']) assert.throws(() => credentialDirectory({ FAMILYSEARCH_CONFIG_DIR: value }), /absolute path/);
+  assert.equal(credentialDirectory({ FAM_CONFIG_DIR: home, FAMILYSEARCH_CONFIG_DIR: xdg }, 'linux', home), home);
+  for (const value of ['', 'relative']) assert.throws(() => credentialDirectory({ FAM_CONFIG_DIR: value }), /absolute path/);
+});
+
+test('explicit credential helpers receive each provider and override saved credentials without caching', async () => {
+  const script = 'process.stdout.write(JSON.stringify({username:process.argv[1],password:process.argv[2]}))';
+  const password = ' private ünicode password\n';
+  try {
+    await writePrivateJson('config.json', { credentialsCommand: [process.execPath, '-e', script, '--', 'file-helper', password] });
+    for (const service of services) {
+      await writePrivateJson(loginFile(service), { username: 'old', password: 'old' });
+      assert.deepEqual(await loadLoginCredentials(service), { username: 'file-helper', password });
+      // Arguments are passed literally; the final argument identifies the provider.
+      process.env.FAM_CREDENTIALS_COMMAND = JSON.stringify([process.execPath, '-e',
+        'process.stdout.write(JSON.stringify({username:process.argv[2],password:process.argv[1]}))', '--', 'a b; $(literal)']);
+      assert.deepEqual(await loadLoginCredentials(service), { username: service, password: 'a b; $(literal)' });
+      assert.deepEqual(await readPrivateJson(loginFile(service)), { username: 'old', password: 'old' });
+      await configureCredentials(service);
+      assert.deepEqual(await readPrivateJson(loginFile(service)), { username: service, password: 'a b; $(literal)' });
+      process.env[`${service.toUpperCase()}_USERNAME`] = 'env';
+      process.env[`${service.toUpperCase()}_PASSWORD`] = 'password';
+      process.env.FAM_CREDENTIALS_COMMAND = '["missing-command"]';
+      assert.deepEqual(await loadLoginCredentials(service), { username: 'env', password: 'password' });
+      delete process.env[`${service.toUpperCase()}_PASSWORD`];
+      await assert.rejects(loadLoginCredentials(service), /Set both/);
+      delete process.env[`${service.toUpperCase()}_USERNAME`];
+      delete process.env.FAM_CREDENTIALS_COMMAND;
+    }
+  } finally {
+    delete process.env.FAM_CREDENTIALS_COMMAND;
+    await rm(join(CREDENTIAL_DIR, 'config.json'), { force: true });
+    for (const service of services) {
+      delete process.env[`${service.toUpperCase()}_USERNAME`];
+      delete process.env[`${service.toUpperCase()}_PASSWORD`];
+      await rm(join(CREDENTIAL_DIR, loginFile(service)), { force: true });
+    }
+  }
+});
+
+test('helper failures suppress secrets and never fall back to cached credentials', async () => {
+  const secret = 'fixture-secret-must-not-appear';
+  try {
+    await writePrivateJson('login.json', { username: 'old', password: 'old' });
+    for (const code of [
+      `process.stdout.write('${secret}'); process.stderr.write('${secret}'); process.exit(1)`,
+      `process.stdout.write('${secret}')`,
+      `process.stdout.write(JSON.stringify({username:'${secret}',password:42}))`,
+      `process.stdout.write('x'.repeat(65537))`,
+    ]) {
+      process.env.FAM_CREDENTIALS_COMMAND = JSON.stringify([process.execPath, '-e', code]);
+      await assert.rejects(loadLoginCredentials('familysearch'), error => {
+        assert.match(String(error), /Credential command failed/);
+        assert.ok(!String(error).includes(secret));
+        return true;
+      });
+    }
+    for (const value of ['secret-not-json', '[]', '[42]', '[""]', '["node",42]', '["node\\u0000"]', '{}']) {
+      process.env.FAM_CREDENTIALS_COMMAND = value;
+      await assert.rejects(loadLoginCredentials('familysearch'), /JSON array/);
+    }
+    assert.deepEqual(await readPrivateJson('login.json'), { username: 'old', password: 'old' });
+  } finally {
+    delete process.env.FAM_CREDENTIALS_COMMAND;
+    await rm(join(CREDENTIAL_DIR, 'login.json'), { force: true });
+  }
 });
 
 test('private storage rejects paths outside its root and secures nested service directories', async () => {
@@ -59,10 +124,10 @@ for (const service of services) {
   test(`${service}: CLI credential setup works outside checkout without echoing secrets`, async () => {
     const directory = await mkdtemp(join(CREDENTIAL_DIR, `${service}-cli-`));
     const config = join(directory, 'profile');
-    const cli = fileURLToPath(new URL(service === 'familysearch' ? '../src/cli.ts' : `../src/${service}/cli.ts`, import.meta.url));
+    const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
     const run = (args: string[], input = '', env: NodeJS.ProcessEnv = {}) => new Promise<{code: number | null; stdout: string; stderr: string}>((resolve, reject) => {
-      const child = spawn(process.execPath, ['--import', import.meta.resolve('tsx'), cli, ...args], {
-        cwd: directory, env: { ...process.env, FAMILYSEARCH_CONFIG_DIR: config, ...env }, stdio: 'pipe',
+      const child = spawn(process.execPath, ['--import', import.meta.resolve('tsx'), cli, service, ...args], {
+        cwd: directory, env: { ...process.env, FAM_CONFIG_DIR: config, ...env }, stdio: 'pipe',
       });
       let stdout = '', stderr = '';
       child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');

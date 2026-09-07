@@ -7,7 +7,7 @@ import {contracts, aliases, graphqlOperation, validateVariables, prepareRest, re
 import {parseAuthResponse, deviceFields, sessionFromHar, type MyHeritageSession} from '../src/myheritage/auth.js';
 import {MyHeritageClient, MyHeritageGraphQLError} from '../src/myheritage/client.js';
 import {MyHeritageHttpError, checkMyHeritageUrl, FAMILYGRAPH, GRAPHQL} from '../src/myheritage/http.js';
-import type {ApiRequest, ApiResponse} from '../src/transport-types.js';
+import type {ApiRequest, ApiResponse} from '../src/familysearch/transport-types.js';
 
 const session = (): MyHeritageSession => ({accessToken: 'fixture-token', accountId: 'fixture-account', userId: 'user-12',
   savedAt: '2026-09-06T00:00:00Z', deviceId: 'fixture-device', cookies: new CookieJar().serializeSync()});
@@ -146,9 +146,9 @@ test('signed file transfers strip credentials and never follow redirects', async
 test('CLI help and invalid catalog requests work without authentication', async () => {
   const {execFile} = await import('node:child_process');
   const {promisify} = await import('node:util'); const exec = promisify(execFile);
-  const {stdout} = await exec(process.execPath, ['--import', 'tsx', 'src/myheritage/cli.ts', '--help']);
-  assert.match(stdout, /Usage: myheritage COMMAND/); assert(!stdout.includes('npm run fs'));
-  await assert.rejects(exec(process.execPath, ['--import', 'tsx', 'src/myheritage/cli.ts', 'call', 'person']), (e: unknown) => {
+  const {stdout} = await exec(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'myheritage', '--help']);
+  assert.match(stdout, /Usage: fam myheritage COMMAND/); assert(!stdout.includes('npm run fs'));
+  await assert.rejects(exec(process.execPath, ['--import', 'tsx', 'src/cli.ts', 'myheritage', 'call', 'person']), (e: unknown) => {
     assert.match((e as {stderr: string}).stderr, /Missing or invalid path parameter individualId/); return true;
   });
 });

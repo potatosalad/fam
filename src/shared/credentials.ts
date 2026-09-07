@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
+import { execFile } from 'node:child_process';
 import { readPrivateJson, writePrivateJson } from './storage.js';
 
 export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast' | 'findagrave';
@@ -24,18 +25,56 @@ function environmentCredentials(service: Service): Credentials | undefined {
   return { username, password };
 }
 
-/** Library clients never prompt or execute external commands to obtain credentials. */
+async function credentialCommand(): Promise<string[] | undefined> {
+  let value: unknown;
+  if (process.env.FAM_CREDENTIALS_COMMAND !== undefined) {
+    try { value = JSON.parse(process.env.FAM_CREDENTIALS_COMMAND); }
+    catch { throw new Error('FAM_CREDENTIALS_COMMAND must be a JSON array of executable and arguments.'); }
+  } else {
+    const config = await readPrivateJson<unknown>('config.json');
+    if (config === undefined) return undefined;
+    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('config.json must be an object.');
+    value = (config as { credentialsCommand?: unknown }).credentialsCommand;
+    if (value === undefined) return undefined;
+  }
+  if (!Array.isArray(value) || !value.length || typeof value[0] !== 'string' || !value[0].trim()
+      || value.some(arg => typeof arg !== 'string' || arg.includes('\0'))) {
+    throw new Error('Credential command must be a nonempty JSON array of executable and string arguments.');
+  }
+  return value as string[];
+}
+
+async function commandCredentials(service: Service): Promise<Credentials | undefined> {
+  const command = await credentialCommand();
+  if (!command) return undefined;
+  try {
+    const stdout = await new Promise<string>((resolve, reject) => {
+      const child = execFile(command[0], [...command.slice(1), service], {
+        encoding: 'utf8', timeout: 120_000, maxBuffer: 64 * 1024, windowsHide: true,
+      }, (error, output) => error ? reject(error) : resolve(output));
+      child.stdin?.end();
+    });
+    return validate(JSON.parse(stdout), service);
+  } catch {
+    // Never expose command arguments, stdout, stderr, or parser errors containing secrets.
+    throw new Error(`Credential command failed for ${service}; output was suppressed. Check the configured helper.`);
+  }
+}
+
+/** Never prompts. External lookup runs only when the user explicitly configures a command. */
 export async function loadLoginCredentials(service: Service): Promise<Credentials> {
   const environment = environmentCredentials(service);
   if (environment) return environment;
+  const external = await commandCredentials(service);
+  if (external) return external;
   const saved = await readPrivateJson<unknown>(loginFile(service));
   if (saved !== undefined) return validate(saved, service);
-  throw new Error(`No ${service} credentials configured. Run "${service} credentials" or set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD.`);
+  throw new Error(`No ${service} credentials configured. Run "fam ${service} credentials" or set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD.`);
 }
 
 async function promptCredentials(service: Service): Promise<Credentials> {
   if (!process.stdin.isTTY || !process.stderr.isTTY) {
-    throw new Error(`Credential setup needs a terminal. Set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD, or pipe a JSON object to "${service} credentials --stdin".`);
+    throw new Error(`Credential setup needs a terminal. Set ${service.toUpperCase()}_USERNAME and ${service.toUpperCase()}_PASSWORD, or pipe a JSON object to "fam ${service} credentials --stdin".`);
   }
   let hidden = false;
   const output = new Writable({ write(chunk, _encoding, done) { if (!hidden) process.stderr.write(chunk); done(); } });
@@ -76,7 +115,8 @@ async function stdinCredentials(service: Service): Promise<Credentials> {
 
 /** Explicit setup replaces saved login details; sign in again to switch accounts. */
 export async function configureCredentials(service: Service, options: { stdin?: boolean } = {}): Promise<Credentials> {
-  const credentials = options.stdin ? await stdinCredentials(service) : environmentCredentials(service) ?? await promptCredentials(service);
+  const credentials = options.stdin ? await stdinCredentials(service)
+    : environmentCredentials(service) ?? await commandCredentials(service) ?? await promptCredentials(service);
   await writePrivateJson(loginFile(service), credentials);
   return credentials;
 }
