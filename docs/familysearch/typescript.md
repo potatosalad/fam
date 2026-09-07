@@ -1,10 +1,12 @@
 # FamilySearch TypeScript API
 
+First [install fam in your application](../setup.md#typescript-library-use).
+
 Create output folders before using these examples: `mkdir -p research-output/familysearch`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
 
 ```ts
-import { FamilySearchClient } from '@potatosalad/fam';
+import { FamilySearchClient } from '@potatosalad/fam/familysearch';
 
 const client = await FamilySearchClient.open();
 const me = await client.currentUser();
@@ -33,7 +35,7 @@ Use `fam familysearch schema OPERATION --example` for correctly nested input. `f
 The following example **creates a live note when executed**:
 
 ```ts
-import { notePayload } from '@potatosalad/fam';
+import { notePayload } from '@potatosalad/fam/familysearch';
 const note = await tree.persons.addNote({
   pid: details.id,
   body: notePayload('Research log', 'Check the original census image.', 'Research notes'),
@@ -42,9 +44,9 @@ const note = await tree.persons.addNote({
 // Typed operations apply the APK's UTF-8 form encoding to that header.
 ```
 
-Use `client.operation('persons.get', input)` to select by name, or `operationDetailed()` for HTTP status, pagination/location headers, and binary responses. The CLI equivalent is `npm run fam -- familysearch call persons.get research-output/input.json --out research-output/person.json`, with input `{ "pid": "XXXX-XXX" }`. CLI `call` can also execute mutations; the operation reference identifies the HTTP verb.
+Use `client.operation('persons.get', input)` to select by name, or `operationDetailed()` for HTTP status, pagination/location headers, and binary responses. The CLI equivalent is `npm run fam -- familysearch call persons.get research-output/familysearch/input.json --out research-output/familysearch/person.json`, with input `{ "pid": "XXXX-XXX" }`. CLI `call` can also execute mutations; the operation reference identifies the HTTP verb.
 
-`personChanges()` follows change-history cursors and `searchResults()` follows search offsets with bounded page counts and cancellation between requests. `memoryUpload()` and `groupImageUpload()` build the recovered multipart formats; `memories.replaceFile` takes plain story text. These helpers are exported from `src/index.ts`. A memory upload requires an explicit `isPrivate` boolean.
+`personChanges()` follows change-history cursors and `searchResults()` follows search offsets with bounded page counts and cancellation between requests. `memoryUpload()` and `groupImageUpload()` build the recovered multipart formats; `memories.replaceFile` takes plain story text. These helpers are exported from `@potatosalad/fam/familysearch` and the package root. A memory upload requires an explicit `isPrivate` boolean.
 
 Typed responses convert numeric JSON tokens to strings where the APK's Moshi string reader does so, and numeric strings to numeric model fields. Large Java long values become `bigint` without rounding. Use exported `stringifyJson()` / `parseJson()` to round-trip those values. CLI input/output already uses these helpers. Unknown response fields are retained; `validateOperationResponse()` optionally checks for schema drift. Missing fields with app defaults remain optional rather than inventing server values.
 

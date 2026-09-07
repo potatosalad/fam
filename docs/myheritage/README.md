@@ -1,6 +1,6 @@
 # MyHeritage CLI
 
-Create output folders before using these examples: `mkdir -p research-output/ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
+Create output folders before using these examples: `mkdir -p research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
 `fam myheritage` is a TypeScript/Node CLI derived from MyHeritage Android 7.5.44. It includes 164 REST declarations, 135 GraphQL documents, and 210 FamilyGraph models, plus website-backed historical-record research. The CLI sends HTTP directly and has no browser automation dependency.
 
@@ -8,13 +8,7 @@ See the [main README](../../README.md) for installation and credential storage. 
 
 ## Authentication
 
-For the practical browser-session setup, follow the [HAR capture instructions](../../README.md#myheritage), then run:
-
-```sh
-fam myheritage auth --har /absolute/path/to/session.har
-fam myheritage status
-fam myheritage me
-```
+For browser-session setup, follow [Use an already authenticated browser session](#use-an-already-authenticated-browser-session). `fam myheritage status` shows saved metadata; `fam myheritage me` checks live account access.
 
 For optional native password login:
 
@@ -23,7 +17,7 @@ fam myheritage credentials
 fam myheritage auth
 ```
 
-`credentials` uses a hidden prompt, `MYHERITAGE_USERNAME` / `MYHERITAGE_PASSWORD`, or a JSON object piped to `credentials --stdin`. API login uses environment values before saved credentials. An existing session is reused until a new login is requested or required.
+For native password login, `credentials` follows the [shared lookup rules](../setup.md#credential-lookup): environment variables, configured helper, then a hidden prompt. `--stdin` supplies login JSON directly. Native login checks `MYHERITAGE_USERNAME` / `MYHERITAGE_PASSWORD`, then the helper, then saved credentials. Browser-session import uses the HAR instead. Existing sessions are reused.
 
 Native login posts the APK's form fields to `/FP/API/Mobile/login.php`. It persists the returned FamilyGraph bearer token, opaque AccountID, user ID, device ID, and cookies. It supports the APK's MFA and verification parameters:
 
@@ -99,7 +93,7 @@ For browser sessions, `sites` covers the captured site and `trees` lists its tre
 
 The remaining shortcuts (`family`, `records`, `albums`, `consistency`), custom GraphQL/REST calls, and mutations require native API authentication. They are implemented from the APK and tested offline, but are not fully verified against the native service. Native `people` uses a curated paginated query; native `sites` reads memberships. These differ from the explicitly scoped browser results.
 
-Historical-person search and record viewing use the web service reached from the APK's research WebViews. The CLI now implements that research flow separately from the native catalog. DNA, image processing, subscriptions and other features remain subject to account permissions and service entitlements.
+Historical-person search and record viewing use the web service reached from the APK's research WebViews. The CLI implements that research flow separately from the native catalog. DNA, image processing, subscriptions and other features remain subject to account permissions and service entitlements.
 
 ## Every recovered operation (native API session required for execution)
 
@@ -139,6 +133,8 @@ Multipart operations accept `parts` in their JSON input:
 Dynamic file upload/download declarations take `url`; uploads can also take `bodyFile` to read bytes from disk. External signed file transfers omit account authorization and cookies and reject redirects; they do not forward the bearer token to storage providers. Binary results require `--out`.
 
 ## TypeScript
+
+First [install fam in your application](../setup.md#typescript-library-use).
 
 ```ts
 import {MyHeritageClient} from '@potatosalad/fam/myheritage';

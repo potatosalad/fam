@@ -1,6 +1,6 @@
 # Ancestry CLI
 
-Create output folders before using these examples: `mkdir -p research-output/ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
+Create output folders before using these examples: `mkdir -p research-output/ancestry`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
 `fam ancestry` provides a TypeScript client and CLI based on Ancestry Android 18.16.3 contracts. See the [main README](../../README.md) for npm installation, storage locations, environment variables, and isolated installations. Authentication and data are separate from the other providers.
 
@@ -16,7 +16,7 @@ fam ancestry status
 fam ancestry trees
 ```
 
-Credential setup uses a hidden prompt, `ANCESTRY_USERNAME` / `ANCESTRY_PASSWORD`, or JSON with `credentials --stdin`. API commands use environment credentials before saved login details, and reuse existing sessions. Login, device metadata, cookies, pending verification, and tokens are saved in `ancestry/` under the configuration root shown by `status`.
+Credential setup follows the [shared lookup rules](../setup.md#credential-lookup): environment variables, configured helper, then a hidden prompt. `--stdin` supplies login JSON directly. Password login checks `ANCESTRY_USERNAME` / `ANCESTRY_PASSWORD`, then the helper, then saved login details. Existing sessions are reused. Login, device metadata, cookies, pending verification, and tokens are saved in `ancestry/` under the configuration root shown by `status`.
 
 Run one process per profile when refreshing. Mandatory password changes and non-email verification need completion through Ancestry. See [protocol notes](protocol.md) and [APK provenance](provenance.json) for implementation details; catalog coverage is not a guarantee of access with every account.
 
@@ -76,6 +76,8 @@ The catalog includes mutations. `gql` and `call` execute the operation explicitl
 
 ## TypeScript
 
+First [install fam in your application](../setup.md#typescript-library-use).
+
 ```ts
 import { AncestryClient } from '@potatosalad/fam/ancestry';
 
@@ -90,7 +92,7 @@ const records = await client.search({given: 'Abraham', surname: 'Lincoln', birth
 const recent = await client.graphql('GetRecentlyModifiedPersons', {treeId: tree.treeId, limit: 10});
 ```
 
-Run source using `tsx`, or build and import `dist/ancestry/index.js`. GraphQL names and scalar variable types are derived from the embedded documents. Required/unknown variable names are checked at runtime. Custom GraphQL input objects and most response bodies remain `unknown`; REST contracts list native body classes and wire parameters rather than claiming complete TypeScript models. `AncestryGraphQLError.result` retains partial data and server errors for programmatic handling, while the CLI prints a brief error without sensitive payloads.
+Use the package import shown above; development examples can also run from the fam checkout with `tsx`. GraphQL names and scalar variable types are derived from the embedded documents. Required/unknown variable names are checked at runtime. Custom GraphQL input objects and most response bodies remain `unknown`; REST contracts list native body classes and wire parameters rather than claiming complete TypeScript models. `AncestryGraphQLError.result` retains partial data and server errors for programmatic handling, while the CLI prints a brief error without sensitive payloads.
 
 ## Scope and validation
 

@@ -1,6 +1,6 @@
 # Historical-record research
 
-Create output folders before using these examples: `mkdir -p research-output/ancestry research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
+Create output folders before using these examples: `mkdir -p research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
 The Android app has historical-record research. Its `MHResearchView` opens `/FP/genealogySearchMobile.php`, and `ResearchFragment` opens `/research/collection-ID/` through `HybridWebView`. The native APK's REST/GraphQL catalog alone does not include the main search request: that request is implemented in the JavaScript downloaded by these WebViews. The CLI follows that web application protocol with the saved authenticated session, using direct HTTP without a running browser.
 
@@ -131,6 +131,8 @@ The download creates **FILE** and **FILE.json**, both private to the owner. The 
 Original images can be hosted by MyHeritage or another provider such as FamilySearch. MyHeritage cookies are sent only to MyHeritage, never to another provider. A provider requiring its own login, an inaccessible scan, or a subscription restriction results in an error. Some records are indexes without scans; those have no document viewer. `record` remains useful for their fields and citation text.
 
 ## TypeScript
+
+First [install fam in your application](../setup.md#typescript-library-use).
 
 ```ts
 import {MyHeritageClient} from '@potatosalad/fam/myheritage';

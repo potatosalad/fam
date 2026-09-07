@@ -1,10 +1,10 @@
 # Original documents, films, and Full-Text Search
 
-The CLI can now resolve image ARKs, download and validate original distribution images, browse collection waypoints, enumerate DGS images, search full text, and retrieve machine transcripts. These are authenticated website services exposed through `client.research`; they are separate from the 212 APK-derived genealogy operations.
+The CLI resolves image ARKs, downloads and validates original distribution images, browses collection waypoints, enumerates DGS images, searches full text, and retrieves machine transcripts. These are authenticated website services exposed through `client.research`; they are separate from the 212 APK-derived genealogy operations.
 
 ## Start with the Walton examples
 
-Install or update the commands using the [main README](../../README.md#install). Run these examples from the checkout so the output stays in its ignored `artifacts/` folder:
+Install or update fam using the [main README](../../README.md#install). Run these examples from the checkout so the output stays in its ignored `artifacts/` folder:
 
 ```sh
 fam familysearch --help
@@ -65,7 +65,7 @@ fam familysearch collection browse \
   'https://www.familysearch.org/service/cds/recapi/waypoints/9SB9-N3F:267814801,267838601?cc=1999178' \
   --count 100 --all --out artifacts/document-research/estate-images.json
 
-# Generic GET now accepts the observed read-only recapi paths too.
+# Generic GET accepts the observed read-only recapi paths too.
 fam familysearch get '/service/cds/recapi/collections/1999178/waypoints?count=10'
 ```
 
@@ -116,7 +116,7 @@ fam familysearch call persons.get --input - <<'JSON'
 JSON
 ```
 
-Replace placeholder ARKs and person IDs before running. `schema --example` generates correctly nested input with placeholders, including optional query/header fields. Query flags use the operation's scalar wire type, preserve strings and large integers, and reject duplicate or unknown keys. Complex query values still use JSON. Positional input files continue to work. A misplaced `recordUrl` now explains that it belongs under `query` and points to the example command.
+Replace placeholder ARKs and person IDs before running. `schema --example` generates correctly nested input with placeholders, including optional query/header fields. Query flags use the operation's scalar wire type, preserve strings and large integers, and reject duplicate or unknown keys. Complex query values still use JSON. Positional input files continue to work. A misplaced `recordUrl` error explains that it belongs under `query` and points to the example command.
 
 ## TypeScript
 

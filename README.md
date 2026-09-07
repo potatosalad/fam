@@ -23,7 +23,9 @@ If installation fails or your shell can't find the commands, see [installation h
 
 ## Set up credentials
 
-Set up the services you use. The `credentials` command asks for your username and password, hides the password as you type, and saves them locally. The `auth` command signs in.
+Set up the services you use. `fam PROVIDER credentials` saves login details from environment variables or a configured helper; otherwise, it prompts for your username and hides the password as you type. `fam PROVIDER auth` signs in. Browser-session imports do not require saving a password.
+
+To use a credential helper for all providers, configure `credentialsCommand` once in `~/.config/fam/config.json`. See [persistent credential-helper setup](docs/setup.md#external-credential-helpers). With a helper configured, password-based sign-in can use `fam PROVIDER auth` directly.
 
 ### FamilySearch
 
@@ -174,4 +176,4 @@ See [development notes](docs/development.md) for running from source, regenerati
 npm uninstall --global @potatosalad/fam
 ```
 
-This removes the commands. Your credentials and saved research remain on disk.
+This removes the `fam` executable. Your credentials and saved research remain on disk.

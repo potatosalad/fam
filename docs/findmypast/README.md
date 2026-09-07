@@ -31,7 +31,7 @@ fam findmypast auth
 fam findmypast me
 ```
 
-`credentials` prompts for a username and hidden password. Scripts can use `FINDMYPAST_USERNAME` and `FINDMYPAST_PASSWORD`, or pipe login JSON to `fam findmypast credentials --stdin`.
+`credentials` uses `FINDMYPAST_USERNAME` / `FINDMYPAST_PASSWORD`, then a configured helper, then a hidden prompt. Pipe login JSON to `fam findmypast credentials --stdin` to bypass those sources. See [credential lookup](../setup.md#credential-lookup).
 
 Findmypast may require browser verification. The CLI remembers that response and stops further password attempts. Use HAR import, or complete the app's browser flow:
 
@@ -112,6 +112,8 @@ Catalog operations can edit or delete data and spend credits. In particular, the
 The catalog contains 110 GraphQL operations and 17 REST declarations extracted from Android 2.59.0. These counts describe recovered contracts, not successful live calls. Browser sessions cannot use the legacy asset service. See the [protocol notes](protocol.md) for routes, extraction steps, and coverage limits.
 
 ## TypeScript
+
+First [install fam in your application](../setup.md#typescript-library-use).
 
 ```ts
 import { FindmypastClient, searchFilters } from '@potatosalad/fam/findmypast';

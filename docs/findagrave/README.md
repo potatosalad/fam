@@ -12,7 +12,7 @@ fam findagrave auth
 fam findagrave me
 ```
 
-The password is hidden while you type. Scripts can set `FINDAGRAVE_USERNAME` and `FINDAGRAVE_PASSWORD`, or pipe login JSON to `fam findagrave credentials --stdin`. The CLI validates the contributor profile before saving a session. It does not support Ancestry account linking or browser-session import.
+Credential setup uses `FINDAGRAVE_USERNAME` / `FINDAGRAVE_PASSWORD`, then a configured helper, then a hidden prompt. Pipe login JSON to `fam findagrave credentials --stdin` to bypass those sources. See [credential lookup](../setup.md#credential-lookup). The CLI validates the contributor profile before saving a session. It does not support Ancestry account linking or browser-session import.
 
 `fam findagrave status` shows the configuration directory and saved-session metadata without a network request. `fam findagrave verify` checks that the session still identifies the same contributor. It does not extend the session; run `auth` again after expiry. Login and failed API requests are never retried automatically.
 
@@ -101,6 +101,8 @@ Selected mutations and REST writes execute immediately. Some write routes use HT
 The catalog has 32 GraphQL documents, 36 executable REST routes, and 47 HTTP call sites from Android 4.0.2. The remaining call sites are inventories, not complete request contracts. See the [operation index](operations.md) and [protocol notes](protocol.md) for coverage and extraction steps.
 
 ## TypeScript
+
+First [install fam in your application](../setup.md#typescript-library-use).
 
 ```ts
 import { FindagraveClient, searchInput, memorialPhotos } from '@potatosalad/fam/findagrave';
