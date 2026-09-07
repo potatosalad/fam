@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
-    "build": "node scripts/clean-dist.mjs && tsc",
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/generate-completions.mjs",
     "extract:ancestry": "python3 scripts/extract-ancestry.py",
     "check:ancestry": "python3 scripts/extract-ancestry.py --check",
     "verify:ancestry": "tsx scripts/verify-ancestry.ts",

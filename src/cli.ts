@@ -10,6 +10,8 @@ const providers = {
 };
 
 const help = `Usage: fam PROVIDER COMMAND [arguments] [options]
+       fam completion bash|zsh
+       fam completion install [bash|zsh]
 
 Providers: familysearch, ancestry, myheritage, findmypast, findagrave, geneanet
 
@@ -36,6 +38,10 @@ async function main() {
     if (args.length) throw new Error('Use fam --version without other arguments.');
     const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
     console.log(pkg.version); return;
+  }
+  if (provider === 'completion' || provider === '__complete') {
+    const { completionMain } = await import('./shared/completion.js');
+    await completionMain(provider === '__complete' ? ['--query', ...args] : args); return;
   }
   if (provider === 'help') {
     if (args.length !== 1) throw new Error('Use fam help PROVIDER.');

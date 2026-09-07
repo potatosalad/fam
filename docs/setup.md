@@ -23,6 +23,24 @@ On Windows, use an absolute Windows path for the prefix. npm puts the `.cmd` lau
 
 Use the same prefix when updating or uninstalling. To keep the credentials separate too, set `FAM_CONFIG_DIR` as described below.
 
+## Shell completion
+
+After installing `fam`, run `fam completion install` once, then open a new shell. It detects bash or zsh from `$SHELL` and adds a marked, guarded hook to your startup files. You can select explicitly with `fam completion install bash` or `fam completion install zsh`.
+
+Bash setup covers `.bashrc` and the first existing login profile (`.bash_profile`, `.bash_login`, or `.profile`; a new `.bash_profile` is created if none exists). Zsh uses `$ZDOTDIR/.zshrc` when set, otherwise `~/.zshrc`, and initializes its completion system if needed. Repeating installation does not duplicate the hooks. It does not require a separate bash-completion package.
+
+For the current shell, or to manage the startup hook yourself:
+
+```sh
+eval "$(fam completion bash)" # bash
+# or
+eval "$(fam completion zsh)"  # zsh
+```
+
+Try `fam fam<TAB>`, `fam familysearch image <TAB>`, or `fam ancestry search --birth-<TAB>`. File arguments such as `--out` use file completion, including paths containing spaces. Provider options are offered throughout that provider's command line; run `fam PROVIDER --help` to see which commands accept each option. Suggestions come from a catalog generated during the build, without loading credentials or contacting services. Updating fam also updates the suggestions.
+
+To uninstall completion, remove the marked `fam bash completion` or `fam zsh completion` blocks from the files printed by the installer. The installer changes files for the current user; run it as the user who will use the CLI.
+
 ## Credential lookup
 
 When a login is needed, fam reads its username and password from the environment first, then an explicitly configured credential helper, then its saved login file. A partial or empty environment pair is an error. API commands never prompt for a password.

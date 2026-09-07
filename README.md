@@ -13,9 +13,12 @@ git clone https://github.com/potatosalad/fam.git
 cd fam
 npm ci
 npm install --global .
+fam completion install
 ```
 
-This installs one executable, `fam`, from the checkout. Keep the directory in place. To update, run `git pull`, `npm ci`, and `npm install --global .` in it. All commands use `fam PROVIDER COMMAND`.
+This installs one executable, `fam`, from the checkout. Keep the directory in place. To update, run `git pull`, `npm ci`, and `npm install --global .` in it. Provider commands use `fam PROVIDER COMMAND`.
+
+`fam completion install` enables TAB completion for bash or zsh. Open a new shell afterward; for the current shell, run `eval "$(fam completion zsh)"` (use `bash` in bash). It completes providers, commands, options, and file paths. See [completion setup](docs/setup.md#shell-completion) for details.
 
 Upgrading an older installation? See [migration from familysearch](docs/setup.md#migration-from-familysearch) to remove the old executables and retain saved sessions.
 
