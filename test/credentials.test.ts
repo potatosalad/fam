@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { credentialDirectory, CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/storage.js';
 import { loadLoginCredentials, type Service } from '../src/credentials.js';
 
-const services: Service[] = ['familysearch', 'ancestry', 'myheritage', 'findmypast'];
+const services: Service[] = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave'];
 const loginFile = (service: Service) => service === 'familysearch' ? 'login.json' : `${service}/login.json`;
 
 test('storage is independent of the working directory and honors explicit profiles', () => {

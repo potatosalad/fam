@@ -11,6 +11,7 @@ analysis/smali/
 analysis/ancestry/
 analysis/myheritage/
 analysis/findmypast/
+analysis/findagrave/
 .DS_Store
 *.har
 

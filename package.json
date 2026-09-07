@@ -2,7 +2,7 @@
   "name": "@potatosalad/familysearch",
   "version": "0.1.0",
   "type": "module",
-  "description": "TypeScript clients and command-line tools for FamilySearch, Ancestry, MyHeritage, and Findmypast",
+  "description": "TypeScript clients and command-line tools for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave",
   "scripts": {
     "fs": "tsx src/cli.ts",
     "ancestry": "tsx src/ancestry/cli.ts",
@@ -29,7 +29,12 @@
     "findmypast": "tsx src/findmypast/cli.ts",
     "extract:findmypast": "python3 scripts/extract-findmypast.py",
     "check:findmypast": "python3 scripts/extract-findmypast.py --check",
-    "verify:findmypast": "tsx scripts/verify-findmypast.ts"
+    "verify:findmypast": "tsx scripts/verify-findmypast.ts",
+    "findagrave": "tsx src/findagrave/cli.ts",
+    "extract:findagrave": "python3 scripts/extract-findagrave.py",
+    "check:findagrave": "python3 scripts/extract-findagrave.py --check",
+    "verify:findagrave": "tsx scripts/verify-findagrave.ts",
+    "verify:findagrave:search": "tsx scripts/verify-findagrave-search.ts"
   },
   "engines": {
     "node": ">=22.16"
@@ -55,7 +60,8 @@
     "familysearch": "bin/familysearch.mjs",
     "ancestry": "bin/ancestry.mjs",
     "myheritage": "bin/myheritage.mjs",
-    "findmypast": "bin/findmypast.mjs"
+    "findmypast": "bin/findmypast.mjs",
+    "findagrave": "bin/findagrave.mjs"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -75,6 +81,10 @@
     "./findmypast": {
       "types": "./dist/findmypast/index.d.ts",
       "import": "./dist/findmypast/index.js"
+    },
+    "./findagrave": {
+      "types": "./dist/findagrave/index.d.ts",
+      "import": "./dist/findagrave/index.js"
     }
   },
   "files": [

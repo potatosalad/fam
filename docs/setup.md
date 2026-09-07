@@ -19,7 +19,7 @@ npm install --global --prefix "$HOME/.local/share/familysearch-public" .
 "$HOME/.local/share/familysearch-public/bin/familysearch" --help
 ```
 
-On Windows, use an absolute Windows path for the prefix. npm puts the four `.cmd` launchers directly in that directory.
+On Windows, use an absolute Windows path for the prefix. npm puts the `.cmd` launchers directly in that directory.
 
 Use the same prefix when updating or uninstalling. To keep the credentials separate too, set `FAMILYSEARCH_CONFIG_DIR` as described below.
 
@@ -37,11 +37,11 @@ For noninteractive setup, pipe a JSON object with string `username` and `passwor
 familysearch credentials --stdin < /private/path/login.json
 ```
 
-The same option works with `ancestry`, `myheritage`, and `findmypast`. It takes precedence over environment variables. The CLI preserves the password exactly and does not print it. Keep the input file private.
+The same option works with `ancestry`, `myheritage`, `findmypast`, and `findagrave`. It takes precedence over environment variables. The CLI preserves the password exactly and does not print it. Keep the input file private.
 
 ## Storage and profiles
 
-All four CLIs use the same configuration root:
+All CLIs use the same configuration root:
 
 | Setting | Directory |
 | --- | --- |
@@ -49,7 +49,7 @@ All four CLIs use the same configuration root:
 | macOS or Linux | `$XDG_CONFIG_HOME/familysearch`, or `~/.config/familysearch` |
 | Windows | `%APPDATA%\familysearch`, or `~/.config/familysearch` if `APPDATA` is unset |
 
-FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, and `findmypast/` subdirectories. Device IDs, cookies, and pending authentication state also live here.
+FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, `findmypast/`, and `findagrave/` subdirectories. Device IDs, cookies, and pending authentication state also live here.
 
 On POSIX systems, the CLIs use `0700` directories and `0600` files. Windows uses your user profile's ACLs. Credential writes replace files atomically.
 
@@ -70,6 +70,8 @@ Run one process per profile when renewing sessions. Separate processes do not co
 Run the CLI's `status` command to find its configuration directory. Remove that service's `session.json`, then run `auth`. Remove its `login.json` too if you want to forget the saved password. This clears local files; it does not revoke the session on the service.
 
 For an expired MyHeritage or Findmypast browser session, import a fresh HAR instead. Complete any website verification before capturing it. Findmypast's `refresh` revalidates browser cookies; it does not renew an expired browser login.
+
+Find a Grave has no token refresh command. `findagrave verify` checks the saved session without extending it; use `findagrave auth` to replace an expired session.
 
 ## Output files
 

@@ -1,6 +1,6 @@
 # FamilySearch CLI
 
-Command-line tools for FamilySearch, Ancestry, MyHeritage, and Findmypast. Browse family trees, search historical records, and download original documents.
+Command-line tools for FamilySearch, Ancestry, MyHeritage, Findmypast, and Find a Grave. Browse family trees, search historical records and memorials, and download original documents.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
@@ -15,7 +15,7 @@ npm ci
 npm install --global .
 ```
 
-This installs `familysearch`, `ancestry`, `myheritage`, and `findmypast` from the checkout. Keep the directory in place. To update, run `git pull` and `npm ci` in it. Run `npm install --global .` again to link any newly added commands.
+This installs `familysearch`, `ancestry`, `myheritage`, `findmypast`, and `findagrave` from the checkout. Keep the directory in place. To update, run `git pull` and `npm ci` in it. Run `npm install --global .` again to link any newly added commands.
 
 If installation fails or your shell can't find the commands, see [installation help](docs/setup.md#installation).
 
@@ -87,6 +87,20 @@ Delete the HAR after importing it. It contains session credentials. Import a fre
 
 See the [Findmypast guide](docs/findmypast/README.md) for native login, record and newspaper searches, and image downloads.
 
+### Find a Grave
+
+Use your Find a Grave email address when prompted for a username:
+
+```sh
+findagrave credentials
+findagrave auth
+findagrave me
+```
+
+Run `findagrave verify` to check a saved session, or `auth` to sign in again when it expires. Public searches also work with `--anonymous`, without credentials.
+
+See the [Find a Grave guide](docs/findagrave/README.md) for memorials, cemeteries, biography search, and photo download limits.
+
 ## Use the commands
 
 ```sh
@@ -101,6 +115,8 @@ myheritage collections census
 
 findmypast search --first-name Ada --last-name Lovelace --birth-year 1815
 findmypast newspapers --name "Ada Lovelace" --country England
+
+findagrave --anonymous search --first-name Abraham --last-name Lincoln --birth-year 1809
 ```
 
 Replace `PERSON_ID` and `IMAGE_ARK` with IDs from the service. Each CLI accepts `--help`. Commands print JSON by default; use `--out FILE` to save results. Keep personal data outside Git.
@@ -112,6 +128,7 @@ The `call` and `gql` commands can execute writes and deletions. Check the operat
 - [Ancestry commands](docs/ancestry/README.md)
 - [MyHeritage record research](docs/myheritage/research.md)
 - [Findmypast commands](docs/findmypast/README.md)
+- [Find a Grave commands](docs/findagrave/README.md)
 - [TypeScript API](docs/typescript.md)
 
 ## Configuration
@@ -128,6 +145,7 @@ For scripts, set both environment variables for the service:
 | Ancestry | `ANCESTRY_USERNAME` | `ANCESTRY_PASSWORD` |
 | MyHeritage | `MYHERITAGE_USERNAME` | `MYHERITAGE_PASSWORD` |
 | Findmypast | `FINDMYPAST_USERNAME` | `FINDMYPAST_PASSWORD` |
+| Find a Grave | `FINDAGRAVE_USERNAME` (email) | `FINDAGRAVE_PASSWORD` |
 
 Environment credentials take precedence over saved passwords. Existing sessions remain active until a new login is needed or you run `auth`. The CLIs do not load `.env` files.
 
