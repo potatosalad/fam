@@ -2,6 +2,7 @@ import {WEB, type MyHeritageHttp} from './http.js';
 import type {Query} from '../familysearch/transport-types.js';
 import type {MyHeritageSession} from './auth.js';
 import {individualWithHints} from './web-queries.js';
+import {withSessionRefresh} from '../shared/session-refresh.js';
 
 export interface TreePage {
   accountId: string; siteId: string; treeId: string; rootId: string; homeId: string;
@@ -29,7 +30,7 @@ export function pageValue(html: string, name: string): unknown {
 export function parseTreePage(html: string): TreePage {
   const get = (key: string) => pageValue(html, key);
   if (get('isLoggedIn') !== true || typeof get('currentUserAccountID') !== 'string') {
-    throw new Error('MyHeritage browser session expired or this is not a signed-in tree page. Import a fresh HAR with fam myheritage.session login --har FILE.');
+    throw Object.assign(new Error('MyHeritage browser session expired or this is not a signed-in tree page. Run fam myheritage.session login.'), {code: 'session-rejected'});
   }
   const media = get('mediaUploaderData') as {fgToken?: string} | undefined;
   const trees = get('treeSelectionMenuEntries');
@@ -54,10 +55,10 @@ type JsonObject = Record<string, any>;
 export class MyHeritageBrowser {
   private page?: Promise<TreePage>;
   constructor(private readonly session: MyHeritageSession, private readonly http: Pick<MyHeritageHttp, 'exchange' | 'jar'>,
-    private readonly persist: () => Promise<void>) {}
+    private readonly persist: () => Promise<void>, private readonly renew?: () => Promise<void>) {}
   private headers(): Record<string, string> {return this.session.browser?.userAgent ? {'User-Agent': this.session.browser.userAgent} : {};}
   async context(): Promise<TreePage> {
-    this.page ??= this.loadPage().catch(error => {this.page = undefined; throw error;});
+    this.page ??= withSessionRefresh(() => this.loadPage(), this.renew).catch(error => {this.page = undefined; throw error;});
     return this.page;
   }
   private async loadPage() {

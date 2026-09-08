@@ -295,3 +295,14 @@ test('downloads refuse new credit-priced images but allow already-unlocked image
   assert.equal(locked.requests(),0);
   await downloadRecordImage(imageClient(bytes,2,3,7,true).client,'test/record');
 });
+
+test('Camofox Findmypast sessions renew at most once on an authentication rejection', async () => {
+  const session={...browserSessionFromHar(JSON.stringify({log:{entries:[{request:{url:'https://www.findmypast.com/titan/marshal/graphql',cookies:[{name:'test',value:'test-value'}]},response:{status:200}}]}})),browserInstance:'a'.repeat(24)};
+  for (const status of [401,403,429,500]) {
+    let sends=0,renewals=0;
+    const client=new FindmypastClient(session,{exchange:async()=>{sends++;throw new FindmypastHttpError(status,'/graphql');}},
+      {refresh:async()=>{throw new Error('Native refresh must not run');},save:async()=>{},browserLogin:async value=>{renewals++;return value;}});
+    await assert.rejects(client.me());
+    assert.equal(sends,status===401?2:1);assert.equal(renewals,status===401?1:0);
+  }
+});

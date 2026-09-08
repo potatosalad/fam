@@ -1,3 +1,5 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import { parseJson, stringifyJson } from '../shared/json.js';
@@ -12,7 +14,7 @@ export function checkMyHeritageUrl(url: URL): void {
   if (!origins.has(url.origin) || url.username || url.password) throw new Error('Refusing a request outside the MyHeritage API origins.');
 }
 export class MyHeritageHttpError extends Error {
-  constructor(readonly status: number, readonly path: string, readonly retryAfter?: string) {
+  constructor(readonly status: number, readonly path: string, readonly retryAfter?: string, readonly code?: string) {
     super(`MyHeritage HTTP ${status} from ${path}`);
   }
 }
@@ -31,6 +33,9 @@ export function checkMyHeritageChallenge(text: string): void {
 export class MyHeritageHttp {
   readonly jar: CookieJar;
   private readonly transport = new Impit({ browser: 'chrome', timeout: 30_000 });
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
+    return fetchWithBrowser('myheritage', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
+  }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
     this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar();
   }
@@ -48,16 +53,22 @@ export class MyHeritageHttp {
     if (raw && options.body instanceof FormData && headers.has('content-type')) throw new Error('FormData supplies its own Content-Type.');
     let response;
     try {
-      response = await this.transport.fetch(target, {
+      response = await this.fetch(target, {
         method: options.method ?? 'GET', redirect: 'manual', headers: Object.fromEntries(headers),
         ...(options.body === undefined ? {} : { body: raw ? options.body as UploadBody : stringifyJson(options.body) }),
       });
-    } catch { throw new Error(`MyHeritage network request failed for ${target.origin}${target.pathname}.`); }
+    } catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`MyHeritage network request failed for ${target.origin}${target.pathname}.`); }
     for (const cookie of response.headers.getSetCookie()) await this.jar.setCookie(cookie, target.href);
     // Redirects never carry bearer tokens to a new origin. The caller must use an evidenced API URL.
     if (!response.ok) {
       await response.text();
-      throw new MyHeritageHttpError(response.status, `${target.origin}${target.pathname}`, response.headers.get('retry-after') ?? undefined);
+      let rejected = false;
+      if ([301,302,303,307,308].includes(response.status) && target.origin === WEB && options.response === 'text' && (options.method ?? 'GET') === 'GET') {
+        try {const next = new URL(response.headers.get('location') ?? '', target);
+          rejected = next.origin === WEB && ['/', '/login', '/FP/registration.php'].includes(next.pathname);
+        } catch {}
+      }
+      throw new MyHeritageHttpError(response.status, `${target.origin}${target.pathname}`, response.headers.get('retry-after') ?? undefined, rejected ? 'session-rejected' : undefined);
     }
     const result = (data: unknown): ApiResponse<T> => ({data: data as T, status: response.status,
       headers: Object.fromEntries([...response.headers].filter(([k]) => !['set-cookie', 'authorization'].includes(k.toLowerCase()))) });
@@ -77,9 +88,9 @@ export async function transferMyHeritage<T = Uint8Array>(url: string, options: A
   const headers = new Headers(options.headers);
   for (const key of ['authorization', 'cookie', 'proxy-authorization']) headers.delete(key);
   let response: Response;
-  try {response = await fetch(target, {method: options.method ?? 'GET', headers, redirect: 'manual', signal: AbortSignal.timeout(60_000),
-    ...(options.body === undefined ? {} : {body: options.body as BodyInit})});}
-  catch {throw new Error('MyHeritage file transfer failed.');}
+  try {response = await fetchWithBrowser('myheritage', target, {method: options.method ?? 'GET', headers, body: options.body}, () => fetch(target, {method: options.method ?? 'GET', headers, redirect: 'manual', signal: AbortSignal.timeout(60_000),
+    ...(options.body === undefined ? {} : {body: options.body as BodyInit})}));}
+  catch (error) {if (error instanceof BrowserError) throw error; throw new Error('MyHeritage file transfer failed.');}
   if (!response.ok) {await response.body?.cancel(); throw new Error(`MyHeritage file transfer returned HTTP ${response.status}.`);}
   const data = options.response === 'void' || response.status === 204 ? (await response.body?.cancel(), undefined) :
     options.response === 'text' ? await response.text() : new Uint8Array(await response.arrayBuffer());

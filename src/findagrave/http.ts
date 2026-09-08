@@ -1,3 +1,5 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import { parseJson, stringifyJson } from '../shared/json.js';
@@ -23,6 +25,9 @@ export class FindagraveHttpError extends Error {
 export class FindagraveHttp {
   readonly jar: CookieJar;
   private readonly transport = new Impit({browser: 'chrome', timeout: 30_000});
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
+    return fetchWithBrowser('findagrave', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
+  }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
     this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar();
   }
@@ -46,10 +51,10 @@ export class FindagraveHttp {
       // Image requests work with the standard transport and browser headers; the
       // impersonating transport still receives a CDN challenge with those headers.
       response = target.origin === IMAGES && options.response === 'binary' && (options.method ?? 'GET') === 'GET' && options.body === undefined
-        ? await fetch(target, {headers, redirect: 'manual', signal: AbortSignal.timeout(45_000)})
-        : await this.transport.fetch(target, {method: options.method ?? 'GET', headers: Object.fromEntries(headers), redirect: 'manual',
+        ? await fetchWithBrowser('findagrave', target, {headers}, () => fetch(target, {headers, redirect: 'manual', signal: AbortSignal.timeout(45_000)}))
+        : await this.fetch(target, {method: options.method ?? 'GET', headers: Object.fromEntries(headers), redirect: 'manual',
           ...(options.body === undefined ? {} : {body: raw ? options.body as UploadBody : stringifyJson(options.body)})});
-    } catch { throw new Error(`Find a Grave network request failed for ${target.pathname}.`); }
+    } catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Find a Grave network request failed for ${target.pathname}.`); }
     if (target.origin === ORIGIN) for (const cookie of response.headers.getSetCookie()) await this.jar.setCookie(cookie, target.href);
     if (!response.ok) {
       await response.text();

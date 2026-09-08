@@ -1,3 +1,5 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import { parseJson, stringifyJson } from '../shared/json.js';
@@ -18,6 +20,9 @@ export class AncestryHttpError extends Error {
 export class AncestryHttp {
   readonly jar: CookieJar;
   private readonly transport = new Impit({ browser: 'chrome', timeout: 30_000 });
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
+    return fetchWithBrowser('ancestry', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
+  }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
     this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar();
   }
@@ -35,11 +40,11 @@ export class AncestryHttp {
     if (raw && options.body instanceof FormData && headers.has('content-type')) throw new Error('FormData supplies its own Content-Type.');
     let response;
     try {
-      response = await this.transport.fetch(target, {
+      response = await this.fetch(target, {
         method: options.method ?? 'GET', redirect: 'manual', headers: Object.fromEntries(headers),
         ...(options.body === undefined ? {} : { body: raw ? options.body as UploadBody : stringifyJson(options.body) }),
       });
-    } catch { throw new Error(`Ancestry network request failed for ${target.origin}${target.pathname}.`); }
+    } catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Ancestry network request failed for ${target.origin}${target.pathname}.`); }
     for (const cookie of response.headers.getSetCookie()) await this.jar.setCookie(cookie, target.href);
     // Redirects never carry bearer tokens to a new origin. The caller must use an evidenced API URL.
     if (!response.ok) {

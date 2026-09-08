@@ -39,6 +39,16 @@ Upgrading an older installation? See [migration from familysearch](docs/setup.md
 
 If installation fails or your shell can't find the commands, see [installation help](docs/setup.md#installation).
 
+## Set up the browser
+
+```sh
+fam browser setup --local
+```
+
+This starts persistent Camofox in Docker with a passwordless localhost viewer. On macOS, fam offers to install OrbStack when needed. For an existing server, use `fam browser setup --remote URL --vnc-url VIEWER_URL`. Switch with `fam browser use local` or `fam browser use remote`; each retains its logins. See [browser setup](docs/browser.md) for remote API keys, custom viewer URLs, start/stop, and timeouts.
+
+Browser sign-ins reuse cookies and try configured credentials when needed. fam opens or prints the viewer URL for MFA or CAPTCHA and waits for completion. All provider HTTP clients automatically recover evidenced Cloudflare challenges through the browser and remember the website until `fam browser reset`.
+
 ## Set up credentials
 
 Storied uses Auth0 browser sign-in with PKCE and renewable native tokens. Run `fam storied.session login` with configured credentials, then `fam storied.session verify`. Use `fam storied.session login --interactive` for social login or account verification. See the [Storied guide](docs/storied/README.md) for browser setup, trees, pedigrees, stories, media, historical search, and its API catalog.
@@ -77,27 +87,27 @@ Then run `fam ancestry.tree list` to list your trees.
 
 ### MyHeritage
 
-Run the capture command, then sign in in the browser window:
+Sign in through the configured browser:
 
 ```sh
-fam myheritage.session login --capture
+fam myheritage.session login
 fam myheritage.account get
 ```
 
-You can browse normally after signing in. fam collects the required account context in the background, saves a HAR including sensitive data, and validates and imports the session automatically. It prints the private HAR path. Run the same command when the session expires. See [browser capture](docs/browser-capture.md) for browser selection, storage, and troubleshooting.
+fam reuses the browser login, validates account access, and saves its session for the selected instance. Use the viewer URL if verification is required. `--capture` remains an alias; existing HAR imports remain supported. See [browser setup](docs/browser.md).
 
 Browser sessions support tree browsing and historical-record research. See the [MyHeritage guide](docs/myheritage/README.md) for native login and other limitations.
 
 ### Findmypast
 
-Run the capture command, then sign in in the browser window:
+Sign in through the configured browser:
 
 ```sh
-fam findmypast.session login --capture
+fam findmypast.session login
 fam findmypast.account get
 ```
 
-fam captures the account request and validates and imports the saved HAR automatically. Use `fam findmypast.session login --capture --region co.uk` for the UK website. HARs contain session credentials and are saved privately; see [browser capture](docs/browser-capture.md).
+fam validates the account through Camofox and retains the login. Use `fam findmypast.session login --region co.uk` for the UK website, or `--interactive` to sign in yourself. See [browser setup](docs/browser.md).
 
 See the [Findmypast guide](docs/findmypast/README.md) for native login, record and newspaper searches, and image downloads.
 

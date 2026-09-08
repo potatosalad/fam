@@ -1,3 +1,4 @@
+import {saveProviderSession} from '../shared/browser-config.js';
 import { loadLoginCredentials, type Credentials } from '../shared/credentials.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { rm } from 'node:fs/promises';
@@ -10,8 +11,8 @@ export const CLIENT_ID = 'HdCksGN9pb2NxepbUqO6Q0iwksi43pwe'; // Public Android O
 export const AUDIENCE = 'https://www.findmypast.com/api';
 export type FindmypastCredentials = Credentials;
 export interface FindmypastTokens { access_token: string; refresh_token?: string; id_token?: string; token_type: string; expires_in: number; scope?: string; }
-export interface FindmypastSession { tokens: FindmypastTokens; expiresAt: number; savedAt: string; }
-export interface FindmypastBrowserSession { mode: 'browser'; cookies: ReturnType<CookieJar['serializeSync']>; apiBase: string; savedAt: string; headers?: Record<string,string>; }
+export interface FindmypastSession { browserInstance?: string; tokens: FindmypastTokens; expiresAt: number; savedAt: string; }
+export interface FindmypastBrowserSession { browserInstance?: string; mode: 'browser'; cookies: ReturnType<CookieJar['serializeSync']>; apiBase: string; savedAt: string; headers?: Record<string,string>; }
 export type SavedFindmypastSession = FindmypastSession | FindmypastBrowserSession;
 export function isBrowserSession(session?: SavedFindmypastSession): session is FindmypastBrowserSession { return Boolean(session && 'mode' in session && session.mode === 'browser'); }
 export const loadFindmypastCredentials = (): Promise<FindmypastCredentials> => loadLoginCredentials('findmypast');
@@ -48,7 +49,7 @@ export async function refreshFindmypast(session: FindmypastSession, http = new F
     body: {client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: session.tokens.refresh_token}});
   return sessionFromTokens(data, session);
 }
-export const saveFindmypastSession = (session: SavedFindmypastSession) => writePrivateJson('findmypast/session.json', session);
+export const saveFindmypastSession = (session: SavedFindmypastSession) => saveProviderSession('findmypast', session);
 export function sessionStatus(session?: SavedFindmypastSession) {
   if (isBrowserSession(session)) return {sessionSaved: true, mode: 'browser', savedAt:session.savedAt, expiresAt:null, expired:null, refreshAvailable:false};
   return {sessionSaved: Boolean(session?.tokens.access_token), savedAt: session?.savedAt ?? null,

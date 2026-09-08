@@ -2,19 +2,19 @@
 
 Create output folders before using these examples: `mkdir -p research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
-`fam myheritage` is a TypeScript/Node CLI derived from MyHeritage Android 7.5.44. It includes 164 REST declarations, 135 GraphQL documents, and 210 FamilyGraph models, plus website-backed historical-record research. Research commands send HTTP directly. The optional authentication capture command uses Playwright to open a browser.
+`fam myheritage` is a TypeScript/Node CLI derived from MyHeritage Android 7.5.44. It includes 164 REST declarations, 135 GraphQL documents, and 210 FamilyGraph models, plus website-backed historical-record research. Sign-in uses persistent Camofox. Research requests use direct HTTP or the browser according to the selected transport and remembered website challenges.
 
 See the [main README](../../README.md) for installation and credential storage. Browser sessions support selected tree reads and historical research; native API availability is not fully verified and can be blocked by reCAPTCHA. Offline catalog coverage does not establish live API access.
 
 ## Authentication
 
-Run `fam myheritage.session login --capture`, sign in in the window that opens, and browse normally. No particular page or click sequence is required. fam captures the required API traffic, saves a sensitive HAR privately, and validates and imports the session automatically. See [browser capture](../browser-capture.md). `fam myheritage.session get` shows saved metadata; `fam myheritage.account get` checks live account access.
+Run `fam myheritage.session login`. fam reuses the selected browser session or tries configured credentials, and opens or prints the viewer URL when interaction is needed. It validates the signed-in tree and account permissions before saving. See [browser setup](../browser.md). `fam myheritage.session get` shows metadata; `fam myheritage.account get` checks live access.
 
 For optional native password login:
 
 ```sh
 fam myheritage.credential set
-fam myheritage.session login
+fam myheritage.session login --native
 ```
 
 For native password login, `credentials` follows the [shared lookup rules](../setup.md#credential-lookup): environment variables, configured helper, then a hidden prompt. `--stdin` supplies login JSON directly. Native login checks `MYHERITAGE_USERNAME` / `MYHERITAGE_PASSWORD`, then the helper, then saved credentials. Browser-session import uses the HAR instead. Existing sessions are reused.
@@ -86,7 +86,7 @@ fam myheritage.person insights --person-id "$PERSON"
 fam myheritage.media list --parent-id "$PERSON"
 ```
 
-For browser sessions, `sites` covers the captured site and `trees` lists its tree menu. `people` returns the visible tree neighborhood with explicit `total_tree_people`, `available_people` and pagination; distant people may be pruned. `find` searches names in the selected tree through the website lookup API. Browser tree/person commands also accept numeric IDs local to that site. To switch sites, import a HAR from the other site.
+For browser sessions, `sites` covers the captured site and `trees` lists its tree menu. `people` returns the visible tree neighborhood with explicit `total_tree_people`, `available_people` and pagination; distant people may be pruned. `find` searches names in the selected tree through the website lookup API. Browser tree/person commands also accept numeric IDs local to that site. To switch sites, run `fam myheritage.session login --tree-url URL` for the other site.
 
 `person` returns the website profile card, relatives, facts, photo metadata and research links. `events`, `timeline` and `facts` return the card's fact/event list. `insights` returns family groups and event facts with available citations, notes and media. `matches` returns Smart Match and record-match **counts**, not full match records. `media` accepts a person ID in browser mode. Empty results mean the request succeeded with no visible records.
 

@@ -86,6 +86,7 @@ export function completionCatalog(): CompletionNode {
     for (const flag of command.flags) action.options[`--${flag.name}`] = {value: flag.type !== 'boolean', file: flag.file, choices: flag.choices};
     action.options['-h'] = {value: false};
   }
+  if (root.commands['cli.browser']) root.commands.browser = root.commands['cli.browser'];
   return root;
 }
 

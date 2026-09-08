@@ -20,4 +20,4 @@ export function findmypastCaptureRecipe(region = 'com'): CaptureRecipe<SavedFind
     importHar: importFindmypastHar,
   };
 }
-export const captureFindmypast = (options?: CaptureOptions, region?: string) => captureAuthentication(findmypastCaptureRecipe(region), options);
+export const captureFindmypast = async (options?: CaptureOptions, region?: string) => ({session: await (await import('./browser-login.js')).loginFindmypast({timeoutMs: options?.timeoutMs, region})});

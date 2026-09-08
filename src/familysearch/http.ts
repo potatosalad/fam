@@ -1,4 +1,6 @@
-import { Impit, type ImpitResponse } from 'impit';
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
+import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import type { ApiRequest, ApiResponse, HttpMethod, UploadBody } from './transport-types.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
@@ -26,25 +28,28 @@ export function checkOrigin(url: URL): void {
 export class HttpSession {
   readonly jar: CookieJar;
   private readonly transport: Impit;
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
+    return fetchWithBrowser('familysearch', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
+  }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
     this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar();
     this.transport = new Impit({ browser: 'chrome', timeout: 30_000 });
   }
 
-  async request(url: string | URL, init: { method?: HttpMethod; headers?: Record<string, string>; body?: UploadBody } = {}): Promise<ImpitResponse> {
+  async request(url: string | URL, init: { method?: HttpMethod; headers?: Record<string, string>; body?: UploadBody } = {}): Promise<Response> {
     const target = new URL(url);
     checkOrigin(target);
     const headers: Record<string, string> = { 'Accept-Language': 'en-US', ...init.headers };
     const cookie = await this.jar.getCookieString(target.href);
     if (cookie) headers.Cookie = cookie;
-    let response: ImpitResponse;
-    try { response = await this.transport.fetch(target, { ...init, headers, redirect: 'manual' }); }
-    catch { throw new Error(`Network request failed for ${target.origin}${target.pathname}.`); }
+    let response: Response;
+    try { response = await this.fetch(target, { ...init, headers, redirect: 'manual' }); }
+    catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Network request failed for ${target.origin}${target.pathname}.`); }
     for (const value of response.headers.getSetCookie()) await this.jar.setCookie(value, target.href);
     return response;
   }
 
-  async follow(url: string, stopAt?: string): Promise<{ url: string; response?: ImpitResponse; html?: string }> {
+  async follow(url: string, stopAt?: string): Promise<{ url: string; response?: Response; html?: string }> {
     let current = new URL(url);
     for (let step = 0; step < 20; step++) {
       if (stopAt && current.href.split('?')[0] === stopAt) return { url: current.href };

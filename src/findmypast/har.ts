@@ -1,3 +1,5 @@
+import {browserConfig, directOnly, rememberBrowser} from '../shared/browser-config.js';
+import {importBrowserCookies} from '../shared/browser-runtime.js';
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CREDENTIAL_DIR } from '../shared/storage.js';
@@ -35,10 +37,17 @@ export async function importFindmypastHar(path: string) {
   const session = browserSessionFromHar(await readFile(path,'utf8'));
   // Validate account identity before saving; public operations alone cannot prove login.
   const http = new FindmypastHttp(session.cookies);
+  let importedInstance: string | undefined;
+  if (await browserConfig() && !await directOnly()) {
+    const origin = new URL(session.apiBase).origin;
+    importedInstance = await importBrowserCookies('findmypast', http.jar, origin);
+    await rememberBrowser('findmypast', origin);
+  }
   const client = new FindmypastClient(session, http, {refresh:async () => {throw new Error('Unexpected native refresh.');},save:async () => {}});
   const profile = await client.graphql<{currentUserProfile?: {id?: string}}>('GetCurrentUserProfile');
   if (!profile.currentUserProfile?.id) throw new Error('HAR cookies do not authenticate a Findmypast account.');
   session.cookies = http.jar.serializeSync();
+  if (importedInstance) session.browserInstance = importedInstance;
   await saveFindmypastSession(session);
   await rm(join(CREDENTIAL_DIR,'findmypast/pending-auth.json'),{force:true});
   return session;

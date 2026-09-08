@@ -41,4 +41,4 @@ export function myHeritageCaptureRecipe(treeUrl?: string): CaptureRecipe<MyHerit
     importHar: async path => importMyHeritageHar(await readCapturedHar(path)),
   };
 }
-export const captureMyHeritage = (options?: CaptureOptions, treeUrl?: string) => captureAuthentication(myHeritageCaptureRecipe(treeUrl), options);
+export const captureMyHeritage = async (options?: CaptureOptions, treeUrl?: string) => ({session: await (await import('./browser-login.js')).loginMyHeritage({timeoutMs: options?.timeoutMs, treeUrl})});

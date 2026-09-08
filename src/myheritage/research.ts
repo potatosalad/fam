@@ -6,6 +6,7 @@ import {WEB, MyHeritageHttpError, type MyHeritageHttp} from './http.js';
 import type {MyHeritageSession} from './auth.js';
 import {pageJson} from './page-data.js';
 import {historicalRecordsQuery, collectionPageQuery, collectionCatalogQuery} from './research-queries.js';
+import {withSessionRefresh} from '../shared/session-refresh.js';
 
 export interface ResearchEvent {type: 'birth' | 'death' | 'marriage' | 'residence' | 'immigration' | 'military' | 'any'; year?: number; month?: number; day?: number; place?: string; yearRange?: number;}
 export interface ResearchRelative {type: 'father' | 'mother' | 'spouse' | 'child' | 'sibling' | 'any'; firstName?: string; lastName?: string;}
@@ -129,16 +130,17 @@ export class MyHeritageResearchVerificationError extends Error {
 }
 export class MyHeritageResearch {
   private contextPromise?: Promise<ResearchContext>;
-  constructor(private readonly session: MyHeritageSession, private readonly http: Pick<MyHeritageHttp, 'exchange' | 'jar'>, private readonly persist: () => Promise<void>) {}
+  constructor(private readonly session: MyHeritageSession, private readonly http: Pick<MyHeritageHttp, 'exchange' | 'jar'>, private readonly persist: () => Promise<void>, private readonly renew?: () => Promise<void>) {}
   private headers(): Record<string, string> {return this.session.browser?.userAgent ? {'User-Agent': this.session.browser.userAgent} : {};}
   private context() {
-    this.contextPromise ??= (async () => {
+    this.contextPromise ??= withSessionRefresh(async () => {
       const r = await this.http.exchange<string>(`${WEB}/research`, {headers: this.headers(), response: 'text'});
       const data = pageJson<ObjectData>(r.data, 'clientData'), csrf = pageJson<string>(r.data, 'mhXsrfToken');
-      if (data?.user?.isLoggedIn !== true || typeof data.fgToken !== 'string' || !csrf) throw new Error('Record research needs a signed-in website session. Import a fresh HAR with fam myheritage.session login --har FILE.');
+      if (data?.user?.isLoggedIn !== true) throw Object.assign(new Error('Record research needs a signed-in website session. Run fam myheritage.session login.'), {code: 'session-rejected'});
+      if (typeof data.fgToken !== 'string' || !csrf) throw new Error('MyHeritage research page format changed; session was not replaced.');
       this.session.accessToken = data.fgToken; await this.persist();
       return {token: data.fgToken, guestId: String(data.user.guestId), siteId: String(data.user.siteId), lang: String(data.lang), csrf};
-    })().catch(error => {this.contextPromise = undefined; throw error;});
+    }, this.renew).catch(error => {this.contextPromise = undefined; throw error;});
     return this.contextPromise;
   }
   private async gql(document: string, description: string, variables: ObjectData = {}): Promise<ApiResponse<ObjectData>> {

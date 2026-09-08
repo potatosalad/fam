@@ -1,3 +1,5 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
 
 export const WEB = 'https://newspaperarchive.com';
@@ -22,14 +24,15 @@ export class NewspaperArchiveHttp {
   private readonly transport: Transport;
   constructor(transport?: Transport) {
     const http = new Impit({browser: 'chrome', timeout: 30_000});
-    this.transport = transport ?? ((url, init) => http.fetch(url, init));
+    const direct = transport ?? ((url, init) => http.fetch(url, init));
+    this.transport = (url, init) => fetchWithBrowser('newspaperarchive', url, init, () => direct(url, init));
   }
   async text(value: string | URL) {
     let url = checkUrl(value);
     for (let hop = 0; hop < 6; hop++) {
       let response: ResponseLike;
       try {response = await this.transport(url.href, {method: 'GET', headers: {}, redirect: 'manual'});}
-      catch {throw new Error('NewspaperArchive network request failed.');}
+      catch (error) {if (error instanceof BrowserError) throw error; throw new Error('NewspaperArchive network request failed.');}
       if ([301,302,303,307,308].includes(response.status)) {
         const location = response.headers.get('location');
         if (!location) throw new NewspaperArchiveError('api-changed');

@@ -14,6 +14,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
 export type Provider = typeof providerNames[number];
 /** Shared object descriptions used by provider help and command correction. */
 export const objectDescriptions: Record<string, string> = {
+  browser: 'Persistent local or remote Camofox browser and login viewer.',
   account: 'Account profiles and current user information.', album: 'Photo albums and their contents.',
   api: 'Provider API catalogs, contracts, and operation execution.',
   'api.enum': 'Enumerated values from provider API contracts.', 'api.gql': 'Cataloged and custom GraphQL operations.',
@@ -118,14 +119,14 @@ const descriptions: Record<string, string> = {
   json: 'Emit structured JSON instead of readable text, including errors.', 'dry-run': 'Validate CLI flags and show the invocation without executing the provider or writing files.',
   help: 'Show this command’s generated usage and flags.',
 };
-const booleans = new Set('stdin anonymous capture browser interactive send-code all original related no-translations exact images with-images descending include-maiden-name include-nickname similar has-gps famous veteran example json dry-run help offline live verbose'.split(' '));
+const booleans = new Set('native stdin anonymous capture browser interactive send-code all original related no-translations exact images with-images descending include-maiden-name include-nickname similar has-gps famous veteran example json dry-run help offline live verbose'.split(' '));
 const integers = new Set('limit offset page count depth generations image capture-timeout birth-year death-year residence-year marriage-year year year-range birth-year-range death-year-range residence-year-range marriage-year-range from-page to-page occurrence'.split(' '));
 const files = new Set('out input variables document har callback-file recaptcha-token-file'.split(' '));
 const options: Record<string, Partial<Flag>> = {
   limit: {default: 20, minimum: 1}, offset: {default: 0, minimum: 0}, page: {default: 1, minimum: 1},
   count: {default: 100, minimum: 1, maximum: 1000}, depth: {default: 2, minimum: 1},
-  generations: {default: 4, minimum: 1, maximum: 8}, 'capture-timeout': {default: 600, minimum: 1},
-  'browser-channel': {choices: ['chrome', 'msedge', 'chromium']},
+  generations: {default: 4, minimum: 1, maximum: 8}, 'capture-timeout': {minimum: 0, maximum: 3600},
+  'browser-channel': {choices: ['camofox', 'chrome', 'msedge', 'chromium']},
   gender: {choices: ['M', 'F']},
   'first-name-match': {choices: ['exact', 'similar', 'initials', 'prefix']},
   'last-name-match': {choices: ['exact', 'similar', 'soundex', 'metaphone', 'prefix']},
@@ -149,7 +150,7 @@ function add(provider: Command['provider'], legacy: string, objectAction: string
   positional: string[] = [], names = '', extra: Extras = {}) {
   const [object, action] = objectAction.split(' ');
   const positionals = positional.map(name => name.replace(/^\?/, ''));
-  const flagList = [...positional.map(name => flag(name.replace(/^\?/, ''), {required: !name.startsWith('?')})),
+  const flagList = [...(provider !== 'cli' ? [flag('transport', {choices: ['auto','http','browser'], binding: false, description: 'Override automatic HTTP/browser transport for this command.'}), flag('browser-timeout', {type: 'integer', minimum: 0, maximum: 3600, binding: false, description: 'Override the wait for browser verification, in seconds.'})] : []), ...positional.map(name => flag(name.replace(/^\?/, ''), {required: !name.startsWith('?')})),
     ...names.split(' ').filter(Boolean).map(name => flag(name)),
     ...['out', 'json', 'dry-run', 'help'].filter(name => !names.split(' ').includes(name) && !positionals.includes(name)).map(name => flag(name))];
   for (const f of flagList) Object.assign(f, extra.flags?.[f.name]);
@@ -176,8 +177,8 @@ const commonRead = 'query';
 for (const provider of providerNames) {
   add(provider, 'credentials', 'credential set', 'Save login credentials from helper, environment, prompt, or JSON stdin.', [], 'stdin', {risk: {level: 'local', description: 'Writes private credentials and may invoke the configured credential sync helper.'}});
   add(provider, 'sync', 'credential sync', 'Run the explicitly configured credential synchronization helper.', [], '', {risk: {level: 'write', description: 'Invokes the user-configured synchronization helper, which may contact another host.'}});
-  const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
-    : provider === 'findmypast' ? 'capture har browser callback-file browser-channel capture-timeout region' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive browser-channel' : '';
+  const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'interactive native capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
+    : provider === 'findmypast' ? 'interactive native capture har browser callback-file browser-channel capture-timeout region' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive browser-channel' : '';
   add(provider, 'auth', 'session login', 'Sign in and save a session; use the provider-specific authentication options.', [], auth, {risk: login, flags: provider === 'findmypast' ? {region: {choices: ['com', 'co.uk']}} : undefined});
   add(provider, 'status', 'session get', 'Inspect saved session metadata without tokens or live authentication.', [], '', {risk: local});
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
@@ -337,6 +338,31 @@ add('newspaperarchive', 'call', 'api call', 'Execute a supported NewspaperArchiv
 // Anonymous mode is limited to providers and workflows that already support it.
 for (const cmd of registry) if (['findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive'].includes(cmd.provider)
   && !['credential', 'session', 'account'].includes(cmd.object)) cmd.flags.push(flag('anonymous'));
+
+const browserFlags = {
+  local: {type: 'boolean' as const, description: 'Use a managed local Docker browser.'},
+  remote: {description: 'Camofox API base URL (including a reverse proxy path if needed).'},
+  'vnc-url': {description: 'Exact viewer URL to open and suggest, including tunnels or custom hostnames.'},
+  'api-key-file': {file: true, description: 'Read an existing remote API key from a private file.'},
+  install: {type: 'boolean' as const, description: 'Offer/install OrbStack automatically on macOS when Docker is absent.'},
+  timeout: {type: 'integer' as const, minimum: 0, maximum: 3600, description: 'Seconds to wait for human verification; zero returns immediately.'},
+  'api-port': {type: 'integer' as const, minimum: 1, maximum: 65535}, 'vnc-port': {type: 'integer' as const, minimum: 1, maximum: 65535},
+  session: {description: 'Shared browser session name; defaults to default. Clients using the same name share remote logins.'},
+  open: {type: 'boolean' as const, description: 'Open the configured viewer automatically when interaction is needed.'},
+  'no-open': {type: 'boolean' as const, description: 'Print the viewer URL without opening it automatically.'},
+  mode: {choices: ['local','remote'], required: true}, transport: {choices: ['auto','http','browser']},
+};
+for (const [action, description, flags] of [
+  ['setup','Set up and start a persistent local Docker browser or connect to a remote URL.','local remote vnc-url api-key-file install timeout session open no-open api-port vnc-port'],
+  ['use','Switch between saved local and remote browser configurations.','mode'],
+  ['start','Start the configured browser, retaining saved website logins.',''],
+  ['stop','Stop the local container, or close only fam tabs on a remote browser. Saved logins remain.',''],
+  ['status','Inspect browser connectivity and configuration without exposing API keys.',''],
+  ['open','Open or print the configured noVNC viewer URL.',''],
+  ['reset','Forget automatic browser transport decisions; retain all saved website logins.',''],
+  ['configure','Configure the viewer URL, human verification timeout, and transport preference.','vnc-url timeout transport open no-open'],
+]) add('cli', `browser-${action}`, `browser ${action}`, description, [], flags,
+  {flags: browserFlags, risk: {level: action === 'status' ? 'read' : 'local', description: 'Manages the configured browser or private local configuration. Remote stop closes only fam tabs.'}, examples: [`fam browser ${action}${action === 'setup' ? ' --local' : action === 'use' ? ' --mode remote' : ''}`]});
 
 const cliRisk: Extras = {risk: local};
 add('cli', 'search', 'command search', 'Find commands by intent using local keyword and concept retrieval. Never executes a provider.', [], 'query provider context limit offset',

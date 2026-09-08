@@ -235,3 +235,20 @@ test('browser reads refresh page credentials, attach CSRF, preserve scopes, and 
   await assert.rejects(client.request('/me'), /requires a native/);
   assert.equal(pages, 1); await client.refresh(); assert.equal(pages, 2); assert(saves >= 5);
 });
+
+test('Camofox tree session rejection renews once and leaves other failures alone', async () => {
+  for (const failure of ['expired', '403', 'network'] as const) {
+    let reads = 0, renewals = 0;
+    const current = {...session(), mode:'browser' as const, browserInstance:'a'.repeat(24), browser:{pageUrl:'https://www.myheritage.com/FP/family-tree.php'}};
+    const http = mock(async url => {
+      if (!url.endsWith('family-tree.php')) return {isMember:true};
+      reads++;
+      if (failure === '403') throw new MyHeritageHttpError(403, '/FP/family-tree.php');
+      if (failure === 'network') throw new Error('network');
+      return reads === 1 ? browserPage.replace('isLoggedIn = true','isLoggedIn = false') : browserPage;
+    });
+    const client = new MyHeritageClient(current, http, {save:noSave, browserLogin:async value=>{renewals++;return value;}});
+    if (failure === 'expired') {await client.me();assert.equal(reads,2);assert.equal(renewals,1);}
+    else {await assert.rejects(client.me());assert.equal(reads,1);assert.equal(renewals,0);}
+  }
+});

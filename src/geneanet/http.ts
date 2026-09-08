@@ -1,3 +1,5 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import { parseJson } from '../shared/json.js';
@@ -35,7 +37,8 @@ export class GeneanetHttp {
     try { this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar(); }
     catch { throw new Error('Invalid saved Geneanet cookies. Run fam geneanet.session login.'); }
     const impit = new Impit({browser: 'chrome', timeout: 30_000});
-    this.transport = transport ?? ((url, init) => impit.fetch(url, init));
+    const direct = transport ?? ((url, init) => impit.fetch(url, init));
+    this.transport = (url, init) => fetchWithBrowser('geneanet', url, init, () => direct(url, init), this.jar);
   }
   async request(value: string | URL, options: RequestOptions = {}): Promise<Exchange> {
     let url = checkUrl(value), body = options.body?.toString();
@@ -53,7 +56,7 @@ export class GeneanetHttp {
       } else if (options.referer) headers.Referer = checkUrl(options.referer).href;
       let response: ResponseLike;
       try { response = await this.transport(url.href, {method: body === undefined ? 'GET' : 'POST', headers, body, redirect: 'manual'}); }
-      catch { throw new Error('Geneanet network request failed.'); }
+      catch (error) { if (error instanceof BrowserError) throw error; throw new Error('Geneanet network request failed.'); }
       if (cookieOrigins.has(url.origin)) {
         try { for (const cookie of response.headers.getSetCookie()) await this.jar.setCookie(cookie, url.href); }
         catch { throw new Error('Geneanet returned an invalid session cookie.'); }

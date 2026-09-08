@@ -1,3 +1,4 @@
+import {loadProviderSession, saveProviderSession} from './browser-config.js';
 import { inspectLoginCredentials, type Service } from './credentials.js';
 import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from './storage.js';
 import { DoctorIssue, object, failure, type CheckStatus, type DoctorCheck, type DoctorProvider, type SessionInfo } from './doctor-checks.js';
@@ -33,7 +34,11 @@ type Dependencies = {
   credentials: typeof inspectLoginCredentials;
   now: () => number;
 };
-const dependencies: Dependencies = {read: readPrivateJson, write: writePrivateJson, credentials: inspectLoginCredentials, now: Date.now};
+const dependencies: Dependencies = {
+  read: name => /^(myheritage|findmypast|storied)\/session\.json$/.test(name) ? loadProviderSession(name.split('/')[0]) : readPrivateJson(name),
+  write: (name, value) => /^(myheritage|findmypast|storied)\/session\.json$/.test(name) ? saveProviderSession(name.split('/')[0], value as {browserInstance?: string}) : writePrivateJson(name, value),
+  credentials: inspectLoginCredentials, now: Date.now,
+};
 function status(checks: {status: CheckStatus}[]): CheckStatus {
   return checks.some(c => c.status === 'error') ? 'error' : checks.some(c => c.status === 'warning') ? 'warning' : 'ok';
 }

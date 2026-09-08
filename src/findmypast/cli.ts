@@ -1,3 +1,4 @@
+import {loadProviderSession} from '../shared/browser-config.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
 import { readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises';
@@ -31,7 +32,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const {values, positionals} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, anonymous: {type: 'boolean'}, browser: {type: 'boolean'},
     'callback-file': {type: 'string'}, har: {type: 'string'}, limit: {type: 'string'}, offset: {type: 'string'}, page: {type: 'string'},
-    capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, region: {type: 'string'},
+    interactive: {type: 'boolean'}, native: {type: 'boolean'}, capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, region: {type: 'string'},
     query: {type: 'string'}, 'first-name': {type: 'string'}, 'last-name': {type: 'string'},
     'birth-year': {type: 'string'}, 'death-year': {type: 'string'}, year: {type: 'string'}, keywords: {type: 'string'},
     collection: {type: 'string'}, exact: {type: 'boolean'}, filters: {type: 'string'},
@@ -49,7 +50,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   if (!expected) throw new Error(`Unknown command ${command}; see fam cli.command list --provider findmypast.`);
   if (positionals.length - 1 < expected[0] || positionals.length - 1 > expected[1]) throw new Error(`Invalid arguments for findmypast ${command}; see --help.`);
   if (command !== 'auth' && (values.capture || values.browser || values['callback-file'] || values.har)) throw new Error('Browser authorization options belong to auth.');
-  if (!values.capture && (values['browser-channel'] !== undefined || values['capture-timeout'] !== undefined || values.region !== undefined)) throw new Error('Browser capture options require auth --capture.');
+  if (command !== 'auth' && (values['browser-channel'] !== undefined || values['capture-timeout'] !== undefined || values.region !== undefined)) throw new Error('Browser capture options require auth --capture.');
   if ([values.capture, values.browser, values['callback-file'], values.har].filter(Boolean).length > 1) throw new Error('Use --capture, --browser, --callback-file, or --har, one at a time.');
   if (command === 'download' && (!values.out || !/\.jpe?g$/i.test(values.out))) throw new Error('download requires --out FILE.jpg (JPEG output).');
   if (command !== 'newspapers' && [values.name, values.publication, values.county, values.place, values.from, values.to].some(v => v !== undefined)) throw new Error('--name, --publication, --county, --place, --from and --to belong to newspapers.');
@@ -66,15 +67,16 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const year = (value?: string) => value === undefined ? undefined : integer(value, 0, 1);
   let result: unknown;
   let sidecar: unknown;
-  if (command === 'status') result = {credentialDirectory: CREDENTIAL_DIR, ...sessionStatus(await readPrivateJson<SavedFindmypastSession>('findmypast/session.json')),
+  if (command === 'status') result = {credentialDirectory: CREDENTIAL_DIR, ...sessionStatus(await loadProviderSession<SavedFindmypastSession>('findmypast')),
     browserAuthorizationPending: Boolean(await readPrivateJson('findmypast/pending-auth.json')),
     nativeVerificationRequired: Boolean(await readPrivateJson('findmypast/verification-required.json'))};
   else if (command === 'credentials') { await configureCredentials('findmypast', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam findmypast.session login'}; }
   else if (command === 'auth') {
-    if (values.capture) {
-      const {captureFindmypast} = await import('./capture.js');
-      const captured = await captureFindmypast(captureOptions(values['browser-channel'], values['capture-timeout']), values.region);
-      result = {...sessionStatus(captured.session), harPath: captured.harPath};
+    if (values.native && (values.capture || values.har || values.interactive)) throw new Error('Choose native sign-in or browser/HAR sign-in.');
+    if (!values.native && !values.har && !values['callback-file']) {
+      const {loginFindmypast} = await import('./browser-login.js');
+      if (values['browser-channel'] && values['browser-channel'] !== 'camofox') throw new Error('Browser sign-in now uses Camofox. Configure fam browser setup.');
+      result = sessionStatus(await loginFindmypast({interactive: values.interactive, timeoutMs: values['capture-timeout'] === undefined ? undefined : Number(values['capture-timeout']) * 1000, region: values.region}));
     } else result = values.har ? sessionStatus(await importFindmypastHar(values.har)) : values.browser ? await beginBrowserAuthorization() : sessionStatus(values['callback-file'] ?
       await finishBrowserAuthorization(await readFile(values['callback-file'], 'utf8')) : await authenticateFindmypast());
   } else if (command === 'ops') {

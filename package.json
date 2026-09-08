@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
-    "test:browser": "node --import ./test/setup.mjs --import tsx --test test/browser-capture.integration.ts",
+    "test:browser": "node --import ./test/setup.mjs --import tsx --test test/browser-capture.integration.ts test/camofox.integration.ts",
     "build": "node scripts/clean-dist.mjs && tsc && node scripts/generate-completions.mjs",
     "extract:ancestry": "python3 scripts/extract-ancestry.py",
     "check:ancestry": "python3 scripts/extract-ancestry.py --check",
@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
+    "express": "^5.2.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   },
@@ -109,6 +110,7 @@
     "docs/familysearch/apk.json",
     "docs/*/contracts.json",
     "docs/*/provenance.json",
-    "docs/myheritage/research-provenance.json"
+    "docs/myheritage/research-provenance.json",
+    "browser/"
   ]
 }

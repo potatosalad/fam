@@ -1,4 +1,6 @@
-import { Impit, type ImpitResponse } from 'impit';
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
+import { Impit } from 'impit';
 import { FS_ORIGIN, HttpError, type HttpSession } from './http.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
 
@@ -68,7 +70,7 @@ export class ResearchTransport {
   constructor(private readonly authorize: ResearchAuthorization,
     private readonly sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))) {}
 
-  async response(input: string, options: ReadOptions = {}): Promise<ImpitResponse> {
+  async response(input: string, options: ReadOptions = {}): Promise<Response> {
     const initial = researchUrl(input); // Validate before loading credentials.
     if (options.body && !/^\/search\/filmdatainfo\/(image-data|film-data|waypoint-data)$/.test(initial.pathname)) throw new Error('This research route is read-only.');
     if (Object.keys(options.headers ?? {}).some(k => !/^(x-fs-feature-tag|accept)$/i.test(k))) throw new Error('Research authentication and transport headers are managed by the client.');
@@ -76,20 +78,21 @@ export class ResearchTransport {
       let current = initial;
       let external = false;
       for (let redirect = 0; redirect < 6; redirect++) {
-        let response: ImpitResponse | undefined;
+        let response: Response | undefined;
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             // No shared cookie jar, bearer header, Referer, or session body on storage requests.
             response = external
-              ? await this.assets.fetch(current, { redirect: 'manual', headers: { Accept: options.accept ?? 'image/*' } })
+              ? await fetchWithBrowser('familysearch', current, {headers: {Accept: options.accept ?? 'image/*'}}, () => this.assets.fetch(current, {redirect: 'manual', headers: {Accept: options.accept ?? 'image/*'}}))
               : current.origin === TRANSCRIPT_ORIGIN
-              ? await this.assets.fetch(current, { redirect: 'manual', headers: { ...credentials, Accept: options.accept ?? 'application/json' } })
+              ? await fetchWithBrowser('familysearch', current, {headers: {...credentials, Accept: options.accept ?? 'application/json'}}, () => this.assets.fetch(current, {redirect: 'manual', headers: {...credentials, Accept: options.accept ?? 'application/json'}}))
               : await http.request(current, {
                 method: options.body ? 'POST' : 'GET',
                 headers: { ...credentials, ...options.headers, Accept: options.accept ?? 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
                 ...(options.body ? { body: stringifyJson(options.body) } : {}),
               });
-          } catch {
+          } catch (error) {
+            if (error instanceof BrowserError) throw error;
             if (attempt === 2) throw new ResearchError('temporary-failure', 'Document service connection failed after three attempts.');
             await this.sleep(retryDelay(null, attempt));
             continue;
@@ -144,7 +147,7 @@ export class ResearchTransport {
   }
 }
 
-async function readLimited(response: ImpitResponse, limit = 32 * 1024 * 1024): Promise<string> {
+async function readLimited(response: Response, limit = 32 * 1024 * 1024): Promise<string> {
   if (!response.body) return '';
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];

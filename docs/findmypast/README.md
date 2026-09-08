@@ -4,47 +4,20 @@ The `fam findmypast` command browses trees, searches records and newspapers, and
 
 ## Sign in
 
-Run the capture command and sign in in the window that opens. Complete any verification there; fam captures the account request, saves a sensitive HAR privately, and validates and imports it automatically.
+Run browser sign-in and a read-only account check:
 
 ```sh
-fam findmypast.session login --capture
-fam findmypast.account get
-fam findmypast.tree list
-```
-
-Use `fam findmypast.session login --capture --region co.uk` for the UK website. No saved password or DevTools export is required. See [browser capture](../browser-capture.md) for storage and browser options. Run the same command if the session expires. `refresh` checks browser cookies and saves updates, but cannot sign back in for you.
-
-To import an existing file, use `fam findmypast.session login --har /path/to/session.har`. It must include a successful `/titan/marshal/graphql` request with cookies from `.com` or `.co.uk`; a sanitized HAR will not work. The importer checks your profile before saving the session.
-
-Run `fam findmypast.session get` to see the configuration directory and saved-session metadata. Findmypast keeps its files in the `findmypast/` subdirectory of that directory. See [setup details](../setup.md) for profiles and file permissions.
-
-### Native password login
-
-If your account allows the app's password login:
-
-```sh
-fam findmypast.credential set
 fam findmypast.session login
 fam findmypast.account get
 ```
 
-`credentials` uses `FINDMYPAST_USERNAME` / `FINDMYPAST_PASSWORD`, then a configured helper, then a hidden prompt. Pipe login JSON to `fam findmypast.credential set --stdin` to bypass those sources. See [credential lookup](../setup.md#credential-lookup).
+Camofox retains the website session and tries configured credentials when needed. Complete MFA or CAPTCHA at the printed viewer URL. Use `--region co.uk` for the UK website or `--interactive` to sign in yourself. See [browser setup](../browser.md). `--capture` remains an alias, and `--har FILE` imports an existing capture. Browser session renewal is bounded to one attempt per rejected operation.
 
-Findmypast may require browser verification. The CLI remembers that response and stops further password attempts. Use HAR import, or complete the app's browser flow:
+## Native login and existing HAR files
 
-```sh
-fam findmypast.session login --browser
-```
+`fam findmypast.session login --native` retains the mobile password flow. If it requires browser verification, the default Camofox website login is available. For compatibility with a native-app callback file, `fam findmypast.session login --native --browser` starts native authorization and `fam findmypast.session login --callback-file FILE` completes it.
 
-Open the returned URL. After signing in, save the full `com.findmypast.prod://...` callback URL to a private file. A desktop browser may show it in the console when no app handles the link. Exchange it within 30 minutes:
-
-```sh
-fam findmypast.session login --callback-file /private/path/callback.txt
-```
-
-Delete the callback file afterward. This flow requires access to the callback URL; use HAR import if your browser does not expose it. Native login and token renewal are covered by mocked tests, but have not been verified against a live account in this project.
-
-API commands require a saved session and never start password login. Native sessions can renew once on expiry or HTTP 401; failed requests do not fall back to password login.
+`fam findmypast.session login --har FILE` validates cookies from an existing successful website GraphQL capture. See [capture compatibility](../browser-capture.md).
 
 ## Trees and people
 

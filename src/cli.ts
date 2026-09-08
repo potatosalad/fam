@@ -15,6 +15,7 @@ const providers = {
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {
   const {command, values: v} = invocation;
+  if (command.object === 'browser') return (await import('./shared/browser-cli.js')).browserCommand(command.action, v);
   switch (command.binding.command[0]) {
     case 'search': return searchCommands(String(v.query), {provider: v.provider as string | undefined, context: v.context as string | undefined, limit: v.limit as number | undefined, offset: v.offset as number | undefined});
     case 'describe': {
@@ -65,6 +66,10 @@ async function main() {
       throw new UsageError('Use --completions bash or --completions zsh.', 'fam --completions bash');
     args.splice(0, args.length, 'cli.completion', 'script', '--shell', shell);
   }
+  if (args[0] === 'browser') {
+    args[0] = 'cli.browser';
+    if (args[1] === 'use' && ['local','remote'].includes(args[2])) args.splice(2, 1, '--mode', args[2]);
+  }
   const namespace = parseNamespaceHelp(args);
   if (namespace) {
     process.stdout.write(namespace.json ? `${stringifyJson({schemaVersion: 1, ok: true, command: null, data: namespace.namespace}, 2)}\n`
@@ -74,6 +79,8 @@ async function main() {
   invocation = parseInvocation(args);
   const {command, values} = invocation;
   if (values.help) {process.stdout.write(wantsJson(values) ? `${stringifyJson(describe(command), 2)}\n` : help(command)); return;}
+  const {setBrowserOverrides} = await import('./shared/browser-config.js');
+  setBrowserOverrides({transport: values.transport as 'auto' | 'http' | 'browser' | undefined, timeout: values['browser-timeout'] as number | undefined});
   let data: unknown;
   if (values['dry-run']) {
     data = {dryRun: true, invocation: syntax(command), flags: Object.fromEntries(Object.entries(values).map(([name, value]) =>
@@ -103,14 +110,18 @@ async function main() {
   }
   process.stdout.write(rendered());
 }
-main().catch(error => {
+main().finally(async () => {
+  const {closeBrowserTransportTabs} = await import('./shared/browser-transport.js');
+  await closeBrowserTransportTabs();
+}).catch(error => {
   const usage = error instanceof UsageError;
   const message = (error as NodeJS.ErrnoException)?.code === 'EEXIST' ? 'Output or provenance file already exists; choose a new --out path.'
     : error instanceof Error ? error.message : 'fam command failed.';
   const suggestion = usage && error.suggestedInvocation ? error.suggestedInvocation
     : invocation ? `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}` : undefined;
   if (jsonErrors) process.stderr.write(`${stringifyJson({schemaVersion: 1, ok: false, command: invocation?.command.id ?? null,
-    error: {code: usage ? error.code : 'EXECUTION_FAILED', message,
+    error: {code: usage ? error.code : error?.code ?? 'EXECUTION_FAILED', message,
+      ...(error?.vncUrl ? {vncUrl: error.vncUrl} : {}),
       ...(usage && error.navigation ? {available: error.navigation.available, suggestions: error.navigation.suggestions, help: error.navigation.help} : {}),
       ...(usage && error.suggestedInvocation ? {suggestedInvocation: error.suggestedInvocation}
         : invocation ? {inspect: `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}`} : {})}}, 2)}\n`);

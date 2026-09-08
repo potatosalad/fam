@@ -1,3 +1,5 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import { parseJson, stringifyJson } from '../shared/json.js';
@@ -26,6 +28,9 @@ export class FindmypastHttpError extends Error {
 export class FindmypastHttp {
   readonly jar: CookieJar;
   private readonly transport = new Impit({browser: 'chrome', timeout: 30_000});
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
+    return fetchWithBrowser('findmypast', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
+  }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) { this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar(); }
   async exchange<T = unknown>(url: string | URL, options: ApiRequest = {}): Promise<ApiResponse<T>> {
     const target = new URL(url); checkFindmypastUrl(target);
@@ -41,11 +46,11 @@ export class FindmypastHttp {
     if (options.body !== undefined && !raw) headers.set('Content-Type', 'application/json');
     let response;
     try {
-      response = await this.transport.fetch(target, {method: options.method ?? 'GET', redirect: 'manual',
+      response = await this.fetch(target, {method: options.method ?? 'GET', redirect: 'manual',
         headers: Object.fromEntries(headers), ...(options.body === undefined ? {} : {
           body: raw ? options.body as UploadBody : stringifyJson(options.body),
         })});
-    } catch { throw new Error(`Findmypast network request failed for ${target.origin}${target.pathname}.`); }
+    } catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Findmypast network request failed for ${target.origin}${target.pathname}.`); }
     for (const cookie of response.headers.getSetCookie()) await this.jar.setCookie(cookie, target.href);
     if (!response.ok) {
       let code: string | undefined;

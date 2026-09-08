@@ -1,3 +1,4 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
 import {load} from 'cheerio';
 import sharp from 'sharp';
 import {createHash, randomUUID} from 'node:crypto';
@@ -70,7 +71,7 @@ export class MyHeritageDocuments {
       const headers:Record<string,string>={Accept:'image/*,application/pdf',...(this.session.browser?.userAgent?{'User-Agent':this.session.browser.userAgent}:{})};
       // Account cookies never go to FamilySearch, Filae or other image providers.
       if(url.origin===WEB){const cookie=await this.http.jar.getCookieString(url.href);if(cookie)headers.Cookie=cookie;}
-      const r=await fetch(url,{headers,redirect:'manual',signal:AbortSignal.timeout(60_000)});
+      const r=await fetchWithBrowser('myheritage',url,{headers},()=>fetch(url,{headers,redirect:'manual',signal:AbortSignal.timeout(60_000)}),url.origin===WEB?this.http.jar:undefined);
       if([301,302,303,307,308].includes(r.status)){const next=r.headers.get('location');await r.body?.cancel();if(!next)throw new Error('Document redirect has no destination.');url=destination(new URL(next,url).href);continue;}
       if(!r.ok){await r.body?.cancel();throw new Error(`Document provider ${url.hostname} returned HTTP ${r.status}; no retries were attempted.`);}
       contentType=r.headers.get('content-type')??'';

@@ -1,3 +1,6 @@
+import {browserConfig, directOnly, rememberBrowser} from '../shared/browser-config.js';
+import {importBrowserCookies} from '../shared/browser-runtime.js';
+import {saveProviderSession} from '../shared/browser-config.js';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -12,6 +15,7 @@ export interface MyHeritageAuthResponse {
 }
 export interface MyHeritageSession {
   accessToken: string; accountId?: string; mode?: 'native' | 'browser'; userId?: string; data12p?: string;
+  browserInstance?: string;
   browser?: {pageUrl: string; userAgent?: string};
   deviceId: string; savedAt: string; cookies: ReturnType<MyHeritageHttp['jar']['serializeSync']>;
 }
@@ -43,7 +47,7 @@ export function deviceFields(deviceId: string): Record<string, string> {
 }
 export async function saveMyHeritageSession(http: MyHeritageHttp, session: Omit<MyHeritageSession, 'cookies' | 'savedAt'>): Promise<MyHeritageSession> {
   const saved = {...session, savedAt: new Date().toISOString(), cookies: http.jar.serializeSync()};
-  await writePrivateJson('myheritage/session.json', saved);
+  await saveProviderSession('myheritage', saved);
   await rm(resolve(CREDENTIAL_DIR, 'myheritage/pending-auth.json'), {force: true});
   return saved;
 }
@@ -139,6 +143,10 @@ export async function importMyHeritageHar(text: string): Promise<MyHeritageSessi
   if (browser) {
     const {MyHeritageBrowser} = await import('./browser.js');
     const session: MyHeritageSession = {accessToken, browser, deviceId: device?.id ?? randomUUID(), mode: 'browser', savedAt: '', cookies: http.jar.serializeSync()};
+    if (await browserConfig() && !await directOnly()) {
+      session.browserInstance = await importBrowserCookies('myheritage', http.jar, WEB);
+      await rememberBrowser('myheritage', WEB);
+    }
     const client = new MyHeritageBrowser(session, http, async () => {});
     await client.me(); // Require both a signed-in page and a successful account permissions request.
     return saveMyHeritageSession(http, session);

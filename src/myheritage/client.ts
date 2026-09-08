@@ -1,3 +1,4 @@
+import {loadProviderSession} from '../shared/browser-config.js';
 import {MyHeritageDocuments} from './documents.js';
 import {MyHeritageResearch, type RecordSearchOptions, type CatalogOptions} from './research.js';
 import {MyHeritageBrowser} from './browser.js';
@@ -13,7 +14,7 @@ export class MyHeritageGraphQLError extends Error {
   constructor(readonly operation: string, readonly result: GraphQLResult) {super(`MyHeritage GraphQL ${operation} returned ${result.errors?.length ?? 0} error(s); inspect error.result in TypeScript.`);}
 }
 export interface Connection<T = Record<string, unknown>> {data: T[]; count?: number | bigint; paging?: {next?: string; previous?: string; [key: string]: unknown};}
-interface Hooks {refresh?: (session: MyHeritageSession) => Promise<MyHeritageSession>; save?: (session: MyHeritageSession) => Promise<void>;}
+interface Hooks {refresh?: (session: MyHeritageSession) => Promise<MyHeritageSession>; save?: (session: MyHeritageSession) => Promise<void>; browserLogin?: (session: MyHeritageSession) => Promise<MyHeritageSession>;}
 export class MyHeritageClient {
   private refreshing?: Promise<void>;
   private browser?: MyHeritageBrowser;
@@ -28,7 +29,7 @@ export class MyHeritageClient {
   private research() {return this.researchClient ??= new MyHeritageResearch(this.session, this.http, async () => {
     if (this.hooks.save) await this.hooks.save(this.session);
     else Object.assign(this.session, await saveMyHeritageSession(this.http as MyHeritageHttp, this.session));
-  });}
+  }, this.session.browserInstance ? () => this.renewBrowser() : undefined);}
   searchRecords(options: RecordSearchOptions) {return this.research().search(options);}
   researchCatalog(options: CatalogOptions = {}) {return this.research().catalog(options);}
   searchFields(id: string) {return this.research().searchFields(id);}
@@ -38,11 +39,19 @@ export class MyHeritageClient {
   private web() {return this.browser ??= new MyHeritageBrowser(this.session, this.http, async () => {
     if (this.hooks.save) await this.hooks.save(this.session);
     else Object.assign(this.session, await saveMyHeritageSession(this.http as MyHeritageHttp, this.session));
-  });}
+  }, this.session.browserInstance ? () => this.renewBrowser() : undefined);}
+  private async renewBrowser() {
+    this.refreshing ??= (async () => {
+      const next = this.hooks.browserLogin ? await this.hooks.browserLogin(this.session)
+        : await (await import('./browser-login.js')).loginMyHeritage({treeUrl: this.session.browser?.pageUrl});
+      Object.assign(this.session, next);
+    })().finally(() => {this.refreshing = undefined;});
+    await this.refreshing;
+  }
   private native() {if (this.session.mode === 'browser') throw new Error('This operation requires a native MyHeritage API session. The imported browser session supports me, sites, trees, tree, people, find, person, facts, events, timeline, media, insights, match counts and historical record research; see docs/myheritage/README.md.');}
   constructor(private session: MyHeritageSession, private readonly http: Pick<MyHeritageHttp, 'exchange' | 'jar'> = new MyHeritageHttp(session.cookies), private readonly hooks: Hooks = {}) {}
   static async open() {
-    const session = await readPrivateJson<MyHeritageSession>('myheritage/session.json') ?? await authenticateMyHeritage();
+    const session = await loadProviderSession<MyHeritageSession>('myheritage') ?? await (await import('./browser-login.js')).loginMyHeritage();
     if (!session.accessToken) throw new Error('Invalid session; run fam myheritage.session login.');
     return new MyHeritageClient(session);
   }

@@ -1,6 +1,6 @@
 # Setup details
 
-The [README](../README.md) covers installation and sign-in for each service.
+The [README](../README.md) covers installation and sign-in for each service. See [persistent browser setup](browser.md) for local Docker, remote URLs, and automatic Cloudflare recovery.
 
 ## Installation
 
@@ -43,7 +43,7 @@ To uninstall completion, remove the marked `fam bash completion` or `fam zsh com
 
 ## Credential lookup
 
-NewspaperArchive shares Storied authentication: use `STORIED_USERNAME` and `STORIED_PASSWORD`. Its credential helper receives `storied`, and both providers use `storied/login.json` and `storied/session.json`. See the [NewspaperArchive guide](newspaperarchive/README.md).
+NewspaperArchive shares Storied authentication: use `STORIED_USERNAME` and `STORIED_PASSWORD`. Its credential helper receives `storied`, and both providers use `storied/login.json` and the selected Storied session. See the [NewspaperArchive guide](newspaperarchive/README.md).
 
 When a login is needed, fam reads its username and password from the environment first, then an explicitly configured credential helper, then its saved login file. A partial or empty environment pair is an error. API commands never prompt for a password.
 
@@ -89,7 +89,7 @@ All providers use the same configuration root:
 
 `FAMILYSEARCH_CONFIG_DIR` remains a compatibility alias when `FAM_CONFIG_DIR` is unset. New installations default to `fam`; old directories are never imported automatically.
 
-FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, `findmypast/`, `findagrave/`, `geneanet/`, and `storied/` subdirectories. Device IDs, cookies, and pending authentication state also live here.
+FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, `findmypast/`, `findagrave/`, `geneanet/`, and `storied/` subdirectories. Device IDs, cookies, and pending authentication state also live here. Camofox configuration and instance-scoped provider sessions live under `browser/`; see [browser storage](browser.md#session-storage-and-sharing).
 
 On POSIX systems, the CLI uses `0700` directories and `0600` files. Windows uses your user profile's ACLs. Credential writes replace files atomically.
 
@@ -103,7 +103,7 @@ fam familysearch.session login
 
 Keep that variable set for subsequent commands. Each process reads it at startup. No CLI imports credentials from an older checkout's `.credentials/` directory.
 
-Provider commands renew saved sessions automatically before known token expiry or after an authentication rejection, save rotated credentials, and continue the command. This includes GraphQL authentication errors returned with HTTP 200. Each operation makes at most one renewal attempt; permission errors, rate limits, network failures, and server errors do not trigger renewal. MyHeritage browser commands load current API credentials from the authenticated website. A rejected browser login, revoked refresh token, or required verification needs a fresh sign-in; commands do not fall back to password login after renewal fails.
+Provider commands renew saved sessions automatically before known token expiry or after an authentication rejection, save rotated credentials, and continue the command. This includes GraphQL authentication errors returned with HTTP 200. Each operation makes at most one renewal attempt; permission errors, rate limits, network failures, and server errors do not trigger renewal. MyHeritage browser commands load current API credentials from the authenticated website. MyHeritage and Findmypast sessions created through Camofox can renew through that browser, trying configured credentials once when needed. Native token renewal does not fall back to password login after rejection; required verification uses the viewer URL.
 
 Run one process per profile when renewing sessions. Separate processes do not coordinate token refreshes.
 
@@ -113,7 +113,7 @@ Run `fam cli.health check --provider PROVIDER` to verify the session and automat
 
 Run the CLI's `status` command to find its configuration directory. Remove that service's `session.json`, then run `auth`. Remove its `login.json` too if you want to forget the saved password. This clears local files; it does not revoke the session on the service.
 
-For an expired MyHeritage or Findmypast browser session, run `fam myheritage.session login --capture` or `fam findmypast.session login --capture` and sign in in the window that opens. The command saves and imports a fresh HAR automatically; see [browser capture](browser-capture.md). Existing HAR files can still be imported with `auth --har FILE`. Findmypast's `refresh` revalidates browser cookies; it does not renew an expired browser login.
+For MyHeritage or Findmypast browser login, run `fam myheritage.session login` or `fam findmypast.session login`. The configured Camofox instance retains cookies, supports automatic credential entry, and supplies a viewer URL for verification. Browser session snapshots are scoped to the selected instance. See [browser state and recovery](browser.md).
 
 Find a Grave has no token refresh command. `fam findagrave.session verify` checks the saved session without extending it; use `fam findagrave.session login` to replace an expired session.
 

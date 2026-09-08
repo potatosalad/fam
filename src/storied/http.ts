@@ -1,3 +1,5 @@
+import {fetchWithBrowser} from '../shared/browser-transport.js';
+import {BrowserError} from '../shared/browser-config.js';
 import { randomUUID } from 'node:crypto';
 import { parseJson, stringifyJson } from '../shared/json.js';
 
@@ -15,7 +17,10 @@ export class StoriedError extends Error {
 
 /** Secrets may only be sent to the two fixed first-party origins. Never follow redirects. */
 export class StoriedHttp {
-  constructor(private readonly fetcher: Fetch = globalThis.fetch) {}
+  private readonly fetcher: Fetch;
+  constructor(fetcher: Fetch = globalThis.fetch) {
+    this.fetcher = (url, init) => fetchWithBrowser('storied', String(url), init ?? {}, () => fetcher(url, init));
+  }
   async request(path: string, options: {auth?: boolean; method?: string; token?: string; body?: unknown; sessionId?: string; version?: string} = {}): Promise<unknown> {
     const origin = options.auth ? AUTH_ORIGIN : API_ORIGIN;
     const url = new URL(path, origin);
@@ -37,7 +42,7 @@ export class StoriedHttp {
     try {
       response = await this.fetcher(url, {method: options.method ?? 'GET', headers, redirect: 'manual', signal: AbortSignal.timeout(30_000),
         ...(options.body !== undefined ? {body: stringifyJson(options.body)} : {})});
-    } catch {throw new Error('Storied network request failed or timed out.');}
+    } catch (error) {if (error instanceof BrowserError) throw error; throw new Error('Storied network request failed or timed out.');}
     let text: string;
     try {text = await response.text();} catch {throw new Error('Storied response could not be read; details were suppressed.');}
     let data: unknown;

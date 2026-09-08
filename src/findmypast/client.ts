@@ -1,3 +1,4 @@
+import {loadProviderSession} from '../shared/browser-config.js';
 import { readPrivateJson } from '../shared/storage.js';
 import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
 import type { ApiRequest, ApiResponse } from '../familysearch/transport-types.js';
@@ -11,10 +12,10 @@ type Http = Pick<FindmypastHttp, 'exchange'> & Partial<Pick<FindmypastHttp, 'jar
 export class FindmypastClient {
   private refreshing?: Promise<void>;
   constructor(private session?: SavedFindmypastSession, private readonly http: Http = new FindmypastHttp(isBrowserSession(session) ? session.cookies : undefined),
-    private readonly hooks: {refresh: typeof refreshFindmypast; save: (session: SavedFindmypastSession) => Promise<void>} = {refresh: refreshFindmypast, save: saveFindmypastSession}) {}
+    private readonly hooks: {refresh: typeof refreshFindmypast; save: (session: SavedFindmypastSession) => Promise<void>; browserLogin?: (session: SavedFindmypastSession) => Promise<SavedFindmypastSession>} = {refresh: refreshFindmypast, save: saveFindmypastSession}) {}
   static async open(anonymous = false): Promise<FindmypastClient> {
     if (anonymous) return new FindmypastClient();
-    const session = await readPrivateJson<SavedFindmypastSession>('findmypast/session.json');
+    const session = await loadProviderSession<SavedFindmypastSession>('findmypast');
     if (!session || !isBrowserSession(session) && !session.tokens.access_token) throw new Error('No Findmypast session; run fam findmypast.session login.');
     return new FindmypastClient(session);
   }
@@ -23,8 +24,9 @@ export class FindmypastClient {
     if (this.refreshing) return this.refreshing;
     if (!this.session) throw new Error('No Findmypast session; run fam findmypast.session login.');
     if (isBrowserSession(this.session)) {
+      if (this.session.browserInstance) return this.renewBrowser();
       const profile = await this.graphql<{currentUserProfile?: {id?: string}}>('GetCurrentUserProfile');
-      if (!profile.currentUserProfile?.id) throw new Error('Browser session expired; import a fresh HAR.');
+      if (!profile.currentUserProfile?.id) throw new Error('Browser session expired; run fam findmypast.session login.');
       await this.saveBrowserCookies(); return;
     }
     const previous = this.session;
@@ -33,6 +35,14 @@ export class FindmypastClient {
       await this.hooks.save(next); this.session = next;
     })();
     try { await this.refreshing; } finally { this.refreshing = undefined; }
+  }
+  private async renewBrowser() {
+    this.refreshing ??= (async () => {
+      const previous = this.session!;
+      const next = this.hooks.browserLogin ? await this.hooks.browserLogin(previous) : await (await import('./browser-login.js')).loginFindmypast({region: isBrowserSession(previous) && previous.apiBase.includes('.co.uk') ? 'co.uk' : 'com'});
+      this.session = next;
+    })().finally(() => {this.refreshing = undefined;});
+    await this.refreshing;
   }
   private async saveBrowserCookies() {
     if (isBrowserSession(this.session) && this.http.jar) {
@@ -56,11 +66,15 @@ export class FindmypastClient {
       ...(browser && url.pathname.startsWith('/titan/marshal/') ? browser.headers : {}),
       ...(authorized ? {Authorization: `Bearer ${(this.session as FindmypastSession).tokens.access_token}`} : {})}});
       if (url.pathname.endsWith('/graphql') && isGraphQLAuthenticationFailure(result.data)) throw new FindmypastHttpError(401, url.pathname);
+      if (browser?.browserInstance && (options.body as {operationName?: string} | undefined)?.operationName === 'GetCurrentUserProfile') {
+        const profile = (result.data as {data?: {currentUserProfile?: unknown}})?.data;
+        if (profile && Object.hasOwn(profile, 'currentUserProfile') && profile.currentUserProfile === null) throw new FindmypastHttpError(401, url.pathname);
+      }
       return result;
     };
     const result = await withSessionRefresh(send, authorized ? async () => {
       if (token === (this.session as FindmypastSession).tokens.access_token) await this.refresh();
-    } : undefined, authorized && (this.session as FindmypastSession).expiresAt <= Date.now() + 30_000);
+    } : browser?.browserInstance ? () => this.renewBrowser() : undefined, authorized && (this.session as FindmypastSession).expiresAt <= Date.now() + 30_000);
     if (browser) await this.saveBrowserCookies();
     return result;
   }

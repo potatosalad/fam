@@ -1,3 +1,4 @@
+import {loadProviderSession} from '../shared/browser-config.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { captureOptions } from '../shared/browser-capture.js';
 import {buildRecordSearch, recordUrl, contextId, researchPage, type RecordSearchOptions, type CatalogOptions, type ResearchEvent} from './research.js';
@@ -25,7 +26,7 @@ async function jsonInput(value?: string): Promise<Record<string, unknown>> {
 export async function runProvider(argv: string[]): Promise<unknown> {
   const {values, positionals} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, har: {type: 'string'},
-    capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, 'tree-url': {type: 'string'},
+    interactive: {type: 'boolean'}, native: {type: 'boolean'}, capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, 'tree-url': {type: 'string'},
     code: {type: 'string'}, 'verification-code': {type: 'string'}, 'recaptcha-token-file': {type: 'string'},
     'first-name': {type: 'string'}, 'last-name': {type: 'string'}, 'birth-year': {type: 'string'}, 'birth-place': {type: 'string'},
     'death-year': {type: 'string'}, 'death-place': {type: 'string'}, place: {type: 'string'}, keyword: {type: 'string'},
@@ -48,7 +49,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   if (!(command in arity)) throw new Error(`Unknown command ${command}; see fam cli.command list --provider myheritage.`);
   if (positionals.length - 1 > arity[command]!) throw new Error(`Too many arguments for myheritage ${command}.`);
   if (command !== 'auth' && (values.capture || values.har || values.code || values['verification-code'] || values['recaptcha-token-file'])) throw new Error('Authentication flags belong to fam myheritage.session login.');
-  if (!values.capture && (values['browser-channel'] !== undefined || values['capture-timeout'] !== undefined || values['tree-url'] !== undefined)) throw new Error('Browser capture options require auth --capture.');
+  if (command !== 'auth' && (values['browser-channel'] !== undefined || values['capture-timeout'] !== undefined || values['tree-url'] !== undefined)) throw new Error('Browser capture options require auth --capture.');
   const need = (v: string | undefined, label: string) => {if (!v) throw new Error(`Missing ${label}; see fam cli.command list --provider myheritage.`); return v;};
   if (arity[command] && !['ops', 'models', 'search'].includes(command)) need(first, 'argument');
   if (command === 'find') need(second, 'name');
@@ -105,16 +106,18 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   if (['catalog','collections'].includes(command)) {researchPage(limit, offset); if (values.category) contextId(values.category, 'category');}
   let result: unknown;
   if (command === 'status') {
-    const s = await readPrivateJson<MyHeritageSession>('myheritage/session.json');
+    const s = await loadProviderSession<MyHeritageSession>('myheritage');
     result = {credentialDirectory: CREDENTIAL_DIR, authenticated: !!s?.accessToken, mode: s?.mode ?? 'native', savedAt: s?.savedAt,
       verificationPending: !!await readPrivateJson('myheritage/pending-auth.json'), blockedUntil: (await readPrivateJson<{blockedUntil?: string}>('myheritage/login-block.json'))?.blockedUntil};
   } else if (command === 'credentials') {await configureCredentials('myheritage', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam myheritage.session login'};}
   else if (command === 'auth') {
+    if (values.native && (values.capture || values.har || values.interactive)) throw new Error('Choose native sign-in or browser/HAR sign-in.');
     if ((values.capture && values.har) || ((values.capture || values.har) && (values.code || values['verification-code'] || values['recaptcha-token-file']))) throw new Error('Use --capture, --har, or native login flags, one at a time.');
-    if (values.capture) {
-      const {captureMyHeritage} = await import('./capture.js');
-      const captured = await captureMyHeritage(captureOptions(values['browser-channel'], values['capture-timeout']), values['tree-url']);
-      result = {...new MyHeritageClient(captured.session).status(), harPath: captured.harPath};
+    if (!values.har && !values.native && !values.code && !values['verification-code'] && !values['recaptcha-token-file']) {
+      const {loginMyHeritage} = await import('./browser-login.js');
+      if (values['browser-channel'] && values['browser-channel'] !== 'camofox') throw new Error('Browser sign-in now uses Camofox. Configure fam browser setup.');
+      const session = await loginMyHeritage({interactive: values.interactive, timeoutMs: values['capture-timeout'] === undefined ? undefined : Number(values['capture-timeout']) * 1000, treeUrl: values['tree-url']});
+      result = new MyHeritageClient(session).status();
     } else {
       const session = values.har ? await importMyHeritageHar(await readFile(values.har, 'utf8')) : await authenticateMyHeritage({code: values.code,
         verificationCode: values['verification-code'], recaptchaToken: values['recaptcha-token-file'] ? (await readFile(values['recaptcha-token-file'], 'utf8')).trim() : undefined});

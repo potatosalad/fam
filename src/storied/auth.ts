@@ -1,15 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { readPrivateJson, writePrivateJson } from '../shared/storage.js';
 import { CLIENT_ID, StoriedHttp } from './http.js';
+import {loadProviderSession, saveProviderSession} from '../shared/browser-config.js';
 
 export const REDIRECT_URI = 'com.storied.auth0://auth.storied.com/android/com.storied/callback';
 
 export interface StoriedSession {
   accessToken: string; refreshToken?: string; expiresAt: number; sessionId: string;
   subject: string; savedAt: string; validatedAt?: string;
+  browserInstance?: string;
 }
-export const saveSession = (s: StoriedSession) => writePrivateJson('storied/session.json', s);
-export const loadSession = () => readPrivateJson<StoriedSession>('storied/session.json');
+export const saveSession = (s: StoriedSession) => saveProviderSession('storied', s);
+export const loadSession = () => loadProviderSession<StoriedSession>('storied');
 export function validSession(value: unknown): value is StoriedSession {
   const s = value as StoriedSession | undefined;
   return !!s && typeof s.accessToken === 'string' && !!s.accessToken && !/[\r\n\0]/.test(s.accessToken)
@@ -26,7 +28,7 @@ function tokenSession(value: unknown, previous?: StoriedSession): StoriedSession
     || typeof t.expires_in !== 'number' || !Number.isFinite(t.expires_in) || t.expires_in <= 0
     || String(t.token_type).toLowerCase() !== 'bearer'
     || t.refresh_token !== undefined && (typeof t.refresh_token !== 'string' || !t.refresh_token)) throw new Error('Storied returned an invalid token response.');
-  return {accessToken: t.access_token, refreshToken: t.refresh_token as string | undefined ?? previous?.refreshToken,
+  return {...(previous?.browserInstance ? {browserInstance: previous.browserInstance} : {}), accessToken: t.access_token, refreshToken: t.refresh_token as string | undefined ?? previous?.refreshToken,
     expiresAt: Date.now() + t.expires_in * 1000, sessionId: previous?.sessionId ?? randomUUID(), subject: previous?.subject ?? '', savedAt: new Date().toISOString()};
 }
 export async function acceptAuthorizationCode(code: string, verifier: string, http = new StoriedHttp(), save = saveSession): Promise<StoriedSession> {

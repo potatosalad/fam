@@ -2,7 +2,7 @@
 
 `fam storied` signs in through Storied's native Auth0 client and calls its REST API. It supports trees, people, pedigrees, relatives, events, hints, saved records, stories, historical search, media, groups, and account metadata. The offline catalog includes 728 consumer operations and 1,021 model schemas.
 
-Use the [shared setup guide](../setup.md) to install `fam`. Node 22.16+ is required. Authentication also needs Chrome or Playwright Chromium. For Chromium, run `node node_modules/playwright/cli.js install chromium` in the installed fam package directory; on Linux its system dependencies must also be installed. `--browser-channel chrome` or `msedge` selects an installed browser. Normal API commands need only Node, including on servers.
+Use the [shared setup guide](../setup.md) to install fam and [browser setup](../browser.md) to configure local Docker or a remote Camofox URL. Node 22.16+ is required. Ordinary API commands use renewable native tokens.
 
 ## Sign in
 
@@ -14,9 +14,9 @@ fam cli.health check --provider storied
 fam storied.session get
 ```
 
-Credentials use the shared precedence: `STORIED_USERNAME` and `STORIED_PASSWORD`, configured credential helper, saved `storied/login.json`. Passwords are not command-line arguments. The default `auth` command submits configured credentials once to the real Storied login form in an ephemeral headless browser. It exchanges the native callback's authorization code using PKCE, validates `/userinfo`, and checks the account tree list before saving the session. Direct password grants are disabled for this mobile client.
+Credentials use the shared precedence: `STORIED_USERNAME` and `STORIED_PASSWORD`, configured credential helper, saved `storied/login.json`. Passwords are not command-line arguments. The default `auth` command submits configured credentials once to the real Storied login form in the selected persistent Camofox browser. It exchanges the native callback's authorization code using PKCE, validates `/userinfo`, and checks the account tree list before saving the session. Direct password grants are disabled for this mobile client.
 
-For Google, Apple, MFA, or another interactive verification step, use `fam storied.session login --interactive` on a machine with a display. No browser profile or HAR is saved. Passwords, callback codes, and PKCE verifiers are not persisted. Browser exceptions are suppressed because they can contain credentials.
+For Google, Apple, MFA, or another interactive verification step, use `fam storied.session login --interactive` and open the configured noVNC URL from any machine that can reach it. Cookies and browser storage are retained on the browser host; no HAR is generated. Passwords, callback codes, and PKCE verifiers are not persisted. Browser exceptions are suppressed because they can contain credentials.
 
 Session files live under `~/.config/fam/storied/`, or the directory selected by `FAM_CONFIG_DIR`. Files are written atomically with mode 0600 in private directories. `status` reports local metadata only. `verify` and `fam cli.health check --provider storied` check current API access. `refresh` explicitly renews and validates the session. Normal reads renew at most once; writes are never replayed after an auth rejection. A rotated token is saved before subsequent API work. A configured post-save sync hook also applies to Storied.
 
