@@ -47,7 +47,7 @@ fam cli.completion install
 
 This installs one executable, `fam`, from the checkout. Keep the directory in place. To update, run `git pull`, `npm ci`, and `npm install --global .` in it. Provider commands use `fam PROVIDER.OBJECT ACTION --flags`; `fam cli.health check` checks provider health.
 
-`fam cli.completion install` enables TAB completion for bash or zsh. Open a new shell afterward; for the current shell, run `eval "$(fam --completions zsh)"` (use `bash` in bash). It completes providers, commands, options, and file paths. See [completion setup](docs/setup.md#shell-completion) for details.
+`fam cli.completion install` enables TAB completion for bash or zsh. Open a new shell afterward; for the current shell, run `eval "$(fam --completions zsh)"` (use `bash` in bash). It completes providers, commands, options, and file paths. Try `fam myheritage.record search <TAB>` to discover search flags without typing `--` first. See [completion setup](docs/setup.md#shell-completion) for details.
 
 Upgrading an older installation? See [migration from familysearch](docs/setup.md#migration-from-familysearch) to remove the old executables and retain saved sessions.
 

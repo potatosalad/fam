@@ -67,6 +67,11 @@ export function complete(catalog: CompletionNode, input: string[]): Completion {
   const argument = target.arguments[positional];
   if (Array.isArray(argument)) return matches(argument);
   if (argument === 'file') return { kind: 'files', prefix: current, candidates: [] };
+  // Once an action has no positional argument to offer, make its flags
+  // discoverable without requiring the user to type a hyphen first.
+  if (!endedOptions && current === '' && positional === target.arguments.length && !Object.keys(target.commands).length) {
+    return matches(Object.keys(options));
+  }
   return none();
 }
 

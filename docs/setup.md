@@ -37,7 +37,7 @@ eval "$(fam --completions bash)" # bash
 eval "$(fam --completions zsh)"  # zsh
 ```
 
-Try `fam fam<TAB>`, `fam familysearch.image <TAB>`, or `fam ancestry.record search --birth-<TAB>`. File arguments such as `--out` use file completion, including paths containing spaces. Flags are scoped to the selected command; append `--help` for its generated schema and examples. Suggestions come from a catalog generated during the build, without loading credentials or contacting services. Updating fam also updates the suggestions.
+Try `fam fam<TAB>`, `fam familysearch.image <TAB>`, or `fam myheritage.record search <TAB>`. After an action with no positional argument to complete, TAB on an empty word offers its available flags; typing `--birth-<TAB>` narrows the suggestions. When a flag expects a value, completion offers that value's choices or file paths instead. File arguments such as `--out` support paths containing spaces. Flags are scoped to the selected command; append `--help` for its generated schema and examples. Suggestions come from a catalog generated during the build, without loading credentials or contacting services. Updating fam also updates the suggestions.
 
 To uninstall completion, remove the marked `fam bash completion` or `fam zsh completion` blocks from the files printed by the installer. The installer changes files for the current user; run it as the user who will use the CLI.
 

@@ -54,6 +54,27 @@ test('file completion is limited to file arguments and preserves whitespace and 
   assert.equal(query('ancestry.tree', 'list', '--out', literal).prefix, literal);
 });
 
+test('empty words after actions suggest flags while preserving command and value contexts', () => {
+  const flags = query('myheritage.record', 'search', '--').candidates;
+  assert.ok(flags.includes('--first-name'));
+  assert.deepEqual(query('myheritage.record', 'search', '').candidates.filter(flag => flag.startsWith('--')), flags);
+  assert.ok(query('myheritage.record', 'search', '--first-name', 'Ada', '').candidates.includes('--last-name'));
+  assert.ok(query('myheritage.record', 'search', '--exact', '').candidates.includes('--first-name'));
+  assert.equal(query('myheritage.record', 'search', '--first-name', '').kind, 'none');
+  assert.equal(query('myheritage.record', 'search', '--', '').kind, 'none');
+  assert.equal(query('myheritage.record', 'search', 'Ada').kind, 'none');
+  assert.equal(query('myheritage.record', 'search', 'Ada', '').kind, 'none');
+  assert.equal(query('myheritage.record', 'unknown', '').kind, 'none');
+  assert.deepEqual(query('myheritage.record', 'search', '--gender', '').candidates, ['F', 'M']);
+  assert.equal(query('myheritage.record', 'search', '--out', '').kind, 'files');
+  assert.ok(query('myheritage.record', '').candidates.includes('search'));
+  assert.ok(query('myheritage.record', '').candidates.every(candidate => !candidate.startsWith('-')));
+  for (const argument of ['value', 'file', ['one', 'two']] as ('value' | 'file' | string[])[]) {
+    const result = complete({commands: {}, options: {'--help': {value: false}}, arguments: [argument]}, ['']);
+    assert.ok(!result.candidates.includes('--help'));
+  }
+});
+
 test('completion CLI runs outside the checkout without accessing credentials', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'fam-completion-'));
   try {
@@ -98,6 +119,7 @@ for (const shell of ['/bin/bash', 'bash']) test(`${shell} completion function re
     const invoke = async (words: string[]) => (await run(shell, ['--noprofile', '--norc', '-c', `${completionScript('bash')}\nCOMP_WORDS=(${[cli, ...words].map(quote).join(' ')})\nCOMP_CWORD=${words.length}\n_fam_complete\nprintf '%s\\n' "\${COMPREPLY[@]}"`], { cwd: directory })).stdout;
     assert.equal(await invoke(['familysearch.im']), 'familysearch.image\n');
     assert.equal(await invoke(['familysearch.image', 'd']), 'download\n');
+    assert.ok((await invoke(['myheritage.record', 'search', ''])).split('\n').includes('--first-name'));
     assert.equal(await invoke(['ancestry.tree', 'list', '--out', 'a']), 'a space.json\n');
     assert.equal(await invoke(['ancestry.tree', 'list', '--out=a']), 'a space.json\n');
     assert.equal(await invoke(['geneanet.record', 'search', '--event', '=', 'b']), 'birth\n');
@@ -109,4 +131,6 @@ test('native zsh completion passes candidates to compadd and delegates filenames
   try { await run('zsh', ['--version']); } catch { t.skip('zsh unavailable'); return; }
   const script = `compdef() { :; }\n${completionScript('zsh')}\ncompadd() { shift 2; print -rl -- "$@"; }\n_files() { print -r -- FILES; }\nwords=(${quote(cli)} familysearch.image d)\nCURRENT=3\n_fam_complete\nwords=(${quote(cli)} ancestry.tree list --out a)\nCURRENT=5\nPREFIX=a\n_fam_complete`;
   assert.equal((await run('zsh', ['-f', '-c', script])).stdout, 'download\nFILES\n');
+  const flags = `${script}\nwords=(${quote(cli)} myheritage.record search '')\nCURRENT=4\nPREFIX=''\n_fam_complete`;
+  assert.ok((await run('zsh', ['-f', '-c', flags])).stdout.split('\n').includes('--first-name'));
 });
