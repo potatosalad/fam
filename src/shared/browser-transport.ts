@@ -7,7 +7,7 @@ export type HttpResponse = Pick<Response, 'status' | 'headers' | 'arrayBuffer'> 
 export type HttpInit = {method?: string; headers?: HeadersInit; body?: unknown; redirect?: string; signal?: AbortSignal | null};
 export function isChallenge(headers: Headers, text = ''): boolean {
   if (headers.get('cf-mitigated')?.toLowerCase() === 'challenge') return true;
-  return /(?:<title>\s*(?:Just a moment|Attention Required).*?<\/title>[\s\S]*?(?:cloudflare|cf-|challenge-platform)|\/cdn-cgi\/challenge-platform\/|\b_cf_chl_opt\b|<iframe\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]*\/_Incapsula_Resource\b|Incapsula incident ID\s*:)/i.test(text.slice(0, 131072));
+  return /(?:<title>\s*(?:Just a moment|Attention Required).*?<\/title>[\s\S]*?(?:cloudflare|cf-|challenge-platform)|\/cdn-cgi\/challenge-platform\/[^\s"'<>]*orchestrate\/|\b_cf_chl_opt\b|<iframe\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]*\/_Incapsula_Resource\b|Incapsula incident ID\s*:)/i.test(text.slice(0, 131072));
 }
 async function normalize(response: HttpResponse): Promise<Response> {
   if (response instanceof Response) return response;

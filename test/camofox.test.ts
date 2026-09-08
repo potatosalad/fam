@@ -15,6 +15,7 @@ test('challenge classification requires provider evidence rather than a generic 
   assert.equal(isChallenge(new Headers({'cf-mitigated':'challenge'})), true);
   assert.equal(isChallenge(new Headers(), '<html><script src="/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1"></script>'), true);
   assert.equal(isChallenge(new Headers(), '<iframe src="/_Incapsula_Resource?x=1"></iframe>'), true);
+  assert.equal(isChallenge(new Headers(), '<html><script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script><h1>Normal page</h1>'), false);
   assert.equal(isChallenge(new Headers(), '403 Forbidden: subscription required'), false);
   assert.equal(isChallenge(new Headers(), '{"description":"Cloudflare protects our website"}'), false);
 });
@@ -97,7 +98,7 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
   await t.test('zero wait surfaces the configured viewer URL for unattended intervention', async () => {
     await closeBrowserTransportTabs();
     challengeResponse = true;
-    page = '<html><script src="/cdn-cgi/challenge-platform/test"></script></html>';
+    page = '<html><script src="/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1"></script></html>';
     await assert.rejects(fetchWithBrowser('myheritage',target,{},async()=>new Response('unused')), (error:any)=>error.code==='BROWSER_INTERACTION_REQUIRED' && error.vncUrl===endpoint.vncUrl);
     challengeResponse = false;
     page = '<html>Ready</html>'; status = 204; reply = Buffer.alloc(0);

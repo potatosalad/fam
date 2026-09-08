@@ -16,7 +16,7 @@ import {complete, completionCatalog, completionScript} from '../src/shared/compl
 const run = promisify(execFile);
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 const invoke = (...args: string[]) => run(process.execPath, ['--import', import.meta.resolve('tsx'), cli, ...args], {
-  cwd: CREDENTIAL_DIR, maxBuffer: 8 * 1024 * 1024,
+  cwd: CREDENTIAL_DIR, maxBuffer: 8 * 1024 * 1024, timeout: 15000,
   env: {...process.env, FAM_CREDENTIALS_COMMAND: '["helper-must-never-run"]'},
 });
 const data = (stdout: string) => JSON.parse(stdout).data;
@@ -150,8 +150,9 @@ test('named flags preserve existing provider inputs, repeated values, and large 
 test('browser capture remains discoverable and rejects invalid modes before launch', async () => {
   for (const provider of ['myheritage', 'findmypast']) {
     assert.match((await invoke(`${provider}.session`, 'login', '--help')).stdout, /--capture/);
+    assert.equal(data((await invoke(`${provider}.session`, 'login', '--capture', '--capture-timeout', '0', '--dry-run', '--json')).stdout).flags['capture-timeout'], 0);
     for (const args of [['get', '--capture'], ['login', '--capture', '--har', 'missing.har'],
-      ['login', '--browser-channel', 'chrome'], ['login', '--capture', '--capture-timeout', '0'],
+      ['login', '--browser-channel', 'chrome'], ['login', '--capture', '--capture-timeout', '-1'],
       ['login', '--capture', '--browser-channel', 'invalid']]) await assert.rejects(invoke(`${provider}.session`, ...args));
   }
   await assert.rejects(invoke('findmypast.session', 'login', '--capture', '--browser'), /one at a time/);
