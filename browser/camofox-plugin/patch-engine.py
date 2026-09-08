@@ -10,7 +10,7 @@ import shutil
 import tempfile
 import zipfile
 
-MARKER = '// fam-private-context-v1'
+MARKER = '// fam-private-context-v2'
 root = Path(os.environ.get('FAM_CAMOUFOX_DIR', str(Path.home() / '.cache/camoufox')))
 archive = root / 'omni.ja'
 registry_path = 'chrome/juggler/content/TargetRegistry.js'
@@ -23,7 +23,14 @@ def replace_once(text, old, new):
     return text.replace(old, new, 1)
 
 
-with zipfile.ZipFile(archive) as source:
+source_archive = archive
+with zipfile.ZipFile(archive) as installed:
+    if '// fam-private-context-v1' in installed.read(registry_path).decode():
+        source_archive = root / 'omni.ja.before-fam-private-contexts'
+        if not source_archive.exists():
+            raise RuntimeError('The original archive is required to upgrade the fam engine bridge.')
+
+with zipfile.ZipFile(source_archive) as source:
     registry = source.read(registry_path).decode()
     handler = source.read(handler_path).decode()
     if MARKER in registry and MARKER in handler:
@@ -33,6 +40,19 @@ with zipfile.ZipFile(archive) as source:
         raise RuntimeError('Incomplete fam engine patch; restore the original archive.')
     registry = replace_once(registry, 'const features = "chrome,dialog=no,all";',
         'const features = "chrome,dialog=no,all" + (browserContext.famPrivateBrowsing ? ",private" : "");')
+    registry = replace_once(registry,
+        "const window = Services.ww.openWindow(null, AppConstants.BROWSER_CHROME_URL, '_blank', features, args);",
+        'if (browserContext.famPrivateBrowsing && (!this._famPrivateGuardian || this._famPrivateGuardian.closed)) {\n'
+        '      // Firefox can exit when its last private window closes. Keep an\n'
+        '      // empty hidden regular window alive until the browser is stopped.\n'
+        '      const guardianArgs = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);\n'
+        '      guardianArgs.appendElement(urlSupports);\n'
+        '      const guardian = Services.ww.openWindow(null, AppConstants.BROWSER_CHROME_URL, "_blank", "chrome,dialog=no,all", guardianArgs);\n'
+        '      this._famPrivateGuardian = guardian;\n'
+        '      await waitForWindowReady(guardian);\n'
+        '      guardian.docShell.treeOwner.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIBaseWindow).visibility = false;\n'
+        '    }\n'
+        "    const window = Services.ww.openWindow(null, AppConstants.BROWSER_CHROME_URL, '_blank', features, args);")
     registry = replace_once(registry,
         '{ userContextId: this.userContextId || undefined } /* originAttributes */',
         '{ userContextId: this.userContextId || undefined, privateBrowsingId: this.famPrivateBrowsing ? 1 : 0 } /* originAttributes */')
