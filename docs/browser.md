@@ -62,7 +62,16 @@ fam storied.session login
 fam newspaperarchive.session login
 ```
 
-fam first checks for an existing signed-in browser session. If sign-in is needed, it tries configured credentials once per login-form step. Password lookup follows the [shared credential rules](setup.md#credential-lookup); browser login does not prompt for a password in the terminal. Use `--interactive` to fill the form yourself or use social sign-in.
+fam first checks for an existing signed-in browser session. If sign-in is needed, it tries configured credentials once per login-form step. Password lookup follows the [shared credential rules](setup.md#credential-lookup); browser login does not prompt for a password in the terminal.
+
+`--interactive` autofills empty username and password fields by default, including a password field that appears after a username-only step. It never clicks Sign in or submits the form; you submit through the viewer. Autofill preserves values you have already entered. Use `--no-autofill` to leave the fields untouched and disable automatic credential submission, with or without `--interactive`:
+
+```sh
+fam myheritage.session login --interactive
+fam myheritage.session login --interactive --no-autofill
+```
+
+The same flags apply to Findmypast, Storied, and NewspaperArchive browser login. Interactive autofill requires the updated bundled fam Camofox plugin; older remote plugins must be updated and Camofox restarted. Until then, `--no-autofill` retains manual sign-in. For an existing local container, run `fam browser stop` followed by `fam browser start` after updating fam to load the new plugin.
 
 When MFA, CAPTCHA, or another interaction is needed, fam prints the viewer URL, opens it when possible, and waits for account verification. The default wait is ten minutes. `fam browser configure --timeout 0 --no-open` prints the URL and returns when interaction is needed. A command can override the setting with `--browser-timeout 120`. Finish in the viewer and rerun the login command after a timeout. Cookies remain available.
 
@@ -70,7 +79,7 @@ MyHeritage and Findmypast validate account access before saving a browser sessio
 
 MyHeritage and Findmypast browser commands make at most one login renewal after an explicit session rejection. MFA and provider restrictions may still require your attention. A detected MyHeritage 24-hour login restriction suppresses further automatic password attempts until its recorded deadline; it does not invalidate an existing working session. Health checks do not submit passwords.
 
-MyHeritage login reuses an existing fam tab and follows its family-site page's tree link once to obtain the rendered tree context. A saved cooldown permits verification of an existing session and `--interactive` completion; it blocks automatic password entry. If the page itself still displays the restriction, fam stops without probing the account. There is no need to delete the cooldown file after signing in manually.
+MyHeritage login reuses an existing fam tab and follows its family-site page's tree link once to obtain the rendered tree context. A saved cooldown permits verification of an existing session and interactive autofill; it blocks automatic password submission. If the page itself still displays the restriction, fam stops without probing the account or filling credentials. There is no need to delete the cooldown file after signing in manually.
 
 `--capture` remains an alias for Camofox login. It no longer records a HAR. Existing HAR files can still be imported using `fam myheritage.session login --har FILE` or `fam findmypast.session login --har FILE`; when a browser is configured, imported website cookies are installed into the selected instance and validated. Old unscoped HAR sessions are not silently copied to a remote browser. Use an explicit import or `--transport http` for a legacy direct-HTTP session. Native MyHeritage/Findmypast login is available with `--native`.
 

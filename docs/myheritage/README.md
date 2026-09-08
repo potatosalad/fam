@@ -10,6 +10,8 @@ See the [main README](../../README.md) for installation and credential storage. 
 
 Run `fam myheritage.session login`. fam reuses the selected browser session or tries configured credentials, and opens or prints the viewer URL when interaction is needed. It validates the signed-in tree and account permissions before saving. See [browser setup](../browser.md). `fam myheritage.session get` shows metadata; `fam myheritage.account get` checks live access.
 
+Use `fam myheritage.session login --interactive` to autofill empty username and password fields while leaving submission to you. Add `--no-autofill` to leave those fields untouched. Interactive mode never submits the form automatically, including during an earlier login cooldown.
+
 For optional native password login:
 
 ```sh

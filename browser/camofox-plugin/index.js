@@ -45,7 +45,7 @@ export function register(app, ctx) {
     queues.set(key, next);
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
-  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true}));
+  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true}));
   route('post', 'storage', async ({userId}) => ({state: await checkpoint(userId)}));
   route('post', 'cookies', async ({userId, cookies}) => {
     const session = await ctx.getSession(owner(userId));
@@ -107,6 +107,25 @@ export function register(app, ctx) {
       return {status, headers: (await response.headersArray()).map(({name, value}) => [name, value]), bodyBase64: bytes.toString('base64')};
     } finally {clearTimeout(timer); page.off('response', listener);}
   }));
+  // A separate route makes fill-only requests safe against older plugins: an
+  // unsupported endpoint fails instead of silently falling back to submission.
+  route('post', 'autofill', async ({userId, tabId, origin, username, password}) => {
+    const {page} = tab(userId, tabId);
+    const checkOrigin = () => {if (!['http:', 'https:'].includes(new URL(page.url()).protocol) || new URL(page.url()).origin !== origin) fail('wrong-login-origin');};
+    checkOrigin();
+    if (typeof username !== 'string' || typeof password !== 'string') fail('invalid-login-input');
+    const email = page.locator('input[type=email]:visible:enabled:not([readonly]), input[autocomplete=username]:visible:enabled:not([readonly]), input[name*="email" i]:visible:enabled:not([readonly]), input[name=username]:visible:enabled:not([readonly]), input[id=email-login]:visible:enabled:not([readonly])').first();
+    const secret = page.locator('input[type=password]:visible:enabled:not([readonly])').first();
+    let ready = false, filled = false;
+    for (const [field, value] of [[email, username], [secret, password]]) {
+      if (!await field.count()) continue;
+      ready = true;
+      if (await field.inputValue()) continue;
+      checkOrigin();
+      await field.fill(value); filled = true;
+    }
+    return {ready, filled, submitted: false};
+  });
   route('post', 'input', async ({userId, tabId, origin, username, password}) => {
     const {page} = tab(userId, tabId);
     if (new URL(page.url()).origin !== origin) fail('wrong-login-origin');

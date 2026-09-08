@@ -32,7 +32,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const {values, positionals} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, anonymous: {type: 'boolean'}, browser: {type: 'boolean'},
     'callback-file': {type: 'string'}, har: {type: 'string'}, limit: {type: 'string'}, offset: {type: 'string'}, page: {type: 'string'},
-    interactive: {type: 'boolean'}, native: {type: 'boolean'}, capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, region: {type: 'string'},
+    interactive: {type: 'boolean'}, 'no-autofill': {type: 'boolean'}, native: {type: 'boolean'}, capture: {type: 'boolean'}, 'browser-channel': {type: 'string'}, 'capture-timeout': {type: 'string'}, region: {type: 'string'},
     query: {type: 'string'}, 'first-name': {type: 'string'}, 'last-name': {type: 'string'},
     'birth-year': {type: 'string'}, 'death-year': {type: 'string'}, year: {type: 'string'}, keywords: {type: 'string'},
     collection: {type: 'string'}, exact: {type: 'boolean'}, filters: {type: 'string'},
@@ -72,11 +72,11 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     nativeVerificationRequired: Boolean(await readPrivateJson('findmypast/verification-required.json'))};
   else if (command === 'credentials') { await configureCredentials('findmypast', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam findmypast.session login'}; }
   else if (command === 'auth') {
-    if (values.native && (values.capture || values.har || values.interactive)) throw new Error('Choose native sign-in or browser/HAR sign-in.');
+    if (values.native && (values.capture || values.har || values.interactive || values['no-autofill'])) throw new Error('Choose native sign-in or browser/HAR sign-in.');
     if (!values.native && !values.har && !values['callback-file']) {
       const {loginFindmypast} = await import('./browser-login.js');
       if (values['browser-channel'] && values['browser-channel'] !== 'camofox') throw new Error('Browser sign-in now uses Camofox. Configure fam browser setup.');
-      result = sessionStatus(await loginFindmypast({interactive: values.interactive, timeoutMs: values['capture-timeout'] === undefined ? undefined : Number(values['capture-timeout']) * 1000, region: values.region}));
+      result = sessionStatus(await loginFindmypast({interactive: values.interactive, autofill: !values['no-autofill'], timeoutMs: values['capture-timeout'] === undefined ? undefined : Number(values['capture-timeout']) * 1000, region: values.region}));
     } else result = values.har ? sessionStatus(await importFindmypastHar(values.har)) : values.browser ? await beginBrowserAuthorization() : sessionStatus(values['callback-file'] ?
       await finishBrowserAuthorization(await readFile(values['callback-file'], 'utf8')) : await authenticateFindmypast());
   } else if (command === 'ops') {

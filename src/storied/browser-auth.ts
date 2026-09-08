@@ -23,7 +23,7 @@ export function callbackCode(location: string, state: string): string | undefine
 }
 
 /** Native PKCE through the configured persistent Camofox browser. */
-export async function authenticateBrowser(options: {interactive?: boolean; channel?: string; timeoutMs?: number} = {}) {
+export async function authenticateBrowser(options: {interactive?: boolean; autofill?: boolean; channel?: string; timeoutMs?: number} = {}) {
   if (options.channel && options.channel !== 'camofox') throw new Error('Storied browser sign-in now uses Camofox. Run fam browser setup.');
   const {configuredBrowser} = await import('../shared/browser-runtime.js');
   const {waitForLogin} = await import('../shared/browser-login.js');

@@ -41,6 +41,28 @@ test('Camofox plugin observes real browser responses, checkpoints state and isol
   const call=async(path:string,value:unknown)=>{const r=await fetch(`${base}/fam/${path}`,{method:'POST',headers:{'content-type':'application/vnd.fam+json'},body:JSON.stringify(value)}); const result=await r.json();assert.equal(r.status,200,JSON.stringify(result));return result;};
   t.after(async()=>{events.emit('server:shutdown');await browser.close();await Promise.all([new Promise<void>(resolve=>web.close(()=>resolve())),new Promise<void>(resolve=>api.close(()=>resolve()))]);await rm(directory,{recursive:true,force:true});});
   await page.goto(`${origin}/form`);
+  const interactive = await call('autofill', {userId,tabId:'owned',origin,username:'synthetic@example.test',password:'synthetic-password'});
+  assert.equal(interactive.submitted,false); assert.equal(interactive.filled,true);
+  assert.equal(await page.locator('input[name=registrationEmail]').inputValue(),'synthetic@example.test');
+  assert.equal(await page.locator('input[type=password]').inputValue(),'synthetic-password');
+  assert.equal(page.url(),`${origin}/form`); assert.equal(logins,0);
+  await page.locator('input[name=registrationEmail]').fill('manually-edited@example.test');
+  await page.locator('input[type=password]').fill('manually-edited-password');
+  const preserved = await call('autofill', {userId,tabId:'owned',origin,username:'synthetic@example.test',password:'synthetic-password'});
+  assert.equal(preserved.filled,false); assert.equal(preserved.submitted,false);
+  assert.equal(await page.locator('input[name=registrationEmail]').inputValue(),'manually-edited@example.test');
+  assert.equal(await page.locator('input[type=password]').inputValue(),'manually-edited-password');
+  const wrongOrigin=await fetch(`${base}/fam/autofill`,{method:'POST',headers:{'content-type':'application/vnd.fam+json'},body:JSON.stringify({userId,tabId:'owned',origin:'https://wrong.example',username:'secret-user',password:'secret-password'})});
+  assert.equal(wrongOrigin.status,400); assert.equal(logins,0);
+  assert.equal(await page.locator('input[type=password]').inputValue(),'manually-edited-password');
+  // A later password-only step is filled without clicking through either step.
+  await page.setContent('<input id=email-login><button>Next</button>');
+  await call('autofill',{userId,tabId:'owned',origin,username:'synthetic@example.test',password:'synthetic-password'});
+  assert.equal(await page.locator('input').inputValue(),'synthetic@example.test');
+  await page.setContent('<input type=password><button>Sign in</button>');
+  await call('autofill',{userId,tabId:'owned',origin,username:'synthetic@example.test',password:'synthetic-password'});
+  assert.equal(await page.locator('input').inputValue(),'synthetic-password'); assert.equal(logins,0);
+  await page.goto(`${origin}/form`);
   const filled = await call('input', {userId, tabId:'owned', origin, username:'synthetic@example.test', password:'synthetic-password'});
   assert.equal(filled.submitted, true);
   await page.waitForURL(`${origin}/login`); assert.equal(logins,1);

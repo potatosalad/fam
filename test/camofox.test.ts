@@ -24,6 +24,12 @@ test('browser commands and global overrides participate in discovery and complet
   assert.equal(parseInvocation(['myheritage.account','get','--transport','browser','--browser-timeout','0']).values['browser-timeout'], 0);
   assert.throws(() => parseInvocation(['cli.browser','configure','--timeout','-1']));
   assert.ok(complete(completionCatalog(), ['browser','']).candidates.includes('stop'));
+  for (const provider of ['myheritage','findmypast','storied','newspaperarchive']) {
+    const invocation = parseInvocation([`${provider}.session`, 'login', '--interactive', '--no-autofill']);
+    assert.equal(invocation.values['no-autofill'], true);
+    assert.ok(invocation.args.includes('--no-autofill'));
+    assert.ok(complete(completionCatalog(), [`${provider}.session`,'login','--no-a']).candidates.includes('--no-autofill'));
+  }
 });
 test('browser recovery preserves requests, cookies, sticky routing and independent instances', async t => {
   const requests: any[] = [];
@@ -141,4 +147,31 @@ test('a saved cooldown permits session reuse and manual completion without passw
   await assert.rejects(waitForLogin(tab, ['https://www.myheritage.com'], async () => undefined, {interactive:true}), (e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
   assert.equal(inputs, 0);
   assert.equal((await readPrivateJson<any>('myheritage/browser-login-block.json')).blockedUntil, blockedUntil);
+});
+
+test('interactive login autofills configured credentials without submitting, even during a saved cooldown', async () => {
+  await writePrivateJson('myheritage/login.json', {username:'synthetic@example.test',password:'synthetic-password'});
+  await writePrivateJson('myheritage/browser-login-block.json', {blockedUntil:new Date(Date.now()+86400000).toISOString()});
+  let origin = 'https://www.myheritage.com', supported = true;
+  const requests: {path:string; body:any}[] = [];
+  const tab = {provider:'myheritage', userId:'fam-test-myheritage', id:'test-tab',
+    evaluate:async()=>({origin,document:1,email:true,password:true,text:'Log in'}),
+    browser:{config:{timeout:0},endpoint:{vncUrl:'https://viewer.example.test'},notify:async()=>{},api:async(path:string,body:any)=>{
+      requests.push({path,body});return path==='/fam/capabilities'?{autofill:supported}:{ready:true,filled:true,submitted:false};
+    }}} as any;
+  const run = (options: {interactive?:boolean;autofill?:boolean} = {interactive:true}) => waitForLogin(tab,['https://www.myheritage.com'],async()=>undefined,options);
+  await assert.rejects(run(),(e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
+  assert.deepEqual(requests.map(r=>r.path),['/fam/capabilities','/fam/autofill']);
+  assert.equal(requests[1].body.password,'synthetic-password');
+  assert.equal(requests[1].body.origin,origin);
+  requests.length=0;
+  await assert.rejects(run({interactive:true,autofill:false}),(e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
+  await assert.rejects(run({autofill:false}),(e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
+  assert.equal(requests.length,0);
+  origin='https://www.myheritage.com.attacker.example';
+  await assert.rejects(run(),(e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
+  assert.equal(requests.length,0);
+  origin='https://www.myheritage.com'; supported=false;
+  await assert.rejects(run(),(e:any)=>e.code==='BROWSER_PLUGIN_REQUIRED');
+  assert.deepEqual(requests.map(r=>r.path),['/fam/capabilities']);
 });

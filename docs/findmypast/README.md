@@ -11,7 +11,7 @@ fam findmypast.session login
 fam findmypast.account get
 ```
 
-Camofox retains the website session and tries configured credentials when needed. Complete MFA or CAPTCHA at the printed viewer URL. Use `--region co.uk` for the UK website or `--interactive` to sign in yourself. See [browser setup](../browser.md). `--capture` remains an alias, and `--har FILE` imports an existing capture. Browser session renewal is bounded to one attempt per rejected operation.
+Camofox retains the website session and tries configured credentials when needed. Complete MFA or CAPTCHA at the printed viewer URL. Use `--region co.uk` for the UK website or `--interactive` to autofill credentials and submit yourself. Add `--no-autofill` to leave the fields untouched. See [browser setup](../browser.md). `--capture` remains an alias, and `--har FILE` imports an existing capture. Browser session renewal is bounded to one attempt per rejected operation.
 
 ## Native login and existing HAR files
 

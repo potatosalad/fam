@@ -14,7 +14,7 @@ fam newspaperarchive.session get
 fam cli.health check --provider newspaperarchive
 ```
 
-Login uses [Storied's existing browser/PKCE flow](../storied/README.md#sign-in). For account verification or social login, use `fam newspaperarchive.session login --interactive`. `--browser-channel chrome` selects installed Chrome. Session refresh and credential sync also operate on the shared Storied session. Signing in or changing saved login credentials affects both providers. The default profile is `~/.config/fam`; `FAM_CONFIG_DIR` selects another profile.
+Login uses [Storied's existing browser/PKCE flow](../storied/README.md#sign-in). For account verification or social login, use `fam newspaperarchive.session login --interactive`: configured credentials are autofilled, and you submit the form yourself. Add `--no-autofill` to leave the fields untouched. The configured Camofox browser is used. Session refresh and credential sync also operate on the shared Storied session. Signing in or changing saved login credentials affects both providers. The default profile is `~/.config/fam`; `FAM_CONFIG_DIR` selects another profile.
 
 ## Search for ancestors
 

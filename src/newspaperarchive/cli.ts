@@ -20,12 +20,12 @@ async function input(arg?: string): Promise<CallInput> {
 }
 export async function runProvider(argv: string[]): Promise<unknown> {
   const {values: v, positionals: [command, arg, extra]} = parseArgs({args: argv, allowPositionals: true, options: {
-    ...stringOptions, anonymous: {type: 'boolean'}, interactive: {type: 'boolean'}, stdin: {type: 'boolean'},
+    ...stringOptions, anonymous: {type: 'boolean'}, interactive: {type: 'boolean'}, 'no-autofill': {type: 'boolean'}, stdin: {type: 'boolean'},
   }});
   let result: unknown;
   if (command === 'credentials') {await configureCredentials('newspaperarchive', {stdin: v.stdin}); result = {saved: true, credentialProvider: 'storied'};}
   else if (command === 'status') result = {...sessionStatus(await loadSession()), credentialDirectory: CREDENTIAL_DIR};
-  else if (command === 'auth') result = sessionStatus(await authenticateBrowser({interactive: v.interactive, channel: v['browser-channel']}));
+  else if (command === 'auth') result = sessionStatus(await authenticateBrowser({interactive: v.interactive, autofill: !v['no-autofill'], channel: v['browser-channel']}));
   else if (command === 'ops') result = Object.entries(operations).map(([alias, operation]) => ({alias, operation})).filter(op => !arg || JSON.stringify(op).toLowerCase().includes(arg.toLowerCase()));
   else if (command === 'schema') result = describeOperation(arg);
   else {

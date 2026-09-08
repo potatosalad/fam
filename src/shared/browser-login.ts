@@ -4,7 +4,7 @@ import {BrowserError} from './browser-config.js';
 import {configuredBrowser, type BrowserTab} from './browser-runtime.js';
 import {readPrivateJson, writePrivateJson} from './storage.js';
 
-export interface BrowserLoginOptions {timeoutMs?: number; interactive?: boolean}
+export interface BrowserLoginOptions {timeoutMs?: number; interactive?: boolean; autofill?: boolean}
 export function loginCooldown(text: string): number | undefined {
   return /access has been temporarily disabled|access has been temporarily blocked/i.test(text) && /(?:try again|retry) in 24 hours/i.test(text) ? 86400000 : undefined;
 }
@@ -12,10 +12,11 @@ export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify
   const timeout = options.timeoutMs ?? tab.browser.config.timeout * 1000;
   const deadline = Date.now() + timeout;
   let notified = false, credentials: {username: string; password: string} | undefined, loaded = false, nextCheck = 0;
-  const submitted = new Set<string>();
+  const submitted = new Set<string>(), filled = new Set<string>();
+  let autofillSupported = false;
   while (true) {
-    let page: {origin: string; password: boolean; email: boolean; text: string} | undefined;
-    try {page = await tab.evaluate(`({origin: location.origin, password: !!document.querySelector('input[type=password]'), email: !!document.querySelector('input[type=email], input[autocomplete=username], input[name*="email" i], input[name=username], input[id=email-login]'), text: document.body.innerText.slice(-6000)})`);} catch {}
+    let page: {origin: string; password: boolean; email: boolean; text: string; document?: number} | undefined;
+    try {page = await tab.evaluate(`({origin: location.origin, document: performance.timeOrigin, password: !!document.querySelector('input[type=password]'), email: !!document.querySelector('input[type=email], input[autocomplete=username], input[name*="email" i], input[name=username], input[id=email-login]'), text: document.body.innerText.slice(-6000)})`);} catch {}
     const blockFile = `${tab.provider}/browser-login-block.json`;
     const cooldown = page && origins.includes(page.origin) ? loginCooldown(page.text) : undefined;
     let block = await readPrivateJson<{blockedUntil: string}>(blockFile);
@@ -34,14 +35,23 @@ export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify
       continue;
     }
     const loginForm = page && origins.includes(page.origin) && (page.email || page.password);
-    if (passwordPaused && loginForm && !options.interactive) throw new BrowserError(`Automatic password entry for ${tab.provider} is paused until ${block!.blockedUntil} after an earlier restriction. Complete sign-in in Camofox or run fam ${tab.provider}.session login --interactive, then retry. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
-    if (!passwordPaused && !options.interactive && loginForm && page) {
+    if (passwordPaused && loginForm && !options.interactive && options.autofill !== false) throw new BrowserError(`Automatic password submission for ${tab.provider} is paused until ${block!.blockedUntil} after an earlier restriction. Complete sign-in in Camofox or run fam ${tab.provider}.session login --interactive, then retry. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
+    if (options.autofill !== false && (options.interactive || !passwordPaused) && loginForm && page) {
       if (!loaded) {
         loaded = true;
         if (await inspectLoginCredentials(tab.provider as Service) !== 'none') credentials = await loadLoginCredentials(tab.provider as Service);
       }
       const step = `${page.origin}:${page.password ? 'password' : 'username'}`;
-      if (credentials && !submitted.has(step)) {
+      const documentStep = `${step}:${page.document ?? 0}`;
+      if (credentials && options.interactive && !filled.has(documentStep)) {
+        if (!autofillSupported) {
+          const capabilities = await tab.browser.api('/fam/capabilities');
+          if (capabilities.autofill !== true) throw new BrowserError('Interactive autofill needs an updated fam Camofox plugin. Update the plugin and restart Camofox, or use --no-autofill to continue manually.', 'BROWSER_PLUGIN_REQUIRED', tab.browser.endpoint.vncUrl);
+          autofillSupported = true;
+        }
+        const result = await tab.browser.api('/fam/autofill', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
+        if (result.ready) filled.add(documentStep);
+      } else if (credentials && !options.interactive && !submitted.has(step)) {
         submitted.add(step);
         await tab.browser.api('/fam/input', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
         nextCheck = 0; await delay(1500); continue;

@@ -86,7 +86,8 @@ const descriptions: Record<string, string> = {
   'browser-channel': 'Browser used for sign-in or capture.', 'capture-timeout': 'Browser capture timeout in seconds.',
   'tree-url': 'MyHeritage family tree URL to capture.', browser: 'Start browser authorization (PKCE).',
   'callback-file': 'File containing the completed browser authorization callback URL.',
-  interactive: 'Sign in interactively in the browser instead of filling configured credentials.',
+  interactive: 'Autofill configured credentials and wait for you to submit in the browser.',
+  'no-autofill': 'Leave login fields untouched and disable automatic credential submission.',
   code: 'Account verification code.', 'verification-code': 'Native account verification code.',
   'send-code': 'Send the pending account verification email.',
   'recaptcha-token-file': 'File containing a native sign-in verification token.',
@@ -119,7 +120,7 @@ const descriptions: Record<string, string> = {
   json: 'Emit structured JSON instead of readable text, including errors.', 'dry-run': 'Validate CLI flags and show the invocation without executing the provider or writing files.',
   help: 'Show this command’s generated usage and flags.',
 };
-const booleans = new Set('native stdin anonymous capture browser interactive send-code all original related no-translations exact images with-images descending include-maiden-name include-nickname similar has-gps famous veteran example json dry-run help offline live verbose'.split(' '));
+const booleans = new Set('native stdin anonymous capture browser interactive no-autofill send-code all original related no-translations exact images with-images descending include-maiden-name include-nickname similar has-gps famous veteran example json dry-run help offline live verbose'.split(' '));
 const integers = new Set('limit offset page count depth generations image capture-timeout birth-year death-year residence-year marriage-year year year-range birth-year-range death-year-range residence-year-range marriage-year-range from-page to-page occurrence'.split(' '));
 const files = new Set('out input variables document har callback-file recaptcha-token-file'.split(' '));
 const options: Record<string, Partial<Flag>> = {
@@ -177,8 +178,8 @@ const commonRead = 'query';
 for (const provider of providerNames) {
   add(provider, 'credentials', 'credential set', 'Save login credentials from helper, environment, prompt, or JSON stdin.', [], 'stdin', {risk: {level: 'local', description: 'Writes private credentials and may invoke the configured credential sync helper.'}});
   add(provider, 'sync', 'credential sync', 'Run the explicitly configured credential synchronization helper.', [], '', {risk: {level: 'write', description: 'Invokes the user-configured synchronization helper, which may contact another host.'}});
-  const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'interactive native capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
-    : provider === 'findmypast' ? 'interactive native capture har browser callback-file browser-channel capture-timeout region' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive browser-channel' : '';
+  const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'interactive no-autofill native capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
+    : provider === 'findmypast' ? 'interactive no-autofill native capture har browser callback-file browser-channel capture-timeout region' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive no-autofill browser-channel' : '';
   add(provider, 'auth', 'session login', 'Sign in and save a session; use the provider-specific authentication options.', [], auth, {risk: login, flags: provider === 'findmypast' ? {region: {choices: ['com', 'co.uk']}} : undefined});
   add(provider, 'status', 'session get', 'Inspect saved session metadata without tokens or live authentication.', [], '', {risk: local});
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});

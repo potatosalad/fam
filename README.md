@@ -107,7 +107,7 @@ fam findmypast.session login
 fam findmypast.account get
 ```
 
-fam validates the account through Camofox and retains the login. Use `fam findmypast.session login --region co.uk` for the UK website, or `--interactive` to sign in yourself. See [browser setup](docs/browser.md).
+fam validates the account through Camofox and retains the login. Use `fam findmypast.session login --region co.uk` for the UK website, or `--interactive` to autofill credentials and submit the form yourself. Add `--no-autofill` to leave login fields untouched. See [browser setup](docs/browser.md).
 
 See the [Findmypast guide](docs/findmypast/README.md) for native login, record and newspaper searches, and image downloads.
 

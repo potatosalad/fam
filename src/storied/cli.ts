@@ -29,7 +29,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const {values: v, positionals: p} = parseArgs({args: argv, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, input: {type: 'string'},
     anonymous: {type: 'boolean'}, page: {type: 'string'}, limit: {type: 'string'}, generations: {type: 'string'},
-    'first-name': {type: 'string'}, 'last-name': {type: 'string'}, keyword: {type: 'string'}, interactive: {type: 'boolean'},
+    'first-name': {type: 'string'}, 'last-name': {type: 'string'}, keyword: {type: 'string'}, interactive: {type: 'boolean'}, 'no-autofill': {type: 'boolean'},
     'browser-channel': {type: 'string'},
   }});
   const [command = 'help', first, second] = p;
@@ -48,7 +48,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   if (v.stdin && command !== 'credentials') throw new Error('--stdin belongs to credentials.');
   if (v.generations !== undefined && command !== 'pedigree') throw new Error('--generations belongs to pedigree.');
   if ([v['first-name'], v['last-name'], v.keyword].some(x => x !== undefined) && command !== 'search') throw new Error('Search fields belong to search.');
-  if ((v.interactive || v['browser-channel']) && command !== 'auth') throw new Error('Browser options belong to auth.');
+  if ((v.interactive || v['no-autofill'] || v['browser-channel']) && command !== 'auth') throw new Error('Browser options belong to auth.');
   if (v.anonymous && ['auth', 'credentials', 'refresh', 'verify', 'me'].includes(command)) throw new Error('This command requires an account.');
   if (v.input !== undefined && !Object.hasOwn(aliases, command)) throw new Error('--input belongs to a named API command. call takes its input as an argument.');
   const pageNumber = integer(v.page, 1), pageSize = integer(v.limit, 20, 100);
@@ -57,7 +57,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   else if (command === 'credentials') {await configureCredentials('storied', {stdin: v.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam storied.session login'};}
   else if (command === 'auth') {
     const {authenticateBrowser} = await import('./browser-auth.js');
-    result = sessionStatus(await authenticateBrowser({interactive: v.interactive, channel: v['browser-channel']}));
+    result = sessionStatus(await authenticateBrowser({interactive: v.interactive, autofill: !v['no-autofill'], channel: v['browser-channel']}));
   }
   else if (command === 'ops') result = contracts.operations.filter(o => JSON.stringify(o).toLowerCase().includes((first ?? '').toLowerCase())).map(o => ({
     id: o.id, aliases: Object.keys(aliases).filter(k => aliases[k] === o.id), apkMethods: o.apkMethods, hasBody: !!o.requestBody,
