@@ -6,7 +6,7 @@ import {join} from 'node:path';
 // A small Camofox extension: real browser response metadata, durable checkpoints,
 // and OAuth redirects which never become a document URL (native app callbacks).
 export function register(app, ctx) {
-  const watches = new Map(), queues = new Map(), resetting = new Set(), operations = new Map();
+  const watches = new Map(), queues = new Map(), resetting = new Set(), operations = new Map(), privateStates = new Map();
   let resettingAll = false;
   app.use('/fam', express.json({type: 'application/vnd.fam+json', limit: '72mb'}));
   app.use('/fam', ctx.auth());
@@ -71,6 +71,7 @@ export function register(app, ctx) {
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
   route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true,
+    privateBrowsing: process.env.FAM_PRIVATE_CONTEXTS === '1',
     reset: !!ctx.config.profileDir && typeof ctx.closeSession === 'function'}));
   async function ownedSessions() {
     const ids = new Set([...ctx.sessions.keys()].filter(isOwner));
@@ -149,6 +150,16 @@ export function register(app, ctx) {
   ctx.events.on('session:creating', async ({userId, contextOptions}) => {
     if (!isOwner(userId)) return;
     if (resettingAll || resetting.has(userId)) fail('session-reset-in-progress');
+    // Firefox containers are not private windows. MyHeritage login requires
+    // the latter; the engine bridge also exports/restores its private cookies.
+    if (userId.endsWith('-myheritage') && process.env.FAM_PRIVATE_CONTEXTS === '1') {
+      contextOptions.extraHTTPHeaders = {...contextOptions.extraHTTPHeaders, 'x-fam-private-context': '1'};
+      // Upstream persistence hooks run concurrently. Capture even a later
+      // storageState assignment, and restore only after a private page exists.
+      privateStates.set(userId, contextOptions.storageState);
+      Object.defineProperty(contextOptions, 'storageState', {enumerable: true, configurable: true,
+        get: () => undefined, set: state => privateStates.set(userId, state)});
+    }
     // A previously unseen fam session must not reload bootstrap cookies after
     // --all, including a session requested by an older client on another host.
     if (ctx.config.profileDir && await exists(join(ctx.config.profileDir, 'fam-reset-all.json')) && !await exists(join(profile(userId), 'storage-state.json'))) {
@@ -158,6 +169,23 @@ export function register(app, ctx) {
       await atomicJson(join(profile(userId), 'fam-session.json'), {userId});
       contextOptions.storageState = state;
     }
+  });
+  ctx.events.on('session:created', async ({userId, context}) => {
+    if (!isOwner(userId) || !userId.endsWith('-myheritage') || process.env.FAM_PRIVATE_CONTEXTS !== '1') return;
+    // Firefox clears private storage when its last private window closes.
+    // Keep this page alive through Playwright's temporary restore pages, then
+    // hand it to Camofox's first tab request without leaving an extra window.
+    const initial = await context.newPage();
+    const state = privateStates.get(userId); privateStates.delete(userId);
+    if (state) {
+      if (typeof context.setStorageState !== 'function') fail('private-storage-restore-unsupported');
+      await context.setStorageState(state);
+    }
+    const newPage = context.newPage.bind(context);
+    context.newPage = async (...args) => {
+      context.newPage = newPage;
+      return initial.isClosed() ? newPage(...args) : initial;
+    };
   });
   route('post', 'storage', async ({userId}) => ({state: await checkpoint(userId)}));
   route('post', 'cookies', async ({userId, cookies, explicit = false}) => {

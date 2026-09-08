@@ -26,7 +26,7 @@ fam browser use remote
 
 The API URL may include a reverse-proxy path. The viewer URL is used exactly as configured, so a tunnel, Tailscale hostname, or another published address works. Omit `--api-key-file` when the server does not require a key. fam connects directly by URL; SSH is not required by the CLI.
 
-Remote Camofox must load the bundled `browser/camofox-plugin` directory as `/app/plugins/fam`, with `ENABLE_FAM=1`, persistence enabled, and `CAMOFOX_PROFILE_DIR` on persistent storage. Enable noVNC with `ENABLE_VNC=1`. For Docker, use `VNC_BIND=0.0.0.0` inside the container and publish the viewer port on the host interface you intend to use. The plugin uses Camofox's existing API authentication. `fam browser status` checks whether the plugin is reachable.
+Remote Camofox must load the bundled `browser/camofox-plugin` directory as `/app/plugins/fam`, with `ENABLE_FAM=1`, persistence enabled, and `CAMOFOX_PROFILE_DIR` on persistent storage. Start the server with `node /app/plugins/fam/start.mjs`. This prepares the Camoufox engine for MyHeritage private contexts before loading the server; it needs Python 3 and the engine at `~/.cache/camoufox` (override with `FAM_CAMOUFOX_DIR`). The original `omni.ja` is preserved alongside the engine. Enable noVNC with `ENABLE_VNC=1`. For Docker, use `VNC_BIND=0.0.0.0` inside the container and publish the viewer port on the host interface you intend to use. The plugin uses Camofox's existing API authentication. `fam browser status` checks whether the plugin is reachable.
 
 Example plugin configuration in `/app/camofox.config.json`:
 
@@ -76,6 +76,8 @@ The same flags apply to Findmypast, Storied, and NewspaperArchive browser login.
 When MFA, CAPTCHA, or another interaction is needed, fam prints the viewer URL, opens it when possible, and waits for account verification. The default wait is ten minutes. `fam browser configure --timeout 0 --no-open` prints the URL and returns when interaction is needed. A command can override the setting with `--browser-timeout 120`. Finish in the viewer and rerun the login command after a timeout. Cookies remain available.
 
 MyHeritage and Findmypast validate account access before saving a browser session. Storied captures its native-app callback in the plugin, validates OAuth state, and exchanges the code with PKCE. NewspaperArchive shares Storied authentication. Saved OAuth refresh tokens continue to support ordinary native requests.
+
+MyHeritage uses actual Firefox private windows. Firefox's ordinary Playwright contexts are containers, which can behave differently even after their storage is erased. The bundled engine bridge scopes private windows to MyHeritage's fam context and exports/restores their cookies and site storage so sign-in survives service restarts. Other browser contexts retain their existing behavior. Updating an existing remote deployment requires the startup command above and one service restart; local setup handles this automatically.
 
 MyHeritage and Findmypast browser commands make at most one login renewal after an explicit session rejection. MFA and provider restrictions may still require your attention. A detected MyHeritage 24-hour login restriction suppresses further automatic password attempts until its recorded deadline; it does not invalidate an existing working session. Health checks do not submit passwords.
 

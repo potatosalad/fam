@@ -86,7 +86,7 @@ export async function startBrowser(config?: BrowserConfig) {
     let inspected: any;
     try {inspected = JSON.parse(await docker(['inspect', container]))[0]; exists = true;} catch {}
     if (exists && inspected.Config.Labels?.['app'] !== 'fam') throw new BrowserError('The configured local container is not owned by fam.');
-    if (exists && inspected.Config.Labels?.['fam.runtime'] !== '2') {
+    if (exists && inspected.Config.Labels?.['fam.runtime'] !== '3') {
       if (inspected.State.Running) await stopBrowser(config);
       const backup = `${container}-before-upgrade-${Date.now()}`;
       await docker(['rename', container, backup]); exists = false;
@@ -102,9 +102,9 @@ export async function startBrowser(config?: BrowserConfig) {
       await writeFile(pluginConfig, JSON.stringify({plugins: {persistence: {enabled: true, indexedDB: true}, vnc: {enabled: true}, fam: {enabled: true}}}), {mode: 0o600});
       process.stderr.write('Preparing the persistent Camofox container. The first image download may take a few minutes.\n');
       await docker(['pull', endpoint.image!], 600000);
-      await docker(['run', '-d', '--name', container, '--label', 'app=fam', '--label', 'fam.runtime=2', '--init', '--entrypoint', 'node', '--restart', 'unless-stopped', '--shm-size', '1g', '--env-file', envFile,
+      await docker(['run', '-d', '--name', container, '--label', 'app=fam', '--label', 'fam.runtime=3', '--init', '--entrypoint', 'node', '--restart', 'unless-stopped', '--shm-size', '1g', '--env-file', envFile,
         '-p', `127.0.0.1:${endpoint.apiPort ?? new URL(endpoint.url).port}:9377`, '-p', `127.0.0.1:${endpoint.vncPort ?? 6080}:6080`,
-        '-v', `${join(directory, 'profiles')}:/data/profiles`, '-v', `${pluginDirectory}:/app/plugins/fam:ro`, '-v', `${pluginConfig}:/app/camofox.config.json:ro`, endpoint.image!, '--max-old-space-size=512', 'server.js'], 60000);
+        '-v', `${join(directory, 'profiles')}:/data/profiles`, '-v', `${pluginDirectory}:/app/plugins/fam:ro`, '-v', `${pluginConfig}:/app/camofox.config.json:ro`, endpoint.image!, '--max-old-space-size=512', '/app/plugins/fam/start.mjs'], 60000);
     }
   }
   const browser = new Camofox(config);
