@@ -49,7 +49,7 @@ fam browser configure --timeout 1200 --open
 fam browser configure --vnc-url https://viewer.example.org --no-open
 ```
 
-Local `stop` stops the owned container and retains saved state. Remote `stop` closes only tabs in fam's tab group for the selected session name. It leaves the browser process, other tab groups, and other users' work running. Ordinary commands leave the browser running; successful HTTP operations close their own transport tabs at CLI exit. Login and unfinished verification tabs remain available in the viewer.
+Local `stop` stops the owned container and retains saved state. The container forwards shutdown signals to Camofox so it can finish checkpoints. `open` starts an idle browser before opening its viewer. Local idle timeouts are 24 hours; zero in upstream Camofox would mean immediate shutdown. Upgrading an older fam container retains it under a timestamped name and reuses its persistent profiles. Remote `stop` closes only tabs in fam's tab group for the selected session name. It leaves the browser process, other tab groups, and other users' work running. Ordinary commands leave the browser running; successful HTTP operations close their own transport tabs at CLI exit. Login and unfinished verification tabs remain available in the viewer.
 
 `fam browser` is a short alias for `fam cli.browser`. Help, command discovery, and completion describe the same operations.
 

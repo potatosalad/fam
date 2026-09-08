@@ -18,7 +18,7 @@ export async function browserCommand(action: string, values: Values): Promise<un
   }
   if (action === 'start') {await startBrowser(config); return browserStatus(config);}
   if (action === 'stop') return stopBrowser(config);
-  if (action === 'open') {const vncUrl = config[config.mode]!.vncUrl; return {vncUrl, opened: await openUrl(vncUrl)};}
+  if (action === 'open') {await startBrowser(config); const vncUrl = config[config.mode]!.vncUrl; return {vncUrl, opened: await openUrl(vncUrl)};}
   if (action === 'reset') return resetBrowserRouting(config);
   if (action === 'configure') {
     if (values.timeout !== undefined) config.timeout = Number(values.timeout);

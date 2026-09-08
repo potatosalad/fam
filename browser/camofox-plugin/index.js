@@ -19,7 +19,7 @@ export function register(app, ctx) {
     const session = ctx.sessions.get(owner(userId));
     for (const group of session?.tabGroups?.values() ?? []) {
       const state = group.get(tabId);
-      if (state && !state.page.isClosed()) {session.lastAccess = Date.now(); return {session, page: state.page};}
+      if (state && !state.page.isClosed()) {session.lastAccess = Date.now(); state.toolCalls = (state.toolCalls ?? 0) + 1; return {session, page: state.page};}
     }
     fail('tab-not-found');
   }

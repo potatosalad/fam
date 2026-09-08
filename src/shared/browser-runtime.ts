@@ -83,20 +83,28 @@ export async function startBrowser(config?: BrowserConfig) {
     await dockerReady(false);
     const container = endpoint.container!;
     let exists = false;
-    try {await docker(['inspect', container]); exists = true;} catch {}
+    let inspected: any;
+    try {inspected = JSON.parse(await docker(['inspect', container]))[0]; exists = true;} catch {}
+    if (exists && inspected.Config.Labels?.['app'] !== 'fam') throw new BrowserError('The configured local container is not owned by fam.');
+    if (exists && inspected.Config.Labels?.['fam.runtime'] !== '2') {
+      if (inspected.State.Running) await stopBrowser(config);
+      const backup = `${container}-before-upgrade-${Date.now()}`;
+      await docker(['rename', container, backup]); exists = false;
+      process.stderr.write(`Preserved the previous local container as ${backup}; reusing its saved profiles.\n`);
+    }
     if (exists) await docker(['start', container]);
     else {
       const directory = join(CREDENTIAL_DIR, 'browser', 'local');
       await mkdir(join(directory, 'profiles'), {recursive: true, mode: 0o700});
       const envFile = join(directory, 'container.env');
-      await writeFile(envFile, `CAMOFOX_API_KEY=${endpoint.apiKey}\nENABLE_VNC=1\nENABLE_FAM=1\nVNC_BIND=0.0.0.0\nCAMOFOX_PROFILE_DIR=/data/profiles\nCAMOFOX_CRASH_REPORT_ENABLED=false\nBROWSER_IDLE_TIMEOUT_MS=0\n`, {mode: 0o600});
+      await writeFile(envFile, `CAMOFOX_API_KEY=${endpoint.apiKey}\nENABLE_VNC=1\nENABLE_FAM=1\nVNC_BIND=0.0.0.0\nCAMOFOX_PROFILE_DIR=/data/profiles\nCAMOFOX_CRASH_REPORT_ENABLED=false\nBROWSER_IDLE_TIMEOUT_MS=86400000\nTAB_INACTIVITY_MS=86400000\nSESSION_TIMEOUT_MS=86400000\n`, {mode: 0o600});
       const pluginConfig = join(directory, 'camofox.config.json');
-      await writeFile(pluginConfig, JSON.stringify({plugins: {persistence: {enabled: true}, vnc: {enabled: true}, fam: {enabled: true}}}), {mode: 0o600});
+      await writeFile(pluginConfig, JSON.stringify({plugins: {persistence: {enabled: true, indexedDB: true}, vnc: {enabled: true}, fam: {enabled: true}}}), {mode: 0o600});
       process.stderr.write('Preparing the persistent Camofox container. The first image download may take a few minutes.\n');
       await docker(['pull', endpoint.image!], 600000);
-      await docker(['run', '-d', '--name', container, '--label', 'app=fam', '--restart', 'unless-stopped', '--shm-size', '1g', '--env-file', envFile,
+      await docker(['run', '-d', '--name', container, '--label', 'app=fam', '--label', 'fam.runtime=2', '--init', '--entrypoint', 'node', '--restart', 'unless-stopped', '--shm-size', '1g', '--env-file', envFile,
         '-p', `127.0.0.1:${endpoint.apiPort ?? new URL(endpoint.url).port}:9377`, '-p', `127.0.0.1:${endpoint.vncPort ?? 6080}:6080`,
-        '-v', `${join(directory, 'profiles')}:/data/profiles`, '-v', `${pluginDirectory}:/app/plugins/fam:ro`, '-v', `${pluginConfig}:/app/camofox.config.json:ro`, endpoint.image!], 60000);
+        '-v', `${join(directory, 'profiles')}:/data/profiles`, '-v', `${pluginDirectory}:/app/plugins/fam:ro`, '-v', `${pluginConfig}:/app/camofox.config.json:ro`, endpoint.image!, '--max-old-space-size=512', 'server.js'], 60000);
     }
   }
   const browser = new Camofox(config);
@@ -112,15 +120,23 @@ export async function browserStatus(config?: BrowserConfig) {
   config ??= await browserConfig();
   if (!config) return {configured: false, next: 'fam browser setup --local'};
   const endpoint = config[config.mode]!;
-  let reachable = false, plugin = false;
-  try {await new Camofox(config).api('/health', undefined, 3000); reachable = true; await new Camofox(config).capabilities(); plugin = true;} catch {}
-  return {configured: true, mode: config.mode, url: endpoint.url, vncUrl: endpoint.vncUrl, reachable, plugin, timeout: config.timeout,
+  let reachable = false, plugin = false, running = false;
+  try {const health = await new Camofox(config).api('/health', undefined, 3000); reachable = true; running = !!health.browserRunning; await new Camofox(config).capabilities(); plugin = true;} catch {}
+  return {configured: true, mode: config.mode, url: endpoint.url, vncUrl: endpoint.vncUrl, reachable, running, plugin, timeout: config.timeout,
     transport: config.transport, session: config.session, ...(config.mode === 'local' ? {container: endpoint.container} : {})};
 }
 export async function stopBrowser(config: BrowserConfig) {
   const browser = new Camofox(config);
   const result = await browser.api('/fam/close', {userIds: providers.map(provider => browserUserId(config, provider))});
-  if (config.mode === 'local') await docker(['stop', '--time', '60', config.local!.container!], 70000);
+  if (config.mode === 'local') {
+    const container = config.local!.container!;
+    const inspected = JSON.parse(await docker(['inspect', container]))[0];
+    // Older upstream images put a shell at PID 1, which does not forward TERM.
+    if (inspected.State.Running && !inspected.HostConfig.Init) await docker(['exec', container, 'node', '-e',
+      "const fs=require('fs');for(const pid of fs.readdirSync('/proc').filter(p=>/^\\d+$/.test(p))){try{const args=fs.readFileSync('/proc/'+pid+'/cmdline','utf8').split('\\0');if(args.includes('server.js')&&args[0].endsWith('node'))process.kill(Number(pid),'SIGTERM');}catch{}}"
+    ]).catch(() => {});
+    await docker(['stop', '--time', '30', container], 40000);
+  }
   return {mode: config.mode, ...result, browserStopped: config.mode === 'local', sessionsPreserved: true};
 }
 export async function resetBrowserRouting(config: BrowserConfig) {
