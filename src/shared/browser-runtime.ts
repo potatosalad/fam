@@ -127,16 +127,19 @@ export async function browserStatus(config?: BrowserConfig) {
 }
 export async function stopBrowser(config: BrowserConfig) {
   const browser = new Camofox(config);
-  const result = await browser.api('/fam/close', {userIds: providers.map(provider => browserUserId(config, provider))});
+  const closeTabs = () => browser.api('/fam/close', {userIds: providers.map(provider => browserUserId(config, provider))});
+  let result: {closed: number; checkpointed?: boolean};
   if (config.mode === 'local') {
     const container = config.local!.container!;
     const inspected = JSON.parse(await docker(['inspect', container]))[0];
+    if (inspected.Config.Labels?.app !== 'fam') throw new BrowserError('The configured local container is not owned by fam.');
+    result = inspected.State.Running ? await closeTabs().catch(() => ({closed: 0, checkpointed: false})) : {closed: 0};
     // Older upstream images put a shell at PID 1, which does not forward TERM.
     if (inspected.State.Running && !inspected.HostConfig.Init) await docker(['exec', container, 'node', '-e',
       "const fs=require('fs');for(const pid of fs.readdirSync('/proc').filter(p=>/^\\d+$/.test(p))){try{const args=fs.readFileSync('/proc/'+pid+'/cmdline','utf8').split('\\0');if(args.includes('server.js')&&args[0].endsWith('node'))process.kill(Number(pid),'SIGTERM');}catch{}}"
     ]).catch(() => {});
     await docker(['stop', '--time', '30', container], 40000);
-  }
+  } else result = await closeTabs();
   return {mode: config.mode, ...result, browserStopped: config.mode === 'local', sessionsPreserved: true};
 }
 export async function resetBrowserRouting(config: BrowserConfig) {
