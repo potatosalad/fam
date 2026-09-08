@@ -7,7 +7,7 @@ import {fetchWithBrowser, closeBrowserTransportTabs, isChallenge} from '../src/s
 import {saveBrowserConfig, browserConfig, setBrowserOverrides, endpointId, loadProviderSession, saveProviderSession, type BrowserConfig} from '../src/shared/browser-config.js';
 import {stopBrowser, updateCookieJar} from '../src/shared/browser-runtime.js';
 import {loginCooldown, waitForLogin} from '../src/shared/browser-login.js';
-import {readPrivateJson} from '../src/shared/storage.js';
+import {readPrivateJson, writePrivateJson} from '../src/shared/storage.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
 import {complete, completionCatalog} from '../src/shared/completion.js';
 
@@ -118,10 +118,27 @@ test('provider lockouts stop password attempts without extending an existing coo
   let inputs = 0;
   const tab = {provider: 'myheritage', evaluate: async () => ({origin:'https://www.myheritage.com', email:true, password:true, text:'Access has been temporarily disabled. Try again in 24 hours.'}),
     browser: {config:{timeout:0}, endpoint:{vncUrl:'https://viewer.example.test'}, api:async()=>{inputs++;}}} as any;
-  const verify = async () => undefined;
+  const verify = async () => assert.fail('do not probe a page displaying an access restriction');
   await assert.rejects(waitForLogin(tab, ['https://www.myheritage.com'], verify), (e:any)=>e.code==='BROWSER_LOGIN_BLOCKED');
   const first = await readPrivateJson<any>('myheritage/browser-login-block.json');
   await assert.rejects(waitForLogin(tab, ['https://www.myheritage.com'], verify), (e:any)=>e.code==='BROWSER_LOGIN_BLOCKED');
   assert.equal((await readPrivateJson<any>('myheritage/browser-login-block.json')).blockedUntil, first.blockedUntil);
   assert.equal(inputs, 0);
+});
+
+test('a saved cooldown permits session reuse and manual completion without password input', async () => {
+  const blockedUntil = new Date(Date.now() + 86400000).toISOString();
+  await writePrivateJson('myheritage/browser-login-block.json', {blockedUntil});
+  let inputs = 0, states = 0;
+  let form = false;
+  const tab = {provider: 'myheritage', evaluate: async () => ({origin:'https://www.myheritage.com', email:form, password:form, text:'Ready'}),
+    browser: {config:{timeout:0}, endpoint:{vncUrl:'https://viewer.example.test'}, api:async()=>{inputs++;}, state:async()=>{states++;}, notify:async()=>{}}} as any;
+  assert.equal(await waitForLogin(tab, ['https://www.myheritage.com'], async () => 'signed-in'), 'signed-in');
+  assert.equal(states, 1);
+  await assert.rejects(waitForLogin(tab, ['https://www.myheritage.com'], async () => undefined), (e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
+  form = true;
+  await assert.rejects(waitForLogin(tab, ['https://www.myheritage.com'], async () => undefined), (e:any)=>e.code==='BROWSER_LOGIN_BLOCKED' && e.message.includes('earlier restriction'));
+  await assert.rejects(waitForLogin(tab, ['https://www.myheritage.com'], async () => undefined, {interactive:true}), (e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
+  assert.equal(inputs, 0);
+  assert.equal((await readPrivateJson<any>('myheritage/browser-login-block.json')).blockedUntil, blockedUntil);
 });

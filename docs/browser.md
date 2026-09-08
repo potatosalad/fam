@@ -70,6 +70,8 @@ MyHeritage and Findmypast validate account access before saving a browser sessio
 
 MyHeritage and Findmypast browser commands make at most one login renewal after an explicit session rejection. MFA and provider restrictions may still require your attention. A detected MyHeritage 24-hour login restriction suppresses further automatic password attempts until its recorded deadline; it does not invalidate an existing working session. Health checks do not submit passwords.
 
+MyHeritage login reuses an existing fam tab and follows its family-site page's tree link once to obtain the rendered tree context. A saved cooldown permits verification of an existing session and `--interactive` completion; it blocks automatic password entry. If the page itself still displays the restriction, fam stops without probing the account. There is no need to delete the cooldown file after signing in manually.
+
 `--capture` remains an alias for Camofox login. It no longer records a HAR. Existing HAR files can still be imported using `fam myheritage.session login --har FILE` or `fam findmypast.session login --har FILE`; when a browser is configured, imported website cookies are installed into the selected instance and validated. Old unscoped HAR sessions are not silently copied to a remote browser. Use an explicit import or `--transport http` for a legacy direct-HTTP session. Native MyHeritage/Findmypast login is available with `--native`.
 
 ## Automatic HTTP recovery

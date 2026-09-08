@@ -14,11 +14,6 @@ export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify
   let notified = false, credentials: {username: string; password: string} | undefined, loaded = false, nextCheck = 0;
   const submitted = new Set<string>();
   while (true) {
-    if (Date.now() >= nextCheck) {
-      const result = await verify();
-      if (result !== undefined) {await tab.browser.state(tab.provider); return result;}
-      nextCheck = Date.now() + 10000;
-    }
     let page: {origin: string; password: boolean; email: boolean; text: string} | undefined;
     try {page = await tab.evaluate(`({origin: location.origin, password: !!document.querySelector('input[type=password]'), email: !!document.querySelector('input[type=email], input[autocomplete=username], input[name*="email" i], input[name=username], input[id=email-login]'), text: document.body.innerText.slice(-6000)})`);} catch {}
     const blockFile = `${tab.provider}/browser-login-block.json`;
@@ -28,8 +23,19 @@ export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify
       block = {blockedUntil: new Date(Date.now() + cooldown).toISOString()};
       await writePrivateJson(blockFile, {...block, reason: 'provider-temporary-access-restriction'});
     }
-    if (block && Date.parse(block.blockedUntil) > Date.now()) throw new BrowserError(`${tab.provider} has temporarily restricted login until ${block.blockedUntil}. No further automatic password attempts will be made. Existing signed-in sessions can still be reused. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
-    if (!options.interactive && page && origins.includes(page.origin) && (page.email || page.password)) {
+    const passwordPaused = !!block && Date.parse(block.blockedUntil) > Date.now();
+    if (cooldown) throw new BrowserError(`${tab.provider} is displaying a temporary access restriction. Automatic password entry is paused until ${block!.blockedUntil}. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
+    if (Date.now() >= nextCheck) {
+      const result = await verify();
+      if (result !== undefined) {await tab.browser.state(tab.provider); return result;}
+      nextCheck = Date.now() + 10000;
+      // Verification may navigate to an authenticated page. Inspect its current
+      // state before deciding whether password entry is needed or permitted.
+      continue;
+    }
+    const loginForm = page && origins.includes(page.origin) && (page.email || page.password);
+    if (passwordPaused && loginForm && !options.interactive) throw new BrowserError(`Automatic password entry for ${tab.provider} is paused until ${block!.blockedUntil} after an earlier restriction. Complete sign-in in Camofox or run fam ${tab.provider}.session login --interactive, then retry. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
+    if (!passwordPaused && !options.interactive && loginForm && page) {
       if (!loaded) {
         loaded = true;
         if (await inspectLoginCredentials(tab.provider as Service) !== 'none') credentials = await loadLoginCredentials(tab.provider as Service);
