@@ -27,7 +27,7 @@ fam americanancestors.api list
 fam americanancestors.api describe --operation search
 ```
 
-The catalog returns exact database titles, categories, projects, and record types. Collection detail supplies its numeric ID, source URL, volumes, extended fields, and search tips. Search uses the **exact title** in `--collection`, not its numeric ID. An unknown title fails collection lookup. Extended attributes are described for research but do not yet have arbitrary CLI field bindings.
+The catalog returns exact database titles, categories, projects, and record types. Collection detail supplies its numeric ID, source URL, volumes, typed `fieldSchema`, raw extended fields, and search tips. Search uses the **exact title** in `--collection`, not its numeric ID. An unknown title fails collection lookup. Use `--field NAME=VALUE` or `--field ID=VALUE` with a field returned in `fieldSchema`; unsupported or ambiguous fields fail before the search request.
 
 ## Search and follow evidence
 
@@ -57,16 +57,63 @@ Native image downloads reconstruct the full resolution of the **published Deep Z
 
 A successful login or search does not guarantee membership access to every database or image. Access gates and malformed pages fail explicitly instead of becoming empty results. All provider operations exposed here are research reads except the explicit login and local credential/file operations; favorites, saved searches, purchases, and annotations are not implemented.
 
+## Family members and collection-specific fields
+
+```sh
+fam americanancestors.record search --last-name Adams \
+  --collection 'General Society of Mayflower Descendants Membership Applications, 1620-1920' \
+  --family '{"relationship":"Spouse","firstName":"Elizabeth","lastName":"Brown"}' \
+  --field 'Generation=5' --json
+fam americanancestors.record search --collection 'New England Historical and Genealogical Register' \
+  --keywords Adams --field 'Article Title Only=true' --json
+```
+
+Repeat `--family` up to three times. Each JSON object needs `relationship` (`Any`, `Father`, `Mother`, or `Spouse`) and at least one of `firstName`/`lastName`. These match **structured indexed relationships**. A name appearing only in a source's free text may not match a family filter. Unsupported relationship types and malformed criteria fail locally.
+
+Repeat `--field` for multiple collection-specific criteria. Names are matched without case sensitivity; numeric IDs stay exact strings. fam fetches the selected collection's schema and sends the provider's actual ID/name/type. Boolean fields accept `true`; omit them to remove that restriction. Text fields, including generation and membership numbers, stay strings. Unknown, ambiguous, duplicate, or wrong-type fields are rejected. Only the observed `Attribute` fields are supported; combined-attribute forms remain unimplemented.
+
+Journal title results have `kind: "record"`, a collection `title`, and `name: null`; they are not person-name hits. Indexed person results have `kind: "person"`. The record's text, volume, page, and source URL remain available in both layouts.
+
+## Browse volumes and pages
+
+```sh
+fam americanancestors.collection volumes --name 'Massachusetts: Vital Records, 1620-1850' --filter Medway
+fam americanancestors.collection browse --name 'Massachusetts: Vital Records, 1620-1850' --volume-id 7748
+fam americanancestors.collection browse --name 'Massachusetts: Vital Records, 1620-1850' --volume-id 7748 --page-name 14
+fam americanancestors.image list --url 'https://www.americanancestors.org/databases/massachusetts-vital-records-1620-1850/image/?volumeId=7748' --limit 3 --json
+```
+
+Volume links open the first published page without requiring an indexed person or record ID. `collection browse` verifies that the volume belongs to the collection and rejects a substituted page. Use the exact printed/indexed page label, including Roman numerals or compound labels such as `2207:1` where supplied by the provider.
+
+`image get`, `collection browse`, and each `image list` item return `pageName`, `previousUrl`, and `nextUrl`. `image list` walks these links sequentially, pauses between requests, and returns at most 100 page metadata items per invocation (10 by default). Continue from its top-level `nextUrl`; `complete` means the volume ended. It never invents a next page by adding one to the label. No tiles are downloaded by these browsing commands. Pass an item's `sourceUrl` to `image download` for the scan and citation sidecar.
+
+## Bounded, resumable research exports
+
+```sh
+fam americanancestors.record export --last-name Adams \
+  --collection 'General Society of Mayflower Descendants Membership Applications, 1620-1920' \
+  --field 'Generation=5' --details --limit 10 --out research.json --json
+fam americanancestors.record export --resume research.json --limit 20 --json
+```
+
+`--limit` is required and bounds **additional records in this run**, including a stop partway through a provider page. It accepts 1–1,000; one export is capped at 10,000 records and 50 MiB. New exports start at page 1 and refuse existing destinations. `--resume` updates the same file using its saved filters and details setting; do not repeat filters, `--details`, or `--anonymous`. Signed-in access is required. A completed export performs no additional reads when resumed.
+
+The private JSON file contains query options, timestamps, indexed search hits and source links, and a checkpoint. `--details` additionally fetches each record's indexed fields, citation, and research guidance. It does not download scans, collect OCR, or change saved searches on the website. Without `--details`, citations are limited to the search hit's collection and source URL; use record details for the fuller database citation.
+
+Data and checkpoint are replaced atomically together after every saved record. A failed record lookup, network failure, or graceful Ctrl-C leaves completed records available to resume; no automatic login or failed request retry occurs. On resume, fam re-reads the checkpoint page and verifies IDs/order, counts, and the encoded query. Changed results or schema, duplicated records, or ignored pagination stop the export rather than skip records silently. This is not a transactional snapshot of the provider's entire index: start a fresh export if the provider changes its data. At the hard capacity, narrow the search and begin a new export.
+
+A `.lock` file prevents concurrent writers. Ordinary failures and graceful interrupts release it. After a forced termination such as SIGKILL, confirm the writer has stopped before removing the leftover lock and resuming. Keep the export JSON intact; it is both research data and the resume checkpoint.
+
 ## TypeScript
 
 ```ts
 import {AmericanAncestorsClient} from '@potatosalad/fam/americanancestors';
 const client = await AmericanAncestorsClient.open();
-const page = await client.search({lastName: 'Adams', page: 1});
+const page = await client.search({lastName: 'Adams', page: 1, family: [{relationship: 'Spouse', firstName: 'Elizabeth'}]});
 if (page.items[0]?.sourceUrl) {
   const record = await client.record(page.items[0].sourceUrl);
   console.log(record.fields, record.citation);
 }
 ```
 
-Use `AmericanAncestorsClient.open(true)` for anonymous reads. `downloadImage` and `saveDownload` are exported alongside the client. CLI `--json` returns the standard fam envelope; `--out` on reads saves provider data privately.
+Use `AmericanAncestorsClient.open(true)` for anonymous reads. `downloadImage`, `saveDownload`, and `exportRecords` are exported alongside the client. `SearchOptions` includes typed `family` members and a `fields` object; `client.volumes`, `client.browse`, and `client.pages` provide the browsing workflow. CLI `--json` returns the standard fam envelope; `--out` on reads saves provider data privately.

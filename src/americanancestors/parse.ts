@@ -7,14 +7,15 @@ export function searchResults(html: string, query: URLSearchParams) {
   const $ = load(html), totalValue = $('.total-hits').val(), pageValue = $('.index-page').val(), sizeValue = $('.page-size').val();
   if (![totalValue,pageValue,sizeValue].every(v => typeof v === 'string' && /^\d+$/.test(v))) throw new AmericanAncestorsError('api-changed');
   const total = Number(totalValue), page = Number(pageValue), pageSize = Number(sizeValue);
-  if (![total,page,pageSize].every(Number.isSafeInteger) || page < 1 || pageSize < 1) throw new AmericanAncestorsError('api-changed');
+  if (![total,page,pageSize].every(Number.isSafeInteger) || page < 1 || pageSize < 1 || page !== Number(query.get('page') ?? 1)) throw new AmericanAncestorsError('api-changed');
   const items = $('#tblSearchResult > table > tbody > tr').toArray().map(row => {
-    const cells = $(row).children('td'), link = cells.eq(0).find('a[id^=name-]').first();
+    const cells = $(row).children('td'), link = cells.eq(0).find('a[id^=name-], a[id^=record-]').first();
     const match = link.attr('href')?.match(/^\/DB(\d+)\/r\/(\d+)$/i);
     if (!match) throw new AmericanAncestorsError('api-changed');
     const labels = cells.eq(1).find('.labelDivStyle').toArray().map(e => clean($(e).text()));
     const values = cells.eq(1).find('.valueDiv').toArray().map(e => clean($(e).text()));
-    return {collectionId: match[1], recordId: match[2], name: clean(link.text()), collection: clean(cells.eq(0).find('.nameValueDiv').text()),
+    const person = link.attr('id')?.startsWith('name-') === true, label = clean(link.text()), subtitle = clean(cells.eq(0).find('.nameValueDiv').text());
+    return {collectionId: match[1], recordId: match[2], kind:person ? 'person' : 'record', name:person ? label : null, title:person ? null : label, collection:person ? subtitle : label, category:person ? null : subtitle,
       sourceUrl: source(link.attr('href')), imageUrl: source(cells.eq(0).find('a[id^=image-]').attr('href')),
       events: clean(cells.eq(1).text()), fields: labels.length === values.length ? labels.map((label,i) => ({label, value: values[i]})) : [],
       relationships: clean(cells.eq(2).text()), masked: cells.find('.placeholder-text').length > 0};
@@ -54,7 +55,20 @@ export function imageDetails(html: string, sourceUrl: string) {
     if (!/^\/[a-f0-9-]+\.xml$/i.test(url.pathname) || url.search) throw new AmericanAncestorsError('api-changed');
     imageSource = url.href;
   }
-  return {sourceUrl, kind: partner ? 'familysearch' as const : 'deepzoom' as const, imageSource,
+  const pageName = String($('#pages').val() ?? '') || null;
+  let canonical = checkUrl(sourceUrl);
+  if (pageName) canonical.searchParams.set('pageName', pageName);
+  const neighbor = (direction: 'Prev' | 'Next') => {
+    const page = String($(`#hdn${direction}PageName`).val() ?? '');
+    if (!page || $(`#${direction === 'Prev' ? 'previous' : 'next'}page`).hasClass('PageArrowDisabled')) return null;
+    if (page.length > 200 || /[\0\r\n]/.test(page)) throw new AmericanAncestorsError('api-changed');
+    const url = new URL(canonical); url.searchParams.set('pageName',page);
+    const record = String($(`#hdn${direction}PageRid`).val() ?? '');
+    if (record && !/^\d+$/.test(record)) throw new AmericanAncestorsError('api-changed');
+    url.searchParams.delete('rId'); if (record) url.searchParams.set('rId',record);
+    return url.href;
+  };
+  return {sourceUrl: canonical.href, pageName, previousUrl:neighbor('Prev'), nextUrl:neighbor('Next'), kind: partner ? 'familysearch' as const : 'deepzoom' as const, imageSource,
     downloadAvailable: !partner && $('#download').length > 0 && !$('#download').hasClass('disabled'),
     citation: clean($('#divClipboardURLTranscript').text()), collectionId: String($('#hdnCollectionID').val() ?? ''), volumeId: String($('#hdnVolumeid').val() ?? ''),
     previousPageName: String($('#hdnPrevPageName').val() ?? '') || null, nextPageName: String($('#hdnNextPageName').val() ?? '') || null,
