@@ -1,7 +1,7 @@
 import {execFile, spawn} from 'node:child_process';
 import {promisify} from 'node:util';
-import {randomBytes, createHash} from 'node:crypto';
-import {mkdir, writeFile, readFile, rm} from 'node:fs/promises';
+import {randomBytes, randomUUID, createHash} from 'node:crypto';
+import {mkdir, writeFile, readFile, rm, rename} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
 import {createInterface} from 'node:readline/promises';
@@ -146,6 +146,38 @@ export async function resetBrowserRouting(config: BrowserConfig) {
   await rm(join(CREDENTIAL_DIR, 'browser', endpointId(config), 'routing'), {recursive: true, force: true});
   return {reset: 'transport', sessionsPreserved: true};
 }
+export async function resetBrowserSession(config: BrowserConfig, {provider, all = false, open = config.open}: {provider?: string; all?: boolean; open?: boolean}) {
+  if (!!provider === all || provider && !providers.includes(provider)) throw new BrowserError('Choose --provider NAME or --all for the browser session reset.');
+  const browser = await configuredBrowser(config);
+  if (!(await browser.capabilities()).reset) throw new BrowserError('Session reset needs an updated fam Camofox plugin. Update the plugin and restart Camofox once; subsequent session resets do not restart the browser.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
+  // NewspaperArchive and Storied share browser authentication. Reset both
+  // contexts and both scoped CLI snapshots when either is selected.
+  const affected = all ? providers : ['storied','newspaperarchive'].includes(provider!) ? ['storied','newspaperarchive'] : [provider!];
+  const backupDirectory = join(CREDENTIAL_DIR, 'browser', endpointId(config), 'reset-backups', randomUUID());
+  const result = await browser.api<{sessions: {userId: string; backupDirectory: string; closedTabs: number}[]}>('/fam/reset', {all, userIds: affected.map(name => browser.userId(name))}, 120000);
+  const scopes = new Map<string, Set<string>>([[endpointId(config), new Set(affected)]]);
+  for (const reset of result.sessions) {
+    const name = providers.find(name => reset.userId.endsWith(`-${name}`));
+    if (!all || !name || !reset.userId.startsWith('fam-')) continue;
+    const session = reset.userId.slice(4, -name.length - 1);
+    if (!/^[A-Za-z0-9._-]{1,64}$/.test(session)) continue;
+    const id = endpointId({...config, session});
+    if (!scopes.has(id)) scopes.set(id, new Set(providers));
+  }
+  for (const [id, names] of scopes) {
+    await mkdir(join(backupDirectory, id), {recursive: true, mode: 0o700});
+    for (const name of [...names, ...(all ? ['routing'] : [])]) {
+      try {await rename(join(CREDENTIAL_DIR, 'browser', id, name), join(backupDirectory, id, name));}
+      catch (error) {if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;}
+    }
+  }
+  const tab = all ? undefined : await browser.tab(affected[0]);
+  if (tab) await tab.evaluate(`(()=>{document.title='fam: clean ${provider} session';document.body.textContent='This browser session has been reset. Open the provider website here when you are ready to sign in manually.';return true})()`);
+  return {reset: 'session', all, ...(provider ? {provider} : {}), affectedProviders: affected, mode: config.mode, browserStopped: false, credentialsPreserved: true,
+    loginCooldownPreserved: true, transportDecisionsPreserved: !all, backupDirectory, browserBackups: result.sessions, ...(tab ? {tabId: tab.id} : {}),
+    vncUrl: browser.endpoint.vncUrl, opened: open ? await openUrl(browser.endpoint.vncUrl) : false,
+    next: `${all ? 'Run fam PROVIDER.session login to sign in again; browser sign-ins support --interactive for manual submission.' : `Sign in manually in the blank browser tab, or run fam ${provider}.session login --interactive.`} No provider website was opened and no login was attempted.`};
+}
 export interface BrowserCookie {name: string; value: string; domain: string; path: string; expires: number; httpOnly: boolean; secure: boolean; sameSite?: 'Strict' | 'Lax' | 'None'}
 export interface StorageState {cookies: BrowserCookie[]; origins: unknown[]}
 export class Camofox {
@@ -160,7 +192,13 @@ export class Camofox {
     if (!response.ok) {
       let code = ''; try {code = (await response.json()).error ?? '';} catch {}
       const reason = response.status === 401 || response.status === 403 ? ' The server API key is missing or incorrect; configure --api-key-file.' : '';
-      throw new BrowserError(`Camofox request failed (HTTP ${response.status}).${reason}${code === 'tab-not-found' ? ' The browser tab was closed; retry the command.' : ''}`, 'BROWSER_API_FAILED', this.endpoint.vncUrl);
+      const detail: Record<string, string> = {
+        'tab-not-found': 'The browser tab was closed; retry the command.',
+        'session-has-unrelated-tabs': 'This context also contains tabs outside fam; the reset was refused to preserve them.',
+        'session-reset-in-progress': 'A browser session reset is in progress. Wait for it to finish.',
+        'session-reset-unsupported': 'Update the fam Camofox plugin and enable persistent storage to use session reset.',
+      };
+      throw new BrowserError(`Camofox request failed (HTTP ${response.status}).${reason}${detail[code] ? ` ${detail[code]}` : ''}`, 'BROWSER_API_FAILED', this.endpoint.vncUrl);
     }
     return response.json() as Promise<T>;
   }
@@ -198,8 +236,8 @@ export class BrowserTab {
     return new Response([204,205,304].includes(data.status) || init.method === 'HEAD' ? null : Buffer.from(data.bodyBase64, 'base64'), {status: data.status, headers: responseHeaders});
   }
 }
-export async function configuredBrowser(): Promise<Camofox> {
-  let config = await browserConfig();
+export async function configuredBrowser(config?: BrowserConfig): Promise<Camofox> {
+  config ??= await browserConfig();
   if (!config) {await setupBrowser({local: true}); config = (await browserConfig())!;}
   const browser = new Camofox(config);
   try {await browser.api('/health', undefined, 3000);} catch {if (config.mode !== 'local') throw new BrowserError(`Camofox is unavailable at ${browser.endpoint.url}.`, 'BROWSER_UNAVAILABLE', browser.endpoint.vncUrl); await startBrowser(config);}
@@ -241,6 +279,6 @@ export function jarCookies(jar: CookieJar, origin: string): BrowserCookie[] {
 }
 export async function importBrowserCookies(provider: string, jar: CookieJar, origin: string) {
   const browser = await configuredBrowser();
-  await browser.api('/fam/cookies', {userId: browser.userId(provider), cookies: jarCookies(jar, origin)});
+  await browser.api('/fam/cookies', {userId: browser.userId(provider), cookies: jarCookies(jar, origin), explicit: true});
   return endpointId(browser.config);
 }

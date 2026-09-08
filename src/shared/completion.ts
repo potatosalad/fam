@@ -87,6 +87,7 @@ export function completionCatalog(): CompletionNode {
     action.options['-h'] = {value: false};
   }
   if (root.commands['cli.browser']) root.commands.browser = root.commands['cli.browser'];
+  if (root.commands['cli.browser.transport']) root.commands['browser.transport'] = root.commands['cli.browser.transport'];
   return root;
 }
 

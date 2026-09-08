@@ -47,6 +47,8 @@ export function parseInvocation(args: string[]): Invocation {
       }
     }
   }
+  if (!values.help && command.id === 'cli.browser reset' && !!values.provider === !!values.all)
+    throw new UsageError('Choose exactly one of --provider NAME or --all. To forget only HTTP/browser routing, use fam cli.browser.transport reset.', 'fam cli.browser reset --provider myheritage');
   const bound = [...command.binding.command];
   for (const name of command.binding.positionals) if (values[name] !== undefined) bound.push(String(values[name]));
   for (const flag of command.flags) {

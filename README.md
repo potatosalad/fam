@@ -47,7 +47,7 @@ fam browser setup --local
 
 This starts persistent Camofox in Docker with a passwordless localhost viewer. On macOS, fam offers to install OrbStack when needed. For an existing server, use `fam browser setup --remote URL --vnc-url VIEWER_URL`. Switch with `fam browser use local` or `fam browser use remote`; each retains its logins. See [browser setup](docs/browser.md) for remote API keys, custom viewer URLs, start/stop, and timeouts.
 
-Browser sign-ins reuse cookies and try configured credentials when needed. fam opens or prints the viewer URL for MFA or CAPTCHA and waits for completion. All provider HTTP clients automatically recover evidenced Cloudflare challenges through the browser and remember the website until `fam browser reset`.
+Browser sign-ins reuse cookies and try configured credentials when needed. fam opens or prints the viewer URL for MFA or CAPTCHA and waits for completion. All provider HTTP clients automatically recover evidenced Cloudflare challenges through the browser and remember the website until `fam cli.browser.transport reset`. Use `fam cli.browser reset --provider myheritage` to clear that provider's browser site data, or `fam cli.browser reset --all` to reset all fam-managed browser sessions. See [reset scope and backups](docs/browser.md#reset-browser-sessions).
 
 ## Set up credentials
 

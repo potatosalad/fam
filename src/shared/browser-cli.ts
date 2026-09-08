@@ -1,6 +1,6 @@
 import type {Values} from './command-runtime.js';
 import {browserConfig, browserUrl, BrowserError, saveBrowserConfig, type BrowserMode, type BrowserTransportMode} from './browser-config.js';
-import {setupBrowser, startBrowser, stopBrowser, browserStatus, openUrl, resetBrowserRouting} from './browser-runtime.js';
+import {setupBrowser, startBrowser, stopBrowser, browserStatus, openUrl, resetBrowserRouting, resetBrowserSession} from './browser-runtime.js';
 
 export async function browserCommand(action: string, values: Values): Promise<unknown> {
   if (values.open && values['no-open']) throw new BrowserError('Choose --open or --no-open.');
@@ -19,7 +19,9 @@ export async function browserCommand(action: string, values: Values): Promise<un
   if (action === 'start') {await startBrowser(config); return browserStatus(config);}
   if (action === 'stop') return stopBrowser(config);
   if (action === 'open') {await startBrowser(config); const vncUrl = config[config.mode]!.vncUrl; return {vncUrl, opened: await openUrl(vncUrl)};}
-  if (action === 'reset') return resetBrowserRouting(config);
+  if (action === 'transport-reset') return resetBrowserRouting(config);
+  if (action === 'reset') return resetBrowserSession(config, {provider: values.provider as string | undefined, all: !!values.all,
+    open: values.open ? true : values['no-open'] ? false : config.open});
   if (action === 'configure') {
     if (values.timeout !== undefined) config.timeout = Number(values.timeout);
     if (values.transport !== undefined) config.transport = values.transport as BrowserTransportMode;

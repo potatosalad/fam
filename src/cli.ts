@@ -16,6 +16,7 @@ const providers = {
 async function cliCommand(invocation: Invocation): Promise<unknown> {
   const {command, values: v} = invocation;
   if (command.object === 'browser') return (await import('./shared/browser-cli.js')).browserCommand(command.action, v);
+  if (command.object === 'browser.transport') return (await import('./shared/browser-cli.js')).browserCommand(`transport-${command.action}`, v);
   switch (command.binding.command[0]) {
     case 'search': return searchCommands(String(v.query), {provider: v.provider as string | undefined, context: v.context as string | undefined, limit: v.limit as number | undefined, offset: v.offset as number | undefined});
     case 'describe': {
@@ -70,6 +71,7 @@ async function main() {
     args[0] = 'cli.browser';
     if (args[1] === 'use' && ['local','remote'].includes(args[2])) args.splice(2, 1, '--mode', args[2]);
   }
+  if (args[0] === 'browser.transport') args[0] = 'cli.browser.transport';
   const namespace = parseNamespaceHelp(args);
   if (namespace) {
     process.stdout.write(namespace.json ? `${stringifyJson({schemaVersion: 1, ok: true, command: null, data: namespace.namespace}, 2)}\n`

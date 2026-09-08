@@ -15,6 +15,7 @@ export type Provider = typeof providerNames[number];
 /** Shared object descriptions used by provider help and command correction. */
 export const objectDescriptions: Record<string, string> = {
   browser: 'Persistent local or remote Camofox browser and login viewer.',
+  'browser.transport': 'Remembered website decisions for automatic HTTP/browser transport.',
   account: 'Account profiles and current user information.', album: 'Photo albums and their contents.',
   api: 'Provider API catalogs, contracts, and operation execution.',
   'api.enum': 'Enumerated values from provider API contracts.', 'api.gql': 'Cataloged and custom GraphQL operations.',
@@ -360,10 +361,16 @@ for (const [action, description, flags] of [
   ['stop','Stop the local container, or close only fam tabs on a remote browser. Saved logins remain.',''],
   ['status','Inspect browser connectivity and configuration without exposing API keys.',''],
   ['open','Open or print the configured noVNC viewer URL.',''],
-  ['reset','Forget automatic browser transport decisions; retain all saved website logins.',''],
   ['configure','Configure the viewer URL, human verification timeout, and transport preference.','vnc-url timeout transport open no-open'],
 ]) add('cli', `browser-${action}`, `browser ${action}`, description, [], flags,
   {flags: browserFlags, risk: {level: action === 'status' ? 'read' : 'local', description: 'Manages the configured browser or private local configuration. Remote stop closes only fam tabs.'}, examples: [`fam browser ${action}${action === 'setup' ? ' --local' : action === 'use' ? ' --mode remote' : ''}`]});
+add('cli', 'browser-reset', 'browser reset', 'Clear browser sessions and site data. Choose --provider or --all; no website is opened or login attempted.', [], 'provider all open no-open',
+  {flags: {...browserFlags, provider: {choices: [...providerNames], description: 'Reset this provider on the selected browser. Storied and NewspaperArchive are reset together.'},
+    all: {description: 'Reset every fam-managed session on this browser, across session names, plus remembered transport decisions. Preserve unrelated sessions.'}},
+  risk: {level: 'write', description: 'Closes the selected browser sessions and archives their site data and local session snapshots. Retains configured credentials and login cooldowns.'},
+  examples: ['fam cli.browser reset --provider myheritage', 'fam cli.browser reset --all']});
+add('cli', 'browser-transport-reset', 'browser.transport reset', 'Forget automatic HTTP/browser transport decisions for this instance; retain all website logins.', [], '',
+  {risk: {level: 'local', description: 'Removes local transport decisions only. Makes no browser or provider requests.'}});
 
 const cliRisk: Extras = {risk: local};
 add('cli', 'search', 'command search', 'Find commands by intent using local keyword and concept retrieval. Never executes a provider.', [], 'query provider context limit offset',

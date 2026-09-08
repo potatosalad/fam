@@ -93,10 +93,32 @@ After recovery, fam remembers the provider and website origin for the selected i
 fam myheritage.account get --transport browser
 fam findmypast.account get --transport http
 fam browser configure --transport auto
-fam browser reset
+fam cli.browser.transport reset
 ```
 
-`--transport auto|http|browser` overrides one command. `configure --transport` changes the default. `reset` clears remembered browser routing for the selected instance; it retains logins. Browser requests currently support responses up to 64 MiB. An unresolved challenge returns the viewer URL, including in structured `--json` errors.
+`--transport auto|http|browser` overrides one command. `configure --transport` changes the default. `cli.browser.transport reset` clears remembered browser routing for the selected instance on this client; it retains logins and works without contacting Camofox. Browser requests currently support responses up to 64 MiB. An unresolved challenge returns the viewer URL, including in structured `--json` errors.
+
+## Reset browser sessions
+
+```sh
+fam cli.browser reset --provider myheritage
+fam cli.browser reset --all
+fam cli.browser.transport reset
+```
+
+`reset --provider NAME` closes that provider's fam browser context, archives its saved profile and this client's matching session snapshot, and replaces the profile with empty cookies and site storage. Closing the context discards its in-memory cache, session storage, IndexedDB, service workers, and open tabs. A fresh blank tab is left for manual sign-in. The command opens or prints the configured viewer URL; `--no-open` only prints it. It never navigates to the provider or attempts a login. Camofox itself keeps running.
+
+Storied and NewspaperArchive share authentication, so choosing either resets both contexts and snapshots. Other providers and the other local/remote mode retain their sessions. Two clients using the same browser and session name share the reset context.
+
+`reset --all` applies the same reset to **every fam-managed context on the selected Camofox instance**, across fam session names, including saved contexts that are not currently open. It also archives this client's matching provider snapshots and remembered transport decisions. It leaves no new login tab; start the desired provider's login when ready. It preserves unrelated users and tab groups. If a fam context also contains an unrelated tab group, reset refuses before changing the selection because those tabs share the same site storage.
+
+Both forms retain configured usernames/passwords, native sessions, viewer/API settings, and automatic-login cooldowns. They do not reset the provider's server-side restrictions, change the browser fingerprint or network address, or promise that a restriction is lifted. Complete the next login yourself when appropriate; browser sign-ins support `--interactive` to autofill without submitting.
+
+Profiles are archived privately on the browser host under `CAMOFOX_PROFILE_DIR/fam-reset-backups/`. Matching CLI snapshots are archived under this client's `browser/<instance-id>/reset-backups/`. These backups contain old account state and are never automatically restored. After reset, the plugin prevents bootstrap cookies and stale HTTP cookies from silently seeding the cleared context, including requests from another fam client. An explicit HAR import can still add cookies. Other clients keep their local snapshots and routing decisions until reset or a new login there.
+
+Reset requires the updated fam Camofox plugin and persistence. Updating the plugin needs one Camofox service restart to load its routes; running either reset afterward does **not** restart the browser. For an existing local container, stop/start it once after updating fam. For a remote deployment, update the mounted plugin and restart its service.
+
+`fam browser reset` and `fam browser.transport reset` are short aliases. Migration: the old bare `fam browser reset` only forgot transport decisions. It now requires `--provider NAME` or `--all`; use `fam cli.browser.transport reset` for the old behavior.
 
 ## Session storage and sharing
 

@@ -1,20 +1,44 @@
 import express from 'express';
 import {randomUUID, createHash} from 'node:crypto';
-import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
+import {mkdir, writeFile, readFile, readdir, rename, rm, cp, access} from 'node:fs/promises';
 import {join} from 'node:path';
 
 // A small Camofox extension: real browser response metadata, durable checkpoints,
 // and OAuth redirects which never become a document URL (native app callbacks).
 export function register(app, ctx) {
-  const watches = new Map(), queues = new Map();
+  const watches = new Map(), queues = new Map(), resetting = new Set(), operations = new Map();
+  let resettingAll = false;
   app.use('/fam', express.json({type: 'application/vnd.fam+json', limit: '72mb'}));
   app.use('/fam', ctx.auth());
   const route = (method, path, action) => app[method](`/fam/${path}`, async (req, res) => {
-    try {res.json({ok: true, ...await action(req.body ?? {}, req)});}
+    const ids = [req.body?.userId, ...(Array.isArray(req.body?.userIds) ? req.body.userIds : [])].filter(isOwner);
+    let pending;
+    try {
+      if (path !== 'reset' && ids.some(id => resetting.has(id) || resettingAll)) fail('session-reset-in-progress');
+      pending = Promise.resolve().then(() => action(req.body ?? {}, req));
+      if (path !== 'reset') for (const id of ids) {
+        if (!operations.has(id)) operations.set(id, new Set());
+        operations.get(id).add(pending);
+      }
+      res.json({ok: true, ...await pending});
+    }
     catch (error) {res.status(error.status ?? 400).json({ok: false, error: error.famCode ?? 'browser-operation-failed'});}
+    finally {if (path !== 'reset') for (const id of ids) {const active = operations.get(id); active?.delete(pending); if (!active?.size) operations.delete(id);}}
   });
   const fail = code => {throw Object.assign(new Error(code), {famCode: code});};
-  const owner = userId => typeof userId === 'string' && /^fam-[a-zA-Z0-9._-]+$/.test(userId) ? userId : fail('invalid-fam-session');
+  const isOwner = userId => typeof userId === 'string' && /^fam-[a-zA-Z0-9._-]+$/.test(userId);
+  const owner = userId => isOwner(userId) ? userId : fail('invalid-fam-session');
+  const profile = userId => join(ctx.config.profileDir, createHash('sha256').update(owner(userId)).digest('hex').slice(0, 32));
+  async function wasReset(userId) {
+    if (!ctx.config.profileDir) return false;
+    return await exists(join(profile(userId), 'fam-reset.json')) || await exists(join(ctx.config.profileDir, 'fam-reset-all.json'));
+  }
+  async function exists(path) {try {await access(path); return true;} catch (error) {if (error.code === 'ENOENT') return false; throw error;}}
+  async function atomicJson(path, value) {
+    const temporary = `${path}.${randomUUID()}.tmp`;
+    try {await writeFile(temporary, JSON.stringify(value), {mode: 0o600}); await rename(temporary, path);}
+    finally {await rm(temporary, {force: true});}
+  }
   function tab(userId, tabId) {
     const session = ctx.sessions.get(owner(userId));
     for (const group of session?.tabGroups?.values() ?? []) {
@@ -36,6 +60,7 @@ export function register(app, ctx) {
       const path = join(directory, 'storage-state.json'), temporary = `${path}.${randomUUID()}.tmp`;
       try {await writeFile(temporary, JSON.stringify(state), {mode: 0o600}); await rename(temporary, path);}
       finally {await rm(temporary, {force: true});}
+      await atomicJson(join(directory, 'fam-session.json'), {userId});
     }
     return state;
   });}
@@ -45,13 +70,104 @@ export function register(app, ctx) {
     queues.set(key, next);
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
-  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true}));
+  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true,
+    reset: !!ctx.config.profileDir && typeof ctx.closeSession === 'function'}));
+  async function ownedSessions() {
+    const ids = new Set([...ctx.sessions.keys()].filter(isOwner));
+    const entries = await readdir(ctx.config.profileDir, {withFileTypes: true}).catch(error => {if (error.code === 'ENOENT') return []; throw error;});
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !/^[a-f0-9]{32}$/.test(entry.name)) continue;
+      for (const name of ['meta.json', 'fam-session.json', 'fam-reset.json']) {
+        let meta;
+        try {meta = JSON.parse(await readFile(join(ctx.config.profileDir, entry.name, name), 'utf8'));}
+        catch (error) {if (error.code === 'ENOENT' || error instanceof SyntaxError) continue; throw error;}
+        if (isOwner(meta?.userId) && profile(meta.userId) === join(ctx.config.profileDir, entry.name)) ids.add(meta.userId);
+      }
+    }
+    return ids;
+  }
+  function checkOwnership(userId) {
+    if ([...(ctx.sessions.get(userId)?.tabGroups ?? [])].some(([group, tabs]) => group !== 'fam' && tabs.size)) fail('session-has-unrelated-tabs');
+  }
+  route('post', 'reset', async ({userId, userIds, all = false}) => {
+    if (!ctx.config.profileDir || typeof ctx.closeSession !== 'function') fail('session-reset-unsupported');
+    if (typeof all !== 'boolean' || userId !== undefined && userIds !== undefined || userIds !== undefined && !Array.isArray(userIds)) fail('invalid-sessions');
+    const ids = new Set((userIds ?? (userId === undefined ? [] : [userId])).map(owner));
+    if (!all && !ids.size) fail('invalid-sessions');
+    if (resettingAll || all && resetting.size || [...ids].some(id => resetting.has(id))) fail('session-reset-in-progress');
+    if (all) resettingAll = true;
+    try {
+      if (all) for (const id of await ownedSessions()) ids.add(id);
+      // Preflight the complete selection before changing any provider.
+      for (const id of ids) checkOwnership(id);
+      for (const id of ids) resetting.add(id);
+      const results = [];
+      for (const id of ids) results.push({userId: id, ...await resetSession(id)});
+      if (all) {
+        await mkdir(ctx.config.profileDir, {recursive: true, mode: 0o700});
+        await atomicJson(join(ctx.config.profileDir, 'fam-reset-all.json'), {at: new Date().toISOString()});
+      }
+      return {all, sessions: results, browserStopped: false, ...(userId === undefined ? {} : results[0])};
+    } finally {for (const id of ids) resetting.delete(id); if (all) resettingAll = false;}
+  });
+  async function resetSession(userId) {
+    // Finish even cookie imports which began before the reset lock. Otherwise an
+    // older client could seed the fresh context after reset had already finished.
+    await Promise.allSettled([...(operations.get(userId) ?? [])]);
+    const session = ctx.sessions.get(userId);
+    const resetId = randomUUID(), directory = profile(userId);
+    const backup = join(ctx.config.profileDir, 'fam-reset-backups', `${createHash('sha256').update(userId).digest('hex').slice(0,32)}-${resetId}`);
+    const staging = join(ctx.config.profileDir, `.fam-reset-${resetId}`);
+    let archived = false, replaced = false;
+    try {
+      // Drain requests already using this context before closing/checkpointing it.
+      const pending = [...(session?.tabGroups.values() ?? [])].flatMap(group => [...group.keys()].map(id => queues.get(id)));
+      await Promise.allSettled([...pending, queues.get(`checkpoint:${userId}`)].filter(Boolean));
+      await mkdir(backup, {recursive: true, mode: 0o700});
+      try {await cp(directory, join(backup, 'before-close'), {recursive: true});}
+      catch (error) {if (error.code !== 'ENOENT') throw error;}
+      if (session) {
+        try {await writeFile(join(backup, 'live-storage-state.json'), JSON.stringify(await session.context.storageState({indexedDB: true})), {mode: 0o600});}
+        catch { /* The on-disk backup still permits resetting a dead context. */ }
+      }
+      await mkdir(staging, {mode: 0o700});
+      // A present but empty state also prevents upstream bootstrap-cookie import.
+      await writeFile(join(staging, 'storage-state.json'), JSON.stringify({cookies: [], origins: []}), {mode: 0o600});
+      await writeFile(join(staging, 'fam-reset.json'), JSON.stringify({userId, resetId, at: new Date().toISOString()}), {mode: 0o600});
+      checkOwnership(userId);
+      const closedTabs = [...(session?.tabGroups.values() ?? [])].reduce((n, group) => n + group.size, 0);
+      if (session) await ctx.closeSession(userId, session, {reason: 'fam_reset', clearDownloads: true, clearLocks: true});
+      try {await rename(directory, join(backup, 'closed-profile')); archived = true;}
+      catch (error) {if (error.code !== 'ENOENT') throw error;}
+      await rename(staging, directory); replaced = true;
+      return {resetId, backupDirectory: backup, closedTabs, browserStopped: false};
+    } catch (error) {
+      if (archived && !replaced) await rename(join(backup, 'closed-profile'), directory);
+      throw error;
+    } finally {await rm(staging, {recursive: true, force: true});}
+  }
+  ctx.events.on('session:creating', async ({userId, contextOptions}) => {
+    if (!isOwner(userId)) return;
+    if (resettingAll || resetting.has(userId)) fail('session-reset-in-progress');
+    // A previously unseen fam session must not reload bootstrap cookies after
+    // --all, including a session requested by an older client on another host.
+    if (ctx.config.profileDir && await exists(join(ctx.config.profileDir, 'fam-reset-all.json')) && !await exists(join(profile(userId), 'storage-state.json'))) {
+      const state = {cookies: [], origins: []};
+      await mkdir(profile(userId), {recursive: true, mode: 0o700});
+      await atomicJson(join(profile(userId), 'storage-state.json'), state);
+      await atomicJson(join(profile(userId), 'fam-session.json'), {userId});
+      contextOptions.storageState = state;
+    }
+  });
   route('post', 'storage', async ({userId}) => ({state: await checkpoint(userId)}));
-  route('post', 'cookies', async ({userId, cookies}) => {
+  route('post', 'cookies', async ({userId, cookies, explicit = false}) => {
+    // Other CLI hosts may still have pre-reset HTTP cookie snapshots. Only an
+    // explicit HAR/cookie import may seed a context after the user reset it.
+    if (explicit !== true && await wasReset(userId)) return {imported: 0, skipped: 'session-reset'};
     const session = await ctx.getSession(owner(userId));
     if (!Array.isArray(cookies)) fail('invalid-cookies');
     await session.context.addCookies(cookies);
-    await checkpoint(userId); return {};
+    await checkpoint(userId); return {imported: cookies.length};
   });
   route('post', 'close-tab', async ({userId, tabId}) => {
     const {session, page} = tab(userId, tabId);
