@@ -4,15 +4,8 @@ import {loadSession, validSession, readAccount} from './auth.js';
 import {searchResults, recordDetails, imageDetails, plain} from './parse.js';
 import {searchQuery, searchFields, validateSearch, type SearchOptions} from './search.js';
 export {searchQuery, type SearchOptions} from './search.js';
-export const operations = {
-  collections: {method: 'GET', path: '/SearchResults/dropdowns', input: 'onLoad=true; optional category, project, free, images', output: 'SearchDropdown: Databases, Categories, Projects, RecordTypes, LifeEvents'},
-  'collection-url': {method: 'GET', path: '/SearchResults/GetDatabseUrl', input: 'collectionName: exact title', output: 'JSON string: numeric collection ID/slug'},
-  'collection-fields': {method: 'GET', path: '/SearchResults/ExtendedDropdowns', input: 'collectionName: exact title', output: 'volumes, attributes and optional combinedAttributes'},
-  'collection-tips': {method: 'GET', path: '/SearchResults/SearchTips', input: 'collectionName: exact title', output: 'JSON HTML string with collection search guidance'},
-  search: {method: 'GET', path: '/searchresults/results', input: 'firstname, lastname, database (title), location, keywords, fromyear, toyear, exact, soundex, page, fam1type/first/last through fam3, indexed collection attributes; see protocol.md', output: 'HTML rows with total-hits, index-page and page-size (50 observed)'},
-  record: {method: 'GET', path: '/exploredatabases/RecordDisplay', input: 'cId, rId, volumeId, pageName from source URL', output: 'HTML indexed fields, citation, description and search tips; membership gates possible'},
-  image: {method: 'GET', path: '/exploredatabases/image', input: 'cId and volumeId; optional pageName and rId for browsing', output: 'HTML viewer with Deep Zoom source or FamilySearch ARK; membership gates possible'},
-};
+import {contracts} from './generated/contracts.js';
+export const operations = contracts.operations;
 export function describeOperation(name: string) {if (!Object.hasOwn(operations,name)) throw new Error('Unknown American Ancestors operation. Run fam americanancestors.api list.'); return {name,...operations[name as keyof typeof operations]};}
 export class AmericanAncestorsClient {
   constructor(readonly http = new AmericanAncestorsHttp()) {}
@@ -25,13 +18,13 @@ export class AmericanAncestorsClient {
   me() {return readAccount(this.http);}
   async fields(name: string) {
     if (!this.fieldCache.has(name)) {
-      const data = await this.http.json(`${APP}/SearchResults/ExtendedDropdowns?${new URLSearchParams({collectionName:name})}`);
+      const data = await this.http.json(`${APP}${operations['collection-fields'].path}?${new URLSearchParams({collectionName:name})}`);
       this.fieldCache.set(name, searchFields(data?.attributes));
     }
     return this.fieldCache.get(name)!;
   }
   async collections(filter?: string) {
-    const data = await this.http.json(`${APP}/SearchResults/dropdowns?onLoad=true`), catalog = data?.SearchDropdown;
+    const data = await this.http.json(`${APP}${operations['collections'].path}?onLoad=true`), catalog = data?.SearchDropdown;
     if (!catalog || !['Databases','Categories','Projects','RecordTypes','LifeEvents'].every(k => Array.isArray(catalog[k]) && catalog[k].every((v: unknown) => typeof v === 'string'))) throw new AmericanAncestorsError('api-changed');
     const titles = catalog.Databases.filter((v: string) => v !== '-All-');
     return {items: titles.filter((title: string) => !filter || title.toLowerCase().includes(filter.toLowerCase())).map((title: string) => ({title})), total: titles.length,
@@ -40,23 +33,23 @@ export class AmericanAncestorsClient {
   async collection(name: string) {
     if (!name.trim()) throw new Error('An exact collection title is required.');
     const query = new URLSearchParams({collectionName:name});
-    const slug = await this.http.json(`${APP}/SearchResults/GetDatabseUrl?${query}`);
+    const slug = await this.http.json(`${APP}${operations['collection-url'].path}?${query}`);
     if (typeof slug !== 'string' || !/^\d+\/[a-z0-9-]+$/i.test(slug)) throw new Error('Collection was not found; use an exact title from fam americanancestors.collection list.');
-    const fields = await this.http.json(`${APP}/SearchResults/ExtendedDropdowns?${query}`);
+    const fields = await this.http.json(`${APP}${operations['collection-fields'].path}?${query}`);
     if (!Array.isArray(fields?.volumes) || !Array.isArray(fields?.attributes)) throw new AmericanAncestorsError('api-changed');
-    const tips = await this.http.json(`${APP}/SearchResults/SearchTips?${query}`);
+    const tips = await this.http.json(`${APP}${operations['collection-tips'].path}?${query}`);
     if (typeof tips !== 'string') throw new AmericanAncestorsError('api-changed');
     const fieldSchema = searchFields(fields.attributes); this.fieldCache.set(name, fieldSchema);
     return {title:name, fieldSchema, collectionId:slug.split('/')[0], sourceUrl:`${WEB}/search/databasesearch/${slug}`, ...fields, searchTips:plain(tips)};
   }
-  async search(options: SearchOptions) {validateSearch(options); const q = searchQuery(options, Object.keys(options.fields ?? {}).length ? await this.fields(options.collection!) : undefined); return searchResults((await this.http.text(`${APP}/searchresults/results?${q}`)).text,q);}
+  async search(options: SearchOptions) {validateSearch(options); const q = searchQuery(options, Object.keys(options.fields ?? {}).length ? await this.fields(options.collection!) : undefined); return searchResults((await this.http.text(`${APP}${operations['search'].path}?${q}`)).text,q);}
   async resolve(source: string, image = false) {
     let url = checkUrl(source);
     if (url.origin !== WEB) throw new Error('Use the www.americanancestors.org record or image source URL.');
     if (/^\/DB\d+\/(?:r\/\d+|(?:rd|i)\/\d+\/[^/]+\/\d+)\/?$/i.test(url.pathname)) url = checkUrl((await this.http.text(url)).url);
     const match = url.pathname.match(/^\/databases\/([a-z0-9-]+)\/(?:RecordDisplay|image)\/?$/i);
     if (!match || url.origin !== WEB) throw new Error('Expected an American Ancestors record or image URL from search results.');
-    const data = await this.http.json(`${APP}/ExploreDatabases/CollectionId?${new URLSearchParams({alias:match[1]})}`);
+    const data = await this.http.json(`${APP}${operations['collection-id'].path}?${new URLSearchParams({alias:match[1]})}`);
     const cId = String(data?.collection_id ?? ''); if (!/^\d+$/.test(cId)) throw new AmericanAncestorsError('api-changed');
     const params = new URLSearchParams({cId});
     for (const key of ['volumeId','pageName','rId']) {
@@ -65,7 +58,7 @@ export class AmericanAncestorsClient {
     }
     url.pathname = `/databases/${match[1]}/${image ? 'image' : 'RecordDisplay'}/`;
     url.search = new URLSearchParams([...params].filter(([k]) => k !== 'cId')).toString();
-    return {sourceUrl:url.href, apiUrl:`${APP}/exploredatabases/${image ? 'image' : 'RecordDisplay'}?${params}`};
+    return {sourceUrl:url.href, apiUrl:`${APP}${operations[image ? 'image' : 'record'].path}?${params}`};
   }
   async record(url: string) {const resolved = await this.resolve(url); return recordDetails((await this.http.text(resolved.apiUrl)).text,resolved.sourceUrl);}
   async image(url: string) {

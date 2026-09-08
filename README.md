@@ -4,9 +4,21 @@ One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
-American Ancestors supports native database search, indexed records, citations, and published scan downloads. Start with `fam americanancestors.session login`, then `fam americanancestors.record search --last-name Adams`. See the [American Ancestors guide](docs/americanancestors/README.md).
+## Providers
 
-NewspaperArchive shares the Storied credentials and session. Use `fam newspaperarchive.newspaper search --last-name Lincoln --limit 10` to search newspapers, and see the [NewspaperArchive guide](docs/newspaperarchive/README.md) for dates, locations, publications, and OCR.
+| Provider | Research and API guide |
+| --- | --- |
+| `familysearch` | [Family trees, records, images, and transcripts](docs/familysearch/README.md) |
+| `ancestry` | [Trees, historical records, hints, and media](docs/ancestry/README.md) |
+| `myheritage` | [Browser sign-in, trees, record search, and documents](docs/myheritage/README.md) |
+| `findmypast` | [Historical records, newspapers, and scans](docs/findmypast/README.md) |
+| `findagrave` | [Memorials, cemeteries, biographies, and photos](docs/findagrave/README.md) |
+| `geneanet` | [Archival records, trees, portraits, and registers](docs/geneanet/README.md) |
+| `storied` | [Trees, stories, media, and historical records](docs/storied/README.md) |
+| `newspaperarchive` | [Newspaper search and OCR; shares Storied sign-in](docs/newspaperarchive/README.md) |
+| `americanancestors` | [Native sign-in, records, citations, scans, volume browsing, and exports](docs/americanancestors/README.md) |
+
+`fam --help` lists every provider. Use `fam myheritage` or `fam americanancestors` to browse that provider's objects and find its installed guide. The guides link to API contracts and protocol evidence; [development notes](docs/development.md#provider-api-contracts) explain website versus mobile catalogs.
 
 ## Find and run commands
 
@@ -53,8 +65,6 @@ Browser sign-ins reuse cookies and try configured credentials when needed. fam o
 
 ## Set up credentials
 
-Storied uses Auth0 browser sign-in with PKCE and renewable native tokens. Run `fam storied.session login` with configured credentials, then `fam storied.session verify`. Use `fam storied.session login --interactive` for social login or account verification. See the [Storied guide](docs/storied/README.md) for browser setup, trees, pedigrees, stories, media, historical search, and its API catalog.
-
 Set up the services you use. `fam PROVIDER.credential set` saves login details from environment variables or a configured helper; otherwise, it prompts for your username and hides the password as you type. `fam PROVIDER.session login` signs in. Browser-session imports do not require saving a password.
 
 To use a credential helper for all providers, configure `credentialsCommand` once in `~/.config/fam/config.json`. See [persistent credential-helper setup](docs/setup.md#external-credential-helpers). With a helper configured, password-based sign-in can use `fam PROVIDER.session login` directly.
@@ -89,9 +99,10 @@ Then run `fam ancestry.tree list` to list your trees.
 
 ### MyHeritage
 
-Sign in through the configured browser:
+Save credentials for browser autofill, then sign in through the configured browser. If the browser is already signed in or you use a configured credential helper, skip `credential set`:
 
 ```sh
+fam myheritage.credential set
 fam myheritage.session login
 fam myheritage.account get
 ```
@@ -139,6 +150,24 @@ fam geneanet.photo search --last-name Lincoln --first-name Abraham
 
 Geneanet uses a web password session and JSON media APIs. The [Geneanet guide](docs/geneanet/README.md) covers archival transcriptions, collections, portraits, register images, and library PDF pages, including browser-challenge and subscription limits.
 
+### Storied and NewspaperArchive
+
+Storied uses Auth0 browser sign-in with PKCE and renewable native tokens. Run `fam storied.session login` with configured credentials, then `fam storied.session verify`. Use `fam storied.session login --interactive` for social login or account verification. See the [Storied guide](docs/storied/README.md) for browser setup, trees, pedigrees, stories, media, historical search, and its API catalog.
+
+NewspaperArchive uses the same credentials and session. After Storied sign-in, run `fam newspaperarchive.newspaper search --last-name Lincoln --limit 10`. See the [NewspaperArchive guide](docs/newspaperarchive/README.md) for dates, locations, publications, and OCR.
+
+### American Ancestors
+
+Use your American Ancestors website username and password:
+
+```sh
+fam americanancestors.credential set
+fam americanancestors.session login
+fam americanancestors.session verify
+```
+
+Native HTTP handles sign-in and research; browser setup is not required for the verified flow. A configured credential helper or environment pair lets you skip `credential set`. Login submits once and saves the verified session; subsequent reads reuse it. Membership restrictions still apply. See the [American Ancestors guide](docs/americanancestors/README.md) for collection fields, relatives, scans, volume browsing, and resumable exports.
+
 ## Use the commands
 
 Check your setup and diagnose provider failures:
@@ -166,6 +195,10 @@ fam findmypast.record search --first-name Ada --last-name Lovelace --birth-year 
 fam findmypast.newspaper search --name "Ada Lovelace" --country England
 
 fam findagrave.memorial search --anonymous --first-name Abraham --last-name Lincoln --birth-year 1809
+
+fam americanancestors.collection list --filter Massachusetts
+fam americanancestors.record search --last-name Adams --collection "Massachusetts: Vital Records, 1620-1850"
+fam americanancestors.record export --last-name Adams --details --limit 10 --out research.json
 ```
 
 Replace `PERSON_ID` and `IMAGE_ARK` with IDs from the service. Run `fam --help`, `fam cli.command list --provider PROVIDER`, or append `--help` to a command. Commands print readable text by default, including when piped. Add `--json` for machine-readable results and errors; use `--out FILE` to save results or downloads. Keep personal data outside Git.
@@ -176,7 +209,8 @@ The `call` and `gql` commands can execute writes and deletions. Check the operat
 - [FamilySearch operations](docs/familysearch/operations.md) and [coverage](docs/familysearch/coverage.md)
 - [FamilySearch images, films, full-text search, and transcripts](docs/familysearch/document-research.md)
 - [Ancestry commands](docs/ancestry/README.md)
-- [MyHeritage record research](docs/myheritage/research.md)
+- [MyHeritage setup and API catalog](docs/myheritage/README.md), [record research](docs/myheritage/research.md), and [contracts](docs/myheritage/contracts.json)
+- [American Ancestors commands](docs/americanancestors/README.md), [website contracts](docs/americanancestors/contracts.json), and [protocol](docs/americanancestors/protocol.md)
 - [Findmypast commands](docs/findmypast/README.md)
 - [Find a Grave commands](docs/findagrave/README.md)
 - [Geneanet commands and document downloads](docs/geneanet/README.md)
@@ -196,10 +230,12 @@ For scripts, set both environment variables for the service:
 | Ancestry | `ANCESTRY_USERNAME` | `ANCESTRY_PASSWORD` |
 | MyHeritage | `MYHERITAGE_USERNAME` | `MYHERITAGE_PASSWORD` |
 | Findmypast | `FINDMYPAST_USERNAME` | `FINDMYPAST_PASSWORD` |
-| Find a Grave | `FINDAGRAVE_USERNAME` (email) | `FINDAGRAVE_PASSWORD` |
-| Geneanet | `GENEANET_USERNAME` (username or email) | `GENEANET_PASSWORD` |
+| Find a Grave | `FINDAGRAVE_USERNAME` | `FINDAGRAVE_PASSWORD` |
+| Geneanet | `GENEANET_USERNAME` | `GENEANET_PASSWORD` |
+| Storied / NewspaperArchive | `STORIED_USERNAME` | `STORIED_PASSWORD` |
+| American Ancestors | `AMERICANANCESTORS_USERNAME` | `AMERICANANCESTORS_PASSWORD` |
 
-Environment credentials take precedence over a configured credential helper, then saved passwords. Existing sessions remain active until a new login is needed or you run `auth`. The CLI does not load `.env` files.
+Environment credentials take precedence over a configured credential helper, then saved passwords. Existing sessions remain active until a new login is needed or you run `fam PROVIDER.session login`. The CLI does not load `.env` files.
 
 To use a password manager or another external source, configure `credentialsCommand` in the profile's `config.json`, or set `FAM_CREDENTIALS_COMMAND` to a JSON array of executable and arguments. The helper receives the provider name and returns a JSON object with `username` and `password`. See the [credential helper contract](docs/setup.md#external-credential-helpers).
 

@@ -421,7 +421,7 @@ export const commonTasks = [
   {command: 'myheritage.collection search', title: 'Find a historical record collection', example: 'fam myheritage.collection search --name census'},
   {command: 'geneanet.record search', title: 'Search archival records', example: 'fam geneanet.record search --last-name Martin --place Paris'},
   {command: 'storied.tree list', title: 'List your Storied trees', example: 'fam storied.tree list'},
-  {command: 'myheritage.session login', title: 'Sign in through a browser', example: 'fam myheritage.session login --capture'},
+  {command: 'myheritage.session login', title: 'Sign in through a browser', example: 'fam myheritage.session login'},
   {command: 'ancestry.api.gql query', title: 'Run a cataloged GraphQL operation', example: 'fam ancestry.api.gql query --operation GetTreeList --variables \'{"limit":20}\''},
   {command: 'cli.health check', title: 'Check account access', example: 'fam cli.health check'},
 ];

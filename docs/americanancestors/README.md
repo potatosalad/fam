@@ -1,6 +1,6 @@
 # American Ancestors
 
-American Ancestors supports native HTTP research in fam: database discovery, indexed record search, citations, record details, and published scan downloads. No API key or browser is needed on the verified network. These are the website's internal endpoints, not a documented public developer API. See the [observed protocol](protocol.md).
+American Ancestors supports native HTTP research in fam: database discovery, indexed record search, citations, record details, and published scan downloads. No API key or browser is needed on the verified network. These are the website's internal endpoints, not a documented public developer API. See the [website contracts](contracts.json) and [observed protocol and sources](protocol.md).
 
 ## Setup
 
@@ -104,6 +104,19 @@ Data and checkpoint are replaced atomically together after every saved record. A
 
 A `.lock` file prevents concurrent writers. Ordinary failures and graceful interrupts release it. After a forced termination such as SIGKILL, confirm the writer has stopped before removing the leftover lock and resuming. Keep the export JSON intact; it is both research data and the resume checkpoint.
 
+## API contract and maintenance
+
+[contracts.json](contracts.json) is the checked-in inventory of eight observed website read endpoints, including origins, query bindings, collection-field discovery, pagination, and page navigation. It generates `src/americanancestors/generated/contracts.ts` with `npm run generate:catalogs`; the client uses those paths, and `npm run check:catalogs` checks that the generated catalog is current. This follows the website-contract pattern used by Geneanet and requires no Android APK.
+
+```sh
+fam americanancestors.api list
+fam americanancestors.api describe --operation search --json
+fam americanancestors.api describe --operation collection-fields --json
+fam americanancestors.api describe --operation image --json
+```
+
+These commands are local and require no credentials. The catalog describes observed inputs and outputs; it is not an exhaustive server schema or permission grant. [protocol.md](protocol.md) records public evidence sources, authentication/SSO, HTML response markers, media downloads, and verification limits. Research exports and volume traversal are client workflows over these reads, not separate server APIs. There is no generic `api call` or write catalog.
+
 ## TypeScript
 
 ```ts
@@ -116,4 +129,4 @@ if (page.items[0]?.sourceUrl) {
 }
 ```
 
-Use `AmericanAncestorsClient.open(true)` for anonymous reads. `downloadImage`, `saveDownload`, and `exportRecords` are exported alongside the client. `SearchOptions` includes typed `family` members and a `fields` object; `client.volumes`, `client.browse`, and `client.pages` provide the browsing workflow. CLI `--json` returns the standard fam envelope; `--out` on reads saves provider data privately.
+Use `AmericanAncestorsClient.open(true)` for anonymous reads. `contracts`, `downloadImage`, `saveDownload`, and `exportRecords` are exported alongside the client. `SearchOptions` includes typed `family` members and a `fields` object; `client.volumes`, `client.browse`, and `client.pages` provide the browsing workflow. CLI `--json` returns the standard fam envelope; `--out` on reads saves provider data privately.

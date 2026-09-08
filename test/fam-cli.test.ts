@@ -24,8 +24,9 @@ const data = (stdout: string) => JSON.parse(stdout).data;
 test('bare fam and --help show a task-oriented overview; completion shortcuts print shell scripts', async () => {
   const overview = (await invoke()).stdout;
   assert.equal(overview, (await invoke('--help')).stdout);
-  for (const text of ['fam - Genealogy CLI', 'Common tasks:', 'Global options', 'Find a command:',
+  for (const text of ['fam - Genealogy CLI', 'Available providers:', 'Common tasks:', 'Global options', 'Find a command:',
     'Inspect command options:', 'fam cli.provider list', '--completions <SHELL>']) assert.ok(overview.includes(text), text);
+  for (const provider of providerNames) assert.match(overview, new RegExp(`^  ${provider} +\\S`, 'm'));
   for (const shell of ['bash', 'zsh']) {
     const script = (await invoke('--completions', shell)).stdout;
     assert.equal(script, completionScript(shell));

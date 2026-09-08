@@ -4,7 +4,7 @@ Use Node.js 22.16 or newer, npm, and Python 3. Run `npm ci` to install dependenc
 
 ## Source layout
 
-`src/cli.ts` contains only the `fam` dispatcher and top-level help. Each service owns its client, authentication, CLI, and generated contracts under `src/familysearch/`, `src/ancestry/`, `src/myheritage/`, `src/findmypast/`, `src/findagrave/`, or `src/geneanet/`.
+`src/cli.ts` contains the `fam` dispatcher; shared command definitions and help live under `src/shared/`. Each service owns its client, authentication, CLI, and any generated contracts under `src/<provider>/`. The [provider index](../README.md#providers) links every maintained guide.
 
 `src/shared/` contains credential lookup, private storage, and lossless JSON utilities used across providers. `src/index.ts` preserves the root library export; FamilySearch is also available through `@potatosalad/fam/familysearch`, alongside the other provider subpaths. Builds clear old output before compiling so renamed modules do not remain in installed packages.
 
@@ -30,6 +30,30 @@ This runs TypeScript checks, generated-file checks, mocked tests, and a build. T
 
 `npm run test:browser` additionally exercises HAR capture in headless Chromium. Install its binary with `npx playwright install chromium`, or set `FAM_TEST_BROWSER_CHANNEL=chrome` to use installed Chrome. These tests intercept every browser request and mock the importer's HTTP transport; they use synthetic logins, HTTP-only cookies, form tokens, and both Findmypast regions. They require no live accounts and use disposable profiles. Run them when changing browser capture or HAR import.
 
+## Provider API contracts
+
+`contracts.json` is not limited to Android providers. It records the observed provider interface; each provider's format reflects the evidence available. It is separate from the public **CLI command contract** in `src/shared/command-registry.ts`, which drives help, discovery, and completion. Recovered declarations do not guarantee live account access or complete response schemas.
+
+| Provider / surface | Contract and evidence | Runtime use |
+| --- | --- | --- |
+| MyHeritage native mobile APIs | [contracts.json](myheritage/contracts.json), [protocol](myheritage/protocol.md), [provenance](myheritage/provenance.json) | Generates its REST/GraphQL/model catalog. Browser authentication does not grant all native API capabilities. |
+| MyHeritage website research | [Research API and examples](myheritage/research.md), [website asset provenance](myheritage/research-provenance.json) | Maintained research adapter; distinct from the mobile catalog. |
+| American Ancestors website | [contracts.json](americanancestors/contracts.json), [protocol and sources](americanancestors/protocol.md) | Generates the read-endpoint catalog used by the native client and `api list` / `api describe`. No APK needed. |
+| Geneanet website | [contracts.json](geneanet/contracts.json), [protocol](geneanet/protocol.md), [provenance](geneanet/provenance.json) | Generates observed website reads and catalog-only routes. No APK needed. |
+
+Other providers keep their contracts and protocol evidence under their own `docs/<provider>/` directories. Storied loads its checked-in JSON catalog directly; NewspaperArchive documents its website adapter in [protocol.md](newspaperarchive/protocol.md). A separate file is useful when it feeds the implementation or records evidence, rather than duplicating another catalog.
+
+Inspect either provider's catalog without credentials or network access:
+
+```sh
+fam americanancestors.api list
+fam americanancestors.api describe --operation search --json
+fam myheritage.api list --filter individual
+fam myheritage.api describe --operation person.update --json
+```
+
+American Ancestors exposes supported research commands rather than a generic `api call`. Volume traversal and resumable exports orchestrate the documented read endpoints locally. Authentication, SSO, and published-image transfers are documented in its protocol notes.
+
 ## Generated code
 
 Provider guides and contracts live under `docs/<provider>/`. FamilySearch reference docs, APK metadata, endpoint inventory, operation selection, and TypeScript examples are in `docs/familysearch/`. Only shared setup and development documentation lives at the docs root.
@@ -41,7 +65,7 @@ npm run generate
 npm run generate:catalogs
 ```
 
-The first command generates FamilySearch code and reference docs. The second generates Ancestry, MyHeritage, Findmypast, and Find a Grave catalogs. Both use checked-in JSON and need no APK or decompiler.
+The first command generates FamilySearch code and reference docs. The second generates Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, and American Ancestors catalogs. Both use checked-in JSON and need no APK or decompiler. `npm run check:catalogs` detects stale provider catalogs; do not edit generated TypeScript directly.
 
 The extraction scripts need the APK and disassembly files described in the provider protocol notes. `check:ancestry`, `check:myheritage`, `check:findmypast`, and `check:findagrave` compare against those local artifacts, so they are separate from the usual checks. Extraction steps are in the [Findmypast](findmypast/protocol.md#reproduce-the-catalog) and [Find a Grave](findagrave/protocol.md#reproduce-the-catalog) protocol notes.
 
@@ -72,7 +96,6 @@ Find a Grave verification also uses an existing session. `npm run verify:findagr
 
 Account reports go into the private configuration directory. Document checks save downloads under the checkout's ignored `artifacts/` directory and print a summary. Keep live reports, HARs, credentials, and personal exports out of commits.
 
-Geneanet uses website contracts instead of APK extraction. Its checked-in JSON also regenerates with `npm run generate:catalogs`. See [Geneanet protocol and evidence](geneanet/protocol.md).
 
 ## CLI contracts
 

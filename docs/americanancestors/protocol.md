@@ -2,6 +2,8 @@
 
 Observed 2026-09-08 from first-party pages, their linked JavaScript, and opt-in account verification. The transport is native HTTP using Impit with a scoped cookie jar. The research backend returns a mixture of HTML fragments and JSON, rather than a single REST/GraphQL API. Routes and response fields may change without notice.
 
+The machine-readable [contracts.json](contracts.json) is the source for the generated read catalog and native request paths. Edit it and run `npm run generate:catalogs`; `npm run check:catalogs` checks consistency. Authentication and media flows remain documented below.
+
 ## Primary evidence
 
 - [Advanced research search](https://www.americanancestors.org/database-search-advanced-search): the Drupal loader fetches `https://app.americanancestors.org/SearchResults/AdvancedSearch` with browser credentials.
@@ -34,7 +36,7 @@ All paths below are relative to `https://app.americanancestors.org`.
 | GET `/searchresults/results` | Search query below | HTML `#tblSearchResult` rows plus pagination inputs |
 | GET `/ExploreDatabases/CollectionId` | `alias` slug | JSON `collection_id` used to resolve viewer/record URLs |
 | GET `/exploredatabases/RecordDisplay` | `cId`, `rId`, `volumeId`, `pageName` | HTML indexed fields, citation, guidance, or access gate |
-| GET `/exploredatabases/image` | Same record/page parameters | HTML viewer, citation, neighboring page names, image source or access gate |
+| GET `/exploredatabases/image` | `cId`, `volumeId`; optional `pageName`, `rId` for browsing | HTML viewer, citation, neighboring page names, image source or access gate |
 
 Search query uses `searchPage=Advanced-Search`, `firstname`, `lastname`, `keywords`, `location`, `fromyear`, `toyear`, `database` (title), `category`, `project`, `recordtype`, `volumeId`, `pageName`, and one-based `page`. Boolean flags are `exact`, `soundex`, `free`, and `images`; the advanced form also emits `exactYear=true` and `exactRecordType=true`. Optional fields are omitted. Family criteria use `fam1type`, `fam1first`, `fam1last` through slot 3. The observed relationships are Any, Father, Mother, and Spouse. Selected collection attributes use zero-based `[0].AttType=Attribute`, `[0].Id`, `[0].Name`, `[0].Value`, with subsequent attributes at indices 1, 2, etc. The descriptor supplies `AttributeId`, `Name`, and `Type` (`string` or `boolean`). The CLI validates these before sending filters. CombinedAttribute criteria remain unimplemented.
 

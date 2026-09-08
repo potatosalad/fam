@@ -6,7 +6,17 @@ Create output folders before using these examples: `mkdir -p research-output/myh
 
 See the [main README](../../README.md) for installation and credential storage. Browser sessions support selected tree reads and historical research; native API availability is not fully verified and can be blocked by reCAPTCHA. Offline catalog coverage does not establish live API access.
 
+## Documentation and API evidence
+
+- [Historical-record research](research.md): website search fields, record citations, document pages, and downloads.
+- [Native contracts](contracts.json): recovered REST declarations, GraphQL documents, and models; generated with `npm run generate:catalogs`.
+- [Protocol and APK provenance](protocol.md), [provenance.json](provenance.json), and [website research provenance](research-provenance.json): what was recovered and how.
+
+`fam myheritage.api list` and `fam myheritage.api describe --operation NAME` inspect the native catalog locally. Website research is maintained separately from that Android catalog. See [provider contract conventions](../development.md#provider-api-contracts).
+
 ## Authentication
+
+For browser autofill, run `fam myheritage.credential set` to save a username and password, or configure `MYHERITAGE_USERNAME` / `MYHERITAGE_PASSWORD` or a helper receiving `myheritage`. An existing browser login can be reused without saving a password. All modes use the [shared credential lookup](../setup.md#credential-lookup).
 
 Run `fam myheritage.session login`. fam reuses the selected browser session or tries configured credentials, and opens or prints the viewer URL when interaction is needed. It validates the signed-in tree and account permissions before saving. See [browser setup](../browser.md). `fam myheritage.session get` shows metadata; `fam myheritage.account get` checks live access.
 

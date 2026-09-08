@@ -1,4 +1,4 @@
-import {commandById, commonTasks, providerInfo, syntax, type Command, type Flag} from './command-registry.js';
+import {commandById, commonTasks, providerInfo, providerNames, syntax, type Command, type Flag} from './command-registry.js';
 import type {Values} from './command-runtime.js';
 import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navigation.js';
 import {fileURLToPath} from 'node:url';
@@ -105,7 +105,9 @@ export function commandHelp(command: Command, schema = false, width = 100): stri
 
 export function overview(): string {
   return ['fam - Genealogy CLI', '===================', '',
-    'Usage: fam <provider>.<object> <action> [options]', '', 'Common tasks:',
+    'Usage: fam <provider>.<object> <action> [options]', '', 'Available providers:',
+    rows(providerNames.map(provider => [provider, providerInfo[provider].description])),
+    '', 'Browse provider commands and documentation: fam <provider> --help', '', 'Common tasks:',
     ...commonTasks.flatMap(task => [`  ${task.title}`, `    ${task.example}`]), '',
     'Persistent browser: fam browser setup --local | fam browser setup --remote URL',
     'Manage it with fam browser use, start, stop, status, open, configure, or reset.', '',

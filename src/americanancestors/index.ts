@@ -4,3 +4,4 @@ export {authenticate,loadSession,sessionStatus,type AmericanAncestorsSession} fr
 export {downloadImage,saveDownload} from './download.js';
 export {exportRecords, type ExportOptions, type ResearchExport} from './export.js';
 export {relationships, type FamilyMember, type SearchField} from './search.js';
+export {contracts} from './generated/contracts.js';

@@ -43,6 +43,8 @@ To uninstall completion, remove the marked `fam bash completion` or `fam zsh com
 
 ## Credential lookup
 
+American Ancestors uses `AMERICANANCESTORS_USERNAME` and `AMERICANANCESTORS_PASSWORD` or the configured helper with the `americanancestors` argument. See its [provider guide](americanancestors/README.md) for native login, collections, record search, and scans.
+
 NewspaperArchive shares Storied authentication: use `STORIED_USERNAME` and `STORIED_PASSWORD`. Its credential helper receives `storied`, and both providers use `storied/login.json` and the selected Storied session. See the [NewspaperArchive guide](newspaperarchive/README.md).
 
 When a login is needed, fam reads its username and password from the environment first, then an explicitly configured credential helper, then its saved login file. A partial or empty environment pair is an error. API commands never prompt for a password.
@@ -163,7 +165,6 @@ Keep that checkout and its dependencies in place, or install a packed archive cr
 | Findmypast | `@potatosalad/fam/findmypast` | [Provider guide](findmypast/README.md#typescript) |
 | Find a Grave | `@potatosalad/fam/findagrave` | [Provider guide](findagrave/README.md#typescript) |
 | Geneanet | `@potatosalad/fam/geneanet` | [Provider guide](geneanet/README.md#api-catalog-and-typescript) |
+| American Ancestors | `@potatosalad/fam/americanancestors` | [Provider guide](americanancestors/README.md#typescript) |
 
 The root import, `@potatosalad/fam`, also exports the FamilySearch API. Library clients use the same profile, credential helper and saved sessions as the CLI. Set `FAM_CONFIG_DIR` before starting Node when using a separate profile.
-
-American Ancestors uses `AMERICANANCESTORS_USERNAME` and `AMERICANANCESTORS_PASSWORD` or the configured helper with the `americanancestors` argument. See its [provider guide](americanancestors/README.md) for native login, collections, record search, and scans.
