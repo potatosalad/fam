@@ -1,5 +1,5 @@
 /** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
-export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive'] as const;
+export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'] as const;
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Family trees, historical records, original images, and full-text research.'},
   ancestry: {name: 'Ancestry', description: 'Family trees, people, historical records, hints, and media.'},
@@ -9,6 +9,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   geneanet: {name: 'Geneanet', description: 'Archival records, family trees, portraits, registers, and library material.'},
   storied: {name: 'Storied', description: 'Family trees, stories, media, hints, and historical records.'},
   newspaperarchive: {name: 'NewspaperArchive', description: 'Historical newspapers, genealogy searches, publication locations, and page OCR.'},
+  americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, indexed records, source citations, and digitized scans.'},
   cli: {name: 'CLI', description: 'Command discovery, provider information, health checks, and shell completion.'},
 };
 export type Provider = typeof providerNames[number];
@@ -184,20 +185,31 @@ for (const provider of providerNames) {
   add(provider, 'auth', 'session login', 'Sign in and save a session; use the provider-specific authentication options.', [], auth, {risk: login, flags: provider === 'findmypast' ? {region: {choices: ['com', 'co.uk']}} : undefined});
   add(provider, 'status', 'session get', 'Inspect saved session metadata without tokens or live authentication.', [], '', {risk: local});
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
-  if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
+  if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
   if (provider !== 'ancestry') add(provider, provider === 'familysearch' ? 'whoami' : 'me', 'account get', 'Read the current account profile and available tree context.', [], provider === 'myheritage' ? 'query' : '');
   add(provider, 'ops', 'api list', 'List and filter the provider’s known API operations and aliases.', ['?filter'], '', {risk: local});
   add(provider, 'schema', 'api describe', 'Inspect the contract, inputs, response information, and availability of one provider API operation.', ['operation'], provider === 'familysearch' ? 'example' : '', {risk: local});
-  if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive'].includes(provider)) {
+  if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'].includes(provider)) {
     add(provider, 'gql', 'api.gql query', 'Execute a cataloged GraphQL query or mutation with variables.', ['operation', '?variables'], '', {risk: api});
     if (provider !== 'ancestry') add(provider, 'query', 'api.gql execute', 'Execute a custom GraphQL document from a file.', ['document', '?variables'], '', {risk: api});
   }
-  if (!['geneanet', 'newspaperarchive'].includes(provider)) add(provider, 'call', 'api call', 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
+  if (!['geneanet', 'newspaperarchive', 'americanancestors'].includes(provider)) add(provider, 'call', 'api call', 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
     provider === 'familysearch' ? ['operation'] : ['operation', '?input'], provider === 'familysearch' ? 'input query' : provider === 'ancestry' ? 'query base' : ['myheritage', 'findmypast'].includes(provider) ? 'query' : '',
     {risk: api, flags: provider === 'familysearch' ? {input: {description: 'JSON input file or - for stdin.'}, query: {multiple: true, description: 'Typed key=value query binding; repeatable.'}} : undefined});
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});
   if (['myheritage', 'findmypast', 'findagrave', 'storied'].includes(provider)) add(provider, 'models', 'api.model list', 'List and filter recovered provider model fields.', ['?filter'], '', {risk: local});
 }
+
+add('americanancestors', 'collections', 'collection list', 'Browse database titles and research categories.', ['?filter'], 'anonymous');
+add('americanancestors', 'collection', 'collection get', 'Read collection volumes, search fields, and research guidance.', ['name'], 'anonymous');
+add('americanancestors', 'search', 'record search', 'Search indexed genealogy records by name, place, year, and collection.', [], 'first-name last-name keywords location from-year to-year collection category project record-type volume-id page-name exact soundex free images page anonymous', {
+  pagination: 'One provider page per request, 50 records per page observed. Follow nextPage with the same filters. No automatic pagination.',
+  flags: {soundex:{type:'boolean',default:false},free:{type:'boolean',default:false},'record-type':{choices:undefined},'from-year':{description:'Four-digit lower year bound.'},'to-year':{description:'Four-digit upper year bound.'}},
+  examples: ['fam americanancestors.record search --first-name John --last-name Adams --from-year 1730 --to-year 1740 --collection "Massachusetts: Vital Records, 1620-1850"'],
+});
+add('americanancestors', 'record', 'record get', 'Read indexed fields, source citation, and database guidance.', ['url'], 'anonymous');
+add('americanancestors', 'image', 'image get', 'Resolve a published scan or FamilySearch partner ARK.', ['url'], 'anonymous');
+add('americanancestors', 'download', 'image download', 'Download published Deep Zoom tiles as a full-resolution PNG with citation and checksum.', ['url'], '', {flags:{out:{required:true}}});
 
 add('familysearch', 'metadata', 'session.metadata get', 'Read mobile login metadata with tokens removed.');
 add('familysearch', 'tree-status', 'tree status', 'Read FamilySearch tree status.');

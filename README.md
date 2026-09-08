@@ -1,8 +1,10 @@
 # fam
 
-One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, and NewspaperArchive. Browse family trees, search historical records and memorials, and download original documents.
+One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, and American Ancestors. Browse family trees, search historical records and memorials, and download original documents.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
+
+American Ancestors supports native database search, indexed records, citations, and published scan downloads. Start with `fam americanancestors.session login`, then `fam americanancestors.record search --last-name Adams`. See the [American Ancestors guide](docs/americanancestors/README.md).
 
 NewspaperArchive shares the Storied credentials and session. Use `fam newspaperarchive.newspaper search --last-name Lincoln --limit 10` to search newspapers, and see the [NewspaperArchive guide](docs/newspaperarchive/README.md) for dates, locations, publications, and OCR.
 

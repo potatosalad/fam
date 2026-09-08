@@ -12,6 +12,7 @@ export const doctorProviders = {
   findagrave: () => import('../findagrave/doctor.js'),
   geneanet: () => import('../geneanet/doctor.js'),
   storied: () => import('../storied/doctor.js'),
+  americanancestors: () => import('../americanancestors/doctor.js'),
   newspaperarchive: () => import('../newspaperarchive/doctor.js'),
 };
 export interface ProviderReport {

@@ -11,6 +11,7 @@ const providers = {
   familysearch: () => import('./familysearch/cli.js'), ancestry: () => import('./ancestry/cli.js'),
   myheritage: () => import('./myheritage/cli.js'), findmypast: () => import('./findmypast/cli.js'),
   findagrave: () => import('./findagrave/cli.js'), geneanet: () => import('./geneanet/cli.js'), storied: () => import('./storied/cli.js'),
+  americanancestors: () => import('./americanancestors/cli.js'),
   newspaperarchive: () => import('./newspaperarchive/cli.js'),
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {

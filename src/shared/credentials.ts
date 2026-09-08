@@ -3,7 +3,7 @@ import { Writable } from 'node:stream';
 import { execFile } from 'node:child_process';
 import { readPrivateJson, writePrivateJson } from './storage.js';
 
-export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast' | 'findagrave' | 'geneanet' | 'storied' | 'newspaperarchive';
+export type Service = 'familysearch' | 'ancestry' | 'myheritage' | 'findmypast' | 'findagrave' | 'geneanet' | 'storied' | 'newspaperarchive' | 'americanancestors';
 export interface Credentials { username: string; password: string }
 
 const loginFile = (service: Service) => service === 'familysearch' ? 'login.json' : `${service}/login.json`;
