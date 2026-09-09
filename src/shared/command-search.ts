@@ -3,6 +3,7 @@ import {discoverOperations, type operationSummary} from '../familysearch/discove
 
 import {bm25Index, fuseScores, searchTokens, searchWeights} from './search-ranking.js';
 import {embeddingModel, semanticScores, type SearchDocument, type SearchProgress} from './command-embeddings.js';
+import {rerankerModel, rerankScores, type Reranker} from './command-reranker.js';
 
 type Operation = ReturnType<typeof operationSummary>;
 const documents: {command: Command; operation?: Operation}[] = commands.map(command => ({command}));
@@ -87,9 +88,9 @@ function operationCandidate(command: Command, operation: Operation) {
     examples: [operation.exampleCommand], risk: operation.risk, describe: operation.describe,
     requiredInput: operation.requiredInput, limitations: operation.limitations};
 }
-export interface SearchOptions {provider?: string; context?: string; limit?: number; offset?: number; lexical?: boolean; progress?: SearchProgress}
+export interface SearchOptions {provider?: string; context?: string; limit?: number; offset?: number; lexical?: boolean; rerank?: boolean; progress?: SearchProgress}
 export type SemanticScorer = (documents: SearchDocument[], query: string, progress?: SearchProgress) => Promise<number[]>;
-export async function searchCommands(query: string, options: SearchOptions = {}, scoreSemantic: SemanticScorer = semanticScores) {
+export async function searchCommands(query: string, options: SearchOptions = {}, scoreSemantic: SemanticScorer = semanticScores, scoreRerank: Reranker = rerankScores) {
   const contextText = options.context ?? query.match(/https:\/\/[^\s<>"']+/)?.[0];
   const context = contextText ? resolveContext(contextText, options.provider) : undefined;
   const queryText = query.replace(/https:\/\/\S+/g, ' ').trim(), words = searchTokens(queryText);
@@ -110,18 +111,35 @@ export async function searchCommands(query: string, options: SearchOptions = {},
     }
   }
   const scores = fuseScores(lexicalScores(intent), semantic);
-  const ranked = (intent ? selected : []).map(({entry, i}) => ({entry, ...scores[i]}))
+  let ranked = (intent ? selected : []).map(({entry, i}) => ({entry, ...scores[i], retrievalScore: scores[i].score, rerankScore: null as number | null}))
     .filter(result => result.score > 0).sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id, 'en'));
+  const retrievedTotal = ranked.length;
+  let reranked = false;
+  if (options.rerank !== false && semantic && ranked.length) {
+    try {
+      // A fixed shortlist before pagination keeps ordering independent of page size.
+      // Only reranker logits order this set; never mix them with retrieval scores.
+      const shortlist = ranked.slice(0, 100), logits = await scoreRerank(shortlist.map(row => row.entry), intent, options.progress);
+      if (logits.length !== shortlist.length || logits.some(n => !Number.isFinite(n))) throw new Error('Invalid reranker scores.');
+      ranked = shortlist.map((row, i) => ({...row, score: logits[i], rerankScore: logits[i]}))
+        .sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id, 'en'));
+      reranked = true;
+    } catch (error) {
+      warnings.push(`Reranking unavailable; showing BM25 + Arctic results. ${error instanceof Error ? error.message : 'Could not load the local reranker.'} Retry to initialize the model, or use --no-rerank.`);
+    }
+  }
   const limit = options.limit ?? 10, offset = options.offset ?? 0;
   const round = (n: number) => Math.round(n * 1e6) / 1e6;
-  return {query, engine: semantic ? 'local-bm25-embeddings' : 'local-bm25',
+  return {query, engine: reranked ? 'local-bm25-embeddings-reranked' : semantic ? 'local-bm25-embeddings' : 'local-bm25',
     weights: semantic ? searchWeights : {lexical: 1, semantic: 0}, ...(semantic ? {model: embeddingModel} : {}),
+    ...(reranked ? {reranker: {...rerankerModel, candidateLimit: 100}, retrievedTotal} : {}),
     ...(warnings.length ? {warnings} : {}), ...(context ? {context} : {}), total: ranked.length, offset, limit,
     hasMore: offset + limit < ranked.length, nextOffset: offset + limit < ranked.length ? offset + limit : null,
-    results: ranked.slice(offset, offset + limit).map(({entry, score, lexicalScore, semanticScore}) => ({
+    results: ranked.slice(offset, offset + limit).map(({entry, score, lexicalScore, semanticScore, retrievalScore, rerankScore}) => ({
       ...(entry.operation ? operationCandidate(entry.command, entry.operation) : candidate(entry.command, context)),
       type: entry.operation ? 'operation' as const : 'action' as const, score: round(score), lexicalScore: round(lexicalScore),
       semanticScore: semanticScore === null ? null : round(semanticScore),
+      ...(rerankScore === null ? {} : {retrievalScore: round(retrievalScore), rerankScore: round(rerankScore)}),
     }))};
 }
 export function contextCommands(input: string, provider?: string) {

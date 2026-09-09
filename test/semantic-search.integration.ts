@@ -7,6 +7,8 @@ import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {createSemanticScorer, embeddingModel} from '../src/shared/command-embeddings.js';
 import {searchCommands} from '../src/shared/command-search.js';
 
+const searchEmbeddings: typeof searchCommands = (query, options, ...scorers) => searchCommands(query, {...options, rerank: false}, ...scorers);
+
 const cases = [
   ['download original image', 'familysearch', 'familysearch.image download'],
   ['OCR transcription of a scan', 'familysearch', 'familysearch.image transcript'],
@@ -28,7 +30,7 @@ const cases = [
 
 test('real Arctic embeddings: cold setup, intent ranking, offline restart and cache recovery', {timeout: 180_000}, async t => {
   const progress: string[] = [], started = performance.now();
-  const cold = await searchCommands(cases[0][0], {provider: cases[0][1], progress: message => progress.push(message)});
+  const cold = await searchEmbeddings(cases[0][0], {provider: cases[0][1], progress: message => progress.push(message)});
   assert.equal(cold.engine, 'local-bm25-embeddings', cold.warnings?.join('\n'));
   assert.ok(progress.some(message => message.startsWith('Downloading')));
   assert.ok(progress.some(message => message.startsWith('Indexing')));
@@ -41,7 +43,7 @@ test('real Arctic embeddings: cold setup, intent ranking, offline restart and ca
   globalThis.fetch = async () => {throw new Error('Network disabled by semantic integration test');};
   try {
     for (const [query, provider, expected] of cases) {
-      const result = await searchCommands(query, {provider, limit: 10});
+      const result = await searchEmbeddings(query, {provider, limit: 10});
       assert.equal(result.engine, 'local-bm25-embeddings', result.warnings?.join('\n'));
       const rank = result.results.findIndex(item => item.command === expected || ('operation' in item && item.operation === expected));
       assert.ok(rank >= 0, `${query}: ${result.results.map(item => 'operation' in item ? item.operation : item.command)}`);
@@ -51,17 +53,17 @@ test('real Arctic embeddings: cold setup, intent ranking, offline restart and ca
     }
     t.diagnostic(`${first}/${cases.length} expected commands ranked first; ${topThree}/${cases.length} in the top three; all in the default ten results.`);
     const warmStart = performance.now(), warmProgress: string[] = [];
-    const warm = await searchCommands(cases[0][0], {provider: cases[0][1], progress: message => warmProgress.push(message)}, createSemanticScorer());
+    const warm = await searchEmbeddings(cases[0][0], {provider: cases[0][1], progress: message => warmProgress.push(message)}, createSemanticScorer());
     assert.deepEqual(warm.results, cold.results);
     assert.deepEqual(warmProgress, []);
     t.diagnostic(`Cached offline restart: ${((performance.now() - warmStart) / 1000).toFixed(2)}s`);
     await writeFile(indexPath, '{broken json');
-    const rebuilt = await searchCommands(cases[0][0], {provider: cases[0][1]}, createSemanticScorer());
+    const rebuilt = await searchEmbeddings(cases[0][0], {provider: cases[0][1]}, createSemanticScorer());
     assert.deepEqual(rebuilt.results, cold.results);
     const tokenizerPath = join(CREDENTIAL_DIR, `cache/command-search/models/${embeddingModel.revision}/tokenizer.json`);
     const tokenizer = await readFile(tokenizerPath);
     await writeFile(tokenizerPath, 'damaged model file');
-    const fallback = await searchCommands(cases[0][0], {}, createSemanticScorer());
+    const fallback = await searchEmbeddings(cases[0][0], {}, createSemanticScorer());
     assert.equal(fallback.engine, 'local-bm25');
     assert.match(fallback.warnings![0], /Network disabled/);
     await writeFile(tokenizerPath, tokenizer);

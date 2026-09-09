@@ -30,7 +30,7 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
   if (command.object === 'browser.transport') return (await import('./shared/browser-cli.js')).browserCommand(`transport-${command.action}`, v);
   switch (command.binding.command[0]) {
     case 'search': return searchCommands(String(v.query), {provider: v.provider as string | undefined, context: v.context as string | undefined,
-      limit: v.limit as number | undefined, offset: v.offset as number | undefined, lexical: v.lexical === true,
+      limit: v.limit as number | undefined, offset: v.offset as number | undefined, lexical: v.lexical === true, rerank: v['no-rerank'] !== true,
       progress: wantsJson(v) ? undefined : message => process.stderr.write(`${message}\n`)});
     case 'describe': {
       const identity = String(v.command).replace(/^fam\s+/, '').trim();

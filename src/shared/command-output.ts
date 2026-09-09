@@ -196,7 +196,7 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     const next = ['fam cli.command search', '--query', quote(result.query),
       ...(values.provider ? ['--provider', quote(String(values.provider))] : []),
       ...(values.context ? ['--context', quote(String(values.context))] : []),
-      ...(values.lexical ? ['--lexical'] : []), ...(values.format ? ['--format', quote(String(values.format))] : []),
+      ...(values.lexical ? ['--lexical'] : []), ...(values['no-rerank'] ? ['--no-rerank'] : []), ...(values.format ? ['--format', quote(String(values.format))] : []),
       ...(values.scores ? ['--scores'] : []),
       ...(values.limit !== undefined ? ['--limit', String(values.limit)] : []), '--offset', String(result.nextOffset)].join(' ');
     const matches = values.format === 'text' ? candidates(result.results, width, values.scores === true)

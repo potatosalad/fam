@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
-    "test:search": "node --import ./test/setup.mjs --import tsx --test test/semantic-search.integration.ts",
+    "test:search": "node --import ./test/setup.mjs --import tsx --test test/semantic-search.integration.ts test/reranker.integration.ts",
     "test:browser": "node --import ./test/setup.mjs --import tsx --test test/browser-capture.integration.ts test/camofox.integration.ts",
     "build": "node scripts/build.mjs",
     "extract:ancestry": "python3 scripts/extract-ancestry.py",

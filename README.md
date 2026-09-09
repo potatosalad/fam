@@ -23,7 +23,7 @@ These are unofficial clients. They use mobile and website APIs that can change w
 
 ## Find and run commands
 
-Command search uses 20% BM25 and 80% local Arctic embeddings. Its small model downloads automatically on first search and then works offline. No API key or service is needed; `--lexical` skips model loading. See [search options and caching](docs/cli.md).
+Command search retrieves candidates with 20% BM25 and 80% local Arctic embeddings, then uses MiniLM to rerank the top 100 automatically. The small models download on first search (about 48 MB total) and then work offline. No API key or service is needed. Use `--no-rerank` to compare the original BM25 + Arctic ranking, or `--lexical` to skip both models. See [search options and caching](docs/cli.md).
 
 ```sh
 fam cli.command search --query "download an original image"
