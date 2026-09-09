@@ -15,7 +15,7 @@ export interface BrowserFetchOptions {
   url: string; mode: 'navigate' | 'request'; format: FetchFormat; context: string;
   headers: Record<string, string>; cookies: Record<string, unknown>[];
   method: string; bodyBase64?: string; timeout: number; waitMs: number;
-  selector?: string; keepTab: boolean; open?: boolean; redirects: 'follow' | 'manual' | 'error';
+  selector?: string; keepTab: boolean; open: 'auto' | 'always' | 'never'; redirects: 'follow' | 'manual' | 'error';
 }
 interface WireResponse {url: string; status: number; statusText: string; headers: [string, string][]; bodyBase64: string}
 interface PageResponse extends WireResponse {pending: boolean; html: string; contentHtml: string; text: string; title: string; ready: boolean; selected: boolean; interactionRequired?: boolean}
@@ -34,7 +34,8 @@ function httpUrl(value: string): URL {
 }
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 export async function browserFetchOptions(values: Values): Promise<BrowserFetchOptions> {
-  if (values.open && values['no-open']) throw new UsageError('Choose --open or --no-open.');
+  const open = String(values.open ?? 'auto') as BrowserFetchOptions['open'];
+  if (!['auto','always','never'].includes(open)) throw new UsageError('--open must be auto, always, or never.');
   const url = httpUrl(String(values.url)), headers = new Headers();
   if (values['headers-file']) {
     let input: unknown; try {input = JSON.parse(await readCommandFile(String(values['headers-file']), 'utf8'));} catch {throw new UsageError('--headers-file must contain a JSON object of header strings.');}
@@ -82,8 +83,8 @@ export async function browserFetchOptions(values: Values): Promise<BrowserFetchO
     throw new UsageError('--private uses a separate general browsing context; omit --context or select web.');
   return {url: url.href, headers: Object.fromEntries(headers), cookies, mode, format, method, ...(body === undefined ? {} : {bodyBase64: body.toString('base64')}),
     context: values.private ? 'web-private' : String(values.context ?? 'web'), timeout: Number(values.timeout ?? 60), waitMs: Number(values['wait-ms'] ?? 0),
-    selector: values['wait-for'] as string | undefined, keepTab: !!values['keep-tab'] || !!values.open,
-    open: values.open ? true : values['no-open'] ? false : undefined, redirects: (values.redirects ?? 'follow') as BrowserFetchOptions['redirects']};
+    selector: values['wait-for'] as string | undefined, keepTab: !!values['keep-tab'] || open === 'always',
+    open, redirects: (values.redirects ?? 'follow') as BrowserFetchOptions['redirects']};
 }
 const markdown = new TurndownService({headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-'}).use(gfm);
 export function extractBrowserContent(html: string, url: string, visibleText?: string, contentHtml?: string) {
@@ -148,11 +149,11 @@ async function navigate(tab: BrowserTab, options: BrowserFetchOptions, url = opt
     if (challenge && challengeAt === undefined) {
       challengeAt = Date.now(); end = challengeAt + tab.browser.config.timeout * 1000;
     }
-    // Passive checks stay in the background for their entire verification
-    // timeout. Only a rendered human-action prompt opens the viewer early.
-    if (challenge && !notified && response.interactionRequired) {
+    // Fast automatic checks stay in the background. A persistent challenge
+    // still needs attention even when its controls are hidden from inspection.
+    if (challenge && !notified && (response.interactionRequired || Date.now() - challengeAt! >= 10000 || Date.now() >= end)) {
       notified = true;
-      await tab.browser.notify();
+      await tab.browser.notify(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
     }
     if (!response.pending && response.ready && !challenge && !blank && (!options.selector || response.selected)) {
       readyAt ??= Date.now();
@@ -207,17 +208,22 @@ export async function fetchBrowserUrl(options: BrowserFetchOptions): Promise<Bro
   if (!capabilities.fetch) throw new BrowserError('URL fetching needs an updated fam Camofox plugin. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
   if (options.context === 'web-private' && !capabilities.privateFetch)
     throw new BrowserError('Private URL fetching needs an updated fam Camofox plugin and its private-window engine support. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
-  if (options.open !== undefined) browser.config.open = options.open;
+  // Fetch's single policy controls this invocation independently of the saved
+  // viewer preference used by provider login/setup commands.
+  browser.config.open = options.open !== 'never';
   const tab = await browser.tab(options.context);
   let preserve = options.keepTab;
   try {
-    if (options.open) await browser.openViewer();
+    if (options.open === 'always') await browser.openViewer();
     if (options.cookies.length) await browser.api('/fam/cookies', {userId:tab.userId,cookies:options.cookies,explicit:true});
     const response = options.mode === 'navigate' ? await navigate(tab, options) : await request(tab, options);
     const result = browserFetchResult(options,response);
     return {...result, ...(options.keepTab ? {tabId:tab.id,vncUrl:browser.endpoint.vncUrl} : {})};
   } catch (error) {
-    if (error instanceof BrowserError && error.code === 'BROWSER_INTERACTION_REQUIRED') preserve = true;
+    if (error instanceof BrowserError && ['BROWSER_INTERACTION_REQUIRED','BROWSER_PAGE_TIMEOUT'].includes(error.code)) {
+      preserve = true;
+      if (options.open !== 'never') await browser.openViewer();
+    }
     throw error;
   } finally {
     await browser.api('/fam/page-end', {userId:tab.userId,tabId:tab.id}).catch(() => {});

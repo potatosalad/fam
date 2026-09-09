@@ -53,7 +53,7 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
   const base=`http://127.0.0.1:${api.address().port}`;
   await saveBrowserConfig({version:1,mode:'remote',remote:{url:base,vncUrl:`${base}/viewer`},timeout:3,transport:'auto',session:'test',open:false});
   t.after(async()=>{await browser.close();await Promise.all([new Promise<void>(r=>web.close(()=>r())),new Promise<void>(r=>api.close(()=>r()))]);});
-  const fetchPage=async(path:string,values:Record<string,any>={})=>fetchBrowserUrl(await browserFetchOptions({url:origin+path,...values}));
+  const fetchPage=async(path:string,values:Record<string,any>={})=>fetchBrowserUrl(await browserFetchOptions({url:origin+path,open:'never',...values}));
   await t.test('rendered and original content differ; selector, settling and markup extraction work',async()=>{
     const rendered=await fetchPage('/',{format:'json','wait-for':'article','wait-ms':200,header:'X-Custom: navigation',cookie:'test=seed','user-agent':'navigation-agent',referer:'https://referrer.example/'});
     assert.match(rendered.html!,/Rendered <b>content/);assert.match(rendered.text!,/Rendered content/);assert.doesNotMatch(rendered.text!,/Navigation|Hidden/);

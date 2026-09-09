@@ -400,7 +400,7 @@ const browserFlags = {
   mode: {choices: ['local','remote'], required: true}, transport: {choices: ['auto','http','browser']},
 };
 add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camofox, execute browser verification, and extract page content or original response bytes.', [],
-  'url mode format method header headers-file cookie cookies-file user-agent referer body body-file context private open no-open timeout browser-timeout wait-for wait-ms keep-tab redirects', {
+  'url mode format method header headers-file cookie cookies-file user-agent referer body body-file context private open timeout browser-timeout wait-for wait-ms keep-tab redirects', {
     flags: {
       url: {required: true, description: 'Absolute HTTP(S) URL, with no provider allowlist.'},
       mode: {choices: ['navigate','request'], description: 'Real GET navigation (default), or browser network request. Raw output and non-GET methods default to request.'},
@@ -415,8 +415,7 @@ add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camo
       'body-file': {file: true, sensitive: true, description: 'File containing the exact request bytes (up to 48 MiB).'},
       context: {choices: ['web', 'web-private', ...providerNames], default: 'web', description: 'Use web for regular windows, web-private for real Firefox private windows, or a provider to reuse its login. Each context saves separate cookies.'},
       private: {type: 'boolean', description: 'Use real Firefox private windows with separate persistent cookies. Off by default; applies to the general web context.'},
-      open: {type: 'boolean', description: 'Open the browser viewer immediately and retain the tab after fetching. Normally it opens only for a detected human-action prompt.'},
-      'no-open': {type: 'boolean', description: 'Never open the viewer for this fetch; print its URL if verification needs interaction.'},
+      open: {type: 'string', choices: ['auto','always','never'], default: 'auto', description: 'Viewer policy: auto opens for human prompts, challenges lasting 10 seconds, or a page timeout; always opens immediately and retains the tab; never only prints the viewer URL.'},
       timeout: {type: 'integer', minimum: 1, maximum: 3600, default: 60, description: 'Navigation and content wait timeout in seconds.'},
       'browser-timeout': {type: 'integer', minimum: 0, maximum: 3600, description: 'Verification wait in seconds; zero returns the viewer URL immediately when challenged.'},
       'wait-for': {description: 'CSS selector to wait for and extract in navigate mode; full HTML output is retained.'},
