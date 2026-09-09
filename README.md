@@ -73,6 +73,7 @@ Fetch any HTTP(S) URL through the browser, including pages that require JavaScri
 
 ```sh
 fam cli.browser fetch --url https://example.org/page --format markdown
+fam cli.browser fetch --url https://example.org/page --private --format markdown
 fam cli.browser fetch --url https://example.org/page --format html --out page.html
 fam cli.browser fetch --url https://example.org/file.pdf --format raw --out file.pdf
 fam cli.browser fetch --url https://example.org/page --json

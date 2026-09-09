@@ -14,7 +14,7 @@ import {browserConfig, browserUrl, saveBrowserConfig, browserUserId, endpointId,
 const exec = promisify(execFile);
 export const CAMOFOX_IMAGE = 'ghcr.io/jo-inc/camofox-browser:1.14.0@sha256:86c79eed8a6b3a78859f73bc70d6003c5566b85e969354ec454524b28197ffce';
 export const pluginDirectory = fileURLToPath(new URL('../../browser/camofox-plugin/', import.meta.url));
-const providers: readonly string[] = ['web', ...providerNames];
+const providers: readonly string[] = ['web-private', 'web', ...providerNames];
 export async function openUrl(url: string): Promise<boolean> {
   browserUrl(url);
   const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'rundll32' : 'xdg-open';

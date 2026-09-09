@@ -34,7 +34,7 @@ export function endpointId(config: BrowserConfig): string {
   return createHash('sha256').update(`${config.mode}:${config[config.mode]!.url}:${config.session}`).digest('hex').slice(0, 24);
 }
 export function browserUserId(config: BrowserConfig, provider: string): string {
-  if (!/^[a-z]+$/.test(provider)) throw new BrowserError('Invalid browser provider.');
+  if (provider !== 'web-private' && !/^[a-z]+$/.test(provider)) throw new BrowserError('Invalid browser provider.');
   return `fam-${config.session}-${provider}`;
 }
 export async function rememberBrowser(provider: string, origin: string, enabled = true): Promise<void> {

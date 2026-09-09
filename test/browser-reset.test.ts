@@ -87,8 +87,9 @@ test('browser reset archives selected snapshots, preserves credentials and never
     const result=await browserCommand('reset',{all:true}) as any;
     assert.equal(result.all,true);assert.equal(result.transportDecisionsPreserved,false);
     const sent=requests.find(r=>r.path==='/fam/reset')!.body;
-    assert.equal(sent.all,true);assert.equal(sent.userIds.length,providerNames.length+1);
+    assert.equal(sent.all,true);assert.equal(sent.userIds.length,providerNames.length+2);
     assert.ok(sent.userIds.includes('fam-default-web'));
+    assert.ok(sent.userIds.includes('fam-default-web-private'));
     assert.equal(await readPrivateJson(path(id,'findmypast')),undefined);
     assert.equal(await readPrivateJson(path(otherId,'myheritage')),undefined);
     assert.equal(await readPrivateJson(path(otherId,'findmypast')),undefined);

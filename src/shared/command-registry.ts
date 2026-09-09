@@ -400,7 +400,7 @@ const browserFlags = {
   mode: {choices: ['local','remote'], required: true}, transport: {choices: ['auto','http','browser']},
 };
 add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camofox, execute browser verification, and extract page content or original response bytes.', [],
-  'url mode format method header headers-file cookie cookies-file user-agent referer body body-file context timeout browser-timeout wait-for wait-ms keep-tab redirects', {
+  'url mode format method header headers-file cookie cookies-file user-agent referer body body-file context private timeout browser-timeout wait-for wait-ms keep-tab redirects', {
     flags: {
       url: {required: true, description: 'Absolute HTTP(S) URL, with no provider allowlist.'},
       mode: {choices: ['navigate','request'], description: 'Real GET navigation (default), or browser network request. Raw output and non-GET methods default to request.'},
@@ -413,7 +413,8 @@ add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camo
       'user-agent': {description: 'HTTP User-Agent override; does not change the browser fingerprint or navigator.userAgent.'},
       referer: {description: 'HTTP Referer override.'}, body: {sensitive: true, description: 'Literal UTF-8 request body.'},
       'body-file': {file: true, sensitive: true, description: 'File containing the exact request bytes (up to 48 MiB).'},
-      context: {choices: ['web', ...providerNames], default: 'web', description: 'Persistent cookie context; web is separate from all provider logins. Select a provider to reuse its browser login.'},
+      context: {choices: ['web', 'web-private', ...providerNames], default: 'web', description: 'Use web for regular windows, web-private for real Firefox private windows, or a provider to reuse its login. Each context saves separate cookies.'},
+      private: {type: 'boolean', description: 'Use real Firefox private windows with separate persistent cookies. Off by default; applies to the general web context.'},
       timeout: {type: 'integer', minimum: 1, maximum: 3600, default: 60, description: 'Navigation and content wait timeout in seconds.'},
       'browser-timeout': {type: 'integer', minimum: 0, maximum: 3600, description: 'Verification wait in seconds; zero returns the viewer URL immediately when challenged.'},
       'wait-for': {description: 'CSS selector to wait for and extract in navigate mode; full HTML output is retained.'},
@@ -437,7 +438,7 @@ for (const [action, description, flags] of [
 ]) add('cli', `browser-${action}`, `browser ${action}`, description, [], flags,
   {flags: browserFlags, risk: {level: action === 'status' ? 'read' : 'local', description: 'Manages the configured browser or private local configuration. Remote stop closes only fam tabs.'}, examples: [`fam browser ${action}${action === 'setup' ? ' --local' : action === 'use' ? ' --mode remote' : ''}`]});
 add('cli', 'browser-reset', 'browser reset', 'Clear browser sessions and site data. Choose --provider or --all; no website is opened or login attempted.', [], 'provider all open no-open',
-  {flags: {...browserFlags, provider: {choices: ['web', ...providerNames], description: 'Reset this provider or the general web context. Storied and NewspaperArchive are reset together.'},
+  {flags: {...browserFlags, provider: {choices: ['web', 'web-private', ...providerNames], description: 'Reset this provider or one general web context. Storied and NewspaperArchive are reset together.'},
     all: {description: 'Reset every fam-managed session on this browser, across session names, plus remembered transport decisions. Preserve unrelated sessions.'}},
   risk: {level: 'write', description: 'Closes the selected browser sessions and archives their site data and local session snapshots. Retains configured credentials and login cooldowns.'},
   examples: ['fam cli.browser reset --provider myheritage', 'fam cli.browser reset --all']});

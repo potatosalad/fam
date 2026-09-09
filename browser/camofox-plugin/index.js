@@ -27,6 +27,7 @@ export function register(app, ctx) {
   });
   const fail = code => {throw Object.assign(new Error(code), {famCode: code});};
   const isOwner = userId => typeof userId === 'string' && /^fam-[a-zA-Z0-9._-]+$/.test(userId);
+  const isPrivate = userId => isOwner(userId) && /-(?:myheritage|web-private)$/.test(userId) && process.env.FAM_PRIVATE_CONTEXTS === '1';
   const owner = userId => isOwner(userId) ? userId : fail('invalid-fam-session');
   const profile = userId => join(ctx.config.profileDir, createHash('sha256').update(owner(userId)).digest('hex').slice(0, 32));
   async function wasReset(userId) {
@@ -71,7 +72,7 @@ export function register(app, ctx) {
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
   route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true,
-    privateBrowsing: process.env.FAM_PRIVATE_CONTEXTS === '1',
+    privateBrowsing: process.env.FAM_PRIVATE_CONTEXTS === '1', privateFetch: process.env.FAM_PRIVATE_CONTEXTS === '1',
     reset: !!ctx.config.profileDir && typeof ctx.closeSession === 'function'}));
   async function ownedSessions() {
     const ids = new Set([...ctx.sessions.keys()].filter(isOwner));
@@ -150,9 +151,9 @@ export function register(app, ctx) {
   ctx.events.on('session:creating', async ({userId, contextOptions}) => {
     if (!isOwner(userId)) return;
     if (resettingAll || resetting.has(userId)) fail('session-reset-in-progress');
-    // Firefox containers are not private windows. MyHeritage login requires
-    // the latter; the engine bridge also exports/restores its private cookies.
-    if (userId.endsWith('-myheritage') && process.env.FAM_PRIVATE_CONTEXTS === '1') {
+    // Firefox containers are not private windows. Keep the general private
+    // browsing context separate from MyHeritage and ordinary web cookies.
+    if (isPrivate(userId)) {
       contextOptions.extraHTTPHeaders = {...contextOptions.extraHTTPHeaders, 'x-fam-private-context': '1'};
       // Upstream persistence hooks run concurrently. Capture even a later
       // storageState assignment, and restore only after a private page exists.
@@ -171,7 +172,7 @@ export function register(app, ctx) {
     }
   });
   ctx.events.on('session:created', async ({userId, context}) => {
-    if (!isOwner(userId) || !userId.endsWith('-myheritage') || process.env.FAM_PRIVATE_CONTEXTS !== '1') return;
+    if (!isPrivate(userId)) return;
     // Firefox clears private storage when its last private window closes.
     // Keep this page alive through Playwright's temporary restore pages, then
     // hand it to Camofox's first tab request without leaving an extra window.

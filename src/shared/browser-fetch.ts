@@ -77,8 +77,10 @@ export async function browserFetchOptions(values: Values): Promise<BrowserFetchO
   if (mode === 'navigate' && method !== 'GET') throw new UsageError('Document navigation uses GET; use --mode request for other methods.');
   if (mode === 'navigate' && values.redirects && values.redirects !== 'follow') throw new UsageError('Document navigation follows browser redirects; use --mode request for manual redirects.');
   if (mode === 'request' && (values['wait-for'] || values['wait-ms'])) throw new UsageError('--wait-for and --wait-ms require --mode navigate.');
+  if (values.private && values.context && !['web','web-private'].includes(String(values.context)))
+    throw new UsageError('--private uses a separate general browsing context; omit --context or select web.');
   return {url: url.href, headers: Object.fromEntries(headers), cookies, mode, format, method, ...(body === undefined ? {} : {bodyBase64: body.toString('base64')}),
-    context: String(values.context ?? 'web'), timeout: Number(values.timeout ?? 60), waitMs: Number(values['wait-ms'] ?? 0),
+    context: values.private ? 'web-private' : String(values.context ?? 'web'), timeout: Number(values.timeout ?? 60), waitMs: Number(values['wait-ms'] ?? 0),
     selector: values['wait-for'] as string | undefined, keepTab: !!values['keep-tab'], redirects: (values.redirects ?? 'follow') as BrowserFetchOptions['redirects']};
 }
 const markdown = new TurndownService({headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-'}).use(gfm);
@@ -193,7 +195,10 @@ async function request(tab: BrowserTab, options: BrowserFetchOptions): Promise<W
 }
 export async function fetchBrowserUrl(options: BrowserFetchOptions): Promise<BrowserFetchResult> {
   const browser = await configuredBrowser();
-  if (!(await browser.capabilities()).fetch) throw new BrowserError('URL fetching needs an updated fam Camofox plugin. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
+  const capabilities = await browser.capabilities();
+  if (!capabilities.fetch) throw new BrowserError('URL fetching needs an updated fam Camofox plugin. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
+  if (options.context === 'web-private' && !capabilities.privateFetch)
+    throw new BrowserError('Private URL fetching needs an updated fam Camofox plugin and its private-window engine support. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
   const tab = await browser.tab(options.context);
   let preserve = options.keepTab;
   try {
