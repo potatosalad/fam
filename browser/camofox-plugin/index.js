@@ -71,7 +71,7 @@ export function register(app, ctx) {
     queues.set(key, next);
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
-  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true,
+  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true, fetchInteraction: true,
     privateBrowsing: process.env.FAM_PRIVATE_CONTEXTS === '1', privateFetch: process.env.FAM_PRIVATE_CONTEXTS === '1',
     reset: !!ctx.config.profileDir && typeof ctx.closeSession === 'function'}));
   async function ownedSessions() {
@@ -309,7 +309,7 @@ export function register(app, ctx) {
       .catch(error => {state.error = error.name === 'TimeoutError' ? 'page-timeout' : 'page-navigation-failed';});
     return {};
   }));
-  route('post', 'page-result', async ({userId, tabId, selector}) => {
+  route('post', 'page-result', async ({userId, tabId, selector, inspectInteraction = false}) => {
     const {page} = tab(userId, tabId), state = pages.get(tabId);
     if (!state) fail('page-not-started');
     if (!state.response) {if (state.error) fail(state.error); return {pending: true};}
@@ -336,7 +336,32 @@ export function register(app, ctx) {
     });
     if (!snapshot || capture !== state.capture) return {pending: true};
     if (Buffer.byteLength(JSON.stringify(snapshot)) > 64 * 1024 * 1024) fail('response-too-large');
-    return {...response, ...snapshot, url: /^https?:/.test(snapshot.url) ? snapshot.url : response.url, pending: false};
+    // Challenge detection is not proof that a person needs to act. Inspect
+    // rendered prompts, including cross-origin CAPTCHA frames, without clicking.
+    let interactionRequired = false;
+    if (inspectInteraction === true) {
+      const results = await Promise.all(page.frames().map(async frame => {
+        const element = frame === page.mainFrame() ? undefined : await frame.frameElement().catch(() => undefined);
+        try {
+          if (frame !== page.mainFrame() && !element) return false;
+          if (element && !await element.isVisible()) return false;
+          return await frame.evaluate(() => {
+            if (!document.body) return false;
+            const prompt = /(?:verify|confirm|prove)(?:\s+that)?\s+you(?:\s+are|['’]re)\s+(?:a\s+)?human|(?:I['’]m|I am)\s+not\s+a\s+robot|(?:complete|solve)\s+(?:the|this)\s+(?:captcha|puzzle)|press\s+(?:and|&)\s+hold|select\s+all\s+(?:images|squares)/i;
+            const text = document.body.innerText ?? '';
+            if (!prompt.test(text)) return false;
+            return [...document.querySelectorAll('input,button,[role="button"],[role="checkbox"],canvas,[tabindex="0"]')].some(el => {
+              const rect = el.getBoundingClientRect(), style = getComputedStyle(el);
+              return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+                && !el.matches(':disabled') && el.getAttribute('aria-disabled') !== 'true';
+            });
+          }).catch(() => false);
+        } catch {return false;} finally {await element?.dispose().catch(() => {});}
+      }));
+      interactionRequired = results.some(Boolean);
+    }
+    if (capture !== state.capture) return {pending: true};
+    return {...response, ...snapshot, interactionRequired, url: /^https?:/.test(snapshot.url) ? snapshot.url : response.url, pending: false};
   });
   route('post', 'page-end', async ({userId, tabId}) => {tab(userId, tabId); await releasePage(tabId); await checkpoint(userId); return {};});
   // A separate route makes fill-only requests safe against older plugins: an

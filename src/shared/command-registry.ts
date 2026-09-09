@@ -415,7 +415,7 @@ add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camo
       'body-file': {file: true, sensitive: true, description: 'File containing the exact request bytes (up to 48 MiB).'},
       context: {choices: ['web', 'web-private', ...providerNames], default: 'web', description: 'Use web for regular windows, web-private for real Firefox private windows, or a provider to reuse its login. Each context saves separate cookies.'},
       private: {type: 'boolean', description: 'Use real Firefox private windows with separate persistent cookies. Off by default; applies to the general web context.'},
-      open: {type: 'boolean', description: 'Open the browser viewer immediately and retain the tab after fetching. Normally it opens only for unresolved verification.'},
+      open: {type: 'boolean', description: 'Open the browser viewer immediately and retain the tab after fetching. Normally it opens only for a detected human-action prompt.'},
       'no-open': {type: 'boolean', description: 'Never open the viewer for this fetch; print its URL if verification needs interaction.'},
       timeout: {type: 'integer', minimum: 1, maximum: 3600, default: 60, description: 'Navigation and content wait timeout in seconds.'},
       'browser-timeout': {type: 'integer', minimum: 0, maximum: 3600, description: 'Verification wait in seconds; zero returns the viewer URL immediately when challenged.'},
