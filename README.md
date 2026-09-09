@@ -1,6 +1,6 @@
 # fam
 
-One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, American Ancestors, and Cyndi’s List. Browse family trees, search historical records and memorials, and download original documents.
+One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, American Ancestors, Cyndi’s List, and the Wayback Machine. Browse family trees, search historical records and memorials, and download original documents or archived web pages.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
@@ -18,6 +18,7 @@ These are unofficial clients. They use mobile and website APIs that can change w
 | `newspaperarchive` | [Newspaper search and OCR; shares Storied sign-in](docs/newspaperarchive/README.md) |
 | `cyndislist` | [Genealogy resource categories, page reading, and Google search](docs/cyndislist/README.md) |
 | `americanancestors` | [Native sign-in, records, citations, scans, volume browsing, and exports](docs/americanancestors/README.md) |
+| `wayback` | [Find snapshots and fetch archived web pages from the Internet Archive](docs/wayback/README.md) |
 
 `fam --help` lists every provider. Use `fam myheritage` or `fam americanancestors` to browse that provider's objects and find its installed guide. The guides link to API contracts and protocol evidence; [development notes](docs/development.md#provider-api-contracts) explain website versus mobile catalogs.
 
@@ -81,6 +82,16 @@ fam cli.browser fetch --url https://example.org/page --json
 ```
 
 Text is the default. HTML captures the rendered document; raw preserves the response body bytes exposed by the browser. Headers, cookie imports, request methods/bodies, content selectors, and persistent sessions are described in [URL fetching](docs/browser.md#fetch-any-url).
+
+For a missing or blocked live page, try the Internet Archive's newest available copy:
+
+```sh
+fam wayback.page fetch --url https://example.org/page --format markdown
+fam wayback.snapshot find --url https://example.org/page
+fam wayback.snapshot list --url https://example.org/page --from 2010 --to 2020
+```
+
+Add `--date 2015-01-01` to fetch the closest capture to that date. See the [Wayback guide](docs/wayback/README.md) for formats, capture provenance, and browser fallback.
 
 ## Set up credentials
 

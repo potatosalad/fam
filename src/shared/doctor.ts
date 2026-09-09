@@ -132,6 +132,7 @@ export async function runDoctor(services: Provider[], live = true, progress?: (l
   for (const service of services) {
     try {
       if (service === 'cyndislist') {providers.push(await (await import('../cyndislist/doctor.js')).diagnose(live)); continue;}
+      if (service === 'wayback') {providers.push(await (await import('../wayback/doctor.js')).diagnose(live)); continue;}
       const {doctorProvider} = await doctorProviders[service]();
       providers.push(await diagnoseProvider(doctorProvider, live, dependencies, progress));
     } catch {
@@ -178,6 +179,7 @@ export function formatDoctor(report: DoctorReport, verbose = false): string {
       const [label, detail] = issue?.code === 'login-blocked' ? ['BLOCKED', issue.message.replace(/^Password sign-in is blocked /, '').replace(/\.$/, '')]
         : issue ? details[issue.code] ?? ['ERROR', issue.message]
         : provider.provider === 'cyndislist' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Directory access verified' : 'No account required; not checked online']
+        : provider.provider === 'wayback' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Archive index verified' : 'No account required; not checked online']
         : passed ? ['OK', provider.checks.some(c => c.code === 'session-refreshed') ? 'Session refreshed and verified' : browser ? 'Browser session verified' : 'Session verified']
         : ['SAVED', browser ? 'Browser session; not checked online' : 'Not checked online'];
       lines.push(`${provider.provider.padEnd(13)} ${label.padEnd(7)} ${detail}`);

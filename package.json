@@ -110,6 +110,10 @@
     "./cyndislist": {
       "types": "./dist/cyndislist/index.d.ts",
       "import": "./dist/cyndislist/index.js"
+    },
+    "./wayback": {
+      "types": "./dist/wayback/index.d.ts",
+      "import": "./dist/wayback/index.js"
     }
   },
   "files": [

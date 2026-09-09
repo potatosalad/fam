@@ -1,6 +1,6 @@
 /** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
-export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors', 'cyndislist'] as const;
-export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'> => name !== 'cyndislist');
+export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors', 'cyndislist', 'wayback'] as const;
+export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'> => name !== 'cyndislist' && name !== 'wayback');
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Family trees, historical records, original images, and full-text research.'},
   ancestry: {name: 'Ancestry', description: 'Family trees, people, historical records, hints, and media.'},
@@ -12,6 +12,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   newspaperarchive: {name: 'NewspaperArchive', description: 'Historical newspapers, genealogy searches, publication locations, and page OCR.'},
   americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, indexed records, source citations, and digitized scans.'},
   cyndislist: {name: 'Cyndi’s List', description: 'Browse genealogy resource categories, read directory pages, and search Google in Camofox.'},
+  wayback: {name: 'Wayback Machine', description: 'Find and read archived web pages from the Internet Archive.'},
   cli: {name: 'CLI', description: 'Command discovery, provider information, health checks, and shell completion.'},
 };
 export type Provider = typeof providerNames[number];
@@ -43,6 +44,7 @@ export const objectDescriptions: Record<string, string> = {
   'photo.request': 'Grave photograph requests.', place: 'Place names and geographic information.',
   provider: 'Available genealogy providers.', record: 'Historical records and record search.',
   register: 'Digitized archival registers.', session: 'Sign-in, saved sessions, and access verification.',
+  snapshot: 'Archived website captures and their dates.',
   'session.metadata': 'Saved session metadata.', site: 'Family sites and site membership.',
   story: 'Family stories and their contents.', subscription: 'Account subscription information.', tag: 'Tags and tagged content.',
   tree: 'Family trees and their contents.', version: 'Installed CLI version.',
@@ -226,6 +228,25 @@ add('cyndislist', 'search', 'resource search', 'Search Google in Camofox for Cyn
   transport: {choices: ['auto','browser'], description: 'Search always uses rendered Google pages in Camofox.'}},
   pagination: 'One Google page by default. --all-pages follows observed next-page links; --cursor continues the same query. Challenges and partial failures are explicit.',
   examples: ['fam cyndislist.resource search --query "New Zealand probate" --json']});
+
+const waybackFlags: Extras['flags'] = {
+  url: {description: 'Original HTTP(S) URL or a full web.archive.org snapshot URL.'},
+  date: {description: 'Find the capture closest to YYYY, YYYY-MM-DD, or YYYYMMDDhhmmss. Default: newest indexed HTTP 200 capture.'},
+  from: {description: 'Earliest capture date, inclusive: YYYY, YYYY-MM-DD, or YYYYMMDDhhmmss.'},
+  to: {description: 'Latest capture date, inclusive: YYYY, YYYY-MM-DD, or YYYYMMDDhhmmss.'},
+  limit: {default:20, maximum:1000, description:'Maximum captures to return, oldest first.'},
+  timeout: {type:'integer', default:60, minimum:1, maximum:3600, description:'Archive request timeout in seconds.'},
+  open: {choices:['auto','always','never'], default:'auto', description:'Viewer policy: auto = open when archive verification needs help; always = use Camofox and open immediately; never = do not open the viewer.'},
+  format: {choices:['raw','html','text','markdown','json'], default:'text', description:'Original archived bytes/HTML, extracted text or Markdown, or JSON with capture provenance and content.'},
+  out: {binding:false, description:'Save the selected output format to this file.'},
+  json: {binding:'json'},
+};
+add('wayback', 'find', 'snapshot find', 'Find the newest indexed archived copy of a URL, or the capture closest to a date.', ['url'], 'date timeout open', {flags:waybackFlags,
+  examples:['fam wayback.snapshot find --url https://example.org/', 'fam wayback.snapshot find --url https://example.org/ --date 2015-01-01 --json']});
+add('wayback', 'list', 'snapshot list', 'List successful archived captures of a URL, oldest first, with dates and replay links.', ['url'], 'from to limit timeout open', {flags:waybackFlags,
+  examples:['fam wayback.snapshot list --url https://example.org/ --from 2010 --to 2015 --limit 20']});
+add('wayback', 'fetch', 'page fetch', 'Find and fetch an archived page without the Wayback toolbar, with text, Markdown, HTML, raw bytes, or JSON output.', ['url'], 'date format timeout open', {flags:waybackFlags,
+  examples:['fam wayback.page fetch --url https://example.org/ --format markdown', 'fam wayback.page fetch --url https://example.org/ --date 2015 --format html --out archived.html']});
 
 add('americanancestors', 'collections', 'collection list', 'Browse database titles and research categories.', ['?filter'], 'anonymous');
 add('americanancestors', 'collection', 'collection get', 'Read collection volumes, search fields, and research guidance.', ['name'], 'anonymous');

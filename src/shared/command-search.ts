@@ -1,5 +1,6 @@
 import {commands, providerNames, type Command, type Provider} from './command-registry.js';
 import {discoverOperations, type operationSummary} from '../familysearch/discovery.js';
+import {replaySnapshot} from '../wayback/url.js';
 
 import {bm25Index, fuseScores, searchTokens, searchWeights} from './search-ranking.js';
 import {embeddingModel, semanticScores, type SearchDocument, type SearchProgress} from './command-embeddings.js';
@@ -29,6 +30,10 @@ export function resolveContext(input: string, provider?: string): Context {
   }
   if (url.protocol !== 'https:' || url.username || url.password) return {...result, note: 'Only recognized HTTPS provider URLs are resolved.'};
   const host = url.hostname.toLowerCase(), path = url.pathname;
+  if (provider === 'wayback') return {...result, object:'page', flags:{url:url.href}};
+  if (host === 'web.archive.org' && !url.port) {
+    try {if (replaySnapshot(url.href) && !provider) return {...result, provider:'wayback', object:'page', flags:{url:url.href}};} catch {}
+  }
   const detected = providerNames.find(p => host === `${p}.org` || host.endsWith(`.${p}.org`) || host === `${p}.com` || host.endsWith(`.${p}.com`))
     || (/^((www|search|search-records)\.)?findmypast\.(co\.uk|ie|com\.au)$/.test(host) ? 'findmypast' : undefined)
     || (/^(www\.)?ancestry\.(co\.uk|ca|com\.au)$/.test(host) ? 'ancestry' : undefined);

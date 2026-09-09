@@ -21,6 +21,7 @@ const providers = {
   americanancestors: () => import('./americanancestors/cli.js'),
   newspaperarchive: () => import('./newspaperarchive/cli.js'),
   cyndislist: () => import('./cyndislist/cli.js'),
+  wayback: () => import('./wayback/cli.js'),
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {
   const {command, values: v} = invocation;
@@ -121,12 +122,12 @@ async function main() {
   if (!values['dry-run'] && (command.provider !== 'cli' || command.object === 'health')) history.result(data);
   const envelope = {schemaVersion: 1, ok: true, command: command.id, data: data ?? null,
     ...(!values['dry-run'] && command.pagination ? {pagination: command.pagination} : {})};
-  const fetchOutput = command.id === 'cli.browser fetch' && !values['dry-run'] && !wantsJson(values)
+  const fetchOutput = ['cli.browser fetch', 'wayback.page fetch'].includes(command.id) && !values['dry-run'] && !wantsJson(values)
     ? await import('./shared/browser-fetch.js') : undefined;
   const rendered = () => wantsJson(values) ? `${stringifyJson(envelope, 2)}\n` : fetchOutput
     ? fetchOutput.renderBrowserFetch(data as import('./shared/browser-fetch.js').BrowserFetchResult, (values.format ?? 'text') as import('./shared/browser-fetch.js').FetchFormat)
     : humanOutput(command, data, values, process.stdout.columns ?? 100);
-  if (!values['dry-run'] && (command.provider === 'cli' || command.binding.command[0] === 'sync') && values.out) {
+  if (!values['dry-run'] && (command.provider === 'cli' || command.provider === 'wayback' || command.binding.command[0] === 'sync') && values.out) {
     const path = String(values.out), temporary = `${path}.${randomUUID()}.tmp`;
     await mkdir(dirname(path), {recursive: true, mode: 0o700});
     try {await writeFile(temporary, rendered(), {mode: 0o600, flag: 'wx'}); await rename(temporary, path);}

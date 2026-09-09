@@ -1,4 +1,5 @@
 import {humanCyndisList} from '../cyndislist/output.js';
+import {humanWayback} from '../wayback/output.js';
 import {operationDescription, operationList} from '../familysearch/discovery-output.js';
 import {commandById, commonTasks, providerInfo, providerNames, syntax, type Command, type Flag} from './command-registry.js';
 import type {Values} from './command-runtime.js';
@@ -219,5 +220,6 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     return `Enabled ${result.shell} completion in:\n${result.files.map(file => `  ${file}`).join('\n')}\n\nOpen a new shell, or run:\n  ${result.next}\n`;
   }
   if (command.provider === 'cyndislist' && !values['dry-run']) return humanCyndisList(data);
+  if (command.provider === 'wayback' && !values['dry-run']) return humanWayback(data);
   return `${renderData(data)}\n${command.pagination ? `\nPagination: ${command.pagination.description}\n` : ''}`;
 }
