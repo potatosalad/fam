@@ -271,14 +271,14 @@ export function register(app, ctx) {
     const state = pages.get(tabId); if (!state) return;
     pages.delete(tabId); clearTimeout(state.timer);
     state.page.off('response', state.listener);
-    await state.page.unroute('**/*', state.override).catch(() => {});
+    if (state.routed) await state.page.unroute('**/*', state.override).catch(() => {});
   }
   route('post', 'page-start', async ({userId, tabId, url, headers = {}, timeoutMs = 60000}) => serial(tabId, async () => {
     const {page} = tab(userId, tabId), target = new URL(url), custom = fetchHeaders(headers);
     if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) fail('wrong-browser-origin');
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 3600000) fail('invalid-timeout');
     await releasePage(tabId);
-    const state = {page, response: undefined, capture: undefined, error: undefined};
+    const state = {page, response: undefined, capture: undefined, error: undefined, routed: Object.keys(custom).length > 0};
     state.override = async route => {
       const req = route.request();
       if (!Object.keys(custom).length || !req.isNavigationRequest() || req.frame() !== page.mainFrame() || new URL(req.url()).origin !== target.origin) return route.fallback();
@@ -299,7 +299,10 @@ export function register(app, ctx) {
     pages.set(tabId, state);
     state.timer = setTimeout(() => void releasePage(tabId), 3700000); state.timer.unref();
     page.once('close', () => void releasePage(tabId));
-    await page.route('**/*', state.override); page.on('response', state.listener);
+    // Even a pass-through route disables normal browser caching. A plain
+    // navigation must leave the browser's network behavior untouched.
+    if (state.routed) await page.route('**/*', state.override);
+    page.on('response', state.listener);
     // Return promptly so the CLI can report interactive verification and poll.
     void page.goto(target.href, {waitUntil: 'domcontentloaded', timeout: timeoutMs, ...(custom.referer ? {referer: custom.referer} : {})})
       .catch(error => {state.error = error.name === 'TimeoutError' ? 'page-timeout' : 'page-navigation-failed';});

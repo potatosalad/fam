@@ -28,6 +28,8 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
     if(req.url==='/redirect'){res.writeHead(302,{location:`http://localhost:${(web.address() as any).port}/echo`});res.end();return;}
     if(req.url==='/loop'){res.writeHead(302,{location:'/loop'});res.end();return;}
     if(req.url==='/empty'){res.writeHead(204);res.end();return;}
+    if(req.url==='/cached'){res.setHeader('content-type','text/html');res.end('<html><body>Cached page<script src="/cached.js"></script></body></html>');return;}
+    if(req.url==='/cached.js'){res.setHeader('content-type','text/javascript');res.setHeader('cache-control','public, max-age=3600');res.end('document.body.dataset.loaded="yes";');return;}
     if(req.url==='/binary'){res.setHeader('content-type','application/octet-stream');res.end(raw);return;}
     if(req.url==='/echo'){res.setHeader('content-type','application/json');res.end(JSON.stringify({headers:req.headers,method:req.method,body:Buffer.concat(body).toString('base64')}));return;}
     if(req.url==='/denied'){res.writeHead(403,{'content-type':'text/html'});res.end('<html><title>Permission denied</title><body>No access</body></html>');return;}
@@ -65,6 +67,11 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
     const echoed=result.json as any;assert.equal(echoed.method,'PATCH');assert.equal(echoed.headers.authorization,'Bearer synthetic');
     assert.equal(echoed.headers.referer,'https://referrer.example/');assert.equal(echoed.headers['user-agent'],'fam-synthetic');
     assert.match(echoed.headers.cookie,/added=yes/);assert.equal(echoed.body,Buffer.from('payload').toString('base64'));assert.equal(echoed.headers['x-fam-request-id'],undefined);
+  });
+  await t.test('ordinary navigation retains the browser HTTP cache across fetches',async()=>{
+    await fetchPage('/cached',{'wait-for':'body[data-loaded=yes]'});
+    await fetchPage('/cached',{'wait-for':'body[data-loaded=yes]'});
+    assert.equal(requests.filter(r=>r.url==='/cached.js').length,1);
   });
   await t.test('cross-origin request redirects strip all caller headers and preserve metadata',async()=>{
     const result=await fetchPage('/redirect',{mode:'request',format:'json',header:['Authorization: Bearer synthetic','X-Secret: synthetic'],cookie:'scoped=yes'});
