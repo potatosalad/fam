@@ -1,4 +1,5 @@
 import {commands, commonTasks, commandById, providerInfo, objectDescriptions, syntax, type Command} from './command-registry.js';
+import {operationGroups} from '../familysearch/discovery.js';
 
 export const knownProvider = (name: string): boolean => Object.hasOwn(providerInfo, name);
 const identity = (command: Command): string => `${command.provider}.${command.object}`;
@@ -30,6 +31,7 @@ export function namespaceInfo(name: string) {
     usage: isProvider ? `fam ${provider}.<object> <action> [options]` : `fam ${name} <action> [options]`,
     objects: objects(provider).filter(item => isProvider || item.name.startsWith(`${name}.`)),
     actions: isProvider ? [] : pool.filter(c => identity(c) === name).map(commandSummary),
+    ...(provider === 'familysearch' && (isProvider || name === 'familysearch.api') ? {operationGroups} : {}),
     nextCommands: nextCommands(pool)};
 }
 export type NamespaceInfo = NonNullable<ReturnType<typeof namespaceInfo>>;

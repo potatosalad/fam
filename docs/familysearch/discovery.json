@@ -1,0 +1,922 @@
+{
+  "groups": {
+    "associations": "Other relationships between people, with facts and notes.",
+    "authorities": "Standardized dates, names, places, and transliteration.",
+    "contributors": "Contributor profiles and relationship paths.",
+    "couples": "Spouses, couple relationships, facts, and notes.",
+    "following": "Follow or unfollow changes to people.",
+    "groups": "Family groups, membership, images, and invitations.",
+    "helpers": "Helper access, offers, and people you assist.",
+    "hints": "Historical record hints and possible duplicate people.",
+    "history": "Recently viewed people, change history, and restoration.",
+    "memories": "Photos, documents, stories, audio, tags, and comments.",
+    "ordinances": "Ordinance information, reservations, and cards.",
+    "parentChildren": "Parent-child relationships, facts, and notes.",
+    "pedigree": "Ancestors, descendants, siblings, and guided tree building.",
+    "persons": "People, names, facts, notes, relationships, and merges.",
+    "portraits": "Person portraits and portrait events.",
+    "search": "Mobile unified search for tree people, records, and memories.",
+    "sources": "Source citations, record details, and source attachment.",
+    "tasks": "Genealogy research tasks and descendant opportunities.",
+    "trees": "Tree context, matching preferences, and the person representing you."
+  },
+  "operations": {
+    "memories.contributor": {
+      "description": "Read the contributor of a memory photo, document, story, or audio recording.",
+      "effect": "read"
+    },
+    "memories.upload": {
+      "description": "Upload a memory artifact; binary files and multipart forms require the TypeScript client.",
+      "effect": "write",
+      "limitations": [
+        "The JSON CLI cannot construct binary uploads or multipart FormData. Use the TypeScript upload helpers for file uploads."
+      ]
+    },
+    "memories.delete": {
+      "description": "Move a memory artifact to the trash.",
+      "effect": "write"
+    },
+    "memories.get": {
+      "description": "Read a memory artifact and its photo, document, story, or audio metadata.",
+      "effect": "read"
+    },
+    "memories.update": {
+      "description": "Edit a memory artifact's title, description, and metadata.",
+      "effect": "write"
+    },
+    "memories.unlink": {
+      "description": "Remove the link between two associated memory artifacts.",
+      "effect": "write"
+    },
+    "memories.link": {
+      "description": "Link associated memory artifacts, such as pages of a document.",
+      "effect": "write"
+    },
+    "memories.comments": {
+      "description": "Read comments on a memory artifact.",
+      "effect": "read"
+    },
+    "memories.addComment": {
+      "description": "Add a comment to a memory artifact.",
+      "effect": "write"
+    },
+    "memories.deleteComment": {
+      "description": "Delete a comment from a memory artifact.",
+      "effect": "write"
+    },
+    "memories.setDatePlace": {
+      "description": "Set the date and place associated with a memory.",
+      "effect": "write"
+    },
+    "memories.replaceFile": {
+      "description": "Replace a memory story's raw text.",
+      "effect": "write"
+    },
+    "memories.tagPerson": {
+      "description": "Tag a person in a memory photo or document.",
+      "effect": "write"
+    },
+    "memories.untagPerson": {
+      "description": "Remove a person's tag from a memory.",
+      "effect": "write"
+    },
+    "memories.trash": {
+      "description": "List a contributor's deleted memories in the trash.",
+      "effect": "read"
+    },
+    "memories.forUser": {
+      "description": "List the memories contributed by a user.",
+      "effect": "read"
+    },
+    "memories.forPerson": {
+      "description": "List photos, stories, documents, and audio memories attached to a person.",
+      "effect": "read"
+    },
+    "memories.updateTag": {
+      "description": "Edit a person's tag on a memory.",
+      "effect": "write"
+    },
+    "memories.purge": {
+      "description": "Permanently delete a memory from the trash.",
+      "effect": "write"
+    },
+    "memories.restore": {
+      "description": "Restore a deleted memory from the trash.",
+      "effect": "write"
+    },
+    "memories.transform": {
+      "description": "Rotate a memory image.",
+      "effect": "write"
+    },
+    "memories.topics": {
+      "description": "Read a memory's topic tags.",
+      "effect": "read"
+    },
+    "memories.suggestTopics": {
+      "description": "Find suggested memory topic tags by a prefix.",
+      "effect": "read"
+    },
+    "memories.addTopic": {
+      "description": "Add a topic tag to memories.",
+      "effect": "write"
+    },
+    "memories.deleteTopic": {
+      "description": "Remove a topic tag from a memory.",
+      "effect": "write"
+    },
+    "memories.groups": {
+      "description": "List family groups associated with a memory.",
+      "effect": "read"
+    },
+    "memories.removeFromGroup": {
+      "description": "Remove a memory from a family group.",
+      "effect": "write"
+    },
+    "memories.addToGroup": {
+      "description": "Share a memory with a family group.",
+      "effect": "write"
+    },
+    "memories.search": {
+      "description": "Find memories by keyword: search photographs, documents, stories, and audio.",
+      "effect": "read",
+      "example": {
+        "query": {
+          "searchTerms": "<keywords>",
+          "start": 0,
+          "pageSize": 20
+        }
+      }
+    },
+    "memories.byTopic": {
+      "description": "Find memories by topic tags.",
+      "effect": "read"
+    },
+    "memories.tags": {
+      "description": "List person tags on a memory artifact.",
+      "effect": "read"
+    },
+    "memories.taggedPersons": {
+      "description": "List people tagged in a contributor's memories.",
+      "effect": "read"
+    },
+    "authorities.dates": {
+      "description": "Normalize a date and find standardized date suggestions.",
+      "effect": "read"
+    },
+    "authorities.compliantName": {
+      "description": "Check whether name forms comply with FamilySearch name rules.",
+      "effect": "read"
+    },
+    "authorities.places": {
+      "description": "Find standardized place names and place suggestions.",
+      "effect": "read"
+    },
+    "authorities.transliterate": {
+      "description": "Transliterate names between writing systems.",
+      "effect": "read"
+    },
+    "authorities.countries": {
+      "description": "List countries from the place authority.",
+      "effect": "read"
+    },
+    "authorities.states": {
+      "description": "List states and provinces in a country.",
+      "effect": "read"
+    },
+    "authorities.locations": {
+      "description": "Look up geographic locations for place IDs.",
+      "effect": "read"
+    },
+    "contributors.get": {
+      "description": "Read a contributor's profile and available relationship information.",
+      "effect": "read"
+    },
+    "contributors.relationship": {
+      "description": "Find your relationship path to another contributor.",
+      "effect": "read"
+    },
+    "contributors.friendRelationship": {
+      "description": "Find your relationship path to a friend.",
+      "effect": "read"
+    },
+    "contributors.relativeRelationship": {
+      "description": "Find your relationship path to a relative.",
+      "effect": "read"
+    },
+    "groups.create": {
+      "description": "Create a family group.",
+      "effect": "write"
+    },
+    "groups.limits": {
+      "description": "Read family group membership limits.",
+      "effect": "read"
+    },
+    "groups.get": {
+      "description": "Read a family group's details.",
+      "effect": "read"
+    },
+    "groups.update": {
+      "description": "Edit a family group's details.",
+      "effect": "write"
+    },
+    "groups.deleteImage": {
+      "description": "Remove a family group's image.",
+      "effect": "write"
+    },
+    "groups.uploadImage": {
+      "description": "Upload a family group image; binary files and multipart forms require the TypeScript client.",
+      "effect": "write",
+      "limitations": [
+        "The JSON CLI cannot construct binary uploads or multipart FormData. Use the TypeScript upload helpers for file uploads."
+      ]
+    },
+    "groups.invite": {
+      "description": "Create an invitation to a family group.",
+      "effect": "write"
+    },
+    "groups.getInvite": {
+      "description": "Read a family group invitation.",
+      "effect": "read"
+    },
+    "groups.respondToInvite": {
+      "description": "Respond to a family group invitation.",
+      "effect": "write"
+    },
+    "groups.members": {
+      "description": "List the members of a family group.",
+      "effect": "read"
+    },
+    "groups.leave": {
+      "description": "Leave a family group.",
+      "effect": "write"
+    },
+    "groups.removeMember": {
+      "description": "Remove a member from a family group.",
+      "effect": "write"
+    },
+    "groups.updateMember": {
+      "description": "Update a member's family group settings.",
+      "effect": "write"
+    },
+    "groups.list": {
+      "description": "List your family groups.",
+      "effect": "read"
+    },
+    "groups.membership": {
+      "description": "Read your membership in a family group.",
+      "effect": "read"
+    },
+    "helpers.helpees": {
+      "description": "List people you have permission to help.",
+      "effect": "read"
+    },
+    "helpers.removeHelpee": {
+      "description": "Remove a person from your helper permissions.",
+      "effect": "write"
+    },
+    "helpers.addHelpee": {
+      "description": "Add a person to your helper permissions.",
+      "effect": "write"
+    },
+    "helpers.offers": {
+      "description": "List offers to help with family history.",
+      "effect": "read"
+    },
+    "helpers.offer": {
+      "description": "Read a family history helper offer.",
+      "effect": "write"
+    },
+    "helpers.deleteOffer": {
+      "description": "Delete a family history helper offer.",
+      "effect": "write"
+    },
+    "helpers.request": {
+      "description": "Request helper access to another person's family history.",
+      "effect": "write"
+    },
+    "helpers.statistics": {
+      "description": "Read family history helper statistics.",
+      "effect": "read"
+    },
+    "helpers.finish": {
+      "description": "Finish the current helper session.",
+      "effect": "write"
+    },
+    "hints.updateRecordMatch": {
+      "description": "Accept or dismiss a historical record hint for a person.",
+      "effect": "write"
+    },
+    "hints.notAMatch": {
+      "description": "Mark a possible duplicate person as not a match.",
+      "effect": "write"
+    },
+    "hints.opportunities": {
+      "description": "List suggested genealogy research opportunities.",
+      "effect": "read"
+    },
+    "hints.activities": {
+      "description": "List discovery activities and memory events for a user's relatives.",
+      "effect": "read"
+    },
+    "hints.matchByExample": {
+      "description": "Find matching tree people using supplied person details.",
+      "effect": "read"
+    },
+    "hints.matchById": {
+      "description": "Read person information used for matching by person ID.",
+      "effect": "read"
+    },
+    "hints.potentialPersons": {
+      "description": "Find potential parents for a child using supplied matching details.",
+      "effect": "read"
+    },
+    "hints.duplicate": {
+      "description": "Inspect a specific possible duplicate person.",
+      "effect": "read"
+    },
+    "hints.duplicates": {
+      "description": "Find possible duplicate people to review before merging.",
+      "effect": "read"
+    },
+    "hints.recordMatches": {
+      "description": "Find historical record hints for a person.",
+      "effect": "read"
+    },
+    "sources.detach": {
+      "description": "Detach a source reference from a person.",
+      "effect": "write"
+    },
+    "sources.updateLinks": {
+      "description": "Update source links and their unattached-person information.",
+      "effect": "write"
+    },
+    "sources.recordDetailsV1": {
+      "description": "Read indexed historical record details through the older mobile endpoint.",
+      "effect": "read"
+    },
+    "sources.attachRelationships": {
+      "description": "Attach missing relationships through the source linker.",
+      "effect": "write"
+    },
+    "sources.updateEntityReference": {
+      "description": "Update a person's source entity reference.",
+      "effect": "write"
+    },
+    "sources.recordDetails": {
+      "description": "Read indexed historical record details from a record URL.",
+      "effect": "read"
+    },
+    "sources.treeMatches": {
+      "description": "Find tree people matching an indexed record person.",
+      "effect": "read"
+    },
+    "sources.create": {
+      "description": "Create a source with its citation and description.",
+      "effect": "write"
+    },
+    "sources.update": {
+      "description": "Edit a source's citation and description.",
+      "effect": "write"
+    },
+    "sources.attachRecord": {
+      "description": "Attach an indexed historical record using the source linker.",
+      "effect": "write",
+      "limitations": [
+        "The recovered response is an unstructured acknowledgement; the CLI cannot describe more specific response fields."
+      ]
+    },
+    "sources.linkerMatch": {
+      "description": "Compare a historical record with a tree person in the source linker.",
+      "effect": "read"
+    },
+    "sources.attach": {
+      "description": "Attach a source reference to a person.",
+      "effect": "write"
+    },
+    "sources.updateReference": {
+      "description": "Edit a person's source reference and attribution.",
+      "effect": "write"
+    },
+    "sources.forPerson": {
+      "description": "List sources attached to a person.",
+      "effect": "read"
+    },
+    "pedigree.ancestorCount": {
+      "description": "Count a person's ancestors by generation.",
+      "effect": "read"
+    },
+    "pedigree.preferredParents": {
+      "description": "Read a person's preferred parents for pedigree display.",
+      "effect": "read"
+    },
+    "pedigree.preferredSpouse": {
+      "description": "Read a person's preferred spouse for pedigree display.",
+      "effect": "read"
+    },
+    "pedigree.setPreferences": {
+      "description": "Set preferred parents, spouse, and coparent relationships for pedigree display.",
+      "effect": "write"
+    },
+    "pedigree.downloadTree": {
+      "description": "Download a tree graph; this returns structured tree data, not a GEDCOM file.",
+      "effect": "read"
+    },
+    "pedigree.builderSearch": {
+      "description": "Search for people using the guided tree builder.",
+      "effect": "read"
+    },
+    "pedigree.builderPersons": {
+      "description": "Read guided tree builder status for a set of people.",
+      "effect": "read"
+    },
+    "pedigree.builderPedigree": {
+      "description": "Read a guided tree builder pedigree.",
+      "effect": "read"
+    },
+    "pedigree.builderDelete": {
+      "description": "Remove a person from the guided tree builder.",
+      "effect": "write"
+    },
+    "pedigree.builderAdd": {
+      "description": "Add a person to the guided tree builder.",
+      "effect": "write"
+    },
+    "pedigree.builderUpdate": {
+      "description": "Edit a person in the guided tree builder.",
+      "effect": "write"
+    },
+    "pedigree.builderSearchPersons": {
+      "description": "Search tree people using guided tree builder person details.",
+      "effect": "read"
+    },
+    "pedigree.expandPortrait": {
+      "description": "Expand a portrait pedigree around a person.",
+      "effect": "read"
+    },
+    "pedigree.expandAncestors": {
+      "description": "Expand a person's ancestors in a pedigree.",
+      "effect": "read"
+    },
+    "pedigree.expandDescendants": {
+      "description": "Expand a person's descendants in a pedigree.",
+      "effect": "read"
+    },
+    "pedigree.expandSiblings": {
+      "description": "Expand a person's siblings in a pedigree.",
+      "effect": "read"
+    },
+    "pedigree.siblings": {
+      "description": "Read a person's siblings in a pedigree.",
+      "effect": "read"
+    },
+    "pedigree.portrait": {
+      "description": "Read a portrait pedigree for a person.",
+      "effect": "read"
+    },
+    "history.list": {
+      "description": "List recently viewed people in FamilySearch history.",
+      "effect": "read"
+    },
+    "history.add": {
+      "description": "Add people to FamilySearch recently viewed history.",
+      "effect": "write"
+    },
+    "history.remove": {
+      "description": "Remove a person from FamilySearch recently viewed history.",
+      "effect": "write"
+    },
+    "history.restoreChange": {
+      "description": "Restore a previous person conclusion from change history.",
+      "effect": "write"
+    },
+    "history.undoMerge": {
+      "description": "Undo a person merge using its change-history entry.",
+      "effect": "write"
+    },
+    "history.changes": {
+      "description": "Read a person's change history and contributor attributions.",
+      "effect": "read"
+    },
+    "search.locationMap": {
+      "description": "Read locations available for mobile search.",
+      "effect": "read"
+    },
+    "search.categories": {
+      "description": "Find available categories and filters for a mobile unified search.",
+      "effect": "read",
+      "example": {
+        "body": {
+          "searchType": "TREE",
+          "focusPerson": {
+            "givenName": {
+              "value": "<given name>"
+            },
+            "surname": {
+              "value": "<surname>"
+            }
+          }
+        }
+      }
+    },
+    "search.countries": {
+      "description": "List countries available for mobile unified search.",
+      "effect": "read"
+    },
+    "search.subcountries": {
+      "description": "List regions within a country for mobile unified search.",
+      "effect": "read"
+    },
+    "search.results": {
+      "description": "Search tree people, indexed historical records, or memories using mobile unified search.",
+      "effect": "read",
+      "example": {
+        "body": {
+          "searchType": "TREE",
+          "focusPerson": {
+            "givenName": {
+              "value": "<given name>"
+            },
+            "surname": {
+              "value": "<surname>"
+            }
+          }
+        },
+        "query": {
+          "from": 0,
+          "size": 20
+        }
+      },
+      "limitations": [
+        "The included TREE example uses a known search type. Obtain other searchType and filter values from search.categories; arbitrary strings are not validated against server-supported values."
+      ]
+    },
+    "associations.create": {
+      "description": "Create an association between people, such as another non-family relationship.",
+      "effect": "write"
+    },
+    "associations.delete": {
+      "description": "Delete a association relationship.",
+      "effect": "write"
+    },
+    "associations.deleteConclusion": {
+      "description": "Delete a conclusion from a association relationship.",
+      "effect": "write"
+    },
+    "associations.deleteNote": {
+      "description": "Delete a research note from a association relationship.",
+      "effect": "write"
+    },
+    "associations.reorder": {
+      "description": "Change the order of people in an association relationship.",
+      "effect": "write"
+    },
+    "associations.addFact": {
+      "description": "Add a fact or event to a association relationship.",
+      "effect": "write"
+    },
+    "associations.updateFact": {
+      "description": "Edit a fact or event on a association relationship.",
+      "effect": "write"
+    },
+    "associations.addNote": {
+      "description": "Add a research note to a association relationship.",
+      "effect": "write"
+    },
+    "associations.updateNote": {
+      "description": "Edit a research note on a association relationship.",
+      "effect": "write"
+    },
+    "associations.get": {
+      "description": "Read a association relationship and its genealogy details.",
+      "effect": "read"
+    },
+    "associations.notes": {
+      "description": "List research notes on a association relationship.",
+      "effect": "read"
+    },
+    "associations.note": {
+      "description": "Read a research note on a association relationship.",
+      "effect": "read"
+    },
+    "couples.notes": {
+      "description": "List research notes on a couple relationship.",
+      "effect": "read"
+    },
+    "couples.addNote": {
+      "description": "Add a research note to a couple relationship.",
+      "effect": "write"
+    },
+    "couples.deleteNote": {
+      "description": "Delete a research note from a couple relationship.",
+      "effect": "write"
+    },
+    "couples.note": {
+      "description": "Read a research note on a couple relationship.",
+      "effect": "read"
+    },
+    "couples.updateNote": {
+      "description": "Edit a research note on a couple relationship.",
+      "effect": "write"
+    },
+    "couples.delete": {
+      "description": "Delete a couple relationship.",
+      "effect": "write"
+    },
+    "couples.get": {
+      "description": "Read a couple relationship and its genealogy details.",
+      "effect": "read"
+    },
+    "couples.addFact": {
+      "description": "Add a fact or event to a couple relationship.",
+      "effect": "write"
+    },
+    "couples.updateFact": {
+      "description": "Edit a fact or event on a couple relationship.",
+      "effect": "write"
+    },
+    "couples.deleteConclusion": {
+      "description": "Delete a conclusion from a couple relationship.",
+      "effect": "write"
+    },
+    "couples.reorder": {
+      "description": "Change the display order of spouses in a couple relationship.",
+      "effect": "write"
+    },
+    "parentChildren.create": {
+      "description": "Create a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.notes": {
+      "description": "List research notes on a parent-child relationship.",
+      "effect": "read"
+    },
+    "parentChildren.addNote": {
+      "description": "Add a research note to a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.deleteNote": {
+      "description": "Delete a research note from a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.note": {
+      "description": "Read a research note on a parent-child relationship.",
+      "effect": "read"
+    },
+    "parentChildren.updateNote": {
+      "description": "Edit a research note on a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.delete": {
+      "description": "Delete a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.get": {
+      "description": "Read a parent-child relationship and its genealogy details.",
+      "effect": "read"
+    },
+    "parentChildren.addFact": {
+      "description": "Add a fact or event to a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.updateFact": {
+      "description": "Edit a fact or event on a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.deleteConclusion": {
+      "description": "Delete a conclusion from a parent-child relationship.",
+      "effect": "write"
+    },
+    "parentChildren.reorder": {
+      "description": "Change the display order of parents in a parent-child relationship.",
+      "effect": "write"
+    },
+    "persons.reportDeceasedAsLiving": {
+      "description": "Report a person incorrectly marked deceased as living.",
+      "effect": "write"
+    },
+    "persons.delete": {
+      "description": "Delete a person.",
+      "effect": "write"
+    },
+    "persons.deleteConstraints": {
+      "description": "Check constraints before deleting a person.",
+      "effect": "read"
+    },
+    "persons.deleteConclusion": {
+      "description": "Delete a conclusion from a person.",
+      "effect": "write"
+    },
+    "persons.notes": {
+      "description": "List research notes on a person.",
+      "effect": "read"
+    },
+    "persons.addNote": {
+      "description": "Add a research note to a person.",
+      "effect": "write"
+    },
+    "persons.deleteNote": {
+      "description": "Delete a research note from a person.",
+      "effect": "write"
+    },
+    "persons.note": {
+      "description": "Read a research note on a person.",
+      "effect": "read"
+    },
+    "persons.updateNote": {
+      "description": "Edit a research note on a person.",
+      "effect": "write"
+    },
+    "persons.addRelationship": {
+      "description": "Add a relationship to a person.",
+      "effect": "write"
+    },
+    "persons.updateAssociation": {
+      "description": "Edit a person's association relationship.",
+      "effect": "write"
+    },
+    "persons.updateRelationship": {
+      "description": "Edit a person's family relationship.",
+      "effect": "write"
+    },
+    "persons.merge": {
+      "description": "Merge two duplicate people into the specified surviving person.",
+      "effect": "write"
+    },
+    "persons.stats": {
+      "description": "Read your Family Tree contribution statistics.",
+      "effect": "read"
+    },
+    "persons.create": {
+      "description": "Create a person in Family Tree.",
+      "effect": "write"
+    },
+    "persons.get": {
+      "description": "Read a person and its genealogy details.",
+      "effect": "read"
+    },
+    "persons.addFact": {
+      "description": "Add a fact or event to a person.",
+      "effect": "write"
+    },
+    "persons.updateFact": {
+      "description": "Edit a fact or event on a person.",
+      "effect": "write"
+    },
+    "persons.updateGender": {
+      "description": "Edit a person's recorded sex or gender conclusion.",
+      "effect": "write"
+    },
+    "persons.addName": {
+      "description": "Add a name to a person.",
+      "effect": "write"
+    },
+    "persons.updateName": {
+      "description": "Edit a person's name.",
+      "effect": "write"
+    },
+    "persons.mergeAnalysis": {
+      "description": "Compare duplicate people and inspect conflicts before a merge.",
+      "effect": "read"
+    },
+    "persons.privatePersons": {
+      "description": "List people in your private tree space.",
+      "effect": "read"
+    },
+    "persons.contributions": {
+      "description": "List your Family Tree contributions.",
+      "effect": "read"
+    },
+    "portraits.lastPublicEvent": {
+      "description": "Read a person's most recent public portrait event.",
+      "effect": "read"
+    },
+    "portraits.delete": {
+      "description": "Remove a person's portrait.",
+      "effect": "write"
+    },
+    "portraits.get": {
+      "description": "Read a person's portrait.",
+      "effect": "read"
+    },
+    "portraits.set": {
+      "description": "Set a person's portrait.",
+      "effect": "write"
+    },
+    "ordinances.familyCardsV1": {
+      "description": "Request printable family ordinance cards through the older endpoint.",
+      "effect": "write"
+    },
+    "ordinances.transfer": {
+      "description": "Create a batch for transferring ordinance reservations.",
+      "effect": "write"
+    },
+    "ordinances.builderRequest": {
+      "description": "Request family ordinances through the guided tree builder.",
+      "effect": "write"
+    },
+    "ordinances.builderShare": {
+      "description": "Share guided tree builder ordinances with the temple.",
+      "effect": "write"
+    },
+    "ordinances.ready": {
+      "description": "Start an Ordinances Ready request.",
+      "effect": "write"
+    },
+    "ordinances.deleteReady": {
+      "description": "Delete an Ordinances Ready request.",
+      "effect": "write"
+    },
+    "ordinances.readyStatus": {
+      "description": "Check the status of an Ordinances Ready request.",
+      "effect": "read"
+    },
+    "ordinances.updateCards": {
+      "description": "Update a reservation owner's ordinance cards.",
+      "effect": "write"
+    },
+    "ordinances.completedCards": {
+      "description": "Retrieve completed ordinance cards for a reservation owner.",
+      "effect": "read"
+    },
+    "ordinances.groupCards": {
+      "description": "Retrieve family group ordinance cards for a reservation owner.",
+      "effect": "read"
+    },
+    "ordinances.personalCards": {
+      "description": "Retrieve personal ordinance cards for a reservation owner.",
+      "effect": "read"
+    },
+    "ordinances.templeCards": {
+      "description": "Retrieve temple-shared ordinance cards for a reservation owner.",
+      "effect": "read"
+    },
+    "ordinances.personCards": {
+      "description": "Retrieve ordinance cards for a person.",
+      "effect": "read"
+    },
+    "ordinances.permissionExists": {
+      "description": "Check for an ordinance permission request for a person.",
+      "effect": "read"
+    },
+    "ordinances.requestPermission": {
+      "description": "Request permission to perform ordinances for a person.",
+      "effect": "write"
+    },
+    "ordinances.permissionsExist": {
+      "description": "Check ordinance permissions for a person.",
+      "effect": "read"
+    },
+    "ordinances.familyCards": {
+      "description": "Request printable family ordinance cards.",
+      "effect": "write"
+    },
+    "ordinances.forPerson": {
+      "description": "Read ordinance information for a person.",
+      "effect": "read"
+    },
+    "trees.setMePerson": {
+      "description": "Set the person representing you in a tree.",
+      "effect": "write"
+    },
+    "trees.matchPreference": {
+      "description": "Read a user's tree-matching preference.",
+      "effect": "read"
+    },
+    "trees.setMatchPreference": {
+      "description": "Change a user's tree-matching preference.",
+      "effect": "write"
+    },
+    "trees.status": {
+      "description": "Read the current tree status and available tree context.",
+      "effect": "read"
+    },
+    "trees.matchMe": {
+      "description": "Find tree people matching the current user.",
+      "effect": "read"
+    },
+    "following.unfollow": {
+      "description": "Stop following changes to a person.",
+      "effect": "write"
+    },
+    "following.follow": {
+      "description": "Follow changes to a person.",
+      "effect": "write"
+    },
+    "following.status": {
+      "description": "Check whether you follow a person.",
+      "effect": "read"
+    },
+    "tasks.descendants": {
+      "description": "List research tasks for a person's descendants.",
+      "effect": "read"
+    },
+    "tasks.dismiss": {
+      "description": "Dismiss research tasks for a person.",
+      "effect": "write"
+    },
+    "tasks.list": {
+      "description": "List your genealogy research tasks.",
+      "effect": "read"
+    }
+  }
+}

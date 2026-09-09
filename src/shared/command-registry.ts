@@ -193,13 +193,16 @@ for (const provider of authenticatedProviderNames) {
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
   if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
   if (provider !== 'ancestry') add(provider, provider === 'familysearch' ? 'whoami' : 'me', 'account get', 'Read the current account profile and available tree context.', [], provider === 'myheritage' ? 'query' : '');
-  add(provider, 'ops', 'api list', 'List and filter the provider’s known API operations and aliases.', ['?filter'], '', {risk: local});
+  add(provider, 'ops', 'api list', 'List and filter the provider’s known API operations and aliases.', ['?filter'], '', {risk: local,
+    ...(provider === 'familysearch' ? {examples: ['fam familysearch.api list', 'fam familysearch.api list --filter memories', 'fam familysearch.api list --filter "duplicate people"']} : {})});
   add(provider, 'schema', 'api describe', 'Inspect the contract, inputs, response information, and availability of one provider API operation.', ['operation'], provider === 'familysearch' ? 'example' : '', {risk: local});
   if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'].includes(provider)) {
     add(provider, 'gql', 'api.gql query', 'Execute a cataloged GraphQL query or mutation with variables.', ['operation', '?variables'], '', {risk: api});
     if (provider !== 'ancestry') add(provider, 'query', 'api.gql execute', 'Execute a custom GraphQL document from a file.', ['document', '?variables'], '', {risk: api});
   }
-  if (!['geneanet', 'newspaperarchive', 'americanancestors'].includes(provider)) add(provider, 'call', 'api call', 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
+  if (!['geneanet', 'newspaperarchive', 'americanancestors'].includes(provider)) add(provider, 'call', 'api call', provider === 'familysearch'
+    ? 'Execute genealogy operations for memories, people, relationships, sources, hints, groups, history, and ordinances. Add --operation NAME --help to inspect inputs, outputs, and effects.'
+    : 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
     provider === 'familysearch' ? ['operation'] : ['operation', '?input'], provider === 'familysearch' ? 'input query' : provider === 'ancestry' ? 'query base' : ['myheritage', 'findmypast'].includes(provider) ? 'query' : '',
     {risk: api, flags: provider === 'familysearch' ? {input: {description: 'JSON input file or - for stdin.'}, query: {multiple: true, description: 'Typed key=value query binding; repeatable.'}} : undefined});
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});

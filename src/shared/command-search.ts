@@ -1,4 +1,5 @@
 import {commands, providerNames, type Command, type Provider} from './command-registry.js';
+import {discoverOperations, type operationSummary} from '../familysearch/discovery.js';
 
 // Local intent vocabulary. No network, generated commands, or model downloads.
 const concepts = [
@@ -13,6 +14,9 @@ const concepts = [
   ['collection', 'collections', 'recordset', 'catalog'], ['film', 'dgs', 'microfilm'],
   ['newspaper', 'newspapers', 'press', 'obituary'], ['library', 'book', 'books', 'publication'],
   ['health', 'doctor', 'diagnose', 'working', 'broken'], ['gql', 'graphql'], ['api', 'endpoint', 'rest'],
+  ['memory', 'memories', 'artifact', 'artifacts'], ['merge', 'duplicate', 'duplicates'],
+  ['source', 'sources', 'citation', 'citations'], ['attach', 'link', 'connect'],
+  ['edit', 'update', 'change'], ['restore', 'undo', 'recover'], ['group', 'groups'],
 ];
 const stop = new Set('a an the i me my we our you to of for from in on with and or is are can could want need how do does please using'.split(' '));
 function tokens(text: string): string[] {
@@ -23,11 +27,18 @@ function expanded(words: string[]): Set<string> {
   for (const group of concepts) if (group.some(word => source.has(word))) for (const word of group) set.add(word);
   return set;
 }
-const index = commands.map(command => {
-  const words = tokens(`${command.id} ${command.description} ${command.examples.join(' ')} ${command.flags.filter(f => !['help', 'json', 'out', 'dry-run'].includes(f.name)).map(f => f.name).join(' ')}`);
+type Operation = ReturnType<typeof operationSummary>;
+const documents: {command: Command; operation?: Operation}[] = commands.map(command => ({command}));
+const familysearchCall = commands.find(command => command.id === 'familysearch.api call')!;
+documents.push(...discoverOperations().map(operation => ({command: familysearchCall, operation})));
+const index = documents.map(({command, operation}) => {
+  const content = operation ? `${operation.name} ${operation.description}`
+    : `${command.id} ${command.description} ${command.examples.join(' ')} ${command.flags.filter(f => !['help', 'json', 'out', 'dry-run'].includes(f.name)).map(f => f.name).join(' ')}`;
+  const words = tokens(content);
   const counts = new Map<string, number>();
   for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1);
-  return {command, words, counts, concepts: expanded(tokens(`${command.object} ${command.action} ${command.description}`))};
+  return {command, operation, words, counts, action: operation?.name.split('.')[1] ?? command.action,
+    concepts: expanded(tokens(operation ? content : `${command.object} ${command.action} ${command.description}`))};
 });
 const averageLength = index.reduce((sum, entry) => sum + entry.words.length, 0) / index.length;
 const documentFrequency = new Map<string, number>();
@@ -91,6 +102,16 @@ export function candidate(command: Command, context?: Context) {
     argv, ready: missing.length === 0, requiredFlags: command.flags.filter(f => f.required), missingFlags: missing, prefilledFlags: flags,
     examples: command.examples, risk: command.risk, describe: `fam cli.command describe --command ${quote(command.id)}`};
 }
+function operationCandidate(command: Command, operation: Operation) {
+  // Input JSON is deliberately not guessed from an unrelated URL or person ID.
+  const flags = command.flags.map(flag => ({...flag,
+    ...(flag.name === 'input' ? {required: operation.needsInput} : {}),
+    ...(flag.name === 'out' ? {required: operation.binary} : {})}));
+  const result = candidate({...command, flags}, {input: '', provider: 'familysearch', flags: {operation: operation.name}});
+  return {...result, operation: operation.name, description: operation.description, invocation: operation.invocation,
+    examples: [operation.exampleCommand], risk: operation.risk, describe: operation.describe,
+    requiredInput: operation.requiredInput, limitations: operation.limitations};
+}
 export function searchCommands(query: string, options: {provider?: string; context?: string; limit?: number; offset?: number} = {}) {
   const contextText = options.context ?? query.match(/https:\/\/[^\s<>"']+/)?.[0];
   const context = contextText ? resolveContext(contextText, options.provider) : undefined;
@@ -107,13 +128,15 @@ export function searchCommands(query: string, options: {provider?: string; conte
     let conceptMatches = 0;
     for (const word of queryConcepts) if (entry.concepts.has(word)) conceptMatches++;
     const score = keyword + conceptMatches / Math.max(1, queryConcepts.size) * 3
-      + (words.includes(entry.command.action) ? 3 : 0) + (context?.object === entry.command.object ? 5 : 0);
+      + (queryConcepts.has(entry.action) ? 3 : 0) + (!entry.operation && context?.object === entry.command.object ? 5 : 0);
     return {entry, score};
-  }).filter(result => result.score > 0).sort((a, b) => b.score - a.score || a.entry.command.id.localeCompare(b.entry.command.id, 'en'));
+  }).filter(result => result.score > 0).sort((a, b) => b.score - a.score
+    || (a.entry.operation?.name ?? a.entry.command.id).localeCompare(b.entry.operation?.name ?? b.entry.command.id, 'en'));
   const limit = options.limit ?? 3, offset = options.offset ?? 0;
   return {query, engine: 'local-bm25-concepts', ...(context ? {context} : {}), total: ranked.length, offset, limit,
     hasMore: offset + limit < ranked.length, nextOffset: offset + limit < ranked.length ? offset + limit : null,
-    results: ranked.slice(offset, offset + limit).map(({entry, score}) => ({...candidate(entry.command, context), score: Math.round(score * 1000) / 1000}))};
+    results: ranked.slice(offset, offset + limit).map(({entry, score}) => ({...(entry.operation ? operationCandidate(entry.command, entry.operation)
+      : candidate(entry.command, context)), score: Math.round(score * 1000) / 1000}))};
 }
 export function contextCommands(input: string, provider?: string) {
   const context = resolveContext(input, provider);

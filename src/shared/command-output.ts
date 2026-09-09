@@ -1,4 +1,5 @@
 import {humanCyndisList} from '../cyndislist/output.js';
+import {operationDescription, operationList} from '../familysearch/discovery-output.js';
 import {commandById, commonTasks, providerInfo, providerNames, syntax, type Command, type Flag} from './command-registry.js';
 import type {Values} from './command-runtime.js';
 import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navigation.js';
@@ -83,6 +84,12 @@ export function namespaceHelp(namespace: NamespaceInfo, width = 100): string {
       rows(namespace.objects.map(item => [item.name, item.description]), width)] : []),
     ...(namespace.actions.length ? ['', section(`Available actions (${namespace.actions.length})`),
       rows(namespace.actions.map(item => [item.command, item.description]), width)] : []), '',
+    ...(namespace.operationGroups ? [section(`Genealogy API operations (${namespace.operationGroups.reduce((n, group) => n + group.count, 0)})`),
+      'These implemented mobile API operations are also included in command search.',
+      rows(namespace.operationGroups.map(group => [`${group.group} (${group.count})`, group.description]), width), '',
+      'Browse: fam familysearch.api list --filter memories',
+      'Find: fam cli.command search --provider familysearch --query "find memories"',
+      'Inspect inputs, outputs, examples, and effects: fam familysearch.api describe --operation memories.search', ''] : []),
     namespace.kind === 'provider' ? `Use "fam ${namespace.name}.<object> --help" to see available actions.`
       : `Use "fam ${namespace.name} <action> --help" to see command flags and examples.`,
     '', section('Suggested next commands'), commandPreviews(namespace.nextCommands), '',
@@ -144,12 +151,14 @@ function commandList(data: {command: string; description: string}[], width: numb
   const sections = [...groups].map(([provider, items]) => `${providerInfo[provider]?.name ?? provider} (${items.length})\n${rows(items.map(item => [item.command, item.description]), width)}`);
   return `${data.length} commands\n\n${sections.join('\n\n')}\n\nRun fam <provider>.<object> <action> --help for flags and examples.\n`;
 }
-interface Candidate {command: string; description: string; invocation: string; missingFlags: string[]; examples: string[]; risk: {level: string; description: string}}
+interface Candidate {command: string; operation?: string; description: string; invocation: string; missingFlags: string[]; examples: string[]; describe?: string; limitations?: string[]; risk: {level: string; description: string}}
 function candidates(results: Candidate[], width: number): string {
-  return results.map((result, i) => [`${i + 1}. ${result.command}`,
+  return results.map((result, i) => [`${i + 1}. ${result.command}${result.operation ? ` — ${result.operation}` : ''}`,
     ...wrap(result.description, width - 3).map(line => `   ${line}`), '', `   ${result.invocation}`,
     ...(result.missingFlags.length ? [`   Needs: ${result.missingFlags.map(name => `--${name}`).join(', ')}`] : []),
     ...(result.examples[0] && result.examples[0] !== result.invocation ? [`   Example: ${result.examples[0]}`] : []),
+    ...(result.operation && result.describe ? [`   Inspect: ${result.describe}`] : []),
+    ...(result.limitations ?? []).map(note => `   Limit: ${note}`),
     ...(result.risk.level === 'operation-dependent' || result.risk.level === 'write' ? [`   Effects: ${result.risk.description}`] : []),
   ].join('\n')).join('\n\n');
 }
@@ -161,6 +170,8 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
   }
   if (command.id === 'cli.history archive') return historyOutput(data as HistoryView, width);
   if (values['dry-run'] && object(data)) return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
+  if (command.id === 'familysearch.api list') return operationList(data as Parameters<typeof operationList>[0]);
+  if (command.id === 'familysearch.api describe' && !values.example) return operationDescription(data as Parameters<typeof operationDescription>[0]);
   if (command.provider === 'cli' && ['history', 'history.failures'].includes(command.object)) return historyOutput(data as HistoryView, width);
   if (command.id === 'cli.command list') return commandList(data as {command: string; description: string}[], width);
   if (['cli.browser.transport list', 'cli.browser.transport get'].includes(command.id)) {

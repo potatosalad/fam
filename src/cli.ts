@@ -92,7 +92,15 @@ async function main() {
   invocation = parseInvocation(args);
   const {command, values} = invocation;
   history.command(command.id, command.provider, command.risk.level !== 'local' || command.object === 'health');
-  if (values.help) {process.stdout.write(wantsJson(values) ? `${stringifyJson(describe(command), 2)}\n` : help(command)); return;}
+  if (values.help) {
+    if (command.provider === 'familysearch' && command.object === 'api' && ['call', 'describe'].includes(command.action) && values.operation) {
+      const {describeOperation} = await import('./familysearch/discovery.js');
+      const {operationDescription} = await import('./familysearch/discovery-output.js');
+      const operation = describeOperation(String(values.operation));
+      process.stdout.write(wantsJson(values) ? `${stringifyJson(operation, 2)}\n` : operationDescription(operation));
+    } else process.stdout.write(wantsJson(values) ? `${stringifyJson(describe(command), 2)}\n` : help(command));
+    return;
+  }
   const {setBrowserOverrides} = await import('./shared/browser-config.js');
   setBrowserOverrides({transport: values.transport as 'auto' | 'http' | 'browser' | undefined, timeout: values['browser-timeout'] as number | undefined});
   let data: unknown;

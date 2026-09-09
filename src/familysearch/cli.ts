@@ -3,13 +3,14 @@ import {inspectResult} from '../shared/diagnostics.js';
 import { FamilySearchClient } from './client.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { CREDENTIAL_DIR } from '../shared/storage.js';
-import { listOperations, operationContract, operationExample, operationQueryInput } from './operations.js';
+import { operationContract, operationQueryInput } from './operations.js';
 import { writeFile, chmod } from 'node:fs/promises';
 import type { OperationName, OperationInput } from './generated/operations.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { runResearchCli } from './research-cli.js';
+import {describeOperation, discoverOperations} from './discovery.js';
 
 
 export async function runProvider(argv: string[]): Promise<unknown> {
@@ -37,10 +38,11 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const client = ['ops', 'schema'].includes(command) ? undefined! : await FamilySearchClient.open();
   let result: unknown;
   switch (command) {
-    case 'ops': result = listOperations(id).map(({ name, method, path }) => ({ name, method, path })); break;
+    case 'ops': result = discoverOperations(id); break;
     case 'schema': {
       if (args.length > 3 || depth && depth !== '--example') throw new Error('Use fam familysearch.api describe --operation OPERATION [--example].');
-      result = depth === '--example' ? operationExample(required(id)) : operationContract(required(id)); break;
+      const description = describeOperation(required(id));
+      result = depth === '--example' ? description.example : description; break;
     }
     case 'call': {
       const { positionals, values } = parseArgs({ args: args.slice(1), allowPositionals: true, options: { input: { type: 'string' }, query: { type: 'string', multiple: true } } });

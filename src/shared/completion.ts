@@ -1,4 +1,5 @@
 import {commands, providerInfo} from './command-registry.js';
+import {operationNames} from '../familysearch/discovery.js';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -89,6 +90,7 @@ export function completionCatalog(): CompletionNode {
     const object = root.commands[name];
     const action = object.commands[command.action] = node();
     for (const flag of command.flags) action.options[`--${flag.name}`] = {value: flag.type !== 'boolean', file: flag.file, choices: flag.choices};
+    if (command.provider === 'familysearch' && action.options['--operation']) action.options['--operation'].choices = operationNames;
     action.options['-h'] = {value: false};
   }
   if (root.commands['cli.browser']) root.commands.browser = root.commands['cli.browser'];

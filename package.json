@@ -112,6 +112,7 @@
     "src/",
     "docs/**/*.md",
     "docs/familysearch/contracts.json",
+    "docs/familysearch/discovery.json",
     "docs/familysearch/endpoints.json",
     "docs/familysearch/operation-selection.json",
     "docs/familysearch/coverage.json",
