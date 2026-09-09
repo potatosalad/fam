@@ -38,7 +38,8 @@ test('build publication pins lazy imports, retains a working CLI, and packages o
   assert.match(output, /first build/);
   assert.equal((await run(process.execPath, [join(root, 'bin/fam.mjs')], {cwd: tmpdir()})).stdout.trim(), 'second build');
   assert.equal(await readFile(join(root, 'dist/late.js'), 'utf8'), "export const value = 'first build';");
-  const pack = JSON.parse((await run('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {cwd: root})).stdout)[0];
+  const packed = JSON.parse((await run('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {cwd: root})).stdout);
+  const pack = Array.isArray(packed) ? packed[0] : packed['fam-build-fixture'];
   assert.ok(pack.files.some((file: {path: string}) => file.path === 'dist/cli.js'));
   assert.ok(!pack.files.some((file: {path: string}) => file.path.includes('late.js') || file.path.includes('.fam-build')));
   // A packaged install has no development pointer and uses the same executable.
