@@ -121,7 +121,11 @@ async function main() {
   if (!values['dry-run'] && (command.provider !== 'cli' || command.object === 'health')) history.result(data);
   const envelope = {schemaVersion: 1, ok: true, command: command.id, data: data ?? null,
     ...(!values['dry-run'] && command.pagination ? {pagination: command.pagination} : {})};
-  const rendered = () => wantsJson(values) ? `${stringifyJson(envelope, 2)}\n` : humanOutput(command, data, values, process.stdout.columns ?? 100);
+  const fetchOutput = command.id === 'cli.browser fetch' && !values['dry-run'] && !wantsJson(values)
+    ? await import('./shared/browser-fetch.js') : undefined;
+  const rendered = () => wantsJson(values) ? `${stringifyJson(envelope, 2)}\n` : fetchOutput
+    ? fetchOutput.renderBrowserFetch(data as import('./shared/browser-fetch.js').BrowserFetchResult, (values.format ?? 'text') as import('./shared/browser-fetch.js').FetchFormat)
+    : humanOutput(command, data, values, process.stdout.columns ?? 100);
   if (!values['dry-run'] && (command.provider === 'cli' || command.binding.command[0] === 'sync') && values.out) {
     const path = String(values.out), temporary = `${path}.${randomUUID()}.tmp`;
     await mkdir(dirname(path), {recursive: true, mode: 0o700});

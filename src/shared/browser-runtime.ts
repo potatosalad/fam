@@ -14,7 +14,7 @@ import {browserConfig, browserUrl, saveBrowserConfig, browserUserId, endpointId,
 const exec = promisify(execFile);
 export const CAMOFOX_IMAGE = 'ghcr.io/jo-inc/camofox-browser:1.14.0@sha256:86c79eed8a6b3a78859f73bc70d6003c5566b85e969354ec454524b28197ffce';
 export const pluginDirectory = fileURLToPath(new URL('../../browser/camofox-plugin/', import.meta.url));
-const providers: readonly string[] = providerNames;
+const providers: readonly string[] = ['web', ...providerNames];
 export async function openUrl(url: string): Promise<boolean> {
   browserUrl(url);
   const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'rundll32' : 'xdg-open';
@@ -198,6 +198,11 @@ export class Camofox {
         'session-has-unrelated-tabs': 'This context also contains tabs outside fam; the reset was refused to preserve them.',
         'session-reset-in-progress': 'A browser session reset is in progress. Wait for it to finish.',
         'session-reset-unsupported': 'Update the fam Camofox plugin and enable persistent storage to use session reset.',
+        'unsupported-fetch-header': 'The browser controls one of these headers and cannot override it. Use cookie import for cookies.',
+        'response-too-large': 'Browser responses are limited to 64 MiB.',
+        'page-navigation-failed': 'The page could not be loaded. For binary downloads or non-document URLs use --mode request --format raw.',
+        'page-timeout': 'The page navigation timed out.',
+        'page-not-started': 'The page capture expired; retry the fetch.',
       };
       throw new BrowserError(`Camofox request failed (HTTP ${response.status}).${reason}${detail[code] ? ` ${detail[code]}` : ''}`, 'BROWSER_API_FAILED', this.endpoint.vncUrl);
     }

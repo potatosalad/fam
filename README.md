@@ -69,6 +69,17 @@ Inspect which HTTP/browser transport will start each provider request with `fam 
 
 Browser sign-ins reuse cookies and try configured credentials when needed. fam opens or prints the viewer URL for MFA or CAPTCHA and waits for completion. All provider HTTP clients automatically recover evidenced Cloudflare challenges through the browser and remember the website until `fam cli.browser.transport reset`. Use `fam cli.browser reset --provider myheritage` to clear that provider's browser site data, or `fam cli.browser reset --all` to reset all fam-managed browser sessions. See [reset scope and backups](docs/browser.md#reset-browser-sessions).
 
+Fetch any HTTP(S) URL through the browser, including pages that require JavaScript verification:
+
+```sh
+fam cli.browser fetch --url https://example.org/page --format markdown
+fam cli.browser fetch --url https://example.org/page --format html --out page.html
+fam cli.browser fetch --url https://example.org/file.pdf --format raw --out file.pdf
+fam cli.browser fetch --url https://example.org/page --json
+```
+
+Text is the default. HTML captures the rendered document; raw preserves the response body bytes exposed by the browser. Headers, cookie imports, request methods/bodies, content selectors, and persistent sessions are described in [URL fetching](docs/browser.md#fetch-any-url).
+
 ## Set up credentials
 
 Set up the services you use. `fam PROVIDER.credential set` saves login details from environment variables or a configured helper; otherwise, it prompts for your username and hides the password as you type. `fam PROVIDER.session login` signs in. Browser-session imports do not require saving a password.

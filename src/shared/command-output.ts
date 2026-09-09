@@ -124,6 +124,7 @@ export function overview(): string {
     'Persistent browser: fam browser setup --local | fam browser setup --remote URL',
     'Manage it with fam browser use, start, stop, status, open, configure, or reset.',
     'Inspect starting HTTP/browser routes: fam cli.browser.transport list --transport auto', '',
+    'Fetch a URL: fam cli.browser fetch --url URL --format text|markdown|html|raw|json', '',
     'Global options', '--------------',
     rows([
       ['--help, -h', 'Show help, including command flags and examples.'],

@@ -5,6 +5,10 @@ import {providerNames} from './command-registry.js';
 import {browserRouting} from './browser-routing.js';
 
 export async function browserCommand(action: string, values: Values): Promise<unknown> {
+  if (action === 'fetch') {
+    const {browserFetchOptions, fetchBrowserUrl} = await import('./browser-fetch.js');
+    return fetchBrowserUrl(await browserFetchOptions(values));
+  }
   if (values.open && values['no-open']) throw new BrowserError('Choose --open or --no-open.');
   if (action === 'setup') return setupBrowser({local: !!values.local, remote: values.remote as string | undefined,
     vncUrl: values['vnc-url'] as string | undefined, apiKeyFile: values['api-key-file'] as string | undefined,

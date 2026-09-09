@@ -53,6 +53,63 @@ Local `stop` stops the owned container and retains saved state. The container fo
 
 `fam browser` is a short alias for `fam cli.browser`. Help, command discovery, and completion describe the same operations.
 
+## Fetch any URL
+
+`fam cli.browser fetch` (also `fam browser fetch`) accepts any HTTP or HTTPS URL without a provider allowlist. It uses the configured Camofox engine and its network connection, locally or remotely. Set up the browser first using the instructions above.
+
+```sh
+# Visible page text is the default, including in a pipe.
+fam cli.browser fetch --url https://example.org/page
+fam cli.browser fetch --url https://example.org/page --format markdown
+fam cli.browser fetch --url https://example.org/page --format html --out page.html
+fam cli.browser fetch --url https://example.org/page --json --out page.json
+
+# Original response bytes, including images, PDFs and other binary resources.
+fam cli.browser fetch --url https://example.org/file.pdf --format raw --out file.pdf
+# Capture the original final document response from a real navigation.
+fam cli.browser fetch --url https://example.org/page --mode navigate --format raw --out source.html
+
+# Wait for dynamic content and extract one element's text/Markdown.
+fam cli.browser fetch --url https://example.org/page --wait-for article --wait-ms 500 --format markdown
+```
+
+| Format | Output |
+| --- | --- |
+| `text` | Visible rendered text in navigate mode; decoded response text or HTML text extraction in request mode. |
+| `markdown` | Content converted to Markdown with headings, lists, links, code and GFM tables. Relative links resolve against the page's base URL. |
+| `html` | Full serialized document after scripts run in navigate mode; original decoded HTML in request mode. |
+| `raw` | Exact response body bytes exposed by the browser, with no newline or CLI envelope. Browser decompression has already happened; this is not a wire capture. |
+| `json` / `--json` | The normal fam envelope with original/final URL, HTTP status, response headers (including repeated headers), MIME type and byte count. HTML includes rendered HTML, text, Markdown, links, metadata and valid JSON-LD. JSON responses include parsed data with exact large integers; binary responses include `bodyBase64`. |
+
+HTML/raw are single-document captures, not offline website archives: they do not bundle external images, stylesheets, frames or shadow roots. `--wait-for` selects the first matching visible element for text and Markdown; HTML remains the full document. Without a selector the whole body is extracted, including navigation and footers. Hidden content and scripts are excluded from Markdown. `--wait-ms` adds settling time for asynchronous content; `--timeout` bounds navigation and selection waits (default 60 seconds).
+
+`--mode navigate` performs a real GET document navigation so verification scripts can execute. It follows browser redirects. This is the default for page formats. `--mode request` issues the actual network request through Firefox from a temporary same-origin document; it does not use a Node HTTP client or Playwright's APIRequestContext. It defaults for raw output and methods other than GET. Use request mode for APIs, binary resources, HTTP HEAD, or responses that should not execute scripts.
+
+```sh
+fam cli.browser fetch --url https://example.org/api --mode request \
+  --header 'Accept: application/json' --headers-file /private/headers.json --json
+fam cli.browser fetch --url https://example.org/api --method POST \
+  --header 'Content-Type: application/json' --body '{"query":"example"}' --json
+fam cli.browser fetch --url https://example.org/upload --method PUT \
+  --body-file /private/payload.bin --format raw --out response.bin
+fam cli.browser fetch --url https://example.org/page --cookie 'preference=en; another=value' \
+  --cookies-file /private/cookies.json --format markdown
+```
+
+Repeat `--header 'Name: value'` and `--cookie 'name=value'` as needed. A header file is a JSON object of string values; command-line headers override its entries. A cookie file is a Playwright cookie array or storage-state object (only `cookies` are imported), preserving domain, path, expiry, secure, HTTP-only and SameSite attributes. Each entry needs name/value and either URL or domain/path. Inline cookies, including an explicit `Cookie` header, are imported with the requested host and `/` path. Website cookies persist normally. Imported cookies may replace existing cookies with matching name/domain/path.
+
+`--user-agent` and `--referer` override those HTTP headers. They do not change the browser engine, TLS fingerprint or JavaScript `navigator.userAgent`. Browser-controlled headers such as Host, Origin, Content-Length, Accept-Encoding, Connection and Sec-* are rejected instead of silently discarded. Browsers forbid CONNECT, TRACE and TRACK and request bodies on GET/HEAD. `--body` sends literal UTF-8; `--body-file` preserves bytes. A body defaults the method to POST. Request bodies are limited to 48 MiB and captured response bodies to 64 MiB.
+
+Navigation overrides apply to main-document requests on the starting origin and, as with Playwright header overrides, to their HTTP redirect chains. They are not added to third-party subresources. Request mode handles each HTTP redirect explicitly and drops all caller headers when crossing origins, while the browser applies cookie domain/path rules. Select `--redirects manual` to inspect a 3xx without following it, or `--redirects error` to reject it; the default follows up to 20 redirects. These policies apply to request mode.
+
+The default persistent context is `web`, separate from provider logins. Select `--context myheritage` (or another provider) to explicitly reuse that provider's browser cookies. The configured browser session name still scopes contexts. Each command creates and closes its own tab; `--keep-tab` retains it after success and includes its ID/viewer URL in JSON. Clear general browsing state with `fam cli.browser reset --provider web`; browser stop and reset-all also include it.
+
+Challenges wait up to the configured browser verification timeout; override with `--browser-timeout SECONDS`. If interaction is needed, fam reports the viewer URL and retains the tab. A zero timeout returns immediately when a challenge is detected. Successful clearance is reused by subsequent commands. Request mode automatically recovers a challenged GET/HEAD once via real navigation; other methods are never automatically replayed after a challenge. A normal HTTP error such as 403 or 404 is returned with its body and status, not treated as a browser failure. JSON `ok` describes command completion; inspect `data.status` for the HTTP outcome. Some sites still require manual CAPTCHA, sign-in, or may continue to deny access; browser fetching cannot guarantee every site will allow a request.
+
+Outputs use private atomic files with `--out`. As with all fam commands, command history records arguments and consumed input files verbatim for reproduction; use `FAM_HISTORY=0` if a particular fetch should not enter history. JSON response headers/content can include session information from the requested site. Nothing is imported from another provider unless its context was explicitly selected.
+
+URL fetching requires the bundled plugin's `fetch` capability. After updating fam, stop/start a local browser once. On a remote browser, update the mounted fam plugin and restart its service once. An older plugin produces an actionable error rather than falling back to plain HTTP.
+
 ## Login and verification
 
 ```sh
