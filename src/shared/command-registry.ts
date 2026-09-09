@@ -389,6 +389,15 @@ add('cli', 'browser-reset', 'browser reset', 'Clear browser sessions and site da
   examples: ['fam cli.browser reset --provider myheritage', 'fam cli.browser reset --all']});
 add('cli', 'browser-transport-reset', 'browser.transport reset', 'Forget automatic HTTP/browser transport decisions for this instance; retain all website logins.', [], '',
   {risk: {level: 'local', description: 'Removes local transport decisions only. Makes no browser or provider requests.'}});
+for (const action of ['list', 'get']) add('cli', `browser-transport-${action}`, `browser.transport ${action}`,
+  action === 'list' ? 'Inspect starting HTTP/browser transport by provider and origin without making requests.' : 'Explain which transport will start a request to one provider origin without making requests.', [],
+  `provider transport${action === 'get' ? ' origin' : ''}`, {
+    flags: {provider: {choices: [...providerNames], required: action === 'get'}, transport: browserFlags.transport,
+      origin: {required: true, description: 'Exact website origin, for example https://www.familysearch.org; no path or query.'}},
+    risk: {level: 'local', description: 'Reads local transport configuration and routing metadata only. Does not connect to Camofox or a provider, load login sessions, or change routing.'},
+    examples: [action === 'list' ? 'fam cli.browser.transport list --transport auto'
+      : 'fam cli.browser.transport get --provider familysearch --origin https://www.familysearch.org --transport auto'],
+  });
 
 const cliRisk: Extras = {risk: local};
 add('cli', 'search', 'command search', 'Find commands by intent using local keyword and concept retrieval. Never executes a provider.', [], 'query provider context limit offset',

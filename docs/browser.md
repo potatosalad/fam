@@ -104,6 +104,23 @@ fam cli.browser.transport reset
 
 `--transport auto|http|browser` overrides one command. `configure --transport` changes the default. `cli.browser.transport reset` clears remembered browser routing for the selected instance on this client; it retains logins and works without contacting Camofox. Browser requests currently support responses up to 64 MiB. An unresolved challenge returns the viewer URL, including in structured `--json` errors.
 
+Inspect which transport will start a request without contacting the browser or provider:
+
+```sh
+# Every provider, its remembered origins, and its default for other origins.
+fam cli.browser.transport list --transport auto
+fam cli.browser.transport list --provider familysearch --transport auto
+
+# FamilySearch account reads use this origin.
+fam cli.browser.transport get --provider familysearch --origin https://www.familysearch.org --transport auto
+```
+
+The output shows the selected policy and its source, the browser mode/session, and each origin's resolved `http` or `browser` choice with its reason. Add `--json` for structured output; `origin: null` is the default for origins without a saved route. Omitting `--transport` uses the current default preference. Precedence is command flag, saved browser configuration, `FAM_TRANSPORT` when no browser configuration exists, then `auto`.
+
+Routing is per provider **and origin**, not one switch for an entire provider. An account API, regional website, and image host can start with different transports. In `auto`, a remembered browser route starts in Camofox; other origins start in HTTP and can switch after a challenge. The inspector reads the same decision logic as actual requests, but does not predict whether a future response will be challenged or whether authentication will need another origin. Explicit non-replayable operations keep their documented transport restrictions.
+
+These decisions belong to the local fam profile (`FAM_CONFIG_DIR`, normally `~/.config/fam`) and the selected browser endpoint/mode/session. Two CLI hosts can share a remote browser's cookies while having different routing decisions. Run the inspection on the host where you will run the provider command. `fam cli.browser status` reports connectivity and the overall policy; the transport commands report resolved routing without connecting or modifying it.
+
 ## Reset browser sessions
 
 ```sh

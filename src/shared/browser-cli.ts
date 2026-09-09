@@ -1,6 +1,8 @@
 import type {Values} from './command-runtime.js';
 import {browserConfig, browserUrl, BrowserError, saveBrowserConfig, type BrowserMode, type BrowserTransportMode} from './browser-config.js';
 import {setupBrowser, startBrowser, stopBrowser, browserStatus, openUrl, resetBrowserRouting, resetBrowserSession} from './browser-runtime.js';
+import {providerNames} from './command-registry.js';
+import {browserRouting} from './browser-routing.js';
 
 export async function browserCommand(action: string, values: Values): Promise<unknown> {
   if (values.open && values['no-open']) throw new BrowserError('Choose --open or --no-open.');
@@ -9,6 +11,8 @@ export async function browserCommand(action: string, values: Values): Promise<un
     timeout: values.timeout as number | undefined, install: !!values.install, session: values.session as string | undefined,
     open: values.open ? true : values['no-open'] ? false : undefined, apiPort: values['api-port'] as number | undefined, vncPort: values['vnc-port'] as number | undefined});
   if (action === 'status') return browserStatus();
+  if (action === 'transport-list' || action === 'transport-get') return browserRouting(values.provider ? [String(values.provider)] : providerNames,
+    values.origin as string | undefined);
   const config = await browserConfig();
   if (!config) {if (action === 'start') return setupBrowser({local: true}); throw new BrowserError('Run fam browser setup --local or fam browser setup --remote URL first.');}
   if (action === 'use') {

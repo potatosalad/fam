@@ -110,7 +110,8 @@ export function overview(): string {
     '', 'Browse provider commands and documentation: fam <provider> --help', '', 'Common tasks:',
     ...commonTasks.flatMap(task => [`  ${task.title}`, `    ${task.example}`]), '',
     'Persistent browser: fam browser setup --local | fam browser setup --remote URL',
-    'Manage it with fam browser use, start, stop, status, open, configure, or reset.', '',
+    'Manage it with fam browser use, start, stop, status, open, configure, or reset.',
+    'Inspect starting HTTP/browser routes: fam cli.browser.transport list --transport auto', '',
     'Global options', '--------------',
     rows([
       ['--help, -h', 'Show help, including command flags and examples.'],
@@ -155,6 +156,14 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
   }
   if (values['dry-run'] && object(data)) return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
   if (command.id === 'cli.command list') return commandList(data as {command: string; description: string}[], width);
+  if (['cli.browser.transport list', 'cli.browser.transport get'].includes(command.id)) {
+    const report = data as {policy:string;source:string;configured:boolean;mode?:string;session?:string;note:string;
+      routes:Array<{provider:string;origin:string|null;transport:string;reason:string}>};
+    return [`Transport policy: ${report.policy} (${report.source})`,
+      report.configured ? `Browser: ${report.mode}, session ${report.session}` : 'Browser: not configured', '',
+      ...report.routes.flatMap(route=>[`${route.provider}  ${route.origin ?? '(all other origins)'}`,
+        `  ${route.transport} — ${route.reason}`]), '', ...wrap(report.note,width), ''].join('\n');
+  }
   if (command.id === 'cli.provider list') return `Available providers\n\n${rows((data as {provider: string; name: string; description: string}[]).map(p => [p.provider, `${p.name} — ${p.description}`]), width)}\n\nBrowse commands: fam cli.command list --provider <PROVIDER>\n`;
   if (command.id === 'cli.command describe') {
     const found = commandById.get((data as {id: string}).id);

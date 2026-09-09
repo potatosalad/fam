@@ -43,15 +43,27 @@ export async function rememberBrowser(provider: string, origin: string, enabled 
   const key = createHash('sha256').update(origin).digest('hex').slice(0, 24);
   await writePrivateJson(`browser/${endpointId(config)}/routing/${provider}-${key}.json`, {origin, enabled});
 }
+export function transportPreference(config?: BrowserConfig): {policy: BrowserTransportMode; source: 'command' | 'configuration' | 'environment' | 'default'} {
+  if (overrides.transport !== undefined) return {policy: overrides.transport, source: 'command'};
+  if (config) return {policy: config.transport, source: 'configuration'};
+  if (process.env.FAM_TRANSPORT !== undefined) return {policy: process.env.FAM_TRANSPORT as BrowserTransportMode, source: 'environment'};
+  return {policy: 'auto', source: 'default'};
+}
+export function transportDecision(policy: BrowserTransportMode, remembered?: boolean): {transport: 'http' | 'browser'; reason: string} {
+  if (policy !== 'auto') return {transport: policy === 'browser' ? 'browser' : 'http', reason: `Selected ${policy} policy`};
+  return remembered === true ? {transport: 'browser', reason: 'Remembered browser route'}
+    : {transport: 'http', reason: remembered === false ? 'Browser route disabled' : 'No remembered browser route'};
+}
 export async function useBrowser(provider: string, origin: string): Promise<boolean> {
   const config = await browserConfig();
-  const transport = overrides.transport ?? config?.transport ?? process.env.FAM_TRANSPORT ?? 'auto';
-  if (transport !== 'auto') return transport === 'browser';
+  const {policy} = transportPreference(config);
+  if (policy !== 'auto') return transportDecision(policy).transport === 'browser';
   if (!config) return false;
   const key = createHash('sha256').update(origin).digest('hex').slice(0, 24);
-  return (await readPrivateJson<{enabled: boolean}>(`browser/${endpointId(config)}/routing/${provider}-${key}.json`))?.enabled === true;
+  const remembered = await readPrivateJson<{enabled: boolean}>(`browser/${endpointId(config)}/routing/${provider}-${key}.json`);
+  return transportDecision(policy, remembered?.enabled).transport === 'browser';
 }
-export async function directOnly(): Promise<boolean> {return (overrides.transport ?? (await browserConfig())?.transport ?? process.env.FAM_TRANSPORT) === 'http';}
+export async function directOnly(): Promise<boolean> {return transportPreference(await browserConfig()).policy === 'http';}
 export interface BrowserSessionMarker {browserInstance?: string}
 export async function loadProviderSession<T>(provider: string): Promise<T | undefined> {
   const config = await browserConfig();
