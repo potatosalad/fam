@@ -15,7 +15,7 @@ export interface BrowserFetchOptions {
   url: string; mode: 'navigate' | 'request'; format: FetchFormat; context: string;
   headers: Record<string, string>; cookies: Record<string, unknown>[];
   method: string; bodyBase64?: string; timeout: number; waitMs: number;
-  selector?: string; keepTab: boolean; redirects: 'follow' | 'manual' | 'error';
+  selector?: string; keepTab: boolean; open?: boolean; redirects: 'follow' | 'manual' | 'error';
 }
 interface WireResponse {url: string; status: number; statusText: string; headers: [string, string][]; bodyBase64: string}
 interface PageResponse extends WireResponse {pending: boolean; html: string; contentHtml: string; text: string; title: string; ready: boolean; selected: boolean}
@@ -34,6 +34,7 @@ function httpUrl(value: string): URL {
 }
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 export async function browserFetchOptions(values: Values): Promise<BrowserFetchOptions> {
+  if (values.open && values['no-open']) throw new UsageError('Choose --open or --no-open.');
   const url = httpUrl(String(values.url)), headers = new Headers();
   if (values['headers-file']) {
     let input: unknown; try {input = JSON.parse(await readCommandFile(String(values['headers-file']), 'utf8'));} catch {throw new UsageError('--headers-file must contain a JSON object of header strings.');}
@@ -81,7 +82,8 @@ export async function browserFetchOptions(values: Values): Promise<BrowserFetchO
     throw new UsageError('--private uses a separate general browsing context; omit --context or select web.');
   return {url: url.href, headers: Object.fromEntries(headers), cookies, mode, format, method, ...(body === undefined ? {} : {bodyBase64: body.toString('base64')}),
     context: values.private ? 'web-private' : String(values.context ?? 'web'), timeout: Number(values.timeout ?? 60), waitMs: Number(values['wait-ms'] ?? 0),
-    selector: values['wait-for'] as string | undefined, keepTab: !!values['keep-tab'], redirects: (values.redirects ?? 'follow') as BrowserFetchOptions['redirects']};
+    selector: values['wait-for'] as string | undefined, keepTab: !!values['keep-tab'] || !!values.open,
+    open: values.open ? true : values['no-open'] ? false : undefined, redirects: (values.redirects ?? 'follow') as BrowserFetchOptions['redirects']};
 }
 const markdown = new TurndownService({headingStyle: 'atx', codeBlockStyle: 'fenced', bulletListMarker: '-'}).use(gfm);
 export function extractBrowserContent(html: string, url: string, visibleText?: string, contentHtml?: string) {
@@ -136,14 +138,19 @@ export function renderBrowserFetch(result: BrowserFetchResult, format: FetchForm
 }
 async function navigate(tab: BrowserTab, options: BrowserFetchOptions, url = options.url): Promise<PageResponse> {
   await tab.browser.api('/fam/page-start', {userId: tab.userId, tabId: tab.id, url, headers: options.headers, timeoutMs: options.timeout * 1000});
-  let end = Date.now() + options.timeout * 1000, notified = false, readyAt: number | undefined;
+  let end = Date.now() + options.timeout * 1000, notified = false, readyAt: number | undefined, challengeAt: number | undefined;
   while (true) {
     const response = await tab.browser.api<PageResponse>('/fam/page-result', {userId:tab.userId, tabId:tab.id, selector:options.selector});
     const challenge = !response.pending && (isChallenge(new Headers(response.headers), response.html) || /Enable JavaScript and cookies to continue/i.test(response.text));
     // Empty script-only documents may navigate after obtaining clearance.
     const blank = !response.pending && !response.text?.trim() && /<script\b/i.test(response.html) && !/<(?:img|video|form|input)\b/i.test(response.contentHtml);
-    if ((challenge || blank) && !notified) {
-      notified = true; end = Date.now() + tab.browser.config.timeout * 1000;
+    if (challenge && challengeAt === undefined) {
+      challengeAt = Date.now(); end = challengeAt + tab.browser.config.timeout * 1000;
+    }
+    // Give automatic verification a chance to finish without opening a viewer.
+    // A blank app-loading document alone never requests human interaction.
+    if (challenge && !notified && (Date.now() - challengeAt! >= 2000 || Date.now() >= end)) {
+      notified = true;
       await tab.browser.notify();
     }
     if (!response.pending && response.ready && !challenge && !blank && (!options.selector || response.selected)) {
@@ -151,7 +158,7 @@ async function navigate(tab: BrowserTab, options: BrowserFetchOptions, url = opt
       if (Date.now() - readyAt >= options.waitMs) return response;
     } else readyAt = undefined;
     if (Date.now() >= end) {
-      if (challenge || blank) throw new BrowserError(`Browser verification did not finish. Complete it at ${tab.browser.endpoint.vncUrl}, then retry.`, 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
+      if (challenge) throw new BrowserError(`Browser verification did not finish. Complete it at ${tab.browser.endpoint.vncUrl}, then retry.`, 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
       throw new BrowserError(options.selector ? 'Timed out waiting for the selected element.' : 'Timed out waiting for the browser page.', 'BROWSER_PAGE_TIMEOUT');
     }
     await delay(300);
@@ -168,6 +175,7 @@ async function request(tab: BrowserTab, options: BrowserFetchOptions): Promise<W
       // Never automatically replay a potentially mutating request.
       if (!['GET','HEAD'].includes(method) || verified) {
         await tab.navigate(url.origin).catch(() => {});
+        await tab.browser.notify(0);
         throw new BrowserError(`This request requires verification. Open ${tab.browser.endpoint.vncUrl} and retry; the operation was not replayed.`, 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
       }
       verified = true;
@@ -178,6 +186,7 @@ async function request(tab: BrowserTab, options: BrowserFetchOptions): Promise<W
       response = await tab.browser.api<WireResponse>('/fam/fetch-request', {userId:tab.userId,tabId:tab.id,url:url.href,method,headers,bodyBase64,timeoutMs:options.timeout * 1000}, options.timeout * 1000 + 5000);
       if (isChallenge(new Headers(response.headers), decodedBody(response))) {
         await tab.navigate(url.href).catch(() => {});
+        await tab.browser.notify(0);
         throw new BrowserError(`The website still requires verification at ${tab.browser.endpoint.vncUrl}.`, 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
       }
     }
@@ -199,9 +208,11 @@ export async function fetchBrowserUrl(options: BrowserFetchOptions): Promise<Bro
   if (!capabilities.fetch) throw new BrowserError('URL fetching needs an updated fam Camofox plugin. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
   if (options.context === 'web-private' && !capabilities.privateFetch)
     throw new BrowserError('Private URL fetching needs an updated fam Camofox plugin and its private-window engine support. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
+  if (options.open !== undefined) browser.config.open = options.open;
   const tab = await browser.tab(options.context);
   let preserve = options.keepTab;
   try {
+    if (options.open) await browser.openViewer();
     if (options.cookies.length) await browser.api('/fam/cookies', {userId:tab.userId,cookies:options.cookies,explicit:true});
     const response = options.mode === 'navigate' ? await navigate(tab, options) : await request(tab, options);
     const result = browserFetchResult(options,response);

@@ -183,6 +183,7 @@ export interface BrowserCookie {name: string; value: string; domain: string; pat
 export interface StorageState {cookies: BrowserCookie[]; origins: unknown[]}
 export class Camofox {
   readonly endpoint: BrowserEndpoint;
+  private viewerOpened = false;
   constructor(readonly config: BrowserConfig) {this.endpoint = config[config.mode]!;}
   async api<T = any>(path: string, body?: unknown, timeout = 60000): Promise<T> {
     let response: Response;
@@ -220,7 +221,11 @@ export class Camofox {
     return new BrowserTab(this, provider, result.tabId);
   }
   async state(provider: string): Promise<StorageState> {return (await this.api('/fam/storage', {userId: this.userId(provider)})).state;}
-  async notify(timeout = this.config.timeout) {process.stderr.write(`Complete sign-in or verification at ${this.endpoint.vncUrl}\n${timeout > 0 ? `Waiting up to ${timeout} seconds; the command will resume automatically.` : 'Complete verification, then rerun the command.'}\n`); if (this.config.open) await openUrl(this.endpoint.vncUrl);}
+  async openViewer(): Promise<boolean> {
+    if (!this.viewerOpened) this.viewerOpened = await openUrl(this.endpoint.vncUrl);
+    return this.viewerOpened;
+  }
+  async notify(timeout = this.config.timeout) {process.stderr.write(`Complete sign-in or verification at ${this.endpoint.vncUrl}\n${timeout > 0 ? `Waiting up to ${timeout} seconds; the command will resume automatically.` : 'Complete verification, then rerun the command.'}\n`); if (this.config.open) await this.openViewer();}
 }
 export class BrowserTab {
   constructor(readonly browser: Camofox, readonly provider: string, readonly id: string) {}
