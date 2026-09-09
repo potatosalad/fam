@@ -356,3 +356,40 @@ test('corrupt archive markers are reported and a new marker can follow a partial
   assert.equal(list.entries.length, 0); assert.equal(list.notices.length, 3);
   assert.equal((await queryHistory('get', {id: id(1)}) as HistoryDetail).entry.archived, true);
 });
+
+test('history limits have no fixed cap and zero returns all matching invocations and summary groups', async () => {
+  for (let number = 1; number <= 251; number++) await save(record(number,
+    number <= 125 ? '2026-09-08T01:00:00Z' : '2026-09-09T01:00:00Z', 'ancestry.person get', 'hard_failure', {error: {code: `FIXTURE_${number}`}}));
+  await save(record(252, '2026-09-09T02:00:00Z', 'familysearch.person get'));
+  for (const object of ['cli.history', 'cli.history.failures']) for (const action of ['list', 'summary']) {
+    assert.equal(parseInvocation([object, action, '--offset', '2000000']).values.offset, 2_000_000);
+    for (const limit of [0, 201, 100000, Number.MAX_SAFE_INTEGER]) {
+      const parsed = parseInvocation([object, action, '--limit', String(limit)]);
+      assert.equal(parsed.values.limit, limit);
+      assert.equal(parsed.command.flags.find(flag => flag.name === 'limit')!.maximum, undefined);
+    }
+    for (const limit of ['-1', '1.5', 'NaN', '9007199254740992']) assert.throws(() => parseInvocation([object, action, '--limit', limit]));
+  }
+  const page = await queryHistory('list', {limit: 201}) as HistoryList;
+  assert.equal(page.entries.length, 201); assert.equal(page.hasMore, true); assert.equal(page.nextOffset, 201);
+  const all = await queryHistory('list', {limit: 0}) as HistoryList;
+  assert.equal(all.entries.length, 252); assert.equal(all.filesScanned, 2); assert.equal(all.limit, 0);
+  assert.equal(all.hasMore, false); assert.equal(all.nextOffset, null); assert.equal(all.next, null);
+  assert.equal((await queryHistory('list', {}) as HistoryList).entries.length, 20);
+  const failures = await queryHistory('list', {limit: 0, provider: ['ancestry'], offset: 200}, undefined, {failures: true}) as HistoryList;
+  assert.equal(failures.entries.length, 51); assert.equal(failures.hasMore, false);
+  assert.deepEqual((await queryHistory('list', {limit: 0, offset: 999}) as HistoryList).entries, []);
+  const summary = await queryHistory('summary', {limit: 0, 'group-by': 'code'}, undefined, {failures: true}) as HistorySummary;
+  assert.equal(summary.groups.length, 251); assert.equal(summary.count, 251); assert.equal(summary.next, null);
+  const rest = await queryHistory('summary', {limit: 0, offset: 200, 'group-by': 'code'}, undefined, {failures: true}) as HistorySummary;
+  assert.equal(rest.groups.length, 51); assert.equal(rest.next, null);
+  assert.equal((await queryHistory('summary', {limit: 201, 'group-by': 'code'}) as HistorySummary).groups.length, 201);
+  for (const limit of ['0', '1000']) {
+    const data = JSON.parse((await invoke(['cli.history.failures', 'list', '--limit', limit, '--json'])).stdout).data;
+    assert.equal(data.entries.length, 251); assert.equal(data.hasMore, false); assert.equal(data.next, null);
+  }
+  const human = (await invoke(['cli.history', 'list', '--limit', '0'])).stdout;
+  assert.match(human, /Showing 1–252/); assert.doesNotMatch(human, /More:/);
+  const help = (await invoke(['cli.history', 'list', '--help'])).stdout;
+  assert.match(help, /0 returns all matches/);
+});

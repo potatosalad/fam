@@ -294,13 +294,13 @@ export async function queryHistory(action: string, values: Values, excludeId?: s
     const ordered = [...groups.values()].sort((a, b) => (b.hard_failure + b.soft_failure) - (a.hard_failure + a.soft_failure)
       || b.count - a.count || b.lastSeen.localeCompare(a.lastSeen) || a.key.localeCompare(b.key));
     return {...scan, view: 'summary', count, counts, since: count ? new Date(first).toISOString() : null, until: count ? new Date(last).toISOString() : null,
-      groupBy, groups: ordered.slice(offset, offset + limit), totalGroups: ordered.length,
-      next: offset + limit < ordered.length ? nextCommand(action, values, offset + limit, failures) : null};
+      groupBy, groups: ordered.slice(offset, limit === 0 ? undefined : offset + limit), totalGroups: ordered.length,
+      next: limit > 0 && offset + limit < ordered.length ? nextCommand(action, values, offset + limit, failures) : null};
   }
   const entries: HistoryEntry[] = []; let seen = 0, hasMore = false;
   for await (const row of rows()) {
     if (seen++ < offset) continue;
-    if (entries.length === limit) {hasMore = true; break;}
+    if (limit > 0 && entries.length === limit) {hasMore = true; break;}
     entries.push(row);
   }
   return {...scan, view: failures ? 'failures' : 'list', entries, limit, offset, hasMore,

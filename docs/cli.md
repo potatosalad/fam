@@ -69,6 +69,7 @@ Use the CLI to browse history without writing `jq` queries:
 
 ```sh
 fam cli.history list
+fam cli.history list --limit 0
 fam cli.history.failures list --since 24h
 fam cli.history.failures list --provider ancestry --outcome soft_failure
 fam cli.history.failures list --code AUTH_RETRY
@@ -81,7 +82,7 @@ fam cli.history get --id <ID_FROM_LIST>
 
 `cli.history.failures` is a nested object with `list` and `summary` actions. It restricts results to recorded soft and hard failures. `cli.history` provides `list`, `summary`, `get`, and `archive` for all outcomes; run `fam cli.history` or `fam cli.history.failures` to browse their help. The list, summary, and get views read the active local profile without contacting any provider, running a credential helper, or rewriting historical records. History commands are still logged unless `FAM_HISTORY=0`.
 
-Lists show the newest **start times** first, merging each invocation's start and finish into one entry. Each entry prints the full `fam` command with every argument, quoted for bash/zsh so spaces, quotes, empty strings, and shell metacharacters retain their meaning. Commands are never clipped or reformatted to fit the terminal; the terminal wraps them naturally. Control characters are represented with reversible shell escapes. The default is 20 matches; `--limit` (up to 200) and `--offset` paginate results. The printed `More` command preserves your filters. `get --id` accepts a full invocation UUID or a unique prefix of at least eight characters; ambiguous prefixes ask for a longer ID. Details include the full command, working directory, captured input paths, error and cause stacks, recovery diagnostics, runtime/build information, and the original filename and line numbers. JSON entries include both the exact `argv` array and a copyable `commandLine`. An unfinished invocation means no finish was recorded, not proof of a crash. Lists and summaries hide archived entries by default; add `--include-archived` to include them. `get --id` always opens the requested entry, including archived entries. JSON entries include `archived`, `archivedAt`, and `archiveId`; human output labels archived entries.
+Lists show the newest **start times** first, merging each invocation's start and finish into one entry. Each entry prints the full `fam` command with every argument, quoted for bash/zsh so spaces, quotes, empty strings, and shell metacharacters retain their meaning. Commands are never clipped or reformatted to fit the terminal; the terminal wraps them naturally. Control characters are represented with reversible shell escapes. The default is 20 matches. `--limit 0` returns all matching entries; positive limits have no fixed cap. `--offset` skips matching entries before applying the limit, including when the limit is zero. The printed `More` command preserves your filters. `get --id` accepts a full invocation UUID or a unique prefix of at least eight characters; ambiguous prefixes ask for a longer ID. Details include the full command, working directory, captured input paths, error and cause stacks, recovery diagnostics, runtime/build information, and the original filename and line numbers. JSON entries include both the exact `argv` array and a copyable `commandLine`. An unfinished invocation means no finish was recorded, not proof of a crash. Lists and summaries hide archived entries by default; add `--include-archived` to include them. `get --id` always opens the requested entry, including archived entries. JSON entries include `archived`, `archivedAt`, and `archiveId`; human output labels archived entries.
 
 Filter lists and summaries with:
 
@@ -96,7 +97,7 @@ Filter lists and summaries with:
 
 Different filters combine with AND; repeated provider/outcome values combine with OR. By default, successful history queries and shell completion lookups are hidden to keep routine checks readable. Use `--include-utility` or an explicit `--command` filter to include them; their failures are always eligible. The query currently running is excluded from its own results. Add `--json` for the standard structured envelope, or `--out FILE` to export the current view using private file permissions.
 
-Summaries count matching invocations and show the ten leading groups by default. `--group-by command` is the default; `provider` and `code` are also available. Groups with the most failures appear first. One invocation can have multiple diagnostic codes, but is counted once per code, so code-group totals may exceed the invocation total. `--limit` and `--offset` also paginate summary groups.
+Summaries count matching invocations and show the ten leading groups by default. `--group-by command` is the default; `provider` and `code` are also available. Groups with the most failures appear first. One invocation can have multiple diagnostic codes, but is counted once per code, so code-group totals may exceed the invocation total. `--limit` and `--offset` also paginate summary groups; `--limit 0` returns every matching group.
 
 Use **one archive command** to hide reviewed history while retaining the original evidence:
 

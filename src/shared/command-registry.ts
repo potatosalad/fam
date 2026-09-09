@@ -434,8 +434,8 @@ const historyFlags: Record<string, Partial<Flag>> = {
   until: {description: 'Started at or before this time. A YYYY-MM-DD date includes the entire UTC day.'},
   'include-utility': {type: 'boolean', description: 'Also show successful history queries and shell completion lookups; their failures are always included.'},
   'include-archived': {type: 'boolean', description: 'Include entries hidden by archive markers.'},
-  limit: {default: 20, maximum: 200, description: 'Maximum invocations or summary groups to show.'},
-  offset: {maximum: 1_000_000, description: 'Skip this many matching invocations or summary groups.'},
+  limit: {default: 20, minimum: 0, description: 'Maximum invocations or summary groups to show; 0 returns all matches. Positive limits have no fixed cap.'},
+  offset: {description: 'Skip this many matching invocations or summary groups.'},
   'group-by': {choices: ['command', 'provider', 'code'], default: 'command', description: 'Group matches by command, provider, or diagnostic/error code.'},
 };
 for (const object of ['history', 'history.failures']) for (const action of ['list', 'summary']) {
