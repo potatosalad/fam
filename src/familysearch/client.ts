@@ -8,6 +8,7 @@ import type { GenealogyApi, OperationArgs, OperationName, OperationOutput } from
 import { ResearchClient } from './research.js';
 import { ResearchTransport, isResearchPath, researchUrl } from './research-transport.js';
 import { refreshFamilySearchTokens } from './session.js';
+import {reportDiagnostic} from '../shared/diagnostics.js';
 
 export function apiUrl(path: string, query: Query = {}): URL {
   if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) throw new Error('Supply an absolute API path, not a URL.');
@@ -51,6 +52,7 @@ export class FamilySearchClient {
           return result;
         } catch (error) {
           if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0 || renewed) throw error;
+          reportDiagnostic('AUTH_RETRY', 'Authentication was rejected; renewing the session and retrying once.', error);
           if (this.session!.tokens.access_token === accessToken) await this.renew();
         }
       }
@@ -157,6 +159,7 @@ export class FamilySearchClient {
         // Only a definitive authentication rejection is retried; network errors and 5xx
         // are ambiguous for writes and are returned without replaying the mutation.
         if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0 || renewed) throw error;
+        reportDiagnostic('AUTH_RETRY', 'Authentication was rejected; renewing the session and retrying once.', error);
         if (this.session!.tokens.access_token === accessToken) await this.renew();
       }
     }
@@ -183,6 +186,7 @@ export class FamilySearchClient {
         return result;
       } catch (error) {
         if (!(error instanceof HttpError) || error.status !== 401 || attempt !== 0 || renewed) throw error;
+        reportDiagnostic('AUTH_RETRY', 'Authentication was rejected; renewing the session and retrying once.', error);
         // Another concurrent request may already have renewed this token.
         if (this.session!.tokens.access_token === accessToken) await this.renew();
       }

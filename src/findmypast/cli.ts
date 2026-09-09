@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import {loadProviderSession} from '../shared/browser-config.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
@@ -138,6 +139,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   }
   if (result instanceof Uint8Array && !values.out) throw new Error('Binary results require --out FILE.');
   const output = result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`;
+  if (values.out) inspectResult(result);
   if (values.out) {
     await writeOutput(values.out, output);
     if (sidecar) await writeOutput(`${values.out}.json`, `${stringifyJson(sidecar, 2)}\n`);

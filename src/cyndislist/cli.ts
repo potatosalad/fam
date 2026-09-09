@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import {parseArgs} from 'node:util';
 import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
 import {dirname} from 'node:path';
@@ -17,6 +18,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   else if (command === 'resolve') result = await client.resolve(arg, v.refresh);
   else if (command === 'search') result = await search(arg, {allPages: v['all-pages'], cursor: v.cursor});
   else throw new Error('Unknown Cyndi’s List command.');
+  if (v.out) inspectResult(result);
   if (v.out) {
     await mkdir(dirname(v.out), {recursive: true, mode: 0o700});
     const temporary = `${v.out}.${randomUUID()}.tmp`;

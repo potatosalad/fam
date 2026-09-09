@@ -6,6 +6,13 @@ import {parseInvocation, parseNamespaceHelp, unknownCommand, describe, help, Usa
 import {searchCommands, contextCommands} from './shared/command-search.js';
 import {stringifyJson} from './shared/json.js';
 import {humanOutput, wantsJson, namespaceHelp, commandError} from './shared/command-output.js';
+import {startCommandHistory} from './shared/command-history.js';
+
+const history = await startCommandHistory(process.argv.slice(2));
+const attempted = commandById.get(process.argv.slice(2, 4).join(' '));
+if (attempted) history.command(attempted.id, attempted.provider);
+process.on('exit', code => history.finish(code));
+process.on('uncaughtExceptionMonitor', error => history.fail(error));
 
 const providers = {
   familysearch: () => import('./familysearch/cli.js'), ancestry: () => import('./ancestry/cli.js'),
@@ -82,6 +89,7 @@ async function main() {
   }
   invocation = parseInvocation(args);
   const {command, values} = invocation;
+  history.command(command.id, command.provider, command.risk.level !== 'local' || command.object === 'health');
   if (values.help) {process.stdout.write(wantsJson(values) ? `${stringifyJson(describe(command), 2)}\n` : help(command)); return;}
   const {setBrowserOverrides} = await import('./shared/browser-config.js');
   setBrowserOverrides({transport: values.transport as 'auto' | 'http' | 'browser' | undefined, timeout: values['browser-timeout'] as number | undefined});
@@ -89,7 +97,7 @@ async function main() {
   if (values['dry-run']) {
     data = {dryRun: true, invocation: syntax(command), flags: Object.fromEntries(Object.entries(values).map(([name, value]) =>
       [name, command.flags.find(flag => flag.name === name)?.sensitive ? '[REDACTED]' : value])), risk: command.risk,
-      note: 'CLI flags validated only. No provider requests, credential lookup, file writes, or operation simulation.'};
+      note: 'CLI flags validated only. No provider requests, credential lookup, output file writes, or operation simulation. Command history is recorded unless FAM_HISTORY=0.'};
   } else if (command.provider === 'cli') data = await cliCommand(invocation);
   else if (command.binding.command[0] === 'sync' && command.provider !== 'cyndislist') {
     const {syncCredentials} = await import('./shared/credential-sync.js');
@@ -97,6 +105,7 @@ async function main() {
     if (!await syncCredentials(command.provider === 'newspaperarchive' ? 'storied' : command.provider, CREDENTIAL_DIR)) throw new Error('No credential sync helper is configured. Set credentialsSyncCommand in config.json.');
     data = {synced: true, provider: command.provider};
   } else data = await (await providers[command.provider]()).runProvider(invocation.args);
+  if (!values['dry-run'] && (command.provider !== 'cli' || command.object === 'health')) history.result(data);
   const envelope = {schemaVersion: 1, ok: true, command: command.id, data: data ?? null,
     ...(!values['dry-run'] && command.pagination ? {pagination: command.pagination} : {})};
   const rendered = () => wantsJson(values) ? `${stringifyJson(envelope, 2)}\n` : humanOutput(command, data, values, process.stdout.columns ?? 100);
@@ -118,6 +127,7 @@ main().finally(async () => {
   const {closeBrowserTransportTabs} = await import('./shared/browser-transport.js');
   await closeBrowserTransportTabs();
 }).catch(error => {
+  history.fail(error);
   const usage = error instanceof UsageError;
   const message = (error as NodeJS.ErrnoException)?.code === 'EEXIST' ? 'Output or provenance file already exists; choose a new --out path.'
     : error instanceof Error ? error.message : 'fam command failed.';
@@ -132,4 +142,4 @@ main().finally(async () => {
   else process.stderr.write(usage && error.navigation ? commandError(error.navigation, process.stderr.columns ?? 100)
     : `Error: ${message}\n${suggestion ? `\nTry: ${suggestion}\n` : ''}`);
   process.exitCode = usage ? 2 : 1;
-});
+}).finally(() => history.settled());

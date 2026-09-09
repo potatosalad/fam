@@ -1,3 +1,5 @@
+import {reportDiagnostic} from './diagnostics.js';
+
 /** Only an explicit authentication rejection permits replay, never a permission or transport failure. */
 export function isAuthenticationFailure(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -18,6 +20,7 @@ export async function withSessionRefresh<T>(send: () => Promise<T>, refresh?: ()
   try {return await send();}
   catch (error) {
     if (!refresh || !isAuthenticationFailure(error)) throw error;
+    reportDiagnostic('AUTH_RETRY', 'Authentication was rejected; renewing the session and retrying once.', error);
     await refresh();
     return send();
   }

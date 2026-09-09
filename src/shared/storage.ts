@@ -2,6 +2,8 @@ import { chmod, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import {chmodSync, closeSync, constants, fchmodSync, fstatSync, mkdirSync, openSync, writeSync} from 'node:fs';
+import {reportDiagnostic} from './diagnostics.js';
 
 export function credentialDirectory(env: NodeJS.ProcessEnv = process.env, platform = process.platform, home = homedir()): string {
   const setting = env.FAM_CONFIG_DIR !== undefined ? 'FAM_CONFIG_DIR' : 'FAMILYSEARCH_CONFIG_DIR';
@@ -22,6 +24,25 @@ function credentialPath(name: string): string {
     throw new Error('Credential filenames must stay within the configuration directory.');
   }
   return path;
+}
+
+/** One O_APPEND write per record keeps concurrent CLI writers from overwriting each other.
+ * Synchronous writes also work from Node's exit handler. History is local, private storage. */
+export function appendPrivateJsonl(name: string, value: unknown): void {
+  const path = credentialPath(name);
+  mkdirSync(dirname(path), {recursive: true, mode: 0o700});
+  for (let directory = dirname(path); ; directory = dirname(directory)) {
+    chmodSync(directory, 0o700);
+    if (directory === CREDENTIAL_DIR) break;
+  }
+  const fd = openSync(path, constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | (constants.O_NOFOLLOW ?? 0), 0o600);
+  try {
+    const info = fstatSync(fd);
+    if (!info.isFile() || info.nlink !== 1) throw new Error('History must be a regular private file.');
+    fchmodSync(fd, 0o600);
+    const line = Buffer.from(`${JSON.stringify(value)}\n`);
+    if (writeSync(fd, line) !== line.length) throw new Error('Incomplete history write.');
+  } finally {closeSync(fd);}
 }
 
 export async function readPrivateJson<T>(name: string): Promise<T | undefined> {
@@ -52,6 +73,9 @@ export async function writePrivateJson(name: string, value: unknown): Promise<vo
   if (changed) {
     const {syncCredentials} = await import('./credential-sync.js');
     try {await syncCredentials(changed[1] ?? 'familysearch', CREDENTIAL_DIR, name);}
-    catch (error) {process.stderr.write(`${(error as Error).message}\n`);}
+    catch (error) {
+      reportDiagnostic('CREDENTIAL_SYNC_FAILED', 'Credential sync failed; local credentials were saved.', error);
+      process.stderr.write(`${(error as Error).message}\n`);
+    }
   }
 }

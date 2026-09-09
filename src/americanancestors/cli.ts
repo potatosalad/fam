@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import {parseArgs} from 'node:util';
 import {CREDENTIAL_DIR} from '../shared/storage.js';
 import {configureCredentials} from '../shared/credentials.js';
@@ -52,6 +53,7 @@ export async function runProvider(argv: string[]) {
       const download=await downloadImage(client,arg);await saveDownload(String(v.out),download);return {saved:v.out,...download.metadata};
     } else throw new Error('Unknown American Ancestors command.');
   }
+  if (v.out) inspectResult(result);
   if (v.out) {await saveOutput(String(v.out),stringifyJson(result,2)+'\n');return {saved:v.out};}
   return result;
 }

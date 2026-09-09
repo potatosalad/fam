@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
 import { readFile, writeFile, rename, rm, mkdir } from 'node:fs/promises';
@@ -91,6 +92,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     }
   }
   const output = `${stringifyJson(result ?? null, 2)}\n`;
+  if (values.out) inspectResult(result);
   if (values.out) {
     await mkdir(dirname(values.out), {recursive: true, mode: 0o700});
     const temporary = `${values.out}.${randomUUID()}.tmp`;

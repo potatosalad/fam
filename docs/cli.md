@@ -63,6 +63,48 @@ Provider pagination defaults and continuation fields are preserved. Paginated co
 
 `--format text` and `--format json` remain available for transcripts, FamilySearch listings, health summaries, and shell scripts. Conflicting `--json` and `--format text`/`jsonl` flags fail before execution. FamilySearch listing `--format jsonl` emits tagged item records followed by a summary containing continuation information; file output retains item JSONL and returns continuation metadata in the receipt.
 
+## Command history
+
+Every invocation writes a `start` record and, on normal process exit, a `finish` record to `<profile>/history/YYYY-MM-DD.jsonl`. The default is `~/.config/fam/history/`; `FAM_CONFIG_DIR`, XDG configuration, and platform defaults follow the [profile rules](setup.md#storage-and-profiles). Dates are UTC. Both records use the starting date's file, even if the command crosses midnight. Help, completion, discovery, invalid invocations, and dry runs are included. This starts with the installed logging version; earlier calls cannot be reconstructed.
+
+The schema has `schemaVersion: 1`, a shared invocation `id`, timestamps, `command`, `provider`, redacted `argv`, CLI `version`, `build.revision` / `build.dirty`, and Node/platform information. The start record has the attempted argv; the canonical command becomes available after lookup. Finish records include `durationMs`, the actual `exitCode`, `settled`, `error`, and up to 32 `diagnostics` with codes, messages, result paths and selected error details. Error details include HTTP status, stack frames and bounded causes, when available. `build` is null when running TypeScript source directly; installed builds retain the Git revision from build time (or null when built without Git metadata).
+
+- `success`: exit code zero, command settled, and no detected failure diagnostics.
+- `soft_failure`: exit code zero with explicit returned errors/warnings, failure status, or a recorded recovery. Examples include GraphQL partial errors, stale-cache warnings, credential-sync failure, authentication rejection followed by a retry, transient document-service HTTP retries, and automatic browser fallback after a website challenge. Expected proactive token renewal is not a failure.
+- `hard_failure`: nonzero exit (including syntax errors and health-check findings), an uncaught error, or exit before the command settled. Existing CLI output and exit-code behavior stay the same.
+
+Inspection looks for explicit `error(s)`, `warning(s)`, `ok: false`, `success: false`, failure/warning/partial status, and `partial: true`, including nested results and results saved using `--out`. Empty searches, `authenticated: false` in local session status, and pagination such as `complete: false` are not failures by themselves. Schema/discovery results are excluded from inspection. Inspection is bounded to 10,000 objects and 20 levels; a success classification means no detected marker, not proof that a provider's answer is correct. Newly discovered silent failure cases should add a regression test and either a provider validation or an explicit diagnostic using `src/shared/diagnostics.ts`.
+
+Search completed failures with `jq` (substitute your profile path if different):
+
+```sh
+jq -c 'select(.event == "finish" and .outcome != "success")' ~/.config/fam/history/*.jsonl
+
+# Soft failures only; the CLI still exited zero.
+jq -c 'select(.event == "finish" and .outcome == "soft_failure")' ~/.config/fam/history/*.jsonl
+
+# Find a recovery or error code.
+jq -c 'select(.event == "finish" and any(.diagnostics[]?; .code == "AUTH_RETRY"))' ~/.config/fam/history/*.jsonl
+
+# Most frequent failing commands (slurps the selected files into memory).
+jq -s '[.[] | select(.event == "finish" and .outcome != "success")]
+  | group_by(.command) | map({command: .[0].command, count: length}) | sort_by(-.count)' ~/.config/fam/history/*.jsonl
+```
+
+A start without a finish can mean a still-running process, signal termination (including Ctrl-C or SIGKILL), a crash, or a failed history write. It is not automatically a confirmed bug. Find these calls across the selected files, then check whether their process is still running:
+
+```sh
+jq -s 'group_by(.id)[] | select(any(.event == "start") and all(.event != "finish")) | .[]' ~/.config/fam/history/*.jsonl
+```
+
+History is local to each host and profile; it is not uploaded or synchronized with credentials. Direct library calls do not create history. Files use mode `0600` and directories `0700`; concurrent CLI processes append individual JSON records. Daily files are retained until you archive or delete them. Archive inactive days to manage disk use. Logging failures emit one warning per invocation and preserve the command's behavior. Disk failure or abrupt termination can still leave missing records or an incomplete final line.
+
+Argument values, stdin, environment dumps, full stdout/stderr, request/response bodies, headers, and credential objects are omitted. Diagnostic text redacts known argument/environment values, URL paths and queries, email addresses, and common token/password/cookie patterns. Free-form provider messages can contain other personal details, so keep history private and review selected diagnostics before including them in a public bug report. Messages and stacks are bounded; `droppedDiagnostics` counts additional emitted findings omitted after the 32-entry limit. Set `FAM_HISTORY=0` to disable recording for a process, including help and dry runs:
+
+```sh
+FAM_HISTORY=0 fam cli.version get
+```
+
 ## Shell completion
 
 `fam --completions bash` and `fam --completions zsh` print shell scripts. Enable completion in the current shell with `eval "$(fam --completions bash)"` (use `zsh` in zsh), or run `fam cli.completion install` to enable it in future shells. `fam cli.completion script --shell bash` remains available.
@@ -71,7 +113,7 @@ Provider pagination defaults and continuation fields are preserved. Paginated co
 
 There are no confirmation prompts or confirmation flags. Selecting an operation executes it, including writes. Generic API entries declare operation-dependent effects: an HTTP GET or GraphQL query can have side effects, and Findmypast's cataloged GetTranscriptById can confirm a credit purchase. Inspect the provider operation with `fam PROVIDER.api describe --operation NAME` when needed.
 
-`--dry-run` checks command flags and returns a plan without provider requests, credential lookup, or file writes. It does not simulate the service or validate arbitrary operation bodies. Provider response schemas are advisory during normal execution too.
+`--dry-run` checks command flags and returns a plan without provider requests, credential lookup, or output file writes. The invocation is still recorded in command history unless `FAM_HISTORY=0`. It does not simulate the service or validate arbitrary operation bodies. Provider response schemas are advisory during normal execution too.
 
 ## Migration
 

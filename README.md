@@ -173,6 +173,8 @@ Native HTTP handles sign-in and research; browser setup is not required for the 
 
 ## Use the commands
 
+Every CLI invocation also appends private JSONL history to `<profile>/history/YYYY-MM-DD.jsonl` (normally `~/.config/fam/history/`). History distinguishes hard failures from returned warnings, embedded errors, and recovered failures. It records timing, exit codes, redacted diagnostics and build revision without saving command argument values or response bodies. See [searching command history](docs/cli.md#command-history) for queries, coverage, and disabling history.
+
 Check your setup and diagnose provider failures:
 
 ```sh

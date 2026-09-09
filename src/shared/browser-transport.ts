@@ -3,6 +3,7 @@ import type {CookieJar} from 'tough-cookie';
 import {BrowserError, directOnly, endpointId, rememberBrowser, useBrowser} from './browser-config.js';
 import {configuredBrowser, updateCookieJar, jarCookies, type BrowserTab} from './browser-runtime.js';
 import {isChallenge, isChallengeResponse as challenged} from './browser-challenge.js';
+import {reportDiagnostic} from './diagnostics.js';
 export {isChallenge} from './browser-challenge.js';
 
 export type HttpResponse = Pick<Response, 'status' | 'headers' | 'arrayBuffer'> & {body?: ReadableStream<Uint8Array> | null};
@@ -69,6 +70,7 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
   };
   let response = await request();
   if (await challenged(response)) {
+    reportDiagnostic('BROWSER_CHALLENGE_RETRY', 'Website verification interrupted a browser request; retrying after verification.');
     void response.body?.cancel().catch(() => {});
     await rememberBrowser(provider, target.origin);
     await tab.navigate((init.method ?? 'GET') === 'GET' ? target.href : target.origin);
@@ -100,6 +102,7 @@ export async function fetchWithBrowser(provider: string, url: string | URL, init
   const response = await normalize(await direct());
   if (await directOnly() || !await challenged(response)) return response;
   void response.body?.cancel().catch(() => {});
+  reportDiagnostic('BROWSER_FALLBACK', 'Website verification required automatic browser transport.');
   process.stderr.write(`${provider}: website verification required; continuing in Camofox…\n`);
   return browserRequest(provider, target, init, jar, sessionCookies);
 }

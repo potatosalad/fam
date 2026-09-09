@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import { FamilySearchClient } from './client.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { CREDENTIAL_DIR } from '../shared/storage.js';
@@ -77,6 +78,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     }
   }
   if (output) {
+    inspectResult(result);
     await writeFile(resolve(output), result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`, { mode: 0o600 });
     await chmod(resolve(output), 0o600);
     return {saved: resolve(output), ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};

@@ -1,3 +1,4 @@
+import {reportDiagnostic} from '../shared/diagnostics.js';
 import {fetchWithBrowser} from '../shared/browser-transport.js';
 import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
@@ -94,12 +95,14 @@ export class ResearchTransport {
           } catch (error) {
             if (error instanceof BrowserError) throw error;
             if (attempt === 2) throw new ResearchError('temporary-failure', 'Document service connection failed after three attempts.');
+            reportDiagnostic('HTTP_RETRY', 'Document service connection failed; retrying a read.');
             await this.sleep(retryDelay(null, attempt));
             continue;
           }
           if (![429, 502, 503, 504].includes(response.status)) break;
           const delay = retryDelay(response.headers.get('retry-after'), attempt);
           if (attempt === 2 || delay > 30_000) break;
+          reportDiagnostic('HTTP_RETRY', 'Document service returned a temporary HTTP failure; retrying a read.', {status: response.status});
           await response.body?.cancel();
           await this.sleep(delay);
         }

@@ -75,11 +75,11 @@ test('empty words after actions suggest flags while preserving command and value
   }
 });
 
-test('completion CLI runs outside the checkout without accessing credentials', async () => {
+test('completion CLI runs outside the checkout without a profile when history is disabled', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'fam-completion-'));
   try {
     const { stdout, stderr } = await run(process.execPath, [...sourceArgs, 'cli.completion', 'query', '--format', 'text', '--word=familysearch.image', '--word=d'], {
-      cwd: directory, env: { ...process.env, FAM_CONFIG_DIR: join(directory, 'no-profile'), FAM_CREDENTIALS_COMMAND: '["must-not-run"]' },
+      cwd: directory, env: { ...process.env, FAM_CONFIG_DIR: join(directory, 'no-profile'), FAM_HISTORY: '0', FAM_CREDENTIALS_COMMAND: '["must-not-run"]' },
     });
     assert.equal(stdout, 'words\nd\ndownload\n');
     assert.equal(stderr, '');

@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import { parseArgs } from 'node:util';
 import { writeFile, chmod, link, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -71,7 +72,7 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
     text = items.map(x => stringifyJson(x)).join('\n') + (items.length ? '\n' : '');
     // Completion metadata is retained in the returned data envelope.
   } else text = `${stringifyJson(result,2)}\n`;
-  if (output) { await writeFile(resolve(output), text, { mode: 0o600 }); await chmod(resolve(output), 0o600); return {data: {saved: resolve(output), ...(format === 'jsonl' ? {pagination: Object.fromEntries(Object.entries(result as object).filter(([key]) => key !== 'items'))} : {})}}; }
+  if (output) { inspectResult(result); await writeFile(resolve(output), text, { mode: 0o600 }); await chmod(resolve(output), 0o600); return {data: {saved: resolve(output), ...(format === 'jsonl' ? {pagination: Object.fromEntries(Object.entries(result as object).filter(([key]) => key !== 'items'))} : {})}}; }
   return {data: result};
 }
 

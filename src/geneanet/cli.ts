@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import { parseArgs } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { configureCredentials } from '../shared/credentials.js';
@@ -78,6 +79,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     }
   }
   const text = `${stringifyJson(result, 2)}\n`;
+  if (v.out) inspectResult(result);
   if (v.out) {await saveOutput(v.out, text); return {saved: v.out};}
   return result;
 }

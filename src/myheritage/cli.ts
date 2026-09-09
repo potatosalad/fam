@@ -1,3 +1,4 @@
+import {inspectResult} from '../shared/diagnostics.js';
 import {loadProviderSession} from '../shared/browser-config.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { captureOptions } from '../shared/browser-capture.js';
@@ -195,6 +196,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   }
   if (result instanceof Uint8Array && !values.out) throw new Error('Binary responses require --out FILE.');
   const output = result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`;
+  if (values.out) inspectResult(result);
   if (values.out) {
     await mkdir(dirname(values.out), {recursive: true, mode: 0o700});
     const temporary = `${values.out}.${randomUUID()}.tmp`;
