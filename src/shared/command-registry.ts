@@ -468,8 +468,16 @@ add('cli', 'history-get', 'history get', 'Inspect one recorded invocation, inclu
   ...cliRisk, flags: {id: {required: true, description: 'Full invocation UUID or a unique prefix of at least eight characters from a history list.'}},
   examples: ['fam cli.history get --id 12345678', 'fam cli.history get --id 12345678 --json'],
 });
-add('cli', 'search', 'command search', 'Find commands by intent using local keyword and concept retrieval. Never executes a provider.', [], 'query provider context limit offset',
-  {...cliRisk, flags: {query: {required: true, description: 'What you want to do, in your own words.'}, provider: {choices: [...providerNames, 'cli']}, context: {description: 'Optional provider URL or ID to resolve locally and prefill matching flags.'}, limit: {default: 3, maximum: 100}}});
+add('cli', 'search', 'command search', 'Find commands by intent with 20% BM25 and 80% local semantic search. Downloads and caches a small model on first use.', [], 'query provider context limit offset lexical format scores',
+  {risk: {level: 'local', description: 'Searches command metadata locally; caches model files and embeddings in the active profile. Never executes a provider.'},
+    flags: {query: {required: true, description: 'What you want to do, in your own words.'}, provider: {choices: [...providerNames, 'cli']},
+      context: {description: 'Optional provider URL or ID to resolve locally and prefill matching flags.'},
+      limit: {default: 10, maximum: 100, description: 'Number of ranked matches to show.'}, offset: {description: 'Zero-based offset into ranked matches.'},
+      lexical: {type: 'boolean', description: 'Use only BM25; skip model loading and downloads.'},
+      scores: {type: 'boolean', description: 'Show relevance scores in table, tree, and text output. JSON always includes scores.'},
+      format: {default: 'table', choices: ['table', 'tree', 'text', 'json'], description: 'Ranked table, provider/object tree, detailed invocation templates, or JSON.'}},
+    examples: ['fam cli.command search --query "save a full resolution scan of a historical document"',
+      'fam cli.command search --query "merge duplicate people" --provider familysearch --format tree']});
 add('cli', 'describe', 'command describe', 'Read the complete registry entry: syntax, typed flags, examples, output schema, and risk.', [], 'command', {...cliRisk, flags: {command: {required: true, description: 'Command identity, for example familysearch.image download.'}}});
 add('cli', 'list', 'command list', 'List every registered command, optionally restricted to a provider.', [], 'provider', {...cliRisk, flags: {provider: {choices: [...providerNames, 'cli']}}});
 add('cli', 'providers', 'provider list', 'List available providers and what each one supports.', [], '', cliRisk);

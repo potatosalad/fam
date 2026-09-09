@@ -21,14 +21,14 @@ const invoke = (...args: string[]) => run(process.execPath, ['--import', import.
 });
 const data = (stdout: string) => JSON.parse(stdout).data;
 
-test('plain-language discovery finds hidden genealogy operations and preserves executable command identities', () => {
-  assert.equal((searchCommands('find memories', {provider: 'familysearch'}).results[0] as {operation?: string}).operation, 'memories.search');
+test('lexical discovery finds genealogy operations and preserves executable command identities', async () => {
+  assert.equal(((await searchCommands('memories.search', {provider: 'familysearch', lexical: true})).results[0] as {operation?: string}).operation, 'memories.search');
   for (const [query, expected] of [
     ['find memories', 'memories.search'], ['merge duplicate people', 'persons.merge'],
     ['undo merge', 'history.undoMerge'], ['attach source', 'sources.attach'],
     ['family groups', 'groups.list'], ['record hints', 'hints.recordMatches'],
   ]) {
-    const result = searchCommands(query, {provider: 'familysearch'});
+    const result = await searchCommands(query, {provider: 'familysearch', lexical: true});
     const match = result.results.find(item => 'operation' in item && item.operation === expected);
     assert.ok(match, `${query}: ${result.results.map(item => 'operation' in item ? item.operation : item.command)}`);
     assert.equal(match.command, 'familysearch.api call');
@@ -36,12 +36,12 @@ test('plain-language discovery finds hidden genealogy operations and preserves e
     assert.equal(match.describe, `fam familysearch.api describe --operation ${expected}`);
     assert.equal(parseInvocation(match.argv).values.operation, expected);
   }
-  const merge = searchCommands('persons.merge', {provider: 'familysearch', limit: 100}).results.find(item => 'operation' in item && item.operation === 'persons.merge')!;
+  const merge = (await searchCommands('persons.merge', {provider: 'familysearch', limit: 100, lexical: true})).results.find(item => 'operation' in item && item.operation === 'persons.merge')!;
   assert.equal(merge.risk.level, 'write');
   assert.equal(merge.ready, false);
   assert.ok(merge.missingFlags.includes('input'));
   assert.ok(discoverOperations('duplicate people').some(op => op.name === 'persons.merge'));
-  assert.ok(searchCommands('find memories', {provider: 'ancestry'}).results.every(item => !('operation' in item)));
+  assert.ok((await searchCommands('find memories', {provider: 'ancestry', lexical: true})).results.every(item => !('operation' in item)));
 });
 
 test('every implemented operation has discoverable descriptions, valid examples, and locally resolvable schemas', () => {
@@ -87,7 +87,7 @@ test('provider help, operation help, search, and examples work outside the check
   assert.ok(result.outputSchema.$defs);
   assert.equal(result.inputSchema.properties.query.properties.searchTerms.type, 'string');
   assert.ok(result.example.query.searchTerms);
-  const search = (await invoke('cli.command', 'search', '--query', 'find memories', '--provider', 'familysearch')).stdout;
+  const search = (await invoke('cli.command', 'search', '--lexical', '--format', 'text', '--query', 'find memories', '--provider', 'familysearch')).stdout;
   assert.match(search, /--operation memories.search/);
   assert.match(search, /Inspect: fam familysearch.api describe/);
   const file = join(CREDENTIAL_DIR, 'discovery-example.json');

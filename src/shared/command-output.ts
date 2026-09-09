@@ -6,6 +6,8 @@ import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navig
 import {fileURLToPath} from 'node:url';
 import {historyOutput} from './history-output.js';
 import type {HistoryView} from './history-query.js';
+import {searchTable, searchTree} from './command-search-output.js';
+import type {searchCommands} from './command-search.js';
 
 export const wantsJson = (values: Values): boolean => values.json === true || values.format === 'json';
 const label = (key: string): string => key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replaceAll(/[_-]/g, ' ').replace(/^./, s => s.toUpperCase());
@@ -151,9 +153,9 @@ function commandList(data: {command: string; description: string}[], width: numb
   const sections = [...groups].map(([provider, items]) => `${providerInfo[provider]?.name ?? provider} (${items.length})\n${rows(items.map(item => [item.command, item.description]), width)}`);
   return `${data.length} commands\n\n${sections.join('\n\n')}\n\nRun fam <provider>.<object> <action> --help for flags and examples.\n`;
 }
-interface Candidate {command: string; operation?: string; description: string; invocation: string; missingFlags: string[]; examples: string[]; describe?: string; limitations?: string[]; risk: {level: string; description: string}}
-function candidates(results: Candidate[], width: number): string {
-  return results.map((result, i) => [`${i + 1}. ${result.command}${result.operation ? ` — ${result.operation}` : ''}`,
+interface Candidate {command: string; operation?: string; score?: number; description: string; invocation: string; missingFlags: string[]; examples: string[]; describe?: string; limitations?: string[]; risk: {level: string; description: string}}
+function candidates(results: Candidate[], width: number, scores = false): string {
+  return results.map((result, i) => [`${i + 1}. ${result.command}${result.operation ? ` — ${result.operation}` : ''}${scores && result.score !== undefined ? `  (score: ${result.score.toFixed(6)})` : ''}`,
     ...wrap(result.description, width - 3).map(line => `   ${line}`), '', `   ${result.invocation}`,
     ...(result.missingFlags.length ? [`   Needs: ${result.missingFlags.map(name => `--${name}`).join(', ')}`] : []),
     ...(result.examples[0] && result.examples[0] !== result.invocation ? [`   Example: ${result.examples[0]}`] : []),
@@ -188,13 +190,19 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     if (found) return commandDescription(found, width);
   }
   if (command.id === 'cli.command search') {
-    const result = data as {query: string; total: number; offset: number; results: Candidate[]; hasMore: boolean; nextOffset: number; context?: {note?: string}};
-    if (!result.results.length) return `No commands found for “${result.query}”.\nTry fewer words, or browse with fam cli.command list.\n`;
+    const result = data as Awaited<ReturnType<typeof searchCommands>>;
+    const warnings = (result.warnings ?? []).map(warning => `Warning: ${warning}\n`).join('');
+    if (!result.results.length) return warnings + `No commands found for “${result.query}”.\nTry fewer words, or browse with fam cli.command list.\n`;
     const next = ['fam cli.command search', '--query', quote(result.query),
       ...(values.provider ? ['--provider', quote(String(values.provider))] : []),
       ...(values.context ? ['--context', quote(String(values.context))] : []),
+      ...(values.lexical ? ['--lexical'] : []), ...(values.format ? ['--format', quote(String(values.format))] : []),
+      ...(values.scores ? ['--scores'] : []),
       ...(values.limit !== undefined ? ['--limit', String(values.limit)] : []), '--offset', String(result.nextOffset)].join(' ');
-    return `Commands ${result.offset + 1}–${result.offset + result.results.length} of ${result.total} for “${result.query}”\n\n${candidates(result.results, width)}\n`
+    const matches = values.format === 'text' ? candidates(result.results, width, values.scores === true)
+      : values.format === 'tree' ? searchTree(result.results, values.scores === true) : searchTable(result.results, width, values.scores === true);
+    return warnings + `Commands ${result.offset + 1}–${result.offset + result.results.length} of ${result.total} for “${result.query}”\n\n${matches}\n`
+      + '\nTip: Use fam cli.command describe --command \'provider.object action\' for options and examples.\n'
       + (result.context?.note ? `\n${result.context.note}\n` : '') + (result.hasMore ? `\nMore: ${next}\n` : '');
   }
   if (command.id === 'cli.context resolve') {

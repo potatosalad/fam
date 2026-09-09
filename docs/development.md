@@ -32,6 +32,8 @@ npm run check
 
 This runs TypeScript checks, generated-file checks, mocked tests, and a build. Tests use temporary configuration directories and remove inherited login variables. CI runs them on Linux and macOS with Node 22 and 24.
 
+`npm run test:search` is an opt-in real-model retrieval check. It downloads public Arctic model files into a disposable profile, checks 16 natural-language intents, then disables network access to verify cached restarts, vector-cache recovery, and explicit BM25 fallback for damaged model files. It never contacts genealogy providers. Regular `npm test` uses injected synthetic embeddings and lexical CLI calls, so CI needs no model download.
+
 `npm run test:browser` additionally exercises HAR capture in headless Chromium. Install its binary with `npx playwright install chromium`, or set `FAM_TEST_BROWSER_CHANNEL=chrome` to use installed Chrome. These tests intercept every browser request and mock the importer's HTTP transport; they use synthetic logins, HTTP-only cookies, form tokens, and both Findmypast regions. They require no live accounts and use disposable profiles. Run them when changing browser capture or HAR import.
 
 ## Provider API contracts

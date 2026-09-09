@@ -23,8 +23,11 @@ These are unofficial clients. They use mobile and website APIs that can change w
 
 ## Find and run commands
 
+Command search uses 20% BM25 and 80% local Arctic embeddings. Its small model downloads automatically on first search and then works offline. No API key or service is needed; `--lexical` skips model loading. See [search options and caching](docs/cli.md).
+
 ```sh
 fam cli.command search --query "download an original image"
+fam cli.command search --query "merge duplicate people" --format tree
 fam cli.command describe --command "familysearch.image download"
 fam ancestry.person get --tree-id TREE --person-id PERSON
 fam ancestry.api.gql query --operation GetTreeList --variables '{"limit":20}'

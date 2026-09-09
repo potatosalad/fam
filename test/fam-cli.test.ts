@@ -46,7 +46,7 @@ test('discovery is readable by default even in a pipe; --json preserves the mach
   const json = JSON.parse((await invoke('cli.command', 'list', '--provider', 'ancestry', '--json')).stdout);
   assert.equal(json.ok, true); assert.equal(json.schemaVersion, 1);
   assert.ok(json.data.every((item: {command: string}) => item.command.startsWith('ancestry.')));
-  const search = (await invoke('cli.command', 'search', '--query', 'download original image', '--provider', 'familysearch', '--limit', '1')).stdout;
+  const search = (await invoke('cli.command', 'search', '--lexical', '--format', 'text', '--query', 'download original image', '--provider', 'familysearch', '--limit', '1')).stdout;
   assert.match(search, /fam familysearch\.image download/); assert.match(search, /Needs: --ark, --out/); assert.match(search, /More: fam cli\.command search/);
   const description = (await invoke('cli.command', 'describe', '--command', 'familysearch.image download')).stdout;
   assert.match(description, /^command: familysearch\.image download\n/);
@@ -192,19 +192,19 @@ test('discovery and dry-run need no profile; usage errors are structured and act
   }
 });
 
-test('local intent retrieval returns known commands and prefilled context without inventing arguments', () => {
+test('lexical retrieval returns known commands and prefilled context without inventing arguments', async () => {
   for (const [query, provider, expected] of [
     ['download original image', 'familysearch', 'familysearch.image download'],
     ['OCR transcription of a scan', 'familysearch', 'familysearch.image transcript'],
     ['find a grave biography', 'findagrave', 'findagrave.memorial search'],
-    ['sign in', 'myheritage', 'myheritage.session login'],
+    ['authenticate session', 'myheritage', 'myheritage.session login'],
     ['historical newspapers', 'findmypast', 'findmypast.newspaper search'],
     ['inspect GraphQL contract', 'ancestry', 'ancestry.api describe'],
-  ]) assert.ok(searchCommands(query, {provider}).results.some(r => r.command === expected), `${query}: ${searchCommands(query, {provider}).results.map(r => r.command)}`);
-  const found = searchCommands('download original image', {context: 'https://www.familysearch.org/ark:/61903/3:1:TEST'});
+  ]) assert.ok((await searchCommands(query, {provider, lexical: true})).results.some(r => r.command === expected), `${query}: ${(await searchCommands(query, {provider, lexical: true})).results.map(r => r.command)}`);
+  const found = await searchCommands('download original image', {lexical: true, context: 'https://www.familysearch.org/ark:/61903/3:1:TEST'});
   const download = found.results.find(r => r.command === 'familysearch.image download')!;
   assert.equal(download.prefilledFlags.ark, '3:1:TEST'); assert.deepEqual(download.missingFlags, ['out']); assert.equal(download.ready, false);
   assert.deepEqual(resolveContext('9223372036854775807').flags, {});
   assert.deepEqual(resolveContext('https://www.familysearch.org.evil.example/ark:/61903/3:1:TEST').flags, {});
-  assert.deepEqual(searchCommands('download original image'), searchCommands('download original image'));
+  assert.deepEqual(await searchCommands('download original image', {lexical: true}), await searchCommands('download original image', {lexical: true}));
 });
