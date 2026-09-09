@@ -255,13 +255,14 @@ export async function updateCookieJar(jar: CookieJar, state: StorageState, origi
   }
   for (const cookie of state.cookies) {
     const domain = cookie.domain.replace(/^\./, '');
-    if (url.hostname !== domain && !url.hostname.endsWith(`.${domain}`)) continue;
-    const parts = [`${cookie.name}=${cookie.value}`, `Path=${cookie.path || '/'}`];
-    if (cookie.domain.startsWith('.')) parts.push(`Domain=${domain}`);
-    if (cookie.secure) parts.push('Secure'); if (cookie.httpOnly) parts.push('HttpOnly');
-    if (cookie.sameSite) parts.push(`SameSite=${cookie.sameSite}`);
-    if (cookie.expires > 0) parts.push(`Expires=${new Date(cookie.expires * 1000).toUTCString()}`);
-    await jar.setCookie(parts.join('; '), origin);
+    const hostOnly = !cookie.domain.startsWith('.');
+    if (url.hostname !== domain && (hostOnly || !url.hostname.endsWith(`.${domain}`))) continue;
+    // Browser storage is already structured. Re-parsing it as Set-Cookie rejects
+    // valid nameless cookies and can interpret cookie values as attributes.
+    await jar.setCookie(new Cookie({key: cookie.name, value: cookie.value, domain, hostOnly,
+      path: cookie.path || '/', secure: cookie.secure, httpOnly: cookie.httpOnly,
+      ...(cookie.sameSite ? {sameSite: cookie.sameSite.toLowerCase()} : {}),
+      ...(cookie.expires > 0 ? {expires: new Date(cookie.expires * 1000)} : {})}), origin);
   }
 }
 export function jarCookies(jar: CookieJar, origin: string): BrowserCookie[] {

@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {CookieJar} from 'tough-cookie';
 import {fetchWithBrowser, closeBrowserTransportTabs, isChallenge} from '../src/shared/browser-transport.js';
 import {saveBrowserConfig, browserConfig, setBrowserOverrides, endpointId, loadProviderSession, saveProviderSession, type BrowserConfig} from '../src/shared/browser-config.js';
-import {stopBrowser, updateCookieJar} from '../src/shared/browser-runtime.js';
+import {stopBrowser, updateCookieJar, jarCookies} from '../src/shared/browser-runtime.js';
 import {loginCooldown, waitForLogin} from '../src/shared/browser-login.js';
 import {readPrivateJson, writePrivateJson} from '../src/shared/storage.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
@@ -142,6 +142,28 @@ test('cookie export respects domain, path, expiry and HTTP-only attributes', asy
   await jar.setCookie('deleted=old; Path=/api; Secure', 'https://www.example.com');
   await updateCookieJar(jar,{cookies:[{name:'unrelated',value:'private',domain:'other.example',path:'/',expires:-1,httpOnly:true,secure:true}],origins:[]},'https://www.example.com');
   assert.equal(jar.serializeSync().cookies.length,0);
+});
+
+test('browser cookies retain structured values, nameless cookies and host-only scope', async () => {
+  const jar = new CookieJar(), origin = 'https://www.example.com';
+  const cookie = {name: '', value: 'fixture', domain: 'www.example.com', path: '/api', expires: -1, httpOnly: true, secure: true, sameSite: 'Lax' as const};
+  await updateCookieJar(jar, {cookies: [cookie,
+    {...cookie, name: 'structured', value: 'literal; Path=/wrong; Domain=other.example'},
+    {...cookie, name: 'parent-host-only', domain: 'example.com'},
+    {...cookie, name: 'parent-domain', domain: '.example.com', expires: 2000000000},
+    {...cookie, name: 'expired', expires: 1},
+  ], origins: []}, origin);
+  const cookies = await jar.getCookies(`${origin}/api`);
+  assert.equal(cookies.length, 3);
+  assert.equal(cookies.find(c => c.key === '')?.value, 'fixture');
+  const structured = cookies.find(c => c.key === 'structured')!;
+  assert.equal(structured.value, 'literal; Path=/wrong; Domain=other.example');
+  assert.equal(structured.path, '/api'); assert.equal(structured.domain, 'www.example.com');
+  assert.equal(structured.hostOnly, true); assert.equal(structured.httpOnly, true); assert.equal(structured.sameSite, 'lax');
+  assert.equal((await jar.getCookies(`${origin}/elsewhere`)).length, 0);
+  assert.deepEqual((await jar.getCookies('https://child.www.example.com/api')).map(c => c.key), ['parent-domain']);
+  const restored = CookieJar.deserializeSync(jar.serializeSync());
+  assert.deepEqual(jarCookies(restored, origin).find(c => c.name === ''), cookie);
 });
 
 test('provider lockouts stop password attempts without extending an existing cooldown', async () => {

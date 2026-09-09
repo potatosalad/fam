@@ -1,14 +1,36 @@
 import {CookieJar} from 'tough-cookie';
-import {loginTab, waitForLogin, type BrowserLoginOptions} from '../shared/browser-login.js';
+import {waitForLogin, type BrowserLoginOptions} from '../shared/browser-login.js';
 import {endpointId, rememberBrowser} from '../shared/browser-config.js';
-import {updateCookieJar} from '../shared/browser-runtime.js';
+import {BrowserTab, configuredBrowser, updateCookieJar} from '../shared/browser-runtime.js';
 import {graphqlOperation} from './catalog.js';
 import {saveFindmypastSession, type FindmypastBrowserSession} from './auth.js';
 
 export async function loginFindmypast(options: BrowserLoginOptions & {region?: string} = {}): Promise<FindmypastBrowserSession> {
   const region = options.region ?? 'com';
   if (!['com','co.uk'].includes(region)) throw new Error('--region must be com or co.uk.');
-  const tab = await loginTab('findmypast', `https://www.findmypast.${region}/sign-in`);
+  const website = `https://www.findmypast.${region}`;
+  const browser = await configuredBrowser();
+  const reusable = (value: string) => {
+    try {
+      const url = new URL(value);
+      return !url.username && !url.password && [website, 'https://auth.findmypast.com'].includes(url.origin)
+        && !url.pathname.startsWith('/.fam-browser-');
+    } catch {return false;}
+  };
+  const existing = await browser.api<{tabs: {tabId: string; url: string; listItemId: string}[]}>(`/tabs?userId=${encodeURIComponent(browser.userId('findmypast'))}`);
+  const tabs = (existing.tabs ?? []).filter(tab => tab.listItemId === 'fam' && reusable(tab.url));
+  const priority = (value: string) => {const url = new URL(value); return url.origin !== website ? 0 : url.pathname === '/sign-in' ? 1 : 2;};
+  tabs.sort((a, b) => priority(b.url) - priority(a.url));
+  let reused: BrowserTab | undefined;
+  for (const existing of tabs) {
+    const candidate = new BrowserTab(browser, 'findmypast', existing.tabId);
+    try {
+      if (reusable(await candidate.evaluate<string>('location.href'))) {reused = candidate; break;}
+    } catch { /* Closed or crashed pages can remain in Camofox's tab list. */ }
+  }
+  // Preserve an in-progress sign-in and its rendered page, as with MyHeritage.
+  // Transport-only documents have no login UI and must not be adopted here.
+  const tab = reused ?? await browser.tab('findmypast', `${website}/sign-in`);
   return waitForLogin(tab, ['https://www.findmypast.com','https://www.findmypast.co.uk','https://auth.findmypast.com'], async () => {
     let origin: string;
     try {origin = await tab.evaluate<string>('location.origin');} catch {return;}
