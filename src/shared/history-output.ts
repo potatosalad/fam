@@ -1,4 +1,5 @@
 import type {HistoryEntry, HistoryView} from './history-query.js';
+import {shellQuote} from './shell-command.js';
 
 // Log strings are data: never allow terminal escape sequences to reach the screen.
 const safe = (value: unknown): string => String(value ?? '').replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -27,8 +28,21 @@ function detail(row: HistoryEntry, width: number): string[] {
     `Duration: ${duration(row.durationMs)}    Exit: ${row.exitCode ?? '—'}    PID: ${row.pid ?? '—'}`,
     `Version: ${safe(row.version ?? 'unknown')}    Build: ${safe(row.build?.revision ?? 'unknown')}${row.build?.dirty ? ' (uncommitted changes)' : ''}`,
     `Runtime: ${safe(row.runtime?.node ?? 'unknown')} · ${safe(row.runtime?.platform ?? 'unknown')} ${safe(row.runtime?.arch ?? '')}`,
-    '', ...wrapped(`Recorded arguments: fam ${row.argv.join(' ')}`, width),
-    'Argument values were redacted when recorded.'];
+    '', `Command: ${row.commandLine}`,
+    `Working directory: ${row.cwd ? shellQuote(row.cwd) : 'not recorded'}`];
+  if (row.argvCapture === 'legacy_redacted') lines.push('Legacy record: argument values were discarded by the old recorder and cannot be recovered.');
+  if (row.inputs.length) lines.push('', 'Captured inputs');
+  for (const input of row.inputs) {
+    lines.push(`  ${input.kind === 'stdin' ? 'stdin' : shellQuote(input.path ?? '')}: ${input.bytes} bytes${input.complete ? '' : ' (read interrupted; only consumed bytes captured)'}`);
+    if (input.snapshot) lines.push(`    Snapshot: ${shellQuote(input.snapshot)}`, `    SHA-256: ${input.sha256}`);
+    else lines.push(...wrapped(`Snapshot unavailable: ${input.error ?? 'not saved'}`, width, '    '));
+  }
+  const stdin = row.inputs.filter(input => input.kind === 'stdin');
+  if (stdin.length === 1 && stdin[0].snapshot && stdin[0].complete) {
+    lines.push('', 'Replay with captured stdin:',
+      `${row.cwd ? `cd ${shellQuote(row.cwd)} && ` : ''}${row.commandLine} < ${shellQuote(stdin[0].snapshot)}`);
+  }
+  if (row.inputs.some(input => input.kind === 'file')) lines.push(...wrapped('To replay with captured files, use the snapshots in place of the original input paths.', width));
   if (row.outcome === 'incomplete') lines.push('', ...wrapped(row.message, width));
   const errorLines = (error: Record<string, unknown>, indent = ''): void => {
     for (const key of ['name', 'code', 'status', 'statusCode', 'message']) if (error[key] !== undefined) lines.push(...wrapped(`${key}: ${safe(error[key])}`, width, indent));
@@ -64,14 +78,12 @@ export function historyOutput(result: HistoryView, columns = 100): string {
     lines.push(result.view === 'failures' ? 'Command failures · newest first' : 'Recent command history · newest first');
     if (!result.entries.length) lines.push('', result.view === 'failures' ? 'No matching failures.' : 'No matching history entries.');
     else {
-      lines.push('', `WHEN (UTC)           RESULT      DURATION  ID${width >= 90 ? '        COMMAND' : ''}`);
+      lines.push('', 'WHEN (UTC)           RESULT      DURATION  ID');
       for (const row of result.entries) {
         const prefix = `${when(row.startedAt)}  ${labels[row.outcome].padEnd(10)}  ${duration(row.durationMs).padStart(7)}  ${row.id.slice(0, 8)}  `;
-        if (width < 90) lines.push(prefix.trimEnd(), ...wrapped(row.command, width, '  '));
-        else {
-          const command = wrapped(row.command, width, ' '.repeat(prefix.length));
-          lines.push(prefix + (command.shift()?.trim() ?? ''), ...command);
-        }
+        // Let the terminal wrap naturally: inserting/trimming whitespace would change copied arguments.
+        lines.push(prefix.trimEnd(), `  ${row.commandLine}`);
+        if (row.argvCapture === 'legacy_redacted') lines.push('  Legacy record: original argument values unavailable.');
         if (row.codes.length || row.message) lines.push('  ' + clip(`${row.codes.join(', ')}${row.message ? ` · ${row.message}` : ''}`, width - 2));
       }
       lines.push('', `Showing ${result.offset + 1}–${result.offset + result.entries.length}${result.hasMore ? ' · more available' : ''}.`,

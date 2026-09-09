@@ -1,6 +1,7 @@
+import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { parseArgs } from 'node:util';
-import { readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises';
+import { writeFile, mkdir, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { configureCredentials } from '../shared/credentials.js';
@@ -14,7 +15,7 @@ import { StoriedClient, prepareCall, type CallInput } from './client.js';
 async function input(value?: string): Promise<Record<string, unknown>> {
   if (value === undefined) return {};
   let text: string;
-  if (value === '-') {const parts: Buffer[] = []; for await (const chunk of process.stdin) parts.push(Buffer.from(chunk)); text = Buffer.concat(parts).toString();}
+  if (value === '-') text = await readCommandStdin();
   else text = value.trimStart().startsWith('{') ? value : await readFile(value, 'utf8');
   let obj: unknown;
   try {obj = parseJson(text);} catch {throw new Error('Input must be valid JSON.');}

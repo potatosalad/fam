@@ -1,7 +1,8 @@
+import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
-import { readFile, writeFile, mkdir, rename, rm, access } from 'node:fs/promises';
+import { writeFile, mkdir, rename, rm, access } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { parseJson, stringifyJson } from '../shared/json.js';
@@ -15,7 +16,7 @@ import { integer, searchInput, memorialPhotos, downloadPhoto } from './research.
 async function jsonInput(value?: string): Promise<Record<string,unknown>> {
   if (!value) return {};
   let text: string;
-  if (value === '-') {const chunks: Buffer[] = []; for await (const part of process.stdin) chunks.push(Buffer.from(part)); text = Buffer.concat(chunks).toString();}
+  if (value === '-') text = await readCommandStdin();
   else text = value.trimStart().startsWith('{') ? value : await readFile(value, 'utf8');
   let parsed: unknown; try {parsed = parseJson(text);} catch {throw new Error('Input must be valid JSON.');}
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Input must be a JSON object.');

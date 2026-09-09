@@ -10,6 +10,7 @@ import {historyTime, queryHistory, type HistoryList, type HistorySummary, type H
 import {historyOutput} from '../src/shared/history-output.js';
 import {completionCatalog, complete} from '../src/shared/completion.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
+import {shellCommand} from '../src/shared/shell-command.js';
 
 const directory = join(CREDENTIAL_DIR, 'history');
 const now = Date.parse('2026-09-09T12:00:00Z');
@@ -184,4 +185,54 @@ test('human output strips terminal controls and adapts list rows to narrow termi
   const text = historyOutput(result, 80);
   assert.doesNotMatch(text, /[\u001b\u0007\r]/);
   assert.ok(text.split('\n').every(line => line.length <= 80));
+});
+
+test('list and detail show complete copyable commands and preserve exact argument boundaries', async () => {
+  const args = ['ancestry.person', 'get', '--tree-id', 'fixture-tree', '--person-id', "O'Connor", '--query',
+    '{"password":"fixture-secret","email":"name@example.test","query":"a & b"}', '--empty', '',
+    '--literal', '$(echo must-not-run); `false` * ~ $HOME', '--space', ' a  b ', '--control', 'line\n\t\u001b\u0085break',
+    '--unicode', 'Müller_日本', '--long', 'x'.repeat(350)];
+  await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'hard_failure', {argv: args, argvCapture: 'verbatim', cwd: '/tmp/fixture directory'}));
+  const list = await queryHistory('list', {query: 'fixture-secret'}) as HistoryList;
+  const commandLine = shellCommand(args);
+  assert.equal(list.entries[0].commandLine, commandLine);
+  for (const width of [60, 80, 120]) {
+    const text = historyOutput(list, width);
+    assert.ok(text.includes(`  ${commandLine}\n`));
+    assert.doesNotMatch(text, /Legacy record|REDACTED|\u001b/);
+  }
+  const detail = await queryHistory('get', {id: id(1)}) as HistoryDetail;
+  assert.ok(historyOutput(detail).includes(`Command: ${commandLine}\n`));
+  assert.ok(historyOutput(detail).includes("Working directory: '/tmp/fixture directory'"));
+  // Execute only a synthetic shell function; it serializes arguments and cannot invoke fam.
+  const script = `fam() { ${JSON.stringify(process.execPath)} -e 'process.stdout.write(JSON.stringify(process.argv.slice(1)))' -- "$@"; }; ${commandLine}`;
+  for (const shell of process.platform === 'darwin' ? ['/bin/bash', '/bin/zsh'] : ['/bin/bash']) {
+    const result = await run(shell, ['-c', script], {env: {...process.env, LC_ALL: 'C.UTF-8'}});
+    assert.deepEqual(JSON.parse(result.stdout), args);
+  }
+  const json = JSON.parse((await invoke(['cli.history', 'list', '--json'])).stdout);
+  assert.deepEqual(json.data.entries[0].argv, args); assert.equal(json.data.entries[0].commandLine, commandLine);
+});
+
+test('legacy logs identify discarded inputs without rewriting the evidence', async () => {
+  const path = await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'success', {argv: ['ancestry.person', 'get', '--tree-id', '[REDACTED]']}));
+  const before = await readFile(path, 'utf8');
+  const detail = await queryHistory('get', {id: id(1)}) as HistoryDetail;
+  assert.equal(detail.entry.argvCapture, 'legacy_redacted');
+  assert.match(historyOutput(detail), /cannot be recovered/);
+  assert.equal(await readFile(path, 'utf8'), before);
+});
+
+test('input events survive interruption and details show captured stdin replay', async () => {
+  const value = record(1, '2026-09-09T01:00:00Z', 'ancestry.credential set', 'success', {
+    argv: ['ancestry.credential', 'set', '--stdin'], argvCapture: 'verbatim', cwd: '/tmp/fixture directory',
+  });
+  const path = await save(value, true);
+  const input = {kind: 'stdin', path: null, snapshot: '/tmp/fixture snapshot.bin', bytes: 123, sha256: 'a'.repeat(64), complete: true};
+  await appendFile(path, JSON.stringify({...value, event: 'input', input}) + '\n');
+  const detail = await queryHistory('get', {id: id(1)}) as HistoryDetail;
+  assert.equal(detail.entry.outcome, 'incomplete'); assert.deepEqual(detail.entry.inputs, [input]);
+  assert.ok(historyOutput(detail).includes("cd '/tmp/fixture directory' && fam ancestry.credential set --stdin < '/tmp/fixture snapshot.bin'"));
+  await appendFile(path, JSON.stringify({...value, inputs: [input]}) + '\n');
+  assert.deepEqual((await queryHistory('get', {id: id(1)}) as HistoryDetail).entry.inputs, [input]);
 });

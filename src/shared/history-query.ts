@@ -3,6 +3,8 @@ import {CREDENTIAL_DIR, historyFiles, readPrivateJsonl} from './storage.js';
 import {UsageError, type Values} from './command-runtime.js';
 import {errorSummary} from './command-history.js';
 import {reportDiagnostic} from './diagnostics.js';
+import {shellCommand} from './shell-command.js';
+import type {HistoryInput} from './command-input.js';
 
 export const historyOutcomes = ['success', 'soft_failure', 'hard_failure', 'incomplete'] as const;
 export type HistoryOutcome = typeof historyOutcomes[number];
@@ -12,12 +14,13 @@ const string = (value: unknown): string | null => typeof value === 'string' ? va
 const number = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
 const array = (value: unknown): string[] => Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-const identity = (value: string) => value;
 export interface HistoryDiagnostic {code: string; message: string; path?: string; error?: ObjectValue}
 export interface HistoryEntry {
   id: string; command: string; provider: string | null; startedAt: string; finishedAt: string | null;
   outcome: HistoryOutcome; durationMs: number | null; exitCode: number | null; settled: boolean | null;
   pid: number | null; argv: string[]; version: string | null; build: {revision: string | null; dirty: boolean | null} | null;
+  commandLine: string; cwd: string | null; argvCapture: 'verbatim' | 'legacy_redacted';
+  inputs: HistoryInput[];
   runtime: {node: string | null; platform: string | null; arch: string | null} | null;
   error?: ObjectValue; diagnostics: HistoryDiagnostic[]; droppedDiagnostics: number;
   codes: string[]; message: string; source: {file: string; startLine: number | null; finishLine: number | null};
@@ -75,13 +78,13 @@ function codes(error: unknown): string[] {
     ...codes(error.cause)];
 }
 function recordedError(error: ObjectValue, depth = 0): ObjectValue {
-  const result = errorSummary(error, identity);
-  // The writer has already converted Error.stack to a redacted array of frames.
-  if (Array.isArray(error.stack)) result.stack = array(error.stack).slice(0, 12);
+  const result = errorSummary(error);
+  // The writer has already converted Error.stack to an array of frames.
+  if (Array.isArray(error.stack)) result.stack = array(error.stack);
   if (object(error.cause) && depth < 3) result.cause = recordedError(error.cause, depth + 1);
   return result;
 }
-function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, file: string, startLine: number | null, finishLine: number | null): HistoryEntry {
+function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, file: string, startLine: number | null, finishLine: number | null, capturedInputs: unknown[]): HistoryEntry {
   const record = finish ?? start!, argv = array(record.argv);
   const command = string(record.command) ?? (argv.slice(0, 2).join(' ') || '(help)');
   const diagnostics = (Array.isArray(record.diagnostics) ? record.diagnostics : []).filter(object).map(item => ({
@@ -91,12 +94,20 @@ function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, 
   }));
   const error = object(record.error) ? recordedError(record.error) : undefined;
   const outcome = finish ? record.outcome as HistoryOutcome : 'incomplete';
+  const inputs = (Array.isArray(record.inputs) ? record.inputs : capturedInputs).filter(object)
+    .filter(input => input.kind === 'file' || input.kind === 'stdin').map(input => ({
+      kind: input.kind as 'file' | 'stdin', path: string(input.path), snapshot: string(input.snapshot),
+      bytes: number(input.bytes) ?? 0, sha256: string(input.sha256) ?? '', complete: input.complete === true,
+      ...(typeof input.error === 'string' ? {error: input.error} : {}),
+    }));
   const findings = [...new Set([...codes(error), ...diagnostics.flatMap(d => [d.code, ...codes(d.error)])])];
   if (!findings.length && outcome !== 'success') findings.push(outcome === 'incomplete' ? 'NO_FINISH' : 'EXECUTION_FAILED');
   return {id: String(record.id), command, provider: string(record.provider) ?? (/^[a-z]+\./.test(command) ? command.split('.')[0] : null),
     startedAt: new Date(String(record.startedAt)).toISOString(), finishedAt: finish ? new Date(String(finish.timestamp)).toISOString() : null,
     outcome, durationMs: number(record.durationMs), exitCode: number(record.exitCode), settled: typeof record.settled === 'boolean' ? record.settled : null,
     pid: number(record.pid), argv, version: string(record.version),
+    commandLine: shellCommand(argv), cwd: string(record.cwd), argvCapture: record.argvCapture === 'verbatim' ? 'verbatim' : 'legacy_redacted',
+    inputs,
     build: object(record.build) ? {revision: string(record.build.revision), dirty: typeof record.build.dirty === 'boolean' ? record.build.dirty : null} : null,
     runtime: object(record.runtime) ? {node: string(record.runtime.node), platform: string(record.runtime.platform), arch: string(record.runtime.arch)} : null,
     ...(error ? {error} : {}), diagnostics, droppedDiagnostics: number(record.droppedDiagnostics) ?? 0, codes: findings,
@@ -152,25 +163,26 @@ export async function queryHistory(action: string, values: Values, excludeId?: s
       if (startOfDay > filter.until || startOfDay + 86_400_000 <= filter.since) continue;
       scan.filesScanned++;
       const file = join(CREDENTIAL_DIR, name);
-      const records = new Map<string, {start?: ObjectValue; finish?: ObjectValue; startLine: number | null; finishLine: number | null}>();
+      const records = new Map<string, {start?: ObjectValue; finish?: ObjectValue; startLine: number | null; finishLine: number | null; inputs: unknown[]}>();
       try {
         for await (const line of readPrivateJsonl(name)) {
           const value = line.value;
           if (line.issue || !object(value) || value.schemaVersion !== 1 || !uuid.test(String(value.id))
-              || !['start', 'finish'].includes(String(value.event)) || typeof value.startedAt !== 'string'
+              || !['start', 'input', 'finish'].includes(String(value.event)) || typeof value.startedAt !== 'string'
               || !Number.isFinite(Date.parse(value.startedAt)) || new Date(value.startedAt).toISOString().slice(0, 10) !== day
               || value.event === 'finish' && (!historyOutcomes.slice(0, 3).includes(value.outcome as never)
                 || typeof value.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp)))) {
             scan.skippedRecords++; notice({file, line: line.line, message: line.issue ?? 'Unsupported or malformed history record.'}); continue;
           }
           if (value.id === excludeId) continue;
-          const prior = records.get(String(value.id)) ?? {startLine: null, finishLine: null};
+          const prior = records.get(String(value.id)) ?? {startLine: null, finishLine: null, inputs: []};
           if (value.event === 'start') {prior.start = value; prior.startLine = line.line;}
-          else {prior.finish = value; prior.finishLine = line.line;}
+          else if (value.event === 'finish') {prior.finish = value; prior.finishLine = line.line;}
+          else {prior.inputs.push(value.input); prior.start ??= value;}
           records.set(String(value.id), prior);
         }
       } catch {notice({file, message: 'Could not read this history file; results may be incomplete.'});}
-      const sorted = [...records.values()].map(record => entry(record.start, record.finish, file, record.startLine, record.finishLine))
+      const sorted = [...records.values()].map(record => entry(record.start, record.finish, file, record.startLine, record.finishLine, record.inputs))
         .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt) || b.id.localeCompare(a.id));
       for (const row of sorted) if (action === 'get' || matches(row, filter)) yield row;
     }

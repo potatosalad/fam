@@ -1,6 +1,6 @@
+import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { parseArgs } from 'node:util';
-import { readFile } from 'node:fs/promises';
 import { configureCredentials } from '../shared/credentials.js';
 import { CREDENTIAL_DIR } from '../shared/storage.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
@@ -12,7 +12,7 @@ import { downloadRecord, downloadMedia, saveDownload, saveOutput } from './downl
 async function input(value?: string): Promise<SearchInput> {
   if (!value) return {};
   let text: string;
-  if (value === '-') {let data = ''; for await (const chunk of process.stdin) {data += chunk; if (Buffer.byteLength(data) > 65536) throw new Error('Input exceeded 64 KiB.');} text = data;}
+  if (value === '-') text = await readCommandStdin(65536, 'Input exceeded 64 KiB.');
   else text = value.trimStart().startsWith('{') ? value : await readFile(value, 'utf8');
   let result: unknown;
   try {result = parseJson(text);} catch {throw new Error('Search input must be valid JSON.');}

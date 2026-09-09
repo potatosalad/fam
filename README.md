@@ -173,7 +173,7 @@ Native HTTP handles sign-in and research; browser setup is not required for the 
 
 ## Use the commands
 
-Every CLI invocation also appends private JSONL history to `<profile>/history/YYYY-MM-DD.jsonl` (normally `~/.config/fam/history/`). History distinguishes hard failures from returned warnings, embedded errors, and recovered failures. It records timing, exit codes, redacted diagnostics and build revision without saving command argument values or response bodies. See [searching command history](docs/cli.md#command-history) for queries, coverage, and disabling history.
+Every CLI invocation also appends private JSONL history to `<profile>/history/YYYY-MM-DD.jsonl` (normally `~/.config/fam/history/`). History distinguishes hard failures from returned warnings, embedded errors, and recovered failures. It records complete argument values, the working directory, timing, exit codes, diagnostic text and build revision without redaction. Consumed file and stdin inputs are saved as exact byte snapshots for reproduction. See [searching command history](docs/cli.md#command-history) for queries, coverage, and disabling history.
 
 ```sh
 fam cli.history list
@@ -182,7 +182,7 @@ fam cli.history.failures summary --group-by code
 fam cli.history get --id <ID_FROM_LIST>
 ```
 
-History views show readable text by default and support `--json`. Filter with `--provider`, `--command`, `--outcome`, `--code`, `--query`, `--since`, and `--until`. IDs in the list open full diagnostics with `get`; successful history queries and completion lookups stay hidden unless you add `--include-utility`.
+History lists show the complete shell-quoted command, including every argument, and support `--json`. Filter with `--provider`, `--command`, `--outcome`, `--code`, `--query`, `--since`, and `--until`. IDs in the list open full diagnostics with `get`; successful history queries and completion lookups stay hidden unless you add `--include-utility`.
 
 Check your setup and diagnose provider failures:
 

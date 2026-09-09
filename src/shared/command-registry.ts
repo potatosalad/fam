@@ -440,7 +440,7 @@ const historyFlags: Record<string, Partial<Flag>> = {
 for (const object of ['history', 'history.failures']) for (const action of ['list', 'summary']) {
   const failure = object === 'history.failures';
   add('cli', `${object}-${action}`, `${object} ${action}`,
-    action === 'list' ? `Browse recent ${failure ? 'soft and hard failures' : 'CLI invocations'} with timing, diagnostics, and IDs for detail inspection.`
+    action === 'list' ? `Browse recent ${failure ? 'soft and hard failures' : 'CLI invocations'} with full command lines, timing, diagnostics, and IDs for detail inspection.`
       : `Summarize ${failure ? 'soft and hard failures' : 'CLI history'} and rank recurring issues by command, provider, or error code.`, [],
     `provider command outcome code query since until include-utility limit offset${action === 'summary' ? ' group-by' : ''}`, {
       ...cliRisk, flags: {...historyFlags, ...(failure ? {outcome: {...historyFlags.outcome, choices: ['soft_failure', 'hard_failure']}} : {}),

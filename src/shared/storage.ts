@@ -98,8 +98,8 @@ export async function* readPrivateJsonl(name: string): AsyncGenerator<{line: num
   } finally {await file.close();}
 }
 
-/** Atomic replacement prevents a partially written refresh token after interruption. */
-export async function writePrivateJson(name: string, value: unknown): Promise<void> {
+/** Write exact bytes with private permissions and atomic replacement. */
+export async function writePrivateFile(name: string, data: string | Uint8Array): Promise<string> {
   const path = credentialPath(name);
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   for (let directory = dirname(path); ; directory = dirname(directory)) {
@@ -109,10 +109,16 @@ export async function writePrivateJson(name: string, value: unknown): Promise<vo
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     const file = await open(temporary, 'wx', 0o600);
-    try { await file.writeFile(`${JSON.stringify(value, null, 2)}\n`); await file.sync(); }
+    try { await file.writeFile(data); await file.sync(); }
     finally { await file.close(); }
     await rename(temporary, path);
   } finally { await rm(temporary, { force: true }); }
+  return path;
+}
+
+/** Atomic replacement prevents a partially written refresh token after interruption. */
+export async function writePrivateJson(name: string, value: unknown): Promise<void> {
+  await writePrivateFile(name, `${JSON.stringify(value, null, 2)}\n`);
   const changed = /^(?:(ancestry|myheritage|findmypast|findagrave|geneanet|storied|americanancestors)\/)?(?:login|session|device)\.json$/.exec(name);
   if (changed) {
     const {syncCredentials} = await import('./credential-sync.js');

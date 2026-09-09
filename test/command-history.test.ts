@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import {execFile, spawn} from 'node:child_process';
 import {promisify} from 'node:util';
 import {once} from 'node:events';
-import {mkdtemp, readdir, readFile, stat, writeFile, mkdir, symlink, chmod} from 'node:fs/promises';
+import {mkdtemp, readdir, readFile, stat, writeFile, mkdir, symlink, chmod, realpath} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {CREDENTIAL_DIR, appendPrivateJsonl} from '../src/shared/storage.js';
-import {historyArguments, historyRedactor, errorSummary} from '../src/shared/command-history.js';
+import {errorSummary, startCommandHistory} from '../src/shared/command-history.js';
+import {readCommandFile} from '../src/shared/command-input.js';
 import {inspectResult, setDiagnosticSink} from '../src/shared/diagnostics.js';
 import {withSessionRefresh} from '../src/shared/session-refresh.js';
 
@@ -21,7 +22,7 @@ const invoke = (directory: string, args: string[], env = {}) => run(process.exec
 });
 async function records(directory: string) {
   const path = join(directory, 'history');
-  const files = await readdir(path);
+  const files = (await readdir(path)).filter(file => file.endsWith('.jsonl'));
   const text = (await Promise.all(files.sort().map(file => readFile(join(path, file), 'utf8')))).join('');
   return text.trim().split('\n').map(line => JSON.parse(line));
 }
@@ -44,7 +45,8 @@ test('every CLI invocation records start and actual finish, including help, dry-
     assert.equal(record.runtime.node, process.version); assert.equal(record.settled, true);
     assert.equal(rows.find(r => r.id === record.id && r.event === 'start').startedAt, record.startedAt);
   }
-  assert.doesNotMatch(JSON.stringify(rows), /private-tree|private-person/);
+  assert.deepEqual(done[1].argv, ['ancestry.person', 'get', '--tree-id', 'private-tree', '--person-id', 'private-person', '--dry-run', '--json']);
+  assert.equal(done[1].argvCapture, 'verbatim'); assert.equal(done[1].cwd, await realpath(directory));
   if (process.platform !== 'win32') {
     const path = join(directory, 'history');
     assert.equal((await stat(path)).mode & 0o777, 0o700);
@@ -52,7 +54,7 @@ test('every CLI invocation records start and actual finish, including help, dry-
   }
 });
 
-test('JSON errors retain exit code 1 and history omits credential stdin and saved payloads', async () => {
+test('JSON errors retain exit code 1 and history captures malformed stdin verbatim', async () => {
   const directory = await profile();
   const child = spawn(process.execPath, [...loader, cli, 'ancestry.credential', 'set', '--stdin', '--json'], {
     env: {...process.env, FAM_CONFIG_DIR: directory}, stdio: ['pipe', 'pipe', 'pipe'],
@@ -63,9 +65,11 @@ test('JSON errors retain exit code 1 and history omits credential stdin and save
   assert.equal((await done)[0], 1);
   assert.equal(JSON.parse(stderr).ok, false);
   const history = await records(directory);
-  assert.equal(history[1].outcome, 'hard_failure');
-  assert.match(history[1].error.message, /Credential input/);
-  assert.doesNotMatch(JSON.stringify(history), /malformed-private-credential/);
+  const finish = history.find(row => row.event === 'finish');
+  assert.equal(finish.outcome, 'hard_failure');
+  assert.match(finish.error.message, /Credential input/);
+  assert.equal(finish.inputs[0].kind, 'stdin'); assert.equal(finish.inputs[0].complete, true);
+  assert.equal(await readFile(finish.inputs[0].snapshot, 'utf8'), 'malformed-private-credential');
 });
 
 test('a failed credential sync is searchable as a soft failure while the command still succeeds', async () => {
@@ -79,10 +83,10 @@ test('a failed credential sync is searchable as a soft failure while the command
   child.stdin.end(JSON.stringify({username: 'history-user@example.test', password: 'history-private-password'}));
   assert.equal((await done)[0], 0); assert.equal(JSON.parse(stdout).ok, true);
   assert.match(stderr, /sync hook failed/);
-  const rows = await records(directory), result = rows[1];
+  const rows = await records(directory), result = rows.find(row => row.event === 'finish');
   assert.equal(result.outcome, 'soft_failure'); assert.equal(result.exitCode, 0);
   assert.equal(result.diagnostics[0].code, 'CREDENTIAL_SYNC_FAILED');
-  assert.doesNotMatch(JSON.stringify(rows), /history-user|history-private-password|fam-test-missing-helper/);
+  assert.deepEqual(JSON.parse(await readFile(result.inputs[0].snapshot, 'utf8')), {username: 'history-user@example.test', password: 'history-private-password'});
 });
 
 test('embedded provider errors survive --out receipts without capturing the response body', async () => {
@@ -160,19 +164,77 @@ test('authentication recovery emits one diagnostic without changing retry behavi
   } finally {setDiagnosticSink(undefined);}
 });
 
-test('redaction covers split/inline values, URL credentials, bearer tokens, cookies, nested causes and multiline messages', () => {
-  const args = ['ancestry.session', 'login', '--code', '123456', '--input={"password":"inline-secret"}', '--unknown=private-value'];
-  assert.deepEqual(historyArguments(args), ['ancestry.session', 'login', '--code', '[REDACTED]', '--input=[REDACTED]', '--unknown=[REDACTED]']);
-  const redact = historyRedactor(args, {ANCESTRY_PASSWORD: 'env-secret'});
-  const result = errorSummary(Object.assign(new Error('123456 env-secret password="quoted secret" https://user:pass@example.test/personal?token=secret\nAuthorization: Bearer bearer-secret\nCookie: sid=cookie-secret'), {
-    cause: new Error('access_token=nested-secret'), code: 'HTTP_ERROR', status: 401, body: 'private body', result: {password: 'private result'},
-  }), redact);
-  const text = JSON.stringify(result);
-  assert.doesNotMatch(text, /123456|env-secret|quoted secret|user:pass|personal|bearer-secret|cookie-secret|nested-secret|private body|private result/);
+test('diagnostics retain full messages, URLs, authentication strings and nested causes without redaction', () => {
+  const message = '123456 env-secret password="quoted secret" https://user:pass@example.test/personal?token=secret\nAuthorization: Bearer bearer-secret\nCookie: sid=cookie-secret\n' + 'long message '.repeat(500);
+  const result = errorSummary(Object.assign(new Error(message), {
+    cause: new Error('access_token=nested-secret'), code: 'HTTP_ERROR', status: 401,
+  }));
+  assert.equal(result.message, message);
+  assert.equal((result.cause as any).message, 'access_token=nested-secret');
   assert.equal(result.code, 'HTTP_ERROR'); assert.equal(result.status, 401);
-  assert.match(text, /REDACTED/);
-  assert.doesNotMatch(redact('{"authorization":"custom-private-auth","access_token":"quoted-token"}'), /custom-private-auth|quoted-token/);
-  assert.equal(errorSummary({message: 'field failed', extensions: {code: 'INTERNAL', private: 'hidden'}}, redact).code, 'INTERNAL');
+  assert.equal(errorSummary({message: 'field failed', extensions: {code: 'INTERNAL'}}).code, 'INTERNAL');
+});
+
+test('invalid invocations preserve every argument, including sensitive flags and arguments beyond 100', async () => {
+  const directory = await profile();
+  const args = ['ancestry.session', 'login', '--code', '123456', '--password=fixture-secret', ...Array.from({length: 120}, (_, index) => `value ${index}`), '', "O'Connor", 'line\nbreak', '$(echo do-not-evaluate)'];
+  await assert.rejects(invoke(directory, args));
+  for (const record of await records(directory)) {
+    assert.deepEqual(record.argv, args); assert.equal(record.cwd, await realpath(directory));
+    assert.equal(record.argvCapture, 'verbatim');
+  }
+});
+
+test('file input snapshots preserve consumed bytes even when parsing fails and the source changes', async () => {
+  const directory = await profile();
+  const source = join(directory, 'input file.json');
+  const bytes = Buffer.from('{"password":"fixture-secret", "name":"Müller", invalid}\r\n');
+  await writeFile(source, bytes);
+  // Ancestry parses --query before attempting to open a session or contact a provider.
+  await assert.rejects(invoke(directory, ['ancestry.person', 'relatives', '--tree-id', 'fixture-tree', '--person-id', 'fixture-person', '--query', source]));
+  await writeFile(source, 'changed');
+  const rows = await records(directory), finish = rows.find(row => row.event === 'finish');
+  assert.equal(finish.outcome, 'hard_failure'); assert.match(finish.error.message, /valid JSON/);
+  const input = finish.inputs[0];
+  assert.equal(input.path, source); assert.equal(input.bytes, bytes.length); assert.equal(input.complete, true);
+  assert.deepEqual(await readFile(input.snapshot), bytes);
+  assert.deepEqual(rows.find(row => row.event === 'input').input, input);
+  if (process.platform !== 'win32') assert.equal((await stat(input.snapshot)).mode & 0o777, 0o600);
+});
+
+test('binary file snapshots keep every byte and snapshot write failures preserve successful reads', async () => {
+  const directory = await profile(), source = join(directory, 'binary-input');
+  const bytes = Buffer.from(Array.from({length: 256}, (_, index) => index));
+  await writeFile(source, bytes);
+  const history = await startCommandHistory(['fixture.input', 'read', '--input', source]);
+  try {
+    assert.deepEqual(await readCommandFile(source), bytes);
+  } finally {history.settled(); history.finish(0);}
+  const finish = (await records(CREDENTIAL_DIR)).find(row => row.id === history.id && row.event === 'finish');
+  assert.deepEqual(await readFile(finish.inputs[0].snapshot), bytes);
+  // Obstruct only this invocation's snapshot directory, leaving the journal writable.
+  const blocked = await startCommandHistory(['fixture.input', 'read']);
+  await writeFile(join(CREDENTIAL_DIR, 'history', 'inputs', blocked.id), 'obstruction');
+  try {assert.deepEqual(await readCommandFile(source), bytes);}
+  finally {blocked.settled(); blocked.finish(0);}
+  const result = (await records(CREDENTIAL_DIR)).find(row => row.id === blocked.id && row.event === 'finish');
+  assert.equal(result.outcome, 'success'); assert.equal(result.inputs[0].snapshot, null);
+  assert.ok(result.inputs[0].error); assert.equal(result.inputs[0].bytes, 256);
+});
+
+test('stdin limits retain consumed bytes and mark the snapshot incomplete', async () => {
+  const directory = await profile();
+  const child = spawn(process.execPath, [...loader, cli, 'ancestry.credential', 'set', '--stdin', '--json'], {
+    env: {...process.env, FAM_CONFIG_DIR: directory}, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  const done = once(child, 'close');
+  const bytes = Buffer.from('x'.repeat(65537));
+  child.stdin.on('error', () => {}); child.stdout.resume(); child.stderr.resume(); child.stdin.end(bytes);
+  assert.equal((await done)[0], 1);
+  const finish = (await records(directory)).find(row => row.event === 'finish');
+  assert.match(finish.error.message, /exceeded 64 KiB/);
+  assert.equal(finish.inputs[0].complete, false);
+  assert.deepEqual(await readFile(finish.inputs[0].snapshot), bytes);
 });
 
 test('append refuses symlink targets and restores private permissions', async () => {

@@ -1,3 +1,4 @@
+import {readCommandStdin} from './command-input.js';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { execFile } from 'node:child_process';
@@ -112,13 +113,7 @@ async function promptCredentials(service: Service): Promise<Credentials> {
 
 async function stdinCredentials(service: Service): Promise<Credentials> {
   if (process.stdin.isTTY) throw new Error('Pipe a JSON object with username and password to --stdin; omit --stdin for hidden interactive entry.');
-  let input = '', bytes = 0;
-  process.stdin.setEncoding('utf8');
-  for await (const chunk of process.stdin) {
-    bytes += Buffer.byteLength(chunk);
-    if (bytes > 64 * 1024) throw new Error('Credential JSON exceeded 64 KiB.');
-    input += chunk;
-  }
+  const input = await readCommandStdin(64 * 1024, 'Credential JSON exceeded 64 KiB.');
   let value: unknown;
   try { value = JSON.parse(input); }
   catch { throw new Error('Credential input must be a JSON object with username and password.'); }

@@ -1,9 +1,10 @@
+import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { FamilySearchClient } from './client.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { CREDENTIAL_DIR } from '../shared/storage.js';
 import { listOperations, operationContract, operationExample, operationQueryInput } from './operations.js';
-import { writeFile, chmod, readFile } from 'node:fs/promises';
+import { writeFile, chmod } from 'node:fs/promises';
 import type { OperationName, OperationInput } from './generated/operations.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
 import { resolve } from 'node:path';
@@ -90,14 +91,4 @@ function required(value?: string): string {
   if (!value) throw new Error('This command requires an ID or API path.');
   return value;
 }
-async function readStdin(): Promise<string> {
-  let input = '', bytes = 0;
-  // Preserve names with UTF-8 characters split across stream chunks.
-  process.stdin.setEncoding('utf8');
-  for await (const chunk of process.stdin) {
-    bytes += Buffer.byteLength(chunk);
-    if (bytes > 16 * 1024 * 1024) throw new Error('JSON input exceeded 16 MiB.');
-    input += chunk;
-  }
-  return input;
-}
+const readStdin = () => readCommandStdin(16 * 1024 * 1024, 'JSON input exceeded 16 MiB.');
