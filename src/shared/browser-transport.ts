@@ -2,35 +2,28 @@ import {setTimeout as delay} from 'node:timers/promises';
 import type {CookieJar} from 'tough-cookie';
 import {BrowserError, directOnly, endpointId, rememberBrowser, useBrowser} from './browser-config.js';
 import {configuredBrowser, updateCookieJar, jarCookies, type BrowserTab} from './browser-runtime.js';
+import {isChallenge, isChallengeResponse as challenged} from './browser-challenge.js';
+export {isChallenge} from './browser-challenge.js';
 
 export type HttpResponse = Pick<Response, 'status' | 'headers' | 'arrayBuffer'> & {body?: ReadableStream<Uint8Array> | null};
 export type HttpInit = {method?: string; headers?: HeadersInit; body?: unknown; redirect?: string; signal?: AbortSignal | null};
-export function isChallenge(headers: Headers, text = ''): boolean {
-  if (headers.get('cf-mitigated')?.toLowerCase() === 'challenge') return true;
-  return /(?:<title>\s*(?:Just a moment|Attention Required).*?<\/title>[\s\S]*?(?:cloudflare|cf-|challenge-platform)|\/cdn-cgi\/challenge-platform\/[^\s"'<>]*orchestrate\/|\b_cf_chl_opt\b|<iframe\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]*\/_Incapsula_Resource\b|Incapsula incident ID\s*:)/i.test(text.slice(0, 131072));
-}
 async function normalize(response: HttpResponse): Promise<Response> {
   if (response instanceof Response) return response;
   if (response.body) return new Response([204,205,304].includes(response.status) ? null : response.body as BodyInit, {status: response.status, headers: response.headers});
   return new Response([204,205,304].includes(response.status) ? null : await response.arrayBuffer(), {status: response.status, headers: response.headers});
-}
-async function challenged(response: Response): Promise<boolean> {
-  if (isChallenge(response.headers)) return true;
-  if (!/html/i.test(response.headers.get('content-type') ?? '') && ![403,429,503].includes(response.status)) return false;
-  const reader = response.clone().body?.getReader(); if (!reader) return false;
-  let text = '', bytes = 0;
-  try {while (bytes < 131072) {const next = await reader.read(); if (next.done) break; bytes += next.value.length; text += new TextDecoder().decode(next.value);}}
-  finally {void reader.cancel().catch(() => {});}
-  return isChallenge(response.headers, text);
 }
 async function waitForChallenge(tab: BrowserTab, signal?: AbortSignal | null): Promise<void> {
   const end = Date.now() + tab.browser.config.timeout * 1000;
   let notified = false;
   while (true) {
     signal?.throwIfAborted();
-    let html = '';
-    try {html = await tab.evaluate<string>('document.documentElement.outerHTML.slice(0,131072)');} catch {}
-    if (html && !isChallenge(new Headers(), html) && !/Enable JavaScript and cookies to continue/i.test(html)) return;
+    let state: {html: string; ready: boolean} | undefined;
+    try {state = await tab.evaluate(`({html:document.documentElement.outerHTML.slice(0,131072),
+      ready:document.readyState === 'complete' && !!document.body &&
+        (!!document.body.innerText.trim() || !!document.body.querySelector('img,video,audio,embed,object,form,input'))})`);} catch {}
+    // A script-only interstitial can have an empty title/body while it obtains
+    // clearance and navigates. Do not replace it with our transport document.
+    if (state?.ready && !isChallenge(new Headers(), state.html) && !/Enable JavaScript and cookies to continue/i.test(state.html)) return;
     if (!notified) {await tab.browser.notify(); notified = true;}
     if (Date.now() >= end) throw new BrowserError(`Browser verification did not finish. Complete it at ${tab.browser.endpoint.vncUrl}, then retry.`, 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
     await delay(1500);
@@ -76,13 +69,20 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
   };
   let response = await request();
   if (await challenged(response)) {
+    void response.body?.cancel().catch(() => {});
     await rememberBrowser(provider, target.origin);
     await tab.navigate((init.method ?? 'GET') === 'GET' ? target.href : target.origin);
     await waitForChallenge(tab, init.signal);
     init.signal?.throwIfAborted();
     await tab.prepare(target.origin);
     response = await request();
-    if (await challenged(response)) throw new BrowserError(`The website still requires verification at ${browser.endpoint.vncUrl}. Retry after completing it.`, 'BROWSER_INTERACTION_REQUIRED', browser.endpoint.vncUrl);
+    if (await challenged(response)) {
+      void response.body?.cancel().catch(() => {});
+      // Keep the actual verification page available, not the blank document
+      // used to issue API requests. Never replay the operation a third time.
+      await tab.navigate((init.method ?? 'GET') === 'GET' ? target.href : target.origin);
+      throw new BrowserError(`The website still requires verification at ${browser.endpoint.vncUrl}. Retry after completing it.`, 'BROWSER_INTERACTION_REQUIRED', browser.endpoint.vncUrl);
+    }
   }
   if (jar) await updateCookieJar(jar, await browser.state(provider), target.origin);
   await rememberBrowser(provider, target.origin);
@@ -99,6 +99,7 @@ export async function fetchWithBrowser(provider: string, url: string | URL, init
   if (await useBrowser(provider, target.origin)) return browserRequest(provider, target, init, jar, sessionCookies);
   const response = await normalize(await direct());
   if (await directOnly() || !await challenged(response)) return response;
+  void response.body?.cancel().catch(() => {});
   process.stderr.write(`${provider}: website verification required; continuing in Camofox…\n`);
   return browserRequest(provider, target, init, jar, sessionCookies);
 }

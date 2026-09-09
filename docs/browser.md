@@ -1,6 +1,6 @@
 # Persistent browser setup
 
-Camofox provides the browser for MyHeritage, Findmypast, and Storied/NewspaperArchive sign-in. It also recovers Cloudflare challenges encountered by any provider's HTTP client. Existing working native login flows remain available.
+Camofox provides the browser for MyHeritage, Findmypast, and Storied/NewspaperArchive sign-in. A shared transport recovers Cloudflare and Imperva/Incapsula challenges across provider APIs, document metadata, and image downloads. Existing working native login flows remain available.
 
 ## Local Docker
 
@@ -87,7 +87,11 @@ MyHeritage login reuses an existing fam tab and follows its family-site page's t
 
 ## Automatic HTTP recovery
 
-A response with Cloudflare challenge evidence triggers browser recovery, including challenge HTML returned with HTTP 403. An ordinary permission denial, rate limit, provider error, or ambiguous network failure does not trigger a replay. The browser sends the original method, body, and allowed headers; provider origin restrictions and redirect checks still apply. Binary content and large JSON integers are preserved.
+A response with browser-challenge evidence triggers the same recovery for every provider using the shared transport. Detection includes Cloudflare challenge headers and interstitials, Imperva/Incapsula block pages, and “Pardon Our Interruption.” It inspects a bounded body prefix even when the server returns HTTP 200 or a misleading content type. An ordinary permission denial, rate limit, provider error, or ambiguous network failure does not trigger a replay; CDN branding or a 403 alone is not sufficient evidence.
+
+Recovery first sends the request through the persistent browser. If that also encounters a challenge, fam performs a real document navigation: the requested URL for GET, or the site's origin for other methods. This lets verification scripts execute and clearance cookies persist. It waits through blank script-only pages until the browser has loaded visible content, then retries the original method, body, and allowed headers once. A fabricated Referer or an ordinary browser `fetch()` cannot execute an HTML interstitial. Requests still use the provider's origin restrictions and redirect validation; binary content and large JSON integers are preserved. Explicitly non-replayable password submissions retain their provider's no-retry policy.
+
+If verification does not finish, fam retains the verification tab and reports its viewer URL. If the retried request is challenged again, it returns a browser-verification error instead of passing HTML to a JSON or image decoder. Successful browser routing is remembered per provider and origin for the selected browser instance.
 
 After recovery, fam remembers the provider and website origin for the selected instance and uses that browser in later commands. Cookies are refreshed from the browser. An existing browser context takes precedence over stale HTTP cookies.
 

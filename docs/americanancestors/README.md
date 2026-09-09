@@ -16,7 +16,7 @@ fam cli.health check --provider americanancestors --offline
 
 Login submits one password form, completes the site's SSO redirects, verifies a signed-in page, and atomically saves private cookies in `americanancestors/session.json` under the active fam profile. Each explicit login command can submit once; research and health checks never submit passwords. There is no token refresh command. On session rejection, check the website and deliberately sign in again. Login status contains timestamps and booleans, never cookies or passwords.
 
-GET requests support fam's [HTTP/browser transport](../browser.md) for website challenges. Password POSTs deliberately do not enter request replay or challenge recovery. A blocked login returns an error without retrying. Browser login automation is not part of this provider. `--transport http` keeps reads native; `--transport browser` uses a configured Camofox instance for GET requests. Browser-dependent access is not established by the native verification.
+GET requests, including image reads, support fam's [HTTP/browser transport](../browser.md) for website challenges. Image requests do not import account cookies from the native HTTP session. Password POSTs deliberately do not enter request replay or challenge recovery. A blocked login returns an error without retrying. Browser login automation is not part of this provider. `--transport http` keeps reads native; `--transport browser` uses a configured Camofox instance for GET requests. Browser-dependent access is not established by the native verification.
 
 ## Discover collections
 

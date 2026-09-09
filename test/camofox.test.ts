@@ -11,6 +11,7 @@ import {readPrivateJson, writePrivateJson} from '../src/shared/storage.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
 import {complete, completionCatalog} from '../src/shared/completion.js';
 import {HttpSession} from '../src/familysearch/http.js';
+import {AmericanAncestorsHttp} from '../src/americanancestors/http.js';
 
 test('challenge classification requires provider evidence rather than a generic denial', () => {
   assert.equal(isChallenge(new Headers({'cf-mitigated':'challenge'})), true);
@@ -35,13 +36,15 @@ test('browser commands and global overrides participate in discovery and complet
 test('browser recovery preserves requests, cookies, sticky routing and independent instances', async t => {
   const requests: any[] = [];
   let page = '<html><body>Ready</body></html>', status = 200, challengeResponse = false, reply = Buffer.from([0,255,128,42]);
+  const pageStates: Array<{html:string;ready:boolean}> = [];
+  const responses: Array<{status:number;headers:Record<string,string>;bodyBase64:string}> = [];
   const server = createServer(async (req,res) => {
     let text = ''; for await (const chunk of req) text += chunk;
     const body = text ? JSON.parse(text) : {};
     requests.push({path:req.url, body, auth:req.headers.authorization});
     res.setHeader('content-type','application/json');
     const result = req.url === '/health' ? {ok:true} : req.url === '/fam/capabilities' ? {version:1} : req.url === '/tabs' ? {tabId:randomUUID()}
-      : req.url?.endsWith('/evaluate') ? {result:page} : req.url === '/fam/request' ? {status, headers:{'content-type':'application/octet-stream', 'x-provider':'kept', ...(challengeResponse ? {'cf-mitigated':'challenge'} : {})},bodyBase64:reply.toString('base64')}
+      : req.url?.endsWith('/evaluate') ? {result:pageStates.shift() ?? {html:page,ready:true}} : req.url === '/fam/request' ? responses.shift() ?? {status, headers:{'content-type':'application/octet-stream', 'x-provider':'kept', ...(challengeResponse ? {'cf-mitigated':'challenge'} : {})},bodyBase64:reply.toString('base64')}
       : req.url === '/fam/storage' ? {state:{cookies:[{name:'session',value:'cookie-secret',domain:'.example.com',path:'/api',expires:2000000000,httpOnly:true,secure:true,sameSite:'Lax'},
         {name:'fssessionid',value:'old-browser-session',domain:'.familysearch.org',path:'/',expires:-1,httpOnly:true,secure:true,sameSite:'Lax'}],origins:[]}}
       : req.url === '/fam/close' ? {closed:2} : {};
@@ -79,6 +82,71 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
     setBrowserOverrides({transport:'http'});
     assert.equal(await (await fetchWithBrowser('myheritage',target,{},async()=>new Response('direct'))).text(),'direct');
     setBrowserOverrides({});
+  });
+  await t.test('HTTP 200 interruption falls back for a provider without remembered routing', async () => {
+    const start = requests.length;
+    const html = '<html><title>Pardon Our Interruption</title><body>Something made us think you were a bot.</body></html>';
+    const result = await fetchWithBrowser('findagrave', target, {}, async () => new Response(html, {headers:{'content-type':'application/json'}}));
+    assert.deepEqual(Buffer.from(await result.arrayBuffer()), reply);
+    assert.equal(requests.slice(start).filter(r=>r.path==='/fam/request').length, 1);
+    await fetchWithBrowser('findagrave', target, {}, async () => {throw new Error('routing was not remembered');});
+  });
+  await t.test('American Ancestors media uses shared fallback without importing native account cookies', async () => {
+    const start=requests.length;
+    const http=new AmericanAncestorsHttp(undefined,async(_url,init)=>{
+      assert.equal(init.headers.Cookie,undefined);
+      return new Response('<html><title>Pardon Our Interruption</title><body>We think you were a bot.</body></html>',{headers:{'content-type':'text/html'}});
+    });
+    await http.jar.setCookie('identity=synthetic-private; Domain=americanancestors.org; Path=/; Secure','https://app.americanancestors.org');
+    const result=await http.request('https://75.img.americanancestors.org/image.xml',{media:true});
+    assert.deepEqual(Buffer.from(result.bytes),reply);
+    const calls=requests.slice(start);
+    assert.equal(calls.some(r=>r.path==='/fam/cookies'),false);
+    const sent=calls.find(r=>r.path==='/fam/request').body;
+    assert.equal(sent.headers.cookie,undefined);assert.equal(sent.headers.authorization,undefined);
+  });
+  await t.test('browser recovery waits through a blank script document, navigates GET, and preserves binary output', async () => {
+    const start = requests.length, image = Buffer.from([255,216,255,42]);
+    responses.push({status:200,headers:{'content-type':'text/html'},bodyBase64:Buffer.from('<html><title>Pardon Our Interruption</title><body>We think you were a bot.</body></html>').toString('base64')},
+      {status:200,headers:{'content-type':'image/jpeg'},bodyBase64:image.toString('base64')});
+    pageStates.push({html:'<html><script>/* verification in progress */</script></html>',ready:false}, {html:'<html><body><img src="scan.jpg"></body></html>',ready:true});
+    setBrowserOverrides({transport:'browser',timeout:5});
+    try {
+      const result = await fetchWithBrowser('familysearch', 'https://www.example.com/scan.jpg', {}, async () => {throw new Error('direct must not run');});
+      assert.equal(result.headers.get('content-type'),'image/jpeg');
+      assert.deepEqual(Buffer.from(await result.arrayBuffer()),image);
+      const calls=requests.slice(start), navigation=calls.findIndex(r=>r.path.endsWith('/navigate'));
+      assert.equal(calls[navigation].body.url,'https://www.example.com/scan.jpg');
+      const evaluations=calls.flatMap((r,i)=>r.path.endsWith('/evaluate')?[i]:[]);
+      assert.equal(evaluations.length,2);
+      assert.ok(evaluations[0]>navigation);
+      assert.ok(calls.findIndex((r,i)=>i>navigation && r.path==='/fam/prepare')>evaluations[1]);
+      assert.equal(calls.filter(r=>r.path==='/fam/request').length,2);
+    } finally {setBrowserOverrides({});}
+  });
+  await t.test('POST recovery navigates the origin and replays the exact body once', async () => {
+    const start=requests.length;
+    responses.push({status:403,headers:{'cf-mitigated':'challenge'},bodyBase64:''});
+    const init={method:'POST',headers:{Authorization:'Bearer synthetic', 'Content-Type':'application/json'},body:'{"id":9223372036854775807}'};
+    await fetchWithBrowser('myheritage',target,init,async()=>{throw new Error('direct must not run');});
+    const calls=requests.slice(start), sent=calls.filter(r=>r.path==='/fam/request');
+    assert.equal(calls.find(r=>r.path.endsWith('/navigate')).body.url,new URL(target).origin);
+    assert.equal(sent.length,2);
+    for (const request of sent) {
+      assert.equal(request.body.method,'POST'); assert.equal(request.body.url,target);
+      assert.equal(Buffer.from(request.body.bodyBase64,'base64').toString(),init.body);
+      assert.equal(request.body.headers.authorization,'Bearer synthetic');
+    }
+  });
+  await t.test('a repeated browser challenge preserves a verification page and never loops request replay', async () => {
+    const start=requests.length;
+    for(let i=0;i<2;i++) responses.push({status:503,headers:{'cf-mitigated':'challenge'},bodyBase64:''});
+    await assert.rejects(fetchWithBrowser('myheritage',target,{method:'POST',body:'one operation'},async()=>{throw new Error('direct must not run');}),
+      (error:any)=>error.code==='BROWSER_INTERACTION_REQUIRED' && error.vncUrl===endpoint.vncUrl);
+    const calls=requests.slice(start);
+    assert.equal(calls.filter(r=>r.path==='/fam/request').length,2);
+    assert.equal(calls.at(-1).body.url,new URL(target).origin);
+    assert.ok(calls.at(-1).path.endsWith('/navigate'));
   });
   await t.test('FamilySearch viewer cookies follow current authorization on both new and reused browser tabs', async () => {
     const http = new HttpSession();

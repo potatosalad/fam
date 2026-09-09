@@ -8,6 +8,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {chromium, type BrowserContext, type Page} from 'playwright';
+import {fetchWithBrowser, closeBrowserTransportTabs} from '../src/shared/browser-transport.js';
+import {saveBrowserConfig} from '../src/shared/browser-config.js';
 // @ts-expect-error This server-side JS plugin runs in Camofox, not the TypeScript SDK.
 import {register} from '../browser/camofox-plugin/index.js';
 // @ts-expect-error Express is only a development dependency for plugin integration tests.
@@ -17,10 +19,26 @@ test('Camofox plugin observes real browser responses, checkpoints state and isol
   const directory = await mkdtemp(join(tmpdir(),'fam-camofox-plugin-'));
   const browser = await chromium.launch({channel:process.env.FAM_TEST_BROWSER_CHANNEL,headless:true});
   const context = await browser.newContext({ignoreHTTPSErrors:true}), page = await context.newPage(), other = await context.newPage();
-  let external = 0, logins = 0;
+  let external = 0, logins = 0, challengeNavigations = 0, protectedFetches = 0;
+  const protectedBytes = Buffer.from([255,216,255,0,128,42]);
   execFileSync('openssl', ['req','-x509','-newkey','rsa:2048','-nodes','-keyout',join(directory,'key.pem'),'-out',join(directory,'cert.pem'),'-days','1','-subj','/CN=localhost'], {stdio:'ignore'});
   const web = createServer({key:await readFile(join(directory,'key.pem')), cert:await readFile(join(directory,'cert.pem'))}, async (req,res) => {
     let body = Buffer.alloc(0); for await (const chunk of req) body=Buffer.concat([body,chunk]);
+    if (req.url === '/protected-image') {
+      if (req.headers['sec-fetch-mode'] === 'navigate') {
+        challengeNavigations++;
+        res.setHeader('content-type','text/html');
+        // Verification initially has no visible content or recognizable title.
+        // A fetch never executes this script; a document navigation does.
+        res.end('<html><body><script>setTimeout(()=>{document.cookie="clearance=verified; Path=/; Secure";location.replace("/verified")},750)</script></body></html>');return;
+      }
+      protectedFetches++;
+      if (req.headers.cookie?.includes('clearance=verified')) {
+        res.setHeader('content-type','image/jpeg');res.end(protectedBytes);return;
+      }
+      res.setHeader('content-type','text/html');
+      res.end('<html><title>Pardon Our Interruption</title><body>Something about your browser made us think you were a bot.</body></html>');return;
+    }
     if (req.url==='/authorize' || req.url==='/wrong') {res.writeHead(302,{location:`com.test://auth.example.test/callback?state=${req.url==='/wrong'?'wrong':'expected'}&code=good`});res.end();return;}
     if (req.url==='/form') {res.setHeader('content-type','text/html');res.end('<form method=post action=/login><input name=registrationEmail><input type=password name=password><button>Log in</button></form><div style="position:fixed;inset:0;background:white">Cookie notice</div>');return;}
     if (req.url==='/login') {assert.equal(body.toString(),'registrationEmail=synthetic%40example.test&password=synthetic-password');logins++;}
@@ -35,6 +53,19 @@ test('Camofox plugin observes real browser responses, checkpoints state and isol
   await page.goto(origin);
   const userId='fam-test-storied', session={context,tabGroups:new Map([['fam',new Map([['owned',{page}]])],['unrelated',new Map([['other',{page:other}]])]]),lastAccess:Date.now()};
   const app=express(), events=new EventEmitter(), sessions=new Map([[userId,session]]);
+  app.use('/tabs', express.json());
+  app.get('/health', (_req:any,res:any)=>res.json({ok:true}));
+  app.post('/tabs', async (_req:any,res:any)=>{
+    const id=`transport-${session.tabGroups.get('fam')!.size}`;
+    const transportPage=await context.newPage();session.tabGroups.get('fam')!.set(id,{page:transportPage});res.json({tabId:id});
+  });
+  app.post('/tabs/:id/evaluate', async (req:any,res:any)=>{
+    try {res.json({result:await session.tabGroups.get('fam')!.get(req.params.id)!.page.evaluate(req.body.expression)});}
+    catch {res.status(400).json({error:'navigation-in-progress'});}
+  });
+  app.post('/tabs/:id/navigate', async (req:any,res:any)=>{
+    await session.tabGroups.get('fam')!.get(req.params.id)!.page.goto(req.body.url,{waitUntil:'domcontentloaded'});res.json({ok:true});
+  });
   register(app,{sessions,events,config:{profileDir:directory},auth:()=> (_req:any,_res:any,next:any)=>next(),getSession:async()=>session});
   const api=app.listen(0,'127.0.0.1'); await new Promise<void>(resolve=>api.once('listening',resolve));
   const base=`http://127.0.0.1:${api.address().port}`;
@@ -77,6 +108,20 @@ test('Camofox plugin observes real browser responses, checkpoints state and isol
   const redirect=await call('request',{userId,tabId:'owned',url:`${origin}/redirect`});
   assert.equal(redirect.status,302);assert.equal(new Headers(redirect.headers).get('location'),'/external');assert.equal(external,0);
   assert.equal((await call('request',{userId,tabId:'owned',url:`${origin}/empty`})).status,204);
+  await t.test('shared recovery executes a real navigation and waits for script clearance before retrying the image',async()=>{
+    await saveBrowserConfig({version:1,mode:'remote',remote:{url:base,vncUrl:`${base}/viewer`},timeout:10,transport:'auto',session:'test',open:false});
+    let directCalls=0;
+    try {
+      const result=await fetchWithBrowser('storied',`${origin}/protected-image`,{},async()=>{
+        directCalls++;
+        return new Response('<html><title>Pardon Our Interruption</title><body>We think you were a bot.</body></html>',{headers:{'content-type':'text/html'}});
+      });
+      assert.equal(directCalls,1);assert.equal(challengeNavigations,1);assert.equal(protectedFetches,2);
+      assert.equal(result.headers.get('content-type'),'image/jpeg');
+      assert.deepEqual(Buffer.from(await result.arrayBuffer()),protectedBytes);
+      assert.ok((await context.cookies()).some(cookie=>cookie.name==='clearance' && cookie.value==='verified'));
+    } finally {await closeBrowserTransportTabs();}
+  });
   const state=await call('storage',{userId});assert.equal(state.state.cookies[0].httpOnly,true);
   const saved=JSON.parse(await readFile(join(directory,createHash('sha256').update(userId).digest('hex').slice(0,32),'storage-state.json'),'utf8'));
   assert.equal(saved.cookies[0].value,'browser-cookie');

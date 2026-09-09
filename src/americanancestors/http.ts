@@ -47,8 +47,8 @@ export class AmericanAncestorsHttp {
       let response: Awaited<ReturnType<Transport>>;
       try {
         // Login submissions never enter challenge recovery: it can replay requests.
-        response = body !== undefined || options.media ? await this.direct(url.href, init)
-          : await fetchWithBrowser('americanancestors', url.href, init, () => this.direct(url.href, init), this.jar);
+        response = body !== undefined ? await this.direct(url.href, init)
+          : await fetchWithBrowser('americanancestors', url.href, init, () => this.direct(url.href, init), options.media ? undefined : this.jar);
       } catch (error) {if (error instanceof BrowserError) throw error; throw new Error('American Ancestors network request failed.');}
       if (!options.media) {
         try {for (const cookie of response.headers.getSetCookie()) await this.jar.setCookie(cookie, url.href);}
