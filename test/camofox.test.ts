@@ -10,6 +10,7 @@ import {loginCooldown, waitForLogin} from '../src/shared/browser-login.js';
 import {readPrivateJson, writePrivateJson} from '../src/shared/storage.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
 import {complete, completionCatalog} from '../src/shared/completion.js';
+import {HttpSession} from '../src/familysearch/http.js';
 
 test('challenge classification requires provider evidence rather than a generic denial', () => {
   assert.equal(isChallenge(new Headers({'cf-mitigated':'challenge'})), true);
@@ -41,7 +42,8 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
     res.setHeader('content-type','application/json');
     const result = req.url === '/health' ? {ok:true} : req.url === '/fam/capabilities' ? {version:1} : req.url === '/tabs' ? {tabId:randomUUID()}
       : req.url?.endsWith('/evaluate') ? {result:page} : req.url === '/fam/request' ? {status, headers:{'content-type':'application/octet-stream', 'x-provider':'kept', ...(challengeResponse ? {'cf-mitigated':'challenge'} : {})},bodyBase64:reply.toString('base64')}
-      : req.url === '/fam/storage' ? {state:{cookies:[{name:'session',value:'cookie-secret',domain:'.example.com',path:'/api',expires:2000000000,httpOnly:true,secure:true,sameSite:'Lax'}],origins:[]}}
+      : req.url === '/fam/storage' ? {state:{cookies:[{name:'session',value:'cookie-secret',domain:'.example.com',path:'/api',expires:2000000000,httpOnly:true,secure:true,sameSite:'Lax'},
+        {name:'fssessionid',value:'old-browser-session',domain:'.familysearch.org',path:'/',expires:-1,httpOnly:true,secure:true,sameSite:'Lax'}],origins:[]}}
       : req.url === '/fam/close' ? {closed:2} : {};
     res.end(JSON.stringify({ok:true,...result}));
   });
@@ -77,6 +79,30 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
     setBrowserOverrides({transport:'http'});
     assert.equal(await (await fetchWithBrowser('myheritage',target,{},async()=>new Response('direct'))).text(),'direct');
     setBrowserOverrides({});
+  });
+  await t.test('FamilySearch viewer cookies follow current authorization on both new and reused browser tabs', async () => {
+    const http = new HttpSession();
+    await http.jar.setCookie('preference=stale-native-preference; Domain=familysearch.org; Path=/; Secure', 'https://www.familysearch.org');
+    setBrowserOverrides({transport:'browser'});
+    try {
+      for (const token of ['first-current-token', 'rotated-current-token']) {
+        const start = requests.length;
+        await http.request('https://www.familysearch.org/search/filmdatainfo/image-data', {
+          method:'POST', headers:{Authorization:`Bearer ${token}`}, body:'{}',
+        });
+        const calls = requests.slice(start);
+        const imports = calls.filter(r=>r.path==='/fam/cookies');
+        assert.equal(imports.length,1);
+        assert.equal(imports[0].body.cookies.length,1);
+        assert.equal(imports[0].body.cookies[0].name,'fssessionid');
+        assert.equal(imports[0].body.cookies[0].value,token);
+        assert.equal(imports[0].body.cookies[0].domain,'.familysearch.org');
+        assert.equal(imports[0].body.cookies[0].secure,true);
+        assert.equal(imports[0].body.explicit,undefined); // Preserve browser reset protection.
+        assert.ok(calls.indexOf(imports[0]) < calls.findIndex(r=>r.path==='/fam/request'));
+        if (token.startsWith('rotated')) assert.equal(calls.some(r=>r.path==='/tabs'),false);
+      }
+    } finally {setBrowserOverrides({});}
   });
   await t.test('local and remote transport decisions and saved sessions are separate', async () => {
     await saveProviderSession('myheritage',{browserInstance:endpointId(config),account:'remote'} as any);

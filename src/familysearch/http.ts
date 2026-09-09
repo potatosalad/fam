@@ -1,7 +1,7 @@
 import {fetchWithBrowser} from '../shared/browser-transport.js';
 import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
-import { CookieJar } from 'tough-cookie';
+import { Cookie, CookieJar } from 'tough-cookie';
 import type { ApiRequest, ApiResponse, HttpMethod, UploadBody } from './transport-types.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
 
@@ -28,8 +28,8 @@ export function checkOrigin(url: URL): void {
 export class HttpSession {
   readonly jar: CookieJar;
   private readonly transport: Impit;
-  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
-    return fetchWithBrowser('familysearch', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1], sessionCookies: string[] = []) {
+    return fetchWithBrowser('familysearch', url, init ?? {}, () => this.transport.fetch(url, init), this.jar, sessionCookies);
   }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
     this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar();
@@ -40,10 +40,20 @@ export class HttpSession {
     const target = new URL(url);
     checkOrigin(target);
     const headers: Record<string, string> = { 'Accept-Language': 'en-US', ...init.headers };
+    const sessionCookies: string[] = [];
+    // The website viewer ignores the bearer header and reads fssessionid. A
+    // saved web cookie can outlive its server session while the API token works.
+    const bearer = new Headers(headers).get('authorization')?.match(/^Bearer ([^\s;,]+)$/)?.[1];
+    if (target.origin === FS_ORIGIN && init.method === 'POST'
+      && /^\/search\/filmdatainfo\/(image-data|film-data|waypoint-data)$/.test(target.pathname) && bearer) {
+      await this.jar.setCookie(new Cookie({key: 'fssessionid', value: bearer, domain: 'familysearch.org',
+        path: '/', secure: true, httpOnly: true, sameSite: 'lax'}), target.href);
+      sessionCookies.push('fssessionid');
+    }
     const cookie = await this.jar.getCookieString(target.href);
     if (cookie) headers.Cookie = cookie;
     let response: Response;
-    try { response = await this.fetch(target, { ...init, headers, redirect: 'manual' }); }
+    try { response = await this.fetch(target, { ...init, headers, redirect: 'manual' }, sessionCookies); }
     catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Network request failed for ${target.origin}${target.pathname}.`); }
     for (const value of response.headers.getSetCookie()) await this.jar.setCookie(value, target.href);
     return response;

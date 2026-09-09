@@ -41,7 +41,7 @@ export async function closeBrowserTransportTabs(): Promise<void> {
   const pending = [...tabs.values()]; tabs.clear();
   await Promise.allSettled(pending.map(async value => {const tab = await value; await tab.browser.api('/fam/close-tab', {userId: tab.userId, tabId: tab.id});}));
 }
-export async function browserRequest(provider: string, target: URL, init: HttpInit, jar?: CookieJar): Promise<Response> {
+export async function browserRequest(provider: string, target: URL, init: HttpInit, jar?: CookieJar, sessionCookies: string[] = []): Promise<Response> {
   init.signal?.throwIfAborted();
   const browser = await configuredBrowser();
   // Each operation owns its tab, so concurrent CLIs never navigate one another's
@@ -65,14 +65,23 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
   }
   const tab = await pending;
   try {
-  let response = await tab.request(target.href, init);
+  const request = async () => {
+    // Explicitly managed session cookies come from current authorization, not
+    // an old HTTP snapshot. Refresh only these cookies, including on reused tabs.
+    if (jar && sessionCookies.length) {
+      const cookies = jarCookies(jar, target.origin).filter(cookie => sessionCookies.includes(cookie.name));
+      if (cookies.length) await browser.api('/fam/cookies', {userId: tab.userId, cookies});
+    }
+    return tab.request(target.href, init);
+  };
+  let response = await request();
   if (await challenged(response)) {
     await rememberBrowser(provider, target.origin);
     await tab.navigate((init.method ?? 'GET') === 'GET' ? target.href : target.origin);
     await waitForChallenge(tab, init.signal);
     init.signal?.throwIfAborted();
     await tab.prepare(target.origin);
-    response = await tab.request(target.href, init);
+    response = await request();
     if (await challenged(response)) throw new BrowserError(`The website still requires verification at ${browser.endpoint.vncUrl}. Retry after completing it.`, 'BROWSER_INTERACTION_REQUIRED', browser.endpoint.vncUrl);
   }
   if (jar) await updateCookieJar(jar, await browser.state(provider), target.origin);
@@ -85,11 +94,11 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
 }
 /** Recover only evidenced challenge responses. Network failures, ordinary 403s,
  * rate limits and provider errors retain their original behavior. */
-export async function fetchWithBrowser(provider: string, url: string | URL, init: HttpInit, direct: () => Promise<HttpResponse>, jar?: CookieJar): Promise<Response> {
+export async function fetchWithBrowser(provider: string, url: string | URL, init: HttpInit, direct: () => Promise<HttpResponse>, jar?: CookieJar, sessionCookies: string[] = []): Promise<Response> {
   const target = new URL(url);
-  if (await useBrowser(provider, target.origin)) return browserRequest(provider, target, init, jar);
+  if (await useBrowser(provider, target.origin)) return browserRequest(provider, target, init, jar, sessionCookies);
   const response = await normalize(await direct());
   if (await directOnly() || !await challenged(response)) return response;
   process.stderr.write(`${provider}: website verification required; continuing in Camofox…\n`);
-  return browserRequest(provider, target, init, jar);
+  return browserRequest(provider, target, init, jar, sessionCookies);
 }

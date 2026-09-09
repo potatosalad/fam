@@ -123,6 +123,8 @@ const transcript = await client.research.imageTranscript(info.imageArk);
 
 `ResearchError.code` distinguishes `access-denied`, `security-challenge`, `not-found`, `throttled`, `temporary-failure`, `unexpected-content`, `schema-change`, and `pagination`. Explicit 401 responses renew authentication once; 403/security challenges do not start login loops. Metadata/image reads retry network failures and 429/502/503/504 at most three times with backoff. A server `Retry-After` above 30 seconds is surfaced instead of retrying early. Once a streamed image body has started, a failed transfer must be rerun; no incomplete image is kept.
 
+The viewer's `filmdatainfo` POST reads require the current session in the `fssessionid` cookie; the bearer header alone is insufficient. Fam synchronizes that cookie from the current API token before each viewer read, including in browser transport. A stale cookie can cause a JSON 403 saying the user is unauthorized even while tree API reads succeed. Browser user-agent headers do not fix that session mismatch. Actual image restrictions still produce `access-denied` and are not retried as authentication failures.
+
 ## Service evidence and coverage limits
 
 The routes and request shapes were inspected in the live FamilySearch website's JavaScript and checked with authenticated requests on September 6, 2026. Relevant production assets were `31723.eba46d2cff742ddb.chunk.js` (viewer metadata, module 5069), `98776.7854208d3d7d62e5.chunk.js` (full-text search), and the image viewer's `main.c83b7ade85a7e92c.js` (transcript request and service origin mapping). Local copies and response artifacts remain ignored.

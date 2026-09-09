@@ -54,6 +54,39 @@ test('research URL validation rejects credential destinations and normalizes ima
   assert.throws(() => dgsNumber('NaN'));
 });
 
+test('viewer reads replace a stale session cookie with current authorization while API requests keep bearer authentication', async () => {
+  const http = new HttpSession();
+  await http.jar.setCookie('fssessionid=stale-web-session; Domain=familysearch.org; Path=/; Secure; HttpOnly', ark);
+  await http.jar.setCookie('preference=keep; Domain=familysearch.org; Path=/; Secure', ark);
+  let token = 'current-token';
+  await mocked((url, init) => {
+    const headers = new Headers(init?.headers as HeadersInit);
+    const cookie = headers.get('cookie') ?? '';
+    assert.equal(headers.get('authorization'), `Bearer ${token}`);
+    assert.ok(cookie.includes(`fssessionid=${token}`));
+    assert.ok(cookie.includes('preference=keep'));
+    assert.ok(!cookie.includes('stale-web-session'));
+    return json({ok:true});
+  }, async () => {
+    for (const route of ['image-data', 'film-data', 'waypoint-data']) {
+      await http.request(`https://www.familysearch.org/search/filmdatainfo/${route}`, {
+        method: 'POST', headers: {Authorization: `Bearer ${token}`}, body: '{}',
+      });
+      token = 'rotated-token';
+    }
+  });
+  const fresh = new HttpSession();
+  await mocked((_url, init) => {
+    assert.equal(new Headers(init?.headers as HeadersInit).get('cookie'), null);
+    return json({ok:true});
+  }, async () => {
+    for (const url of ['https://www.familysearch.org/platform/users/current',
+      'https://ident.familysearch.org/search/filmdatainfo/image-data']) {
+      await fresh.request(url, {method:'POST', headers:{Authorization:'Bearer api-only-token'}});
+    }
+  });
+});
+
 test('original download follows signed storage without credentials, validates pixels, and saves provenance privately', async () => {
   const directory = await mkdtemp(join(tmpdir(),'fs-image-'));
   const bytes = await sharp({ create: { width: 24, height: 16, channels: 3, background: '#abc' } }).jpeg().toBuffer();
