@@ -504,6 +504,17 @@ for (const object of ['history', 'history.failures']) for (const action of ['lis
       outputSchema: {type: 'object', description: 'Local history view with entries or groups, read notices, and pagination. No provider requests.'},
     });
 }
+add('cli', 'history-stats', 'history stats', 'Explore call volume, failures, and duration percentiles over time as a terminal graph, table, or JSON.', [],
+  'provider command outcome code query since until include-utility include-archived interval group-by metric format', {
+    ...cliRisk, flags: {...historyFlags,
+      interval: {default: 'auto', choices: ['auto', 'minute', 'hour', 'day', 'week', 'month'], description: 'Time bucket size in UTC; auto chooses from the selected span. Weeks start on Monday.'},
+      'group-by': {default: 'none', choices: ['none', 'provider', 'command', 'outcome', 'code', 'build'], description: 'Split the time series by this dimension. All groups are included.'},
+      metric: {default: 'calls', choices: ['calls', 'failures', 'failure-rate', 'avg-duration', 'p50-duration', 'p95-duration'], description: 'Metric to graph. Tables and JSON retain their standard statistics.'},
+      format: {default: 'graph', choices: ['graph', 'table', 'json'], description: 'Terminal bar graph (default), numeric table, or raw JSON statistics.'}},
+    examples: ['fam cli.history stats --since 7d', 'fam cli.history stats --since 30d --interval day --group-by provider --metric failure-rate',
+      'fam cli.history stats --provider ancestry --metric p95-duration --format table', 'fam cli.history stats --interval hour --json'],
+    outputSchema: {type: 'object', description: 'Overall and per-series counts, failure rates, duration statistics, and UTC time buckets. All matches and series are included.'},
+  });
 add('cli', 'history-archive', 'history archive', 'Hide matching CLI history using an archive marker; keep all recorded data and input snapshots.', [],
   'all failures provider command outcome code query since until include-utility', {
     risk: {level: 'write', description: 'Appends a local archive marker. No history or captured inputs are deleted or rewritten. Use --dry-run to preview matching counts.'},

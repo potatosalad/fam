@@ -102,14 +102,15 @@ fam cli.history list --query "Expected JSON" --since 7d
 fam cli.history list --outcome incomplete
 fam cli.history.failures summary --since 7d --group-by code
 fam cli.history summary --group-by provider
+fam cli.history stats --since 7d
 fam cli.history get --id <ID_FROM_LIST>
 ```
 
-`cli.history.failures` is a nested object with `list` and `summary` actions. It restricts results to recorded soft and hard failures. `cli.history` provides `list`, `summary`, `get`, and `archive` for all outcomes; run `fam cli.history` or `fam cli.history.failures` to browse their help. The list, summary, and get views read the active local profile without contacting any provider, running a credential helper, or rewriting historical records. History commands are still logged unless `FAM_HISTORY=0`.
+`cli.history.failures` is a nested object with `list` and `summary` actions. It restricts results to recorded soft and hard failures. `cli.history` provides `list`, `summary`, `stats`, `get`, and `archive` for all outcomes; run `fam cli.history` or `fam cli.history.failures` to browse their help. The list, summary, stats, and get views read the active local profile without contacting any provider, running a credential helper, or rewriting historical records. History commands are still logged unless `FAM_HISTORY=0`.
 
 Lists show the newest **start times** first, merging each invocation's start and finish into one entry. Each entry prints the full `fam` command with every argument, quoted for bash/zsh so spaces, quotes, empty strings, and shell metacharacters retain their meaning. Commands are never clipped or reformatted to fit the terminal; the terminal wraps them naturally. Control characters are represented with reversible shell escapes. The default is 20 matches. `--limit 0` returns all matching entries; positive limits have no fixed cap. `--offset` skips matching entries before applying the limit, including when the limit is zero. The printed `More` command preserves your filters. `get --id` accepts a full invocation UUID or a unique prefix of at least eight characters; ambiguous prefixes ask for a longer ID. Details include the full command, working directory, captured input paths, error and cause stacks, recovery diagnostics, runtime/build information, and the original filename and line numbers. JSON entries include both the exact `argv` array and a copyable `commandLine`. An unfinished invocation means no finish was recorded, not proof of a crash. Lists and summaries hide archived entries by default; add `--include-archived` to include them. `get --id` always opens the requested entry, including archived entries. JSON entries include `archived`, `archivedAt`, and `archiveId`; human output labels archived entries.
 
-Filter lists and summaries with:
+Filter lists, summaries, and statistics with:
 
 | Flag | Meaning |
 | --- | --- |
@@ -123,6 +124,30 @@ Filter lists and summaries with:
 Different filters combine with AND; repeated provider/outcome values combine with OR. By default, successful history queries and shell completion lookups are hidden to keep routine checks readable. Use `--include-utility` or an explicit `--command` filter to include them; their failures are always eligible. The query currently running is excluded from its own results. Add `--json` for the standard structured envelope, or `--out FILE` to export the current view using private file permissions.
 
 Summaries count matching invocations and show the ten leading groups by default. `--group-by command` is the default; `provider` and `code` are also available. Groups with the most failures appear first. One invocation can have multiple diagnostic codes, but is counted once per code, so code-group totals may exceed the invocation total. `--limit` and `--offset` also paginate summary groups; `--limit 0` returns every matching group.
+
+Use `stats` to explore trends in a terminal graph, numeric table, or JSON:
+
+```sh
+fam cli.history stats --since 7d
+fam cli.history stats --since 30d --interval day --group-by provider --metric failure-rate
+fam cli.history stats --provider ancestry --since 7d --interval hour --metric p95-duration
+fam cli.history stats --since 7d --group-by code --metric failures
+fam cli.history stats --since 7d --group-by build --format table
+fam cli.history stats --since 7d --interval day --json --out history-stats.json
+```
+
+`stats` includes **every matching invocation, group, and time bucket**, without pagination or a result cap. It honors all filters above, `--include-utility`, and `--include-archived`. Use `--outcome soft_failure --outcome hard_failure` to select both failure outcomes, or `--metric failures` to graph failures while retaining successful calls in the statistics.
+
+| Flag | Meaning |
+| --- | --- |
+| `--interval SIZE` | `auto` (default), `minute`, `hour`, `day`, `week`, or `month`. Buckets use UTC; weeks start Monday and months follow calendar boundaries. |
+| `--group-by DIMENSION` | `none` (default), `provider`, `command`, `outcome`, `code`, or `build`. Each group gets a time series, ordered by total calls. Build groups use the full revision and distinguish dirty builds. |
+| `--metric NAME` | Graph `calls` (default), `failures`, `failure-rate`, `avg-duration`, `p50-duration`, or `p95-duration`. Graphs share a scale across groups and print the value beside each bar. |
+| `--format FORMAT` | `graph` (default), `table`, or `json`. `--json` also selects JSON. Tables show counts, failure rates, and mean/p50/p95 durations; JSON includes every statistic. The graph metric does not affect these formats. `--out FILE` exports the selected format. |
+
+Buckets count calls by **start time**. Missing buckets inside the range contain zero counts and null rates/durations. Without time filters, the range spans the earliest through latest matching call. `--since` extends the range through now when `--until` is omitted (or through the latest match if its timestamp is later). An explicit `--until` is inclusive; JSON bucket `end` is exclusive. The first and last buckets may cover only part of their calendar interval. Automatic intervals are minute for spans up to one hour, hour up to two days, day up to 90 days, week up to 732 days, and month thereafter. Explicit intervals are never enlarged to reduce the number of buckets.
+
+Failure rate is `(soft failures + hard failures) / completed calls × 100` **within the filtered data**. Unfinished calls are counted separately and excluded from the denominator. Filtering to failures therefore yields 100% wherever completed calls remain; graph `--metric failure-rate` without an outcome/code filter to compare against all matching completed calls. Duration statistics use finite, nonnegative recorded durations from completed calls, including failures; zero is a valid sample. Overall means and percentiles use individual calls, not averages of buckets. p50/p95 use nearest rank. JSON exposes raw milliseconds, sample counts, mean, p50, p95, minimum, and maximum; missing samples/rates are `null` (shown as `—` in the terminal). Code groups may overlap, but each invocation counts once per code and once in the overall total.
 
 Use **one archive command** to hide reviewed history while retaining the original evidence:
 

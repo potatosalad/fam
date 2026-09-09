@@ -6,6 +6,7 @@ import {errorSummary} from './command-history.js';
 import {reportDiagnostic} from './diagnostics.js';
 import {shellCommand} from './shell-command.js';
 import type {HistoryInput} from './command-input.js';
+import {historyStatistics, type HistoryStatsData} from './history-stats.js';
 
 export const historyOutcomes = ['success', 'soft_failure', 'hard_failure', 'incomplete'] as const;
 export type HistoryOutcome = typeof historyOutcomes[number];
@@ -54,7 +55,8 @@ export interface HistorySummary extends ScanInfo {
   groupBy: string; groups: HistoryGroup[]; totalGroups: number; next: string | null;
 }
 export interface HistoryDetail extends ScanInfo {view: 'get'; entry: HistoryEntry}
-export type HistoryView = HistoryList | HistorySummary | HistoryDetail | HistoryArchive;
+export interface HistoryStats extends ScanInfo, HistoryStatsData {}
+export type HistoryView = HistoryList | HistorySummary | HistoryDetail | HistoryArchive | HistoryStats;
 
 function validDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -276,6 +278,10 @@ export async function queryHistory(action: string, values: Values, excludeId?: s
     }
     if (!selected) throw Object.assign(new Error('No history entry matches that ID in the active profile. Run fam cli.history list to find an ID.'), {code: 'HISTORY_NOT_FOUND'});
     return {...scan, view: 'get', entry: selected};
+  }
+  if (action === 'stats') {
+    const data = await historyStatistics(rows(), values, {since: filter.since, until: filter.until, now});
+    return {...scan, ...data};
   }
   if (action === 'summary') {
     const groupBy = String(values['group-by'] ?? 'command'), groups = new Map<string, HistoryGroup>();

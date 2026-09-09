@@ -1,5 +1,6 @@
 import type {HistoryEntry, HistoryView} from './history-query.js';
 import {shellQuote} from './shell-command.js';
+import {historyStatsOutput} from './history-stats-output.js';
 
 // Log strings are data: never allow terminal escape sequences to reach the screen.
 const safe = (value: unknown): string => String(value ?? '').replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -64,6 +65,7 @@ function detail(row: HistoryEntry, width: number): string[] {
 export function historyOutput(result: HistoryView, columns = 100): string {
   const width = Math.max(60, columns), lines: string[] = [];
   if (result.view === 'get') lines.push(...detail(result.entry, width));
+  else if (result.view === 'stats') lines.push(...historyStatsOutput(result, width));
   else if (result.view === 'archive') {
     lines.push(`${result.dryRun ? 'Would archive' : 'Archived'} ${result.count} invocation${result.count === 1 ? '' : 's'}.`,
       `${result.counts.success} OK · ${result.counts.soft_failure} soft · ${result.counts.hard_failure} hard · ${result.counts.incomplete} unfinished`,
