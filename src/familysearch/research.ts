@@ -75,7 +75,9 @@ export interface ImageTranscript {
 }
 interface TranscriptResponse {
   stuff?: { metadata?: { properties?: Array<{ name: string; value: string }> };
-    pages?: ImageTranscript['pages']; regions?: TranscriptRegion[] } | null;
+    pages?: ImageTranscript['pages']; regions?: Array<Omit<TranscriptRegion, 'lines'> & {
+      lines: Array<Omit<TranscriptLine, 'tokens'> & {tokens?: TranscriptToken[]}>
+    }> } | null;
 }
 
 export const FULLTEXT_FEATURES = 'search.original.gedcomx,search.default.facet.include.race,search_fullTextResultTitle,search_flatRecordType,search_naturalLanguageSupport,search_fullTextHighlightEnhancement';
@@ -332,22 +334,22 @@ export class ResearchClient {
 export function decodeTranscript(data: TranscriptResponse, base: ImageTranscript): ImageTranscript {
   if (data?.stuff === null) return base;
   const stuff = data?.stuff;
-  if (!stuff || !Array.isArray(stuff.regions) || !Array.isArray(stuff.pages) || !Array.isArray(stuff.metadata?.properties)) schema('Transcript service returned an unfamiliar document structure.');
+  if (!stuff || (stuff.regions !== undefined && !Array.isArray(stuff.regions)) || !Array.isArray(stuff.pages) || !Array.isArray(stuff.metadata?.properties)) schema('Transcript service returned an unfamiliar document structure.');
   const properties = new Map(stuff.metadata.properties.map(p => [p.name, p.value]));
   const source = properties.get('IMAGE_ARK');
   if (!source || imageArk(source) !== base.imageArk) schema('Transcript did not identify the requested image ARK.');
-  const regions = stuff.regions.map((region): TranscriptRegion => {
+  const regions = (stuff.regions ?? []).map((region): TranscriptRegion => {
     if (!Array.isArray(region.lines)) schema('Transcript region has no ordered lines.');
     return { id: region.id, type: region.type, rect: region.rect, subPageId: region.subPageId,
       lines: region.lines.map(line => {
-        if (!Array.isArray(line.tokens)) schema('Transcript line has no ordered tokens.');
-        return { id: line.id, rect: line.rect, tokens: line.tokens.filter(Boolean).map(token => {
+        if (line.tokens !== undefined && !Array.isArray(line.tokens)) schema('Transcript line has no ordered tokens.');
+        return { id: line.id, rect: line.rect, tokens: (line.tokens ?? []).filter(Boolean).map(token => {
           if (typeof token.text !== 'string' && !token.redacted) schema('Transcript token is missing its text.');
           return { id: token.id, text: token.redacted ? '[REDACTED]' : token.text, rect: token.rect, ...(token.redacted ? { redacted: true } : {}) };
         }) };
       }) };
   });
-  return { ...base, available: true, regions, pages: stuff.pages.map(p => ({ id: p.id, pageWidth: p.pageWidth, pageHeight: p.pageHeight })),
+  return { ...base, available: regions.length > 0, regions, pages: stuff.pages.map(p => ({ id: p.id, pageWidth: p.pageWidth, pageHeight: p.pageHeight })),
     text: regions.map(r => r.lines.map(l => l.tokens.map(t => t.text).join(' ')).join('\n')).join('\n\n'),
     hasRedactions: regions.some(r => r.lines.some(l => l.tokens.some(t => t.redacted))),
     language: properties.get('LANGUAGE'), recordDate: properties.get('RECORD_DATE'), recordPlace: properties.get('RECORD_PLACE') };

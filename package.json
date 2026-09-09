@@ -7,7 +7,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
     "test:browser": "node --import ./test/setup.mjs --import tsx --test test/browser-capture.integration.ts test/camofox.integration.ts",
-    "build": "node scripts/clean-dist.mjs && tsc && node scripts/build-info.mjs && node scripts/generate-completions.mjs",
+    "build": "node scripts/build.mjs",
     "extract:ancestry": "python3 scripts/extract-ancestry.py",
     "check:ancestry": "python3 scripts/extract-ancestry.py --check",
     "verify:ancestry": "tsx scripts/verify-ancestry.ts",

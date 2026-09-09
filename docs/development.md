@@ -6,7 +6,11 @@ Use Node.js 22.16 or newer, npm, and Python 3. Run `npm ci` to install dependenc
 
 `src/cli.ts` contains the `fam` dispatcher; shared command definitions and help live under `src/shared/`. Each service owns its client, authentication, CLI, and any generated contracts under `src/<provider>/`. The [provider index](../README.md#providers) links every maintained guide.
 
-`src/shared/` contains credential lookup, private storage, and lossless JSON utilities used across providers. `src/index.ts` preserves the root library export; FamilySearch is also available through `@potatosalad/fam/familysearch`, alongside the other provider subpaths. Builds clear old output before compiling so renamed modules do not remain in installed packages.
+`src/shared/` contains credential lookup, private storage, and lossless JSON utilities used across providers. `src/index.ts` preserves the root library export; FamilySearch is also available through `@potatosalad/fam/familysearch`, alongside the other provider subpaths.
+
+Builds compile and generate metadata in a fresh `.fam-build-*` directory before switching the linked CLI to it through an atomic `.fam-build.json` pointer. Each CLI invocation keeps that complete snapshot for its lifetime, including lazy imports. A failed compilation leaves the previous build usable. Old snapshots are retained for running commands; remove them only when no commands are using them, then rebuild before using the linked CLI again.
+
+The build also updates the real `dist/` directory using atomic file replacement for library consumers and npm packages. Legacy modules stay available to older running imports, while a generated `dist/.npmignore` excludes obsolete files from packages. Packaged installations use `dist/` and do not include development snapshots. Library consumers should restart after a rebuild to load a consistent version.
 
 ## Run from source
 

@@ -23,3 +23,7 @@ reports/
 docs/**/live-*.json
 docs/**/research-verification*.json
 docs/**/*spot-check*.json
+
+# Complete CLI build snapshots retained for commands already running.
+.fam-build-*
+.fam-build.json*

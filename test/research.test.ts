@@ -271,6 +271,33 @@ test('transcript reads authenticate on the observed host and distinguish absence
   }
 });
 
+test('transcripts accept omitted empty content without relaxing identity or malformed-array checks', () => {
+  const base: ImageTranscript = {imageArk: ark, available: false, machineGenerated: true, text: '', citations: [],
+    pages: [], regions: [], hasRedactions: false, retrievedAt: '2026-09-09', sourceUrl: 'https://sg30p0.familysearch.org/'};
+  const metadata = {properties: [{name: 'IMAGE_ARK', value: ark}]};
+  const pages = [{id: 'P1', pageWidth: 24, pageHeight: 16}];
+  const regions = [{id: 'R1', lines: [{tokens: [{text: 'First'}]}, {id: 'blank', rect: '1,2,3,4'}, {tokens: [{text: 'Last'}]}]}];
+  const result = decodeTranscript({stuff: {metadata, pages, regions}}, base);
+  assert.equal(result.available, true);
+  assert.equal(result.text, 'First\n\nLast');
+  assert.deepEqual(result.regions[0].lines[1], {id: 'blank', rect: '1,2,3,4', tokens: []});
+  for (const empty of [{metadata, pages}, {metadata, pages, regions: []}]) {
+    const result = decodeTranscript({stuff: empty}, base);
+    assert.equal(result.available, false);
+    assert.equal(result.text, '');
+    assert.deepEqual(result.pages, pages);
+  }
+  for (const stuff of [
+    {metadata, pages, regions: null}, {metadata, pages, regions: {}},
+    {metadata, pages, regions: [{lines: [{tokens: null}]}]},
+    {metadata, pages, regions: [{lines: [{tokens: {}}]}]},
+    {metadata, pages, regions: [{lines: [{tokens: [{}]}]}]},
+    {metadata, pages, regions: [{}]},
+    {metadata: {properties: [{name: 'IMAGE_ARK', value: '3:1:OTHER-IMAGE'}]}, pages},
+    {metadata: {properties: []}, pages},
+  ]) assert.throws(() => decodeTranscript({stuff} as never, base), /schema-change/);
+});
+
 test('pagination rejects an ignored initial offset and malformed resume offsets',async()=>{
   await mocked(url=>{url.searchParams.set('offset','0');return waypointPage(url);},async()=>{
     await assert.rejects(client().browse('1999178',{offset:2,count:2}),e=>e instanceof ResearchError&&e.code==='pagination');
