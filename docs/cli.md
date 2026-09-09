@@ -65,6 +65,41 @@ Provider pagination defaults and continuation fields are preserved. Paginated co
 
 ## Command history
 
+Use the CLI to browse history without writing `jq` queries:
+
+```sh
+fam cli.history list
+fam cli.history.failures list --since 24h
+fam cli.history.failures list --provider ancestry --outcome soft_failure
+fam cli.history.failures list --code AUTH_RETRY
+fam cli.history list --query "Expected JSON" --since 7d
+fam cli.history list --outcome incomplete
+fam cli.history.failures summary --since 7d --group-by code
+fam cli.history summary --group-by provider
+fam cli.history get --id <ID_FROM_LIST>
+```
+
+`cli.history.failures` is a nested object with `list` and `summary` actions. It restricts results to recorded soft and hard failures. `cli.history` provides `list`, `summary`, and `get` for all outcomes; run `fam cli.history` or `fam cli.history.failures` to browse their help. These commands read the active local profile without contacting any provider, running a credential helper, or rewriting historical records. History queries are still logged unless `FAM_HISTORY=0`.
+
+Lists show the newest **start times** first, merging each invocation's start and finish into one row. The default is 20 matches; `--limit` (up to 200) and `--offset` paginate results. The printed `More` command preserves your filters. `get --id` accepts a full invocation UUID or a unique prefix of at least eight characters; ambiguous prefixes ask for a longer ID. Details include recorded arguments, error and cause stacks, recovery diagnostics, runtime/build information, and the original filename and line numbers. An unfinished invocation means no finish was recorded, not proof of a crash.
+
+Filter lists and summaries with:
+
+| Flag | Meaning |
+| --- | --- |
+| `--provider NAME` | Exact provider; repeat to include several. |
+| `--command TEXT` | Case-insensitive substring of the command name. |
+| `--outcome VALUE` | `success`, `soft_failure`, `hard_failure`, or `incomplete`; repeat to include several. Failure views accept only the two failure outcomes. |
+| `--code CODE` | Exact diagnostic/error code, case-insensitive; includes codes in nested causes and HTTP status codes such as `HTTP_503`. |
+| `--query TEXT` | Case-insensitive substring of recorded entry data, including messages, stack traces, redacted arguments, and build revision. |
+| `--since TIME`, `--until TIME` | Inclusive range of invocation start times. Accept `today`, durations such as `30m`, `24h`, `7d`, `2w`, UTC dates, or ISO timestamps with a timezone. An `--until` date includes the entire UTC day. |
+
+Different filters combine with AND; repeated provider/outcome values combine with OR. By default, successful history queries and shell completion lookups are hidden to keep routine checks readable. Use `--include-utility` or an explicit `--command` filter to include them; their failures are always eligible. The query currently running is excluded from its own results. Add `--json` for the standard structured envelope, or `--out FILE` to export the current view using private file permissions.
+
+Summaries count matching invocations and show the ten leading groups by default. `--group-by command` is the default; `provider` and `code` are also available. Groups with the most failures appear first. One invocation can have multiple diagnostic codes, but is counted once per code, so code-group totals may exceed the invocation total. `--limit` and `--offset` also paginate summary groups.
+
+Reads take a size snapshot of each daily file, process one day at a time, and leave the source files untouched. Malformed JSON, unsupported schemas, oversized lines, and unfinished final lines are skipped with filename/line notices. Unreadable files produce notices too. A query with such notices records `HISTORY_READ_INCOMPLETE`; merely viewing an old failure does not create another failure. Notices cover files actually scanned; use narrower date filters for large archives. Concurrent calls can shift offset-based pages; fixed time boundaries help keep a review consistent.
+
 Every invocation writes a `start` record and, on normal process exit, a `finish` record to `<profile>/history/YYYY-MM-DD.jsonl`. The default is `~/.config/fam/history/`; `FAM_CONFIG_DIR`, XDG configuration, and platform defaults follow the [profile rules](setup.md#storage-and-profiles). Dates are UTC. Both records use the starting date's file, even if the command crosses midnight. Help, completion, discovery, invalid invocations, and dry runs are included. This starts with the installed logging version; earlier calls cannot be reconstructed.
 
 The schema has `schemaVersion: 1`, a shared invocation `id`, timestamps, `command`, `provider`, redacted `argv`, CLI `version`, `build.revision` / `build.dirty`, and Node/platform information. The start record has the attempted argv; the canonical command becomes available after lookup. Finish records include `durationMs`, the actual `exitCode`, `settled`, `error`, and up to 32 `diagnostics` with codes, messages, result paths and selected error details. Error details include HTTP status, stack frames and bounded causes, when available. `build` is null when running TypeScript source directly; installed builds retain the Git revision from build time (or null when built without Git metadata).

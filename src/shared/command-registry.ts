@@ -32,6 +32,8 @@ export const objectDescriptions: Record<string, string> = {
   document: 'Source documents and document pages.', family: 'Family groups and relationships.', feed: 'Activity feeds.',
   film: 'Digitized films and their images.', fulltext: 'Full-text historical record research.', group: 'Groups and membership.',
   health: 'Provider authentication and access checks.', hint: 'Suggested records and research hints.',
+  history: 'Recent CLI calls, diagnostics, and failure trends from the active profile.',
+  'history.failures': 'Soft and hard failures recorded in CLI history.',
   image: 'Document images, downloads, and transcriptions.', library: 'Books and archival library material.',
   location: 'Geographic locations and location lookup.', media: 'Linked photographs and other media.',
   memorial: 'Memorials, biographies, relatives, and photographs.', 'mobile.version': 'Mobile application version information.',
@@ -422,6 +424,36 @@ for (const action of ['list', 'get']) add('cli', `browser-transport-${action}`, 
   });
 
 const cliRisk: Extras = {risk: local};
+const historyFlags: Record<string, Partial<Flag>> = {
+  provider: {multiple: true, choices: [...providerNames, 'cli'], description: 'Include calls to this provider; repeat to include several.'},
+  command: {description: 'Case-insensitive substring of the command name, such as ancestry.person or cli.health.'},
+  outcome: {multiple: true, choices: ['success', 'soft_failure', 'hard_failure', 'incomplete'], description: 'Filter by recorded outcome; incomplete means no finish record. Repeat to include several.'},
+  code: {sensitive: false, description: 'Exact diagnostic or error code, case-insensitive, including HTTP_401 or AUTH_RETRY.'},
+  query: {description: 'Case-insensitive text to find in recorded arguments, diagnostics, stack traces, and build information.'},
+  since: {description: 'Started at or after: today (UTC), 24h, 7d, YYYY-MM-DD, or an ISO timestamp with timezone.'},
+  until: {description: 'Started at or before this time. A YYYY-MM-DD date includes the entire UTC day.'},
+  'include-utility': {type: 'boolean', description: 'Also show successful history queries and shell completion lookups; their failures are always included.'},
+  limit: {default: 20, maximum: 200, description: 'Maximum invocations or summary groups to show.'},
+  offset: {maximum: 1_000_000, description: 'Skip this many matching invocations or summary groups.'},
+  'group-by': {choices: ['command', 'provider', 'code'], default: 'command', description: 'Group matches by command, provider, or diagnostic/error code.'},
+};
+for (const object of ['history', 'history.failures']) for (const action of ['list', 'summary']) {
+  const failure = object === 'history.failures';
+  add('cli', `${object}-${action}`, `${object} ${action}`,
+    action === 'list' ? `Browse recent ${failure ? 'soft and hard failures' : 'CLI invocations'} with timing, diagnostics, and IDs for detail inspection.`
+      : `Summarize ${failure ? 'soft and hard failures' : 'CLI history'} and rank recurring issues by command, provider, or error code.`, [],
+    `provider command outcome code query since until include-utility limit offset${action === 'summary' ? ' group-by' : ''}`, {
+      ...cliRisk, flags: {...historyFlags, ...(failure ? {outcome: {...historyFlags.outcome, choices: ['soft_failure', 'hard_failure']}} : {}),
+        ...(action === 'summary' ? {limit: {...historyFlags.limit, default: 10}} : {})},
+      examples: [`fam cli.${object} ${action}`, `fam cli.${object} ${action} --provider familysearch --since 7d`,
+        action === 'summary' ? `fam cli.${object} summary --group-by code` : `fam cli.${object} list --code AUTH_RETRY`],
+      outputSchema: {type: 'object', description: 'Local history view with entries or groups, read notices, and pagination. No provider requests.'},
+    });
+}
+add('cli', 'history-get', 'history get', 'Inspect one recorded invocation, including error stack, recovery diagnostics, build revision, and source lines.', [], 'id', {
+  ...cliRisk, flags: {id: {required: true, description: 'Full invocation UUID or a unique prefix of at least eight characters from a history list.'}},
+  examples: ['fam cli.history get --id 12345678', 'fam cli.history get --id 12345678 --json'],
+});
 add('cli', 'search', 'command search', 'Find commands by intent using local keyword and concept retrieval. Never executes a provider.', [], 'query provider context limit offset',
   {...cliRisk, flags: {query: {required: true, description: 'What you want to do, in your own words.'}, provider: {choices: [...providerNames, 'cli']}, context: {description: 'Optional provider URL or ID to resolve locally and prefill matching flags.'}, limit: {default: 3, maximum: 100}}});
 add('cli', 'describe', 'command describe', 'Read the complete registry entry: syntax, typed flags, examples, output schema, and risk.', [], 'command', {...cliRisk, flags: {command: {required: true, description: 'Command identity, for example familysearch.image download.'}}});
@@ -455,6 +487,7 @@ export const commonTasks = [
   {command: 'myheritage.session login', title: 'Sign in through a browser', example: 'fam myheritage.session login'},
   {command: 'ancestry.api.gql query', title: 'Run a cataloged GraphQL operation', example: 'fam ancestry.api.gql query --operation GetTreeList --variables \'{"limit":20}\''},
   {command: 'cli.health check', title: 'Check account access', example: 'fam cli.health check'},
+  {command: 'cli.history.failures list', title: 'Check recent command failures', example: 'fam cli.history.failures list --since 7d'},
 ];
 for (const task of commonTasks) {
   const command = commandById.get(task.command)!;

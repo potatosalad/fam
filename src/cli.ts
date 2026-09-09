@@ -24,6 +24,8 @@ const providers = {
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {
   const {command, values: v} = invocation;
+  if (command.object === 'history' || command.object === 'history.failures')
+    return (await import('./shared/history-query.js')).queryHistory(command.action, v, history.id, {failures: command.object === 'history.failures'});
   if (command.object === 'browser') return (await import('./shared/browser-cli.js')).browserCommand(command.action, v);
   if (command.object === 'browser.transport') return (await import('./shared/browser-cli.js')).browserCommand(`transport-${command.action}`, v);
   switch (command.binding.command[0]) {

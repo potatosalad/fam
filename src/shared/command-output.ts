@@ -3,6 +3,8 @@ import {commandById, commonTasks, providerInfo, providerNames, syntax, type Comm
 import type {Values} from './command-runtime.js';
 import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navigation.js';
 import {fileURLToPath} from 'node:url';
+import {historyOutput} from './history-output.js';
+import type {HistoryView} from './history-query.js';
 
 export const wantsJson = (values: Values): boolean => values.json === true || values.format === 'json';
 const label = (key: string): string => key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replaceAll(/[_-]/g, ' ').replace(/^./, s => s.toUpperCase());
@@ -125,7 +127,8 @@ export function overview(): string {
     ]),
     '', 'Place command options after the action. Credentials and sessions use the active fam profile.',
     'Set FAM_CONFIG_DIR to use a different profile.',
-    'Command history: <profile>/history/YYYY-MM-DD.jsonl. Set FAM_HISTORY=0 to disable.', '',
+    'Command history: fam cli.history list | fam cli.history.failures list',
+    'History files: <profile>/history/YYYY-MM-DD.jsonl. Set FAM_HISTORY=0 to disable recording.', '',
     'Find a command:', '  fam cli.command search --query "what you want to accomplish"',
     'Inspect command options:', '  fam cli.command describe --command "provider.object action"',
     'Browse commands for a provider:', '  fam cli.command list --provider familysearch',
@@ -157,6 +160,7 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     return `Saved ${saved}\n${metadata ? `Metadata: ${metadata}\n` : ''}${Object.keys(details).length ? renderData(details) + '\n' : ''}`;
   }
   if (values['dry-run'] && object(data)) return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
+  if (command.provider === 'cli' && ['history', 'history.failures'].includes(command.object)) return historyOutput(data as HistoryView, width);
   if (command.id === 'cli.command list') return commandList(data as {command: string; description: string}[], width);
   if (['cli.browser.transport list', 'cli.browser.transport get'].includes(command.id)) {
     const report = data as {policy:string;source:string;configured:boolean;mode?:string;session?:string;note:string;

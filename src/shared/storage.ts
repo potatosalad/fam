@@ -1,4 +1,4 @@
-import { chmod, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
+import { chmod, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -52,6 +52,50 @@ export async function readPrivateJson<T>(name: string): Promise<T | undefined> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw new Error(`Cannot read credential file ${name}.`);
   }
+}
+
+export async function historyFiles(): Promise<string[]> {
+  try {
+    return (await readdir(credentialPath('history'), {withFileTypes: true}))
+      .filter(entry => entry.isFile() && /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(entry.name))
+      .map(entry => `history/${entry.name}`).sort().reverse();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw new Error('Cannot list command history in the active profile.');
+  }
+}
+
+/** Read a fixed-size snapshot so concurrent appends cannot prolong a query. */
+export async function* readPrivateJsonl(name: string): AsyncGenerator<{line: number; value?: unknown; issue?: string}> {
+  const file = await open(credentialPath(name), constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  try {
+    const info = await file.stat();
+    if (!info.isFile()) throw new Error('History must be a regular file.');
+    if (!info.size) return;
+    const stream = file.createReadStream({start: 0, end: info.size - 1, encoding: 'utf8', autoClose: false});
+    let pending = '', oversized = false, line = 0;
+    const maximum = 16 * 1024 * 1024;
+    try {
+      for await (const chunk of stream) {
+        const parts = String(chunk).split('\n');
+        for (let i = 0; i < parts.length; i++) {
+          if (!oversized) {
+            pending += parts[i];
+            if (pending.length > maximum) {oversized = true; pending = '';}
+          }
+          if (i === parts.length - 1) continue;
+          line++;
+          if (oversized) yield {line, issue: 'Record exceeded the 16 MiB character limit.'};
+          else if (pending.trim()) {
+            try {yield {line, value: JSON.parse(pending)};}
+            catch {yield {line, issue: 'Invalid JSON record.'};}
+          }
+          pending = ''; oversized = false;
+        }
+      }
+      if (pending.trim() || oversized) yield {line: line + 1, issue: 'Unfinished final record; a writer may still be active.'};
+    } finally {stream.destroy();}
+  } finally {await file.close();}
 }
 
 /** Atomic replacement prevents a partially written refresh token after interruption. */

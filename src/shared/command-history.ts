@@ -104,6 +104,7 @@ export async function startCommandHistory(args: string[]) {
   };
   if (append) setDiagnosticSink(add);
   const history = {
+    id,
     command(id: string, service: string, inspect = true) {command = id; provider = service; inspectResults = inspect;},
     result(value: unknown) {if (append && inspectResults) inspectResult(value, add);},
     fail(error: unknown) {
