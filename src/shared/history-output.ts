@@ -31,6 +31,7 @@ function detail(row: HistoryEntry, width: number): string[] {
     '', `Command: ${row.commandLine}`,
     `Working directory: ${row.cwd ? shellQuote(row.cwd) : 'not recorded'}`];
   if (row.argvCapture === 'legacy_redacted') lines.push('Legacy record: argument values were discarded by the old recorder and cannot be recovered.');
+  if (row.archived) lines.push(`Archived: ${when(row.archivedAt!)} UTC (marker ${row.archiveId})`);
   if (row.inputs.length) lines.push('', 'Captured inputs');
   for (const input of row.inputs) {
     lines.push(`  ${input.kind === 'stdin' ? 'stdin' : shellQuote(input.path ?? '')}: ${input.bytes} bytes${input.complete ? '' : ' (read interrupted; only consumed bytes captured)'}`);
@@ -63,6 +64,14 @@ function detail(row: HistoryEntry, width: number): string[] {
 export function historyOutput(result: HistoryView, columns = 100): string {
   const width = Math.max(60, columns), lines: string[] = [];
   if (result.view === 'get') lines.push(...detail(result.entry, width));
+  else if (result.view === 'archive') {
+    lines.push(`${result.dryRun ? 'Would archive' : 'Archived'} ${result.count} invocation${result.count === 1 ? '' : 's'}.`,
+      `${result.counts.success} OK · ${result.counts.soft_failure} soft · ${result.counts.hard_failure} hard · ${result.counts.incomplete} unfinished`,
+      `Cutoff: ${result.before}`, '', 'History records and captured inputs are retained.',
+      'Show archived entries: fam cli.history list --include-archived');
+    if (result.dryRun) lines.push('Preview only; no archive marker was written.');
+    if (result.marker) lines.push(`Archive marker: ${result.marker.id}`);
+  }
   else if (result.view === 'summary') {
     lines.push('Command history summary', `${result.count} invocations · ${result.counts.success} OK · ${result.counts.soft_failure} soft · ${result.counts.hard_failure} hard · ${result.counts.incomplete} unfinished`);
     if (result.since && result.until) lines.push(`${when(result.since)} → ${when(result.until)} UTC`);
@@ -83,6 +92,7 @@ export function historyOutput(result: HistoryView, columns = 100): string {
         const prefix = `${when(row.startedAt)}  ${labels[row.outcome].padEnd(10)}  ${duration(row.durationMs).padStart(7)}  ${row.id.slice(0, 8)}  `;
         // Let the terminal wrap naturally: inserting/trimming whitespace would change copied arguments.
         lines.push(prefix.trimEnd(), `  ${row.commandLine}`);
+        if (row.archived) lines.push(`  Archived ${when(row.archivedAt!)} UTC`);
         if (row.argvCapture === 'legacy_redacted') lines.push('  Legacy record: original argument values unavailable.');
         if (row.codes.length || row.message) lines.push('  ' + clip(`${row.codes.join(', ')}${row.message ? ` · ${row.message}` : ''}`, width - 2));
       }
@@ -91,9 +101,10 @@ export function historyOutput(result: HistoryView, columns = 100): string {
       if (result.next) lines.push(...wrapped(`More: ${result.next}`, width));
     }
   }
-  if (result.view !== 'get') {
+  if (result.view !== 'get' && result.view !== 'archive') {
     lines.push('', ...wrapped('SOFT = recovered or returned issues; HARD = command failed; unfinished = no finish recorded.', width));
     if (result.utilityHidden) lines.push(...wrapped('Successful history queries and completion lookups are hidden; use --include-utility to show them.', width));
+    if (result.archivedHidden) lines.push(...wrapped(`${result.archivedHidden} archived invocations hidden; use --include-archived to show them.`, width));
   }
   if (result.notices.length) {
     lines.push('', `History read notices (${result.notices.length + result.omittedNotices}; ${result.skippedRecords} records skipped)`);

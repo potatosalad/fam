@@ -180,9 +180,12 @@ fam cli.history list
 fam cli.history.failures list --since 7d
 fam cli.history.failures summary --group-by code
 fam cli.history get --id <ID_FROM_LIST>
+fam cli.history archive --failures --provider ancestry --code AUTH_RETRY
+fam cli.history archive --all
+fam cli.history list --include-archived
 ```
 
-History lists show the complete shell-quoted command, including every argument, and support `--json`. Filter with `--provider`, `--command`, `--outcome`, `--code`, `--query`, `--since`, and `--until`. IDs in the list open full diagnostics with `get`; successful history queries and completion lookups stay hidden unless you add `--include-utility`.
+History lists show the complete shell-quoted command, including every argument, and support `--json`. Filter with `--provider`, `--command`, `--outcome`, `--code`, `--query`, `--since`, and `--until`. IDs in the list open full diagnostics with `get`; successful history queries and completion lookups stay hidden unless you add `--include-utility`. `archive` appends a visibility marker and retains every log and input snapshot. Use `--all` or `--failures` with selection filters, and add `--dry-run` to preview the counts. Archived entries remain available with `--include-archived` or `get --id`.
 
 Check your setup and diagnose provider failures:
 

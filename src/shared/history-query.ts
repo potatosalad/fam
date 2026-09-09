@@ -1,5 +1,6 @@
 import {join} from 'node:path';
-import {CREDENTIAL_DIR, historyFiles, readPrivateJsonl} from './storage.js';
+import {CREDENTIAL_DIR, historyFiles, readPrivateJsonl, appendPrivateJsonl} from './storage.js';
+import {randomUUID} from 'node:crypto';
 import {UsageError, type Values} from './command-runtime.js';
 import {errorSummary} from './command-history.js';
 import {reportDiagnostic} from './diagnostics.js';
@@ -17,19 +18,29 @@ const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 export interface HistoryDiagnostic {code: string; message: string; path?: string; error?: ObjectValue}
 export interface HistoryEntry {
   id: string; command: string; provider: string | null; startedAt: string; finishedAt: string | null;
+  lastRecordedAt: string; archived: boolean; archivedAt: string | null; archiveId: string | null;
   outcome: HistoryOutcome; durationMs: number | null; exitCode: number | null; settled: boolean | null;
   pid: number | null; argv: string[]; version: string | null; build: {revision: string | null; dirty: boolean | null} | null;
   commandLine: string; cwd: string | null; argvCapture: 'verbatim' | 'legacy_redacted';
   inputs: HistoryInput[];
   runtime: {node: string | null; platform: string | null; arch: string | null} | null;
   error?: ObjectValue; diagnostics: HistoryDiagnostic[]; droppedDiagnostics: number;
-  codes: string[]; message: string; source: {file: string; startLine: number | null; finishLine: number | null};
+  codes: string[]; message: string; source: {file: string; startLine: number | null; finishLine: number | null; lastLine: number};
 }
 interface Notice {file: string; line?: number; message: string}
-interface ScanInfo {directory: string; filesScanned: number; skippedRecords: number; notices: Notice[]; omittedNotices: number; utilityHidden: boolean}
+interface ScanInfo {directory: string; filesScanned: number; skippedRecords: number; notices: Notice[]; omittedNotices: number; utilityHidden: boolean; archivedHidden: number}
 interface Filters {
   provider: string[]; command: string; outcome: string[]; code: string; query: string;
   since: number; until: number; includeUtility: boolean;
+}
+interface ArchiveSelection extends Omit<Filters, 'since' | 'until'> {since: string | null; until: string | null}
+export interface HistoryArchiveMarker {
+  schemaVersion: 1; event: 'archive'; id: string; timestamp: string; before: string; selection: ArchiveSelection;
+  files: Record<string, number>;
+}
+export interface HistoryArchive extends ScanInfo {
+  view: 'archive'; dryRun: boolean; count: number; counts: Record<HistoryOutcome, number>;
+  before: string; selection: ArchiveSelection; marker: HistoryArchiveMarker | null; markerFile: string;
 }
 export interface HistoryList extends ScanInfo {
   view: 'list' | 'failures'; entries: HistoryEntry[]; limit: number; offset: number; hasMore: boolean;
@@ -43,7 +54,7 @@ export interface HistorySummary extends ScanInfo {
   groupBy: string; groups: HistoryGroup[]; totalGroups: number; next: string | null;
 }
 export interface HistoryDetail extends ScanInfo {view: 'get'; entry: HistoryEntry}
-export type HistoryView = HistoryList | HistorySummary | HistoryDetail;
+export type HistoryView = HistoryList | HistorySummary | HistoryDetail | HistoryArchive;
 
 function validDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -84,7 +95,7 @@ function recordedError(error: ObjectValue, depth = 0): ObjectValue {
   if (object(error.cause) && depth < 3) result.cause = recordedError(error.cause, depth + 1);
   return result;
 }
-function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, file: string, startLine: number | null, finishLine: number | null, capturedInputs: unknown[]): HistoryEntry {
+function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, file: string, startLine: number | null, finishLine: number | null, capturedInputs: unknown[], lastRecordedAt: number, lastLine: number): HistoryEntry {
   const record = finish ?? start!, argv = array(record.argv);
   const command = string(record.command) ?? (argv.slice(0, 2).join(' ') || '(help)');
   const diagnostics = (Array.isArray(record.diagnostics) ? record.diagnostics : []).filter(object).map(item => ({
@@ -104,6 +115,7 @@ function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, 
   if (!findings.length && outcome !== 'success') findings.push(outcome === 'incomplete' ? 'NO_FINISH' : 'EXECUTION_FAILED');
   return {id: String(record.id), command, provider: string(record.provider) ?? (/^[a-z]+\./.test(command) ? command.split('.')[0] : null),
     startedAt: new Date(String(record.startedAt)).toISOString(), finishedAt: finish ? new Date(String(finish.timestamp)).toISOString() : null,
+    lastRecordedAt: new Date(lastRecordedAt).toISOString(), archived: false, archivedAt: null, archiveId: null,
     outcome, durationMs: number(record.durationMs), exitCode: number(record.exitCode), settled: typeof record.settled === 'boolean' ? record.settled : null,
     pid: number(record.pid), argv, version: string(record.version),
     commandLine: shellCommand(argv), cwd: string(record.cwd), argvCapture: record.argvCapture === 'verbatim' ? 'verbatim' : 'legacy_redacted',
@@ -113,7 +125,7 @@ function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, 
     ...(error ? {error} : {}), diagnostics, droppedDiagnostics: number(record.droppedDiagnostics) ?? 0, codes: findings,
     message: string(error?.message) ?? string(diagnostics[0]?.error?.message) ?? diagnostics[0]?.message
       ?? (outcome === 'incomplete' ? 'No finish recorded; may still be running or may have been interrupted.' : ''),
-    source: {file, startLine, finishLine}};
+    source: {file, startLine, finishLine, lastLine}};
 }
 function matches(row: HistoryEntry, filter: Filters): boolean {
   const time = Date.parse(row.startedAt);
@@ -122,7 +134,9 @@ function matches(row: HistoryEntry, filter: Filters): boolean {
   if (filter.outcome.length && !filter.outcome.includes(row.outcome)) return false;
   if (filter.command && !row.command.toLowerCase().includes(filter.command)) return false;
   if (filter.code && !row.codes.some(code => code.toLowerCase() === filter.code)) return false;
-  if (filter.query && !JSON.stringify(row).toLowerCase().includes(filter.query)) return false;
+  // Archive metadata must not change whether the original entry matches a saved text filter.
+  const {archived, archivedAt, archiveId, ...searchable} = row;
+  if (filter.query && !JSON.stringify(searchable).toLowerCase().includes(filter.query)) return false;
   if (!filter.includeUtility && !filter.command && row.outcome === 'success'
       && (row.command.startsWith('cli.history ') || row.command.startsWith('cli.history.') || row.command === 'cli.completion query')) return false;
   return true;
@@ -130,7 +144,7 @@ function matches(row: HistoryEntry, filter: Filters): boolean {
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 function nextCommand(action: string, values: Values, offset: number, failures: boolean): string {
   const args = [`fam cli.history${failures ? '.failures' : ''} ${action}`];
-  for (const name of ['provider', 'command', 'outcome', 'code', 'query', 'since', 'until', 'include-utility', 'group-by', 'limit', 'json']) {
+  for (const name of ['provider', 'command', 'outcome', 'code', 'query', 'since', 'until', 'include-utility', 'include-archived', 'group-by', 'limit', 'json']) {
     const value = values[name];
     for (const item of Array.isArray(value) ? value : [value]) {
       if (item === undefined || item === false) continue;
@@ -140,30 +154,77 @@ function nextCommand(action: string, values: Values, offset: number, failures: b
   args.push(`--offset ${offset}`); return args.join(' ');
 }
 
+function archiveSelection(filter: Filters): ArchiveSelection {
+  return {...filter, since: Number.isFinite(filter.since) ? new Date(filter.since).toISOString() : null,
+    until: Number.isFinite(filter.until) ? new Date(filter.until).toISOString() : null};
+}
+function archiveFilter(value: unknown): Filters | undefined {
+  if (!object(value)) return;
+  const strings = (items: unknown): items is string[] => Array.isArray(items) && items.every(item => typeof item === 'string');
+  const time = (value: unknown): value is string | null => value === null || typeof value === 'string' && Number.isFinite(Date.parse(value));
+  if (!strings(value.provider) || !strings(value.outcome) || value.outcome.some(item => !historyOutcomes.includes(item as HistoryOutcome))
+      || !['command', 'code', 'query'].every(key => typeof value[key] === 'string') || typeof value.includeUtility !== 'boolean'
+      || !time(value.since) || !time(value.until)) return;
+  const result = {...value, since: value.since === null ? -Infinity : Date.parse(value.since),
+    until: value.until === null ? Infinity : Date.parse(value.until)} as unknown as Filters;
+  if (result.since > result.until) return;
+  return result;
+}
+
+/** Archive is an append-only visibility rule. No journal or input snapshot is rewritten. */
+async function archiveMarkers(notice: (notice: Notice) => void): Promise<Array<{marker: HistoryArchiveMarker; filter: Filters}>> {
+  const name = 'history/archive.jsonl', file = join(CREDENTIAL_DIR, name), result: Array<{marker: HistoryArchiveMarker; filter: Filters}> = [];
+  try {
+    for await (const line of readPrivateJsonl(name)) {
+      const value = line.value, filter = object(value) ? archiveFilter(value.selection) : undefined;
+      if (line.issue || !object(value) || value.schemaVersion !== 1 || value.event !== 'archive' || !uuid.test(String(value.id))
+          || typeof value.before !== 'string' || !Number.isFinite(Date.parse(value.before))
+          || typeof value.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp)) || !filter
+          || !object(value.files) || !Object.entries(value.files).every(([file, line]) => /^history\/\d{4}-\d{2}-\d{2}\.jsonl$/.test(file) && Number.isSafeInteger(line) && Number(line) >= 0)) {
+        notice({file, line: line.line, message: line.issue ?? 'Unsupported or malformed archive marker.'}); continue;
+      }
+      result.push({marker: value as unknown as HistoryArchiveMarker, filter});
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') notice({file, message: 'Could not read archive markers; archived entries may be visible.'});
+  }
+  return result;
+}
+
 export async function queryHistory(action: string, values: Values, excludeId?: string, options: {now?: number; failures?: boolean} = {}): Promise<HistoryView> {
-  const now = options.now ?? Date.now(), failures = options.failures === true;
+  const now = options.now ?? Date.now(), failures = options.failures === true || action === 'archive' && values.failures === true;
   const filter = filters(values, now), limit = Number(values.limit ?? (action === 'summary' ? 10 : 20)), offset = Number(values.offset ?? 0);
   if (failures) {
     if (filter.outcome.some(value => !['soft_failure', 'hard_failure'].includes(value)))
       throw new UsageError('The failures view only accepts soft_failure or hard_failure outcomes. Use list for other outcomes.', 'fam cli.history list --outcome incomplete');
     if (!filter.outcome.length) filter.outcome = ['soft_failure', 'hard_failure'];
   }
+  if (action === 'archive') {
+    const hasFilter = values.failures === true || ['provider', 'command', 'outcome', 'code', 'query', 'since', 'until'].some(name => {
+      const value = values[name]; return Array.isArray(value) ? value.some(item => item.trim()) : typeof value === 'string' && value.trim();
+    });
+    if (values.all && hasFilter) throw new UsageError('Use --all or selection filters, not both.', 'fam cli.history archive --all');
+    if (!failures && !values.all && !hasFilter) throw new UsageError('Choose --all to archive everything, or supply selection filters.', 'fam cli.history archive --all');
+    if (values.all) filter.includeUtility = true;
+  }
   const id = String(values.id ?? '').toLowerCase();
   if (action === 'get' && !/^[a-f0-9][a-f0-9-]{7,35}$/.test(id))
     throw new UsageError('--id requires a full invocation ID or at least eight characters from its beginning.', 'fam cli.history list');
   const scan: ScanInfo = {directory: join(CREDENTIAL_DIR, 'history'), filesScanned: 0, skippedRecords: 0, notices: [], omittedNotices: 0,
-    utilityHidden: action !== 'get' && !filter.includeUtility && !filter.command};
+    utilityHidden: action !== 'get' && !filter.includeUtility && !filter.command, archivedHidden: 0};
   const notice = (value: Notice) => {
     if (!scan.notices.length) reportDiagnostic('HISTORY_READ_INCOMPLETE', 'History contains unreadable or incomplete records; see the history read notices.');
     if (scan.notices.length < 20) scan.notices.push(value); else scan.omittedNotices++;
   };
+  const archives = await archiveMarkers(value => {scan.skippedRecords++; notice(value);});
+  const boundaries: Record<string, number> = {};
   async function* rows(): AsyncGenerator<HistoryEntry> {
     for (const name of await historyFiles()) {
       const day = name.slice(8, 18), startOfDay = Date.parse(day);
       if (startOfDay > filter.until || startOfDay + 86_400_000 <= filter.since) continue;
       scan.filesScanned++;
       const file = join(CREDENTIAL_DIR, name);
-      const records = new Map<string, {start?: ObjectValue; finish?: ObjectValue; startLine: number | null; finishLine: number | null; inputs: unknown[]}>();
+      const records = new Map<string, {start?: ObjectValue; finish?: ObjectValue; startLine: number | null; finishLine: number | null; inputs: unknown[]; lastRecordedAt: number; lastLine: number}>();
       try {
         for await (const line of readPrivateJsonl(name)) {
           const value = line.value;
@@ -174,18 +235,38 @@ export async function queryHistory(action: string, values: Values, excludeId?: s
                 || typeof value.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp)))) {
             scan.skippedRecords++; notice({file, line: line.line, message: line.issue ?? 'Unsupported or malformed history record.'}); continue;
           }
+          boundaries[name] = line.line;
           if (value.id === excludeId) continue;
-          const prior = records.get(String(value.id)) ?? {startLine: null, finishLine: null, inputs: []};
+          const prior = records.get(String(value.id)) ?? {startLine: null, finishLine: null, inputs: [], lastRecordedAt: Date.parse(value.startedAt), lastLine: line.line};
+          prior.lastLine = line.line;
+          if (typeof value.timestamp === 'string' && Number.isFinite(Date.parse(value.timestamp))) prior.lastRecordedAt = Math.max(prior.lastRecordedAt, Date.parse(value.timestamp));
           if (value.event === 'start') {prior.start = value; prior.startLine = line.line;}
           else if (value.event === 'finish') {prior.finish = value; prior.finishLine = line.line;}
           else {prior.inputs.push(value.input); prior.start ??= value;}
           records.set(String(value.id), prior);
         }
       } catch {notice({file, message: 'Could not read this history file; results may be incomplete.'});}
-      const sorted = [...records.values()].map(record => entry(record.start, record.finish, file, record.startLine, record.finishLine, record.inputs))
+      const sorted = [...records.values()].map(record => entry(record.start, record.finish, file, record.startLine, record.finishLine, record.inputs, record.lastRecordedAt, record.lastLine))
         .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt) || b.id.localeCompare(a.id));
-      for (const row of sorted) if (action === 'get' || matches(row, filter)) yield row;
+      for (const row of sorted) {
+        const archive = archives.find(({marker, filter}) => row.source.lastLine <= (marker.files[name] ?? -1)
+          && Date.parse(row.lastRecordedAt) <= Date.parse(marker.before) && matches(row, filter));
+        if (archive) {row.archived = true; row.archivedAt = archive.marker.timestamp; row.archiveId = archive.marker.id;}
+        if (action !== 'get' && !matches(row, filter)) continue;
+        if (row.archived && action !== 'get' && !values['include-archived']) {scan.archivedHidden++; continue;}
+        yield row;
+      }
     }
+  }
+  if (action === 'archive') {
+    const counts: Record<HistoryOutcome, number> = {success: 0, soft_failure: 0, hard_failure: 0, incomplete: 0};
+    let count = 0;
+    for await (const row of rows()) if (Date.parse(row.lastRecordedAt) <= now) {count++; counts[row.outcome]++;}
+    const before = new Date(now).toISOString(), selection = archiveSelection(filter), dryRun = values['dry-run'] === true;
+    const marker: HistoryArchiveMarker | null = !dryRun && count ? {schemaVersion: 1, event: 'archive', id: randomUUID(),
+      timestamp: new Date().toISOString(), before, selection, files: boundaries} : null;
+    if (marker) appendPrivateJsonl('history/archive.jsonl', marker, {separate: true});
+    return {...scan, view: 'archive', dryRun, count, counts, before, selection, marker, markerFile: join(CREDENTIAL_DIR, 'history/archive.jsonl')};
   }
   if (action === 'get') {
     let selected: HistoryEntry | undefined;

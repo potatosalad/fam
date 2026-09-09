@@ -6,7 +6,7 @@ import {appendFile, mkdir, readFile, readdir, rm, stat, writeFile} from 'node:fs
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {CREDENTIAL_DIR, readPrivateJsonl} from '../src/shared/storage.js';
-import {historyTime, queryHistory, type HistoryList, type HistorySummary, type HistoryDetail} from '../src/shared/history-query.js';
+import {historyTime, queryHistory, type HistoryList, type HistorySummary, type HistoryDetail, type HistoryArchive} from '../src/shared/history-query.js';
 import {historyOutput} from '../src/shared/history-output.js';
 import {completionCatalog, complete} from '../src/shared/completion.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
@@ -235,4 +235,124 @@ test('input events survive interruption and details show captured stdin replay',
   assert.ok(historyOutput(detail).includes("cd '/tmp/fixture directory' && fam ancestry.credential set --stdin < '/tmp/fixture snapshot.bin'"));
   await appendFile(path, JSON.stringify({...value, inputs: [input]}) + '\n');
   assert.deepEqual((await queryHistory('get', {id: id(1)}) as HistoryDetail).entry.inputs, [input]);
+});
+
+test('archive all appends a marker and preserves journal bytes and captured inputs', async () => {
+  const snapshot = join(directory, 'inputs', id(1), '1.bin');
+  await mkdir(join(directory, 'inputs', id(1)), {recursive: true});
+  const bytes = Buffer.from([0, 1, 255, 10]); await writeFile(snapshot, bytes);
+  const older = await save(record(1, '2026-09-08T01:00:00Z', 'ancestry.person get', 'hard_failure', {
+    inputs: [{kind: 'file', path: '/tmp/fixture.json', snapshot, bytes: bytes.length, sha256: 'a'.repeat(64), complete: true}],
+  }));
+  const newer = await save(record(2, '2026-09-09T01:00:00Z', 'familysearch.person get', 'soft_failure'));
+  await save(record(3, '2026-09-09T02:00:00Z', 'myheritage.person get'));
+  await save(record(4, '2026-09-09T03:00:00Z', 'cli.history list'));
+  await save(record(5, '2026-09-09T04:00:00Z', 'cli.completion query'));
+  await save(record(6, '2026-09-09T05:00:00Z', 'ancestry.person get'), true);
+  const before = await Promise.all([older, newer].map(path => readFile(path)));
+  const archived = await queryHistory('archive', {all: true}, undefined, {now}) as HistoryArchive;
+  assert.equal(archived.count, 6); assert.equal(archived.dryRun, false);
+  assert.deepEqual(archived.counts, {success: 3, soft_failure: 1, hard_failure: 1, incomplete: 1});
+  assert.equal(archived.marker!.before, new Date(now).toISOString());
+  assert.equal(archived.marker!.selection.includeUtility, true);
+  assert.deepEqual(await Promise.all([older, newer].map(path => readFile(path))), before);
+  assert.deepEqual(await readFile(snapshot), bytes);
+  assert.equal((await queryHistory('list', {'include-utility': true}) as HistoryList).entries.length, 0);
+  const all = await queryHistory('list', {'include-archived': true, 'include-utility': true, limit: 2}) as HistoryList;
+  assert.equal(all.entries.length, 2); assert.ok(all.entries.every(row => row.archived));
+  assert.match(all.next!, /--include-archived/);
+  const summary = await queryHistory('summary', {'include-archived': true, 'include-utility': true}) as HistorySummary;
+  assert.equal(summary.count, 6);
+  const detail = await queryHistory('get', {id: id(1)}) as HistoryDetail;
+  assert.equal(detail.entry.archived, true); assert.equal(detail.entry.archiveId, archived.marker!.id);
+  assert.match(historyOutput(detail), /Archived:/);
+  assert.match(historyOutput(all), /Archived 20/);
+  assert.match(historyOutput(archived), /Archived 6 invocations/);
+  if (process.platform !== 'win32') assert.equal((await stat(archived.markerFile)).mode & 0o777, 0o600);
+  const markerBytes = await readFile(archived.markerFile);
+  assert.equal((await queryHistory('archive', {all: true}, undefined, {now}) as HistoryArchive).count, 0);
+  assert.deepEqual(await readFile(archived.markerFile), markerBytes);
+});
+
+test('failure archive composes filters and freezes relative dates in the marker', async () => {
+  for (const number of [1, 2, 3]) await save(record(number, `2026-09-09T0${number}:00:00Z`, 'ancestry.person get', number === 3 ? 'success' : 'soft_failure', {
+    diagnostics: [{code: 'AUTH_RETRY', message: number === 2 ? 'unrelated' : 'fixture-session', error: {status: 401, cause: {code: 'EXPIRED'}}}],
+  }));
+  await save(record(4, '2026-09-09T04:00:00Z', 'familysearch.person get', 'hard_failure'));
+  await save(record(5, '2026-09-01T01:00:00Z', 'ancestry.person get', 'soft_failure', {diagnostics: [{code: 'EXPIRED', message: 'fixture-session'}]}));
+  const archived = await queryHistory('archive', {failures: true, provider: ['ancestry', 'myheritage'], command: 'FAM ancestry.PERSON',
+    code: 'expired', query: 'fixture-session', since: '7d', until: '2026-09-09', outcome: ['soft_failure', 'hard_failure']}, undefined, {now}) as HistoryArchive;
+  assert.equal(archived.count, 1);
+  assert.equal(archived.marker!.selection.since, '2026-09-02T12:00:00.000Z');
+  assert.equal(archived.marker!.selection.until, '2026-09-09T23:59:59.999Z');
+  const later = await queryHistory('list', {}, undefined, {now: now + 90 * 86_400_000}) as HistoryList;
+  assert.deepEqual(later.entries.map(row => row.id), [id(4), id(3), id(2), id(5)]);
+  assert.equal(later.archivedHidden, 1);
+  assert.match(historyOutput(later), /1 archived invocations hidden/);
+  const rest = await queryHistory('archive', {failures: true}, undefined, {now}) as HistoryArchive;
+  assert.equal(rest.count, 3);
+  assert.deepEqual((await queryHistory('list', {}) as HistoryList).entries.map(row => row.id), [id(3)]);
+});
+
+test('archive uses file boundaries so later appends remain visible even with identical timestamps', async () => {
+  const value = record(1, new Date(now).toISOString(), 'ancestry.person get', 'hard_failure');
+  const file = await save(value, true);
+  assert.equal((await queryHistory('archive', {all: true}, undefined, {now}) as HistoryArchive).count, 1);
+  assert.equal((await queryHistory('list', {}) as HistoryList).entries.length, 0);
+  // A finish that arrives after the marker must not be hidden by a matching millisecond timestamp.
+  await appendFile(file, JSON.stringify(value) + '\n');
+  await save(record(2, new Date(now).toISOString(), 'ancestry.person get', 'hard_failure'));
+  // A newly created daily file is outside the recorded snapshot too.
+  await save(record(3, '2026-09-08T01:00:00Z', 'ancestry.person get', 'hard_failure'));
+  const result = await queryHistory('list', {}) as HistoryList;
+  assert.deepEqual(result.entries.map(row => row.id), [id(2), id(1), id(3)]);
+  assert.ok(result.entries.every(row => !row.archived));
+});
+
+test('archive previews counts, requires a scope, and exposes only the single archive command', async () => {
+  const file = await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'hard_failure'));
+  const before = await readFile(file);
+  const args = ['cli.history', 'archive', '--failures', '--provider', 'ancestry', '--dry-run'];
+  assert.match((await invoke(args)).stdout, /Would archive 1 invocation/);
+  const json = JSON.parse((await invoke([...args, '--json'])).stdout).data;
+  assert.equal(json.view, 'archive'); assert.equal(json.dryRun, true); assert.equal(json.marker, null);
+  assert.deepEqual(await readFile(file), before);
+  await assert.rejects(readFile(join(directory, 'archive.jsonl')), {code: 'ENOENT'});
+  assert.ok(complete(completionCatalog(), ['cli.history', '']).candidates.includes('archive'));
+  assert.deepEqual(complete(completionCatalog(), ['cli.history.failures', '']).candidates, ['list', 'summary']);
+  assert.throws(() => parseInvocation(['cli.history.failures', 'archive']));
+  for (const invalid of [[], ['--all', '--provider', 'ancestry'], ['--all', '--failures'], ['--failures', '--outcome', 'success'], ['--query', ' '], ['--all', '--limit', '1']]) {
+    await assert.rejects(invoke(['cli.history', 'archive', ...invalid, '--json']), (error: any) => {assert.equal(error.code, 2); return true;});
+  }
+  // Other history dry runs retain the existing generic invocation preview.
+  assert.match((await invoke(['cli.history', 'list', '--dry-run'])).stdout, /Dry run: fam cli.history list/);
+  const archived = JSON.parse((await invoke(['cli.history', 'archive', '--failures', '--json'], {FAM_HISTORY: '1'})).stdout).data;
+  assert.equal(archived.count, 1);
+  const rows = JSON.parse((await invoke(['cli.history', 'list', '--include-utility', '--json'])).stdout).data.entries;
+  assert.equal(rows.length, 1); assert.equal(rows[0].command, 'cli.history archive'); assert.equal(rows[0].outcome, 'success');
+});
+
+test('concurrent archives append independent markers without rewriting any daily journal', async () => {
+  for (let number = 1; number <= 8; number++) await save(record(number, `2026-09-09T0${number}:00:00Z`, 'ancestry.person get', 'hard_failure', {error: {code: `FIXTURE_${number}`}}));
+  const file = join(directory, '2026-09-09.jsonl'), before = await readFile(file);
+  const results = await Promise.all(Array.from({length: 8}, (_, index) => invoke(['cli.history', 'archive', '--failures', '--code', `FIXTURE_${index + 1}`, '--json'])));
+  assert.ok(results.every(result => JSON.parse(result.stdout).data.count === 1));
+  assert.deepEqual(await readFile(file), before);
+  const markers = (await readFile(join(directory, 'archive.jsonl'), 'utf8')).split('\n').filter(Boolean).map(line => JSON.parse(line));
+  assert.equal(markers.length, 8); assert.equal(new Set(markers.map(marker => marker.id)).size, 8);
+  assert.equal((await queryHistory('list', {}) as HistoryList).entries.length, 0);
+  assert.equal((await queryHistory('list', {'include-archived': true}) as HistoryList).entries.length, 8);
+});
+
+test('corrupt archive markers are reported and a new marker can follow a partial append', async () => {
+  await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'hard_failure'));
+  const file = join(directory, 'archive.jsonl');
+  const broken = 'malformed marker\n{"schemaVersion":42}\n{"unfinished":';
+  await writeFile(file, broken);
+  const archived = await queryHistory('archive', {failures: true}, undefined, {now}) as HistoryArchive;
+  assert.equal(archived.count, 1); assert.equal(archived.notices.length, 3);
+  assert.ok((await readFile(file, 'utf8')).startsWith(broken));
+  const list = await queryHistory('list', {}) as HistoryList;
+  assert.equal(list.entries.length, 0); assert.equal(list.notices.length, 3);
+  assert.equal((await queryHistory('get', {id: id(1)}) as HistoryDetail).entry.archived, true);
 });

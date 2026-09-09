@@ -433,6 +433,7 @@ const historyFlags: Record<string, Partial<Flag>> = {
   since: {description: 'Started at or after: today (UTC), 24h, 7d, YYYY-MM-DD, or an ISO timestamp with timezone.'},
   until: {description: 'Started at or before this time. A YYYY-MM-DD date includes the entire UTC day.'},
   'include-utility': {type: 'boolean', description: 'Also show successful history queries and shell completion lookups; their failures are always included.'},
+  'include-archived': {type: 'boolean', description: 'Include entries hidden by archive markers.'},
   limit: {default: 20, maximum: 200, description: 'Maximum invocations or summary groups to show.'},
   offset: {maximum: 1_000_000, description: 'Skip this many matching invocations or summary groups.'},
   'group-by': {choices: ['command', 'provider', 'code'], default: 'command', description: 'Group matches by command, provider, or diagnostic/error code.'},
@@ -442,7 +443,7 @@ for (const object of ['history', 'history.failures']) for (const action of ['lis
   add('cli', `${object}-${action}`, `${object} ${action}`,
     action === 'list' ? `Browse recent ${failure ? 'soft and hard failures' : 'CLI invocations'} with full command lines, timing, diagnostics, and IDs for detail inspection.`
       : `Summarize ${failure ? 'soft and hard failures' : 'CLI history'} and rank recurring issues by command, provider, or error code.`, [],
-    `provider command outcome code query since until include-utility limit offset${action === 'summary' ? ' group-by' : ''}`, {
+    `provider command outcome code query since until include-utility include-archived limit offset${action === 'summary' ? ' group-by' : ''}`, {
       ...cliRisk, flags: {...historyFlags, ...(failure ? {outcome: {...historyFlags.outcome, choices: ['soft_failure', 'hard_failure']}} : {}),
         ...(action === 'summary' ? {limit: {...historyFlags.limit, default: 10}} : {})},
       examples: [`fam cli.${object} ${action}`, `fam cli.${object} ${action} --provider familysearch --since 7d`,
@@ -450,6 +451,16 @@ for (const object of ['history', 'history.failures']) for (const action of ['lis
       outputSchema: {type: 'object', description: 'Local history view with entries or groups, read notices, and pagination. No provider requests.'},
     });
 }
+add('cli', 'history-archive', 'history archive', 'Hide matching CLI history using an archive marker; keep all recorded data and input snapshots.', [],
+  'all failures provider command outcome code query since until include-utility', {
+    risk: {level: 'write', description: 'Appends a local archive marker. No history or captured inputs are deleted or rewritten. Use --dry-run to preview matching counts.'},
+    flags: {...historyFlags, all: {description: 'Archive all history, including successful utility calls; cannot be combined with selection filters.'},
+      failures: {type: 'boolean', description: 'Select soft and hard failures; combine with provider, command, code, text, or time filters.'},
+      'dry-run': {description: 'Preview matching invocation counts without appending an archive marker.'}},
+    examples: ['fam cli.history archive --all', 'fam cli.history archive --failures --provider ancestry --code AUTH_RETRY --dry-run',
+      'fam cli.history archive --failures --provider ancestry --code AUTH_RETRY'],
+    outputSchema: {type: 'object', description: 'Matching counts by outcome, fixed cutoff, selection, and appended archive marker (or dry-run preview).'},
+  });
 add('cli', 'history-get', 'history get', 'Inspect one recorded invocation, including error stack, recovery diagnostics, build revision, and source lines.', [], 'id', {
   ...cliRisk, flags: {id: {required: true, description: 'Full invocation UUID or a unique prefix of at least eight characters from a history list.'}},
   examples: ['fam cli.history get --id 12345678', 'fam cli.history get --id 12345678 --json'],

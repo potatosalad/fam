@@ -79,9 +79,9 @@ fam cli.history summary --group-by provider
 fam cli.history get --id <ID_FROM_LIST>
 ```
 
-`cli.history.failures` is a nested object with `list` and `summary` actions. It restricts results to recorded soft and hard failures. `cli.history` provides `list`, `summary`, and `get` for all outcomes; run `fam cli.history` or `fam cli.history.failures` to browse their help. These commands read the active local profile without contacting any provider, running a credential helper, or rewriting historical records. History queries are still logged unless `FAM_HISTORY=0`.
+`cli.history.failures` is a nested object with `list` and `summary` actions. It restricts results to recorded soft and hard failures. `cli.history` provides `list`, `summary`, `get`, and `archive` for all outcomes; run `fam cli.history` or `fam cli.history.failures` to browse their help. The list, summary, and get views read the active local profile without contacting any provider, running a credential helper, or rewriting historical records. History commands are still logged unless `FAM_HISTORY=0`.
 
-Lists show the newest **start times** first, merging each invocation's start and finish into one entry. Each entry prints the full `fam` command with every argument, quoted for bash/zsh so spaces, quotes, empty strings, and shell metacharacters retain their meaning. Commands are never clipped or reformatted to fit the terminal; the terminal wraps them naturally. Control characters are represented with reversible shell escapes. The default is 20 matches; `--limit` (up to 200) and `--offset` paginate results. The printed `More` command preserves your filters. `get --id` accepts a full invocation UUID or a unique prefix of at least eight characters; ambiguous prefixes ask for a longer ID. Details include the full command, working directory, captured input paths, error and cause stacks, recovery diagnostics, runtime/build information, and the original filename and line numbers. JSON entries include both the exact `argv` array and a copyable `commandLine`. An unfinished invocation means no finish was recorded, not proof of a crash.
+Lists show the newest **start times** first, merging each invocation's start and finish into one entry. Each entry prints the full `fam` command with every argument, quoted for bash/zsh so spaces, quotes, empty strings, and shell metacharacters retain their meaning. Commands are never clipped or reformatted to fit the terminal; the terminal wraps them naturally. Control characters are represented with reversible shell escapes. The default is 20 matches; `--limit` (up to 200) and `--offset` paginate results. The printed `More` command preserves your filters. `get --id` accepts a full invocation UUID or a unique prefix of at least eight characters; ambiguous prefixes ask for a longer ID. Details include the full command, working directory, captured input paths, error and cause stacks, recovery diagnostics, runtime/build information, and the original filename and line numbers. JSON entries include both the exact `argv` array and a copyable `commandLine`. An unfinished invocation means no finish was recorded, not proof of a crash. Lists and summaries hide archived entries by default; add `--include-archived` to include them. `get --id` always opens the requested entry, including archived entries. JSON entries include `archived`, `archivedAt`, and `archiveId`; human output labels archived entries.
 
 Filter lists and summaries with:
 
@@ -97,6 +97,32 @@ Filter lists and summaries with:
 Different filters combine with AND; repeated provider/outcome values combine with OR. By default, successful history queries and shell completion lookups are hidden to keep routine checks readable. Use `--include-utility` or an explicit `--command` filter to include them; their failures are always eligible. The query currently running is excluded from its own results. Add `--json` for the standard structured envelope, or `--out FILE` to export the current view using private file permissions.
 
 Summaries count matching invocations and show the ten leading groups by default. `--group-by command` is the default; `provider` and `code` are also available. Groups with the most failures appear first. One invocation can have multiple diagnostic codes, but is counted once per code, so code-group totals may exceed the invocation total. `--limit` and `--offset` also paginate summary groups.
+
+Use **one archive command** to hide reviewed history while retaining the original evidence:
+
+```sh
+# Archive all existing history, including successful history and completion calls.
+fam cli.history archive --all
+
+# Preview matching failures, then archive them with the same filters.
+fam cli.history archive --failures --provider ancestry --code AUTH_RETRY --until 7d --dry-run
+fam cli.history archive --failures --provider ancestry --code AUTH_RETRY --until 7d
+
+# Archive all soft and hard failures, or just one outcome.
+fam cli.history archive --failures
+fam cli.history archive --outcome hard_failure --query "Expected JSON"
+
+# Retrieve archived evidence.
+fam cli.history list --include-archived
+fam cli.history.failures summary --include-archived --group-by code
+fam cli.history get --id <ID_FROM_LIST>
+```
+
+`archive` uses the same provider, command, outcome, code, text, and time filters as the views. `--failures` is shorthand for both failure outcomes and can be narrowed with `--outcome`. Use `--all` without selection filters to archive everything, or supply a filter/`--failures` to select a subset. There is no `cli.history.failures archive` action. Archiving applies to every matching visible invocation, without the list's pagination limit; `--limit` and `--offset` are not archive flags. `--dry-run` reads the history and reports matching counts by outcome without writing an archive marker. `--json` provides the same counts and selection in structured form. No matching entries means no new marker.
+
+Each archive appends a marker to `<profile>/history/archive.jsonl`. It saves the selection with relative dates resolved to absolute times, a cutoff timestamp, and the last scanned record position in each daily file. Existing JSONL records and input snapshots stay byte-for-byte unchanged. New calls and later events from in-progress calls remain visible, even when they share a timestamp with the archive. The archive invocation itself is recorded normally. Repeated archives combine; normal queries skip matching entries covered by any marker. `--include-archived` bypasses that visibility filter, and `--include-utility` also includes successful history/completion calls when needed. Archive markers are read from a fixed snapshot too; damaged markers produce notices and do not silently hide evidence.
+
+Archiving changes visibility and does not reclaim disk space. Include `archive.jsonl`, daily logs, and input snapshots when backing up history; raw JSONL tools such as `jq` still see archived calls.
 
 Reads take a size snapshot of each daily file, process one day at a time, and leave the source files untouched. Malformed JSON, unsupported schemas, oversized lines, and unfinished final lines are skipped with filename/line notices. Unreadable files produce notices too. A query with such notices records `HISTORY_READ_INCOMPLETE`; merely viewing an old failure does not create another failure. Notices cover files actually scanned; use narrower date filters for large archives. Concurrent calls can shift offset-based pages; fixed time boundaries help keep a review consistent.
 
@@ -132,7 +158,7 @@ A start without a finish can mean a still-running process, signal termination (i
 jq -s 'group_by(.id)[] | select(any(.event == "start") and all(.event != "finish")) | .[]' ~/.config/fam/history/*.jsonl
 ```
 
-History is local to each host and profile; it is not uploaded or synchronized with credentials. Direct library calls do not create history. Files use mode `0600` and directories `0700`; concurrent CLI processes append individual JSON records. Daily files are retained until you archive or delete them. Archive inactive days to manage disk use. Logging failures emit one warning per invocation and preserve the command's behavior. Disk failure or abrupt termination can still leave missing records or an incomplete final line.
+History is local to each host and profile; it is not uploaded or synchronized with credentials. Direct library calls do not create history. Files use mode `0600` and directories `0700`; concurrent CLI processes append individual JSON records. Daily files and input snapshots remain on disk after `fam cli.history archive`; archive markers only hide entries from normal views. Logging failures emit one warning per invocation and preserve the command's behavior. Disk failure or abrupt termination can still leave missing records or an incomplete final line.
 
 History does not redact arguments, URLs, email addresses, tokens, passwords, or diagnostic text. Argument count and message length are not truncated. Earlier records with discarded argument values remain unchanged and are labeled as legacy records; their original values cannot be recovered.
 

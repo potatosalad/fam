@@ -159,6 +159,7 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     const {saved, metadata, ...details} = data;
     return `Saved ${saved}\n${metadata ? `Metadata: ${metadata}\n` : ''}${Object.keys(details).length ? renderData(details) + '\n' : ''}`;
   }
+  if (command.id === 'cli.history archive') return historyOutput(data as HistoryView, width);
   if (values['dry-run'] && object(data)) return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
   if (command.provider === 'cli' && ['history', 'history.failures'].includes(command.object)) return historyOutput(data as HistoryView, width);
   if (command.id === 'cli.command list') return commandList(data as {command: string; description: string}[], width);

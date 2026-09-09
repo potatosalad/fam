@@ -28,7 +28,7 @@ function credentialPath(name: string): string {
 
 /** One O_APPEND write per record keeps concurrent CLI writers from overwriting each other.
  * Synchronous writes also work from Node's exit handler. History is local, private storage. */
-export function appendPrivateJsonl(name: string, value: unknown): void {
+export function appendPrivateJsonl(name: string, value: unknown, options: {separate?: boolean} = {}): void {
   const path = credentialPath(name);
   mkdirSync(dirname(path), {recursive: true, mode: 0o700});
   for (let directory = dirname(path); ; directory = dirname(directory)) {
@@ -40,7 +40,8 @@ export function appendPrivateJsonl(name: string, value: unknown): void {
     const info = fstatSync(fd);
     if (!info.isFile() || info.nlink !== 1) throw new Error('History must be a regular private file.');
     fchmodSync(fd, 0o600);
-    const line = Buffer.from(`${JSON.stringify(value)}\n`);
+    // A leading separator lets a control journal recover after an interrupted prior append.
+    const line = Buffer.from(`${options.separate ? '\n' : ''}${JSON.stringify(value)}\n`);
     if (writeSync(fd, line) !== line.length) throw new Error('Incomplete history write.');
   } finally {closeSync(fd);}
 }

@@ -96,7 +96,8 @@ async function main() {
   const {setBrowserOverrides} = await import('./shared/browser-config.js');
   setBrowserOverrides({transport: values.transport as 'auto' | 'http' | 'browser' | undefined, timeout: values['browser-timeout'] as number | undefined});
   let data: unknown;
-  if (values['dry-run']) {
+  const historyArchive = command.id === 'cli.history archive';
+  if (values['dry-run'] && !historyArchive) {
     data = {dryRun: true, invocation: syntax(command), flags: Object.fromEntries(Object.entries(values).map(([name, value]) =>
       [name, command.flags.find(flag => flag.name === name)?.sensitive ? '[REDACTED]' : value])), risk: command.risk,
       note: 'CLI flags validated only. No provider requests, credential lookup, output file writes, or operation simulation. Command history is recorded unless FAM_HISTORY=0.'};
