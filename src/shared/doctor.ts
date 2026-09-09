@@ -1,3 +1,4 @@
+import type {Provider} from './command-registry.js';
 import {loadProviderSession, saveProviderSession} from './browser-config.js';
 import { inspectLoginCredentials, type Service } from './credentials.js';
 import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from './storage.js';
@@ -16,7 +17,7 @@ export const doctorProviders = {
   newspaperarchive: () => import('../newspaperarchive/doctor.js'),
 };
 export interface ProviderReport {
-  provider: Service;
+  provider: Provider;
   status: CheckStatus;
   session?: SessionInfo;
   checks: DoctorCheck[];
@@ -126,10 +127,11 @@ export async function diagnoseProvider(provider: DoctorProvider, live = true, de
   return {provider: provider.service, status: status(sessionChecks(checks, info)), session: info, checks, limitations: provider.limitations};
 }
 
-export async function runDoctor(services: Service[], live = true, progress?: (label: string) => void): Promise<DoctorReport> {
+export async function runDoctor(services: Provider[], live = true, progress?: (label: string) => void): Promise<DoctorReport> {
   const providers: ProviderReport[] = [];
   for (const service of services) {
     try {
+      if (service === 'cyndislist') {providers.push(await (await import('../cyndislist/doctor.js')).diagnose(live)); continue;}
       const {doctorProvider} = await doctorProviders[service]();
       providers.push(await diagnoseProvider(doctorProvider, live, dependencies, progress));
     } catch {
@@ -175,6 +177,7 @@ export function formatDoctor(report: DoctorReport, verbose = false): string {
       const browser = provider.session?.mode === 'browser';
       const [label, detail] = issue?.code === 'login-blocked' ? ['BLOCKED', issue.message.replace(/^Password sign-in is blocked /, '').replace(/\.$/, '')]
         : issue ? details[issue.code] ?? ['ERROR', issue.message]
+        : provider.provider === 'cyndislist' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Directory access verified' : 'No account required; not checked online']
         : passed ? ['OK', provider.checks.some(c => c.code === 'session-refreshed') ? 'Session refreshed and verified' : browser ? 'Browser session verified' : 'Session verified']
         : ['SAVED', browser ? 'Browser session; not checked online' : 'Not checked online'];
       lines.push(`${provider.provider.padEnd(13)} ${label.padEnd(7)} ${detail}`);
@@ -182,12 +185,12 @@ export function formatDoctor(report: DoctorReport, verbose = false): string {
     }
     if (actions.length) lines.push('', ...actions);
     lines.push('', report.mode === 'local' ? 'Offline: sessions are unverified. Run fam cli.health check to check online.'
-      : 'Session checks only; other capabilities untested. Use --verbose for details.');
+      : 'Provider access checks only; other capabilities untested. Use --verbose for details.');
     return lines.join('\n');
   }
   const lines = [`fam cli.health check — ${report.mode} checks`, `Profile: ${CREDENTIAL_DIR}`];
   if (report.mode === 'local') lines.push('Online functionality is unverified. Run fam cli.health check to check online.');
-  else lines.push('Authenticated reads with automatic renewal when needed. No password login.');
+  else lines.push('Provider access checks; authenticated reads renew sessions when needed. No password login.');
   for (const provider of report.providers) {
     lines.push('', `${provider.provider}: ${provider.status.toUpperCase()}${provider.session ? ` (${provider.session.mode})` : ''}`);
     for (const check of provider.checks) {

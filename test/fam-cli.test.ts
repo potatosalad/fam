@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {readFile, stat} from 'node:fs/promises';
 import {join} from 'node:path';
 import {CREDENTIAL_DIR} from '../src/shared/storage.js';
-import {commands, providerNames} from '../src/shared/command-registry.js';
+import {commands, providerNames, authenticatedProviderNames} from '../src/shared/command-registry.js';
 import {parseInvocation, parseNamespaceHelp} from '../src/shared/command-runtime.js';
 import {lookupFailure, namespaceInfo} from '../src/shared/command-navigation.js';
 import {searchCommands, resolveContext} from '../src/shared/command-search.js';
@@ -164,7 +164,7 @@ test('browser capture remains discoverable and rejects invalid modes before laun
 test('offline provider status and catalogs work outside the checkout without credential lookup', async () => {
   assert.match((await invoke('--help')).stdout, /fam <provider>\.<object>/);
   assert.match(data((await invoke('cli.version', 'get', '--json')).stdout).version, /^\d+\.\d+\.\d+$/);
-  for (const provider of providerNames) {
+  for (const provider of authenticatedProviderNames) {
     assert.equal(data((await invoke(`${provider}.session`, 'get', '--json')).stdout).credentialDirectory, CREDENTIAL_DIR);
     assert.ok(data((await invoke(`${provider}.api`, 'list', '--json')).stdout).length > 0);
   }

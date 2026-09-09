@@ -1,5 +1,6 @@
 /** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
-export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'] as const;
+export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors', 'cyndislist'] as const;
+export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'> => name !== 'cyndislist');
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Family trees, historical records, original images, and full-text research.'},
   ancestry: {name: 'Ancestry', description: 'Family trees, people, historical records, hints, and media.'},
@@ -10,11 +11,14 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   storied: {name: 'Storied', description: 'Family trees, stories, media, hints, and historical records.'},
   newspaperarchive: {name: 'NewspaperArchive', description: 'Historical newspapers, genealogy searches, publication locations, and page OCR.'},
   americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, indexed records, source citations, and digitized scans.'},
+  cyndislist: {name: 'Cyndi’s List', description: 'Browse genealogy resource categories, read directory pages, and search Google in Camofox.'},
   cli: {name: 'CLI', description: 'Command discovery, provider information, health checks, and shell completion.'},
 };
 export type Provider = typeof providerNames[number];
 /** Shared object descriptions used by provider help and command correction. */
 export const objectDescriptions: Record<string, string> = {
+  category: 'Genealogy directory categories and their nested resource listings.',
+  resource: 'Genealogy resource links and directory search.',
   browser: 'Persistent local or remote Camofox browser and login viewer.',
   'browser.transport': 'Remembered website decisions for automatic HTTP/browser transport.',
   account: 'Account profiles and current user information.', album: 'Photo albums and their contents.',
@@ -32,7 +36,7 @@ export const objectDescriptions: Record<string, string> = {
   location: 'Geographic locations and location lookup.', media: 'Linked photographs and other media.',
   memorial: 'Memorials, biographies, relatives, and photographs.', 'mobile.version': 'Mobile application version information.',
   newspaper: 'Historical newspaper research.', notification: 'Account notifications.', person: 'People and genealogy profiles.',
-  page: 'Newspaper pages, source citations, and OCR text.', publication: 'Newspaper titles and publication locations.',
+  page: 'Website or newspaper pages, source citations, and extracted text.', publication: 'Newspaper titles and publication locations.',
   'person.mobile': 'Person information through mobile API operations.', photo: 'Photographs and photo metadata.',
   'photo.request': 'Grave photograph requests.', place: 'Place names and geographic information.',
   provider: 'Available genealogy providers.', record: 'Historical records and record search.',
@@ -177,7 +181,7 @@ const names = 'first-name last-name birth-year death-year';
 const page = 'limit offset';
 const commonRead = 'query';
 
-for (const provider of providerNames) {
+for (const provider of authenticatedProviderNames) {
   add(provider, 'credentials', 'credential set', 'Save login credentials from helper, environment, prompt, or JSON stdin.', [], 'stdin', {risk: {level: 'local', description: 'Writes private credentials and may invoke the configured credential sync helper.'}});
   add(provider, 'sync', 'credential sync', 'Run the explicitly configured credential synchronization helper.', [], '', {risk: {level: 'write', description: 'Invokes the user-configured synchronization helper, which may contact another host.'}});
   const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'interactive no-autofill native capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
@@ -199,6 +203,24 @@ for (const provider of providerNames) {
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});
   if (['myheritage', 'findmypast', 'findagrave', 'storied'].includes(provider)) add(provider, 'models', 'api.model list', 'List and filter recovered provider model fields.', ['?filter'], '', {risk: local});
 }
+
+const cyndiFlags: Extras['flags'] = {
+  'all-pages': {type: 'boolean', default: false, description: 'Follow available pagination from the requested page onward.'},
+  refresh: {type: 'boolean', default: false, description: 'Refresh the category update index and requested pages; saved copies remain available if requests fail.'},
+  depth: {type: 'integer', default: 0, minimum: 0, maximum: 20, description: 'Levels of child category pages to fetch. Zero reads this page and lists its children; one also reads those children. Related categories are not traversed.'},
+  url: {description: 'Any absolute Cyndi’s List URL; HTTP/non-www aliases are normalized.'},
+};
+const cyndiPaging = 'One page by default. --all-pages follows available pagination; nextUrl allows continuation. --depth expands child categories with their resources; pagination does not increase depth. Partial failures and completeness are explicit.';
+add('cyndislist', 'category-list', 'category list', 'Read the category index, including link counts and published update dates; optionally filter category names.', ['?filter'], 'refresh', {flags: {...cyndiFlags, filter: {description: 'Case-insensitive words to match in category names; no Google search.'}}});
+add('cyndislist', 'category-get', 'category get', 'Read a category and optionally expand its child categories and resource listings.', ['url'], 'depth all-pages refresh', {flags: cyndiFlags, pagination: cyndiPaging});
+add('cyndislist', 'page', 'page get', 'Best-effort reading of any Cyndi’s List page, including text, links, categories, listings, and redirect destinations.', ['url'], 'all-pages refresh', {flags: cyndiFlags, pagination: cyndiPaging});
+add('cyndislist', 'resolve', 'resource resolve', 'Resolve a selected Cyndi link to its external destination without fetching that destination.', ['url'], 'refresh', {flags: cyndiFlags});
+add('cyndislist', 'search', 'resource search', 'Search Google in Camofox for Cyndi’s List pages; return titles, URLs, and snippets.', ['query'], 'all-pages cursor', {flags: {...cyndiFlags,
+  query: {description: 'Place and record-type keywords or Google query syntax; automatically restricted to site:cyndislist.com.'},
+  cursor: {description: 'Exact Google continuation URL returned by this same query.'},
+  transport: {choices: ['auto','browser'], description: 'Search always uses rendered Google pages in Camofox.'}},
+  pagination: 'One Google page by default. --all-pages follows observed next-page links; --cursor continues the same query. Challenges and partial failures are explicit.',
+  examples: ['fam cyndislist.resource search --query "New Zealand probate" --json']});
 
 add('americanancestors', 'collections', 'collection list', 'Browse database titles and research categories.', ['?filter'], 'anonymous');
 add('americanancestors', 'collection', 'collection get', 'Read collection volumes, search fields, and research guidance.', ['name'], 'anonymous');

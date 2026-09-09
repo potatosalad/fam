@@ -7,13 +7,14 @@ import {join} from 'node:path';
 import {createInterface} from 'node:readline/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {Cookie, CookieJar} from 'tough-cookie';
+import {providerNames} from './command-registry.js';
 import {CREDENTIAL_DIR} from './storage.js';
 import {browserConfig, browserUrl, saveBrowserConfig, browserUserId, endpointId, BrowserError, type BrowserConfig, type BrowserEndpoint} from './browser-config.js';
 
 const exec = promisify(execFile);
 export const CAMOFOX_IMAGE = 'ghcr.io/jo-inc/camofox-browser:1.14.0@sha256:86c79eed8a6b3a78859f73bc70d6003c5566b85e969354ec454524b28197ffce';
 export const pluginDirectory = fileURLToPath(new URL('../../browser/camofox-plugin/', import.meta.url));
-const providers = ['familysearch','ancestry','myheritage','findmypast','findagrave','geneanet','storied','newspaperarchive'];
+const providers: readonly string[] = providerNames;
 export async function openUrl(url: string): Promise<boolean> {
   browserUrl(url);
   const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'rundll32' : 'xdg-open';

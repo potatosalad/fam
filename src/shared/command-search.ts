@@ -69,6 +69,8 @@ export function resolveContext(input: string, provider?: string): Context {
     if (cemetery) return {...result, object: 'cemetery', flags: {'cemetery-id': cemetery}};
   } else if (detected === 'myheritage' || detected === 'geneanet') {
     return {...result, object: /research|record/.test(path) ? 'record' : undefined, flags: {url: url.href}};
+  } else if (detected === 'cyndislist') {
+    if (['cyndislist.com', 'www.cyndislist.com'].includes(host) && !url.port) return {...result, object: 'page', flags: {url: url.href}};
   } else if (detected === 'americanancestors') {
     if (/^\/DB\d+\/|^\/databases\//i.test(path)) return {...result, object: /\/image\/|\/i\//i.test(path) ? 'image' : 'record', flags: {url: url.href}};
   } else if (detected === 'findmypast') {

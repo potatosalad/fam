@@ -1,6 +1,6 @@
 # fam
 
-One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, and American Ancestors. Browse family trees, search historical records and memorials, and download original documents.
+One command-line tool for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, American Ancestors, and Cyndi’s List. Browse family trees, search historical records and memorials, and download original documents.
 
 These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
 
@@ -16,6 +16,7 @@ These are unofficial clients. They use mobile and website APIs that can change w
 | `geneanet` | [Archival records, trees, portraits, and registers](docs/geneanet/README.md) |
 | `storied` | [Trees, stories, media, and historical records](docs/storied/README.md) |
 | `newspaperarchive` | [Newspaper search and OCR; shares Storied sign-in](docs/newspaperarchive/README.md) |
+| `cyndislist` | [Genealogy resource categories, page reading, and Google search](docs/cyndislist/README.md) |
 | `americanancestors` | [Native sign-in, records, citations, scans, volume browsing, and exports](docs/americanancestors/README.md) |
 
 `fam --help` lists every provider. Use `fam myheritage` or `fam americanancestors` to browse that provider's objects and find its installed guide. The guides link to API contracts and protocol evidence; [development notes](docs/development.md#provider-api-contracts) explain website versus mobile catalogs.

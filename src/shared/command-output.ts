@@ -1,3 +1,4 @@
+import {humanCyndisList} from '../cyndislist/output.js';
 import {commandById, commonTasks, providerInfo, providerNames, syntax, type Command, type Flag} from './command-registry.js';
 import type {Values} from './command-runtime.js';
 import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navigation.js';
@@ -191,5 +192,6 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     const result = data as {shell: string; files: string[]; next: string};
     return `Enabled ${result.shell} completion in:\n${result.files.map(file => `  ${file}`).join('\n')}\n\nOpen a new shell, or run:\n  ${result.next}\n`;
   }
+  if (command.provider === 'cyndislist' && !values['dry-run']) return humanCyndisList(data);
   return `${renderData(data)}\n${command.pagination ? `\nPagination: ${command.pagination.description}\n` : ''}`;
 }

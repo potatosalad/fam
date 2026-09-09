@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {providerNames} from '../src/shared/command-registry.js';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {execFile} from 'node:child_process';
@@ -86,7 +87,7 @@ test('browser reset archives selected snapshots, preserves credentials and never
     const result=await browserCommand('reset',{all:true}) as any;
     assert.equal(result.all,true);assert.equal(result.transportDecisionsPreserved,false);
     const sent=requests.find(r=>r.path==='/fam/reset')!.body;
-    assert.equal(sent.all,true);assert.equal(sent.userIds.length,8);
+    assert.equal(sent.all,true);assert.equal(sent.userIds.length,providerNames.length);
     assert.equal(await readPrivateJson(path(id,'findmypast')),undefined);
     assert.equal(await readPrivateJson(path(otherId,'myheritage')),undefined);
     assert.equal(await readPrivateJson(path(otherId,'findmypast')),undefined);

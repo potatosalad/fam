@@ -13,6 +13,7 @@ const providers = {
   findagrave: () => import('./findagrave/cli.js'), geneanet: () => import('./geneanet/cli.js'), storied: () => import('./storied/cli.js'),
   americanancestors: () => import('./americanancestors/cli.js'),
   newspaperarchive: () => import('./newspaperarchive/cli.js'),
+  cyndislist: () => import('./cyndislist/cli.js'),
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {
   const {command, values: v} = invocation;
@@ -90,7 +91,7 @@ async function main() {
       [name, command.flags.find(flag => flag.name === name)?.sensitive ? '[REDACTED]' : value])), risk: command.risk,
       note: 'CLI flags validated only. No provider requests, credential lookup, file writes, or operation simulation.'};
   } else if (command.provider === 'cli') data = await cliCommand(invocation);
-  else if (command.binding.command[0] === 'sync') {
+  else if (command.binding.command[0] === 'sync' && command.provider !== 'cyndislist') {
     const {syncCredentials} = await import('./shared/credential-sync.js');
     const {CREDENTIAL_DIR} = await import('./shared/storage.js');
     if (!await syncCredentials(command.provider === 'newspaperarchive' ? 'storied' : command.provider, CREDENTIAL_DIR)) throw new Error('No credential sync helper is configured. Set credentialsSyncCommand in config.json.');
