@@ -43,6 +43,12 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
     case 'providers': return Object.entries(providerInfo).map(([provider, info]) => ({provider, ...info}));
     case 'resolve': return contextCommands(String(v.context), v.provider as string | undefined);
     case 'version': return {version: (JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {version: string}).version};
+    case 'update': {
+      // npm may replace dependencies and dist while the updater is running.
+      // Load the finalizer before installation so completion needs no new imports.
+      await import('./shared/browser-transport.js');
+      return (await import('./shared/cli-update.js')).updateCli({dryRun: v['dry-run'] === true});
+    }
     case 'doctor': {
       if (v.live && v.offline) throw new UsageError('Use either --live or --offline.', 'fam cli.health check --offline');
       const {runDoctor, formatDoctor} = await import('./shared/doctor.js');
@@ -86,6 +92,7 @@ async function main() {
     if (args[1] === 'use' && ['local','remote'].includes(args[2])) args.splice(2, 1, '--mode', args[2]);
   }
   if (args[0] === 'browser.transport') args[0] = 'cli.browser.transport';
+  if (args[0] === 'cli.update' && (!args[1] || args[1].startsWith('-'))) args.splice(1, 0, 'run');
   const namespace = parseNamespaceHelp(args);
   if (namespace) {
     process.stdout.write(namespace.json ? `${stringifyJson({schemaVersion: 1, ok: true, command: null, data: namespace.namespace}, 2)}\n`
@@ -108,7 +115,7 @@ async function main() {
   setBrowserOverrides({transport: values.transport as 'auto' | 'http' | 'browser' | undefined, timeout: values['browser-timeout'] as number | undefined});
   let data: unknown;
   const historyArchive = command.id === 'cli.history archive';
-  if (values['dry-run'] && !historyArchive) {
+  if (values['dry-run'] && !historyArchive && command.id !== 'cli.update run') {
     data = {dryRun: true, invocation: syntax(command), flags: Object.fromEntries(Object.entries(values).map(([name, value]) =>
       [name, command.flags.find(flag => flag.name === name)?.sensitive ? '[REDACTED]' : value])), risk: command.risk,
       note: 'CLI flags validated only. No provider requests, credential lookup, output file writes, or operation simulation. Command history is recorded unless FAM_HISTORY=0.'};

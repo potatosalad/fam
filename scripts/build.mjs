@@ -3,6 +3,7 @@ import {copyFile, mkdir, mkdtemp, readdir, realpath, rename, rm, writeFile} from
 import {randomUUID} from 'node:crypto';
 import {basename, dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {cleanupBuilds, markBuilding, withProcessLock} from '../bin/build-state.mjs';
 
 async function files(directory, prefix = '') {
   let entries;
@@ -12,7 +13,8 @@ async function files(directory, prefix = '') {
   for (const entry of entries) {
     const name = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) result.push(...await files(directory, name));
-    else if (entry.isFile()) result.push(name);
+    else if (entry.isFile() && !entry.name.startsWith('.fam-')) result.push(name);
+    else if (entry.isFile()) continue;
     else throw new Error(`Unexpected build output: ${name}`);
   }
   return result.sort();
@@ -27,6 +29,10 @@ async function atomic(path, value) {
 /** Switch the CLI only after a complete build; old processes keep their module paths. */
 export async function publishBuild(root, directory) {
   if (dirname(directory) !== root || !/^\.fam-build-[A-Za-z0-9]+$/.test(basename(directory))) throw new Error('Invalid build directory.');
+  return withProcessLock(root, '.fam-build-publish.lock', () => publishLocked(root, directory));
+}
+
+async function publishLocked(root, directory) {
   const emitted = await files(directory), dist = join(root, 'dist');
   const obsolete = (await files(dist)).filter(name => name !== '.npmignore' && !emitted.includes(name));
   // dist remains a real directory for library exports and npm packaging. Atomic file
@@ -40,7 +46,13 @@ export async function publishBuild(root, directory) {
   // Retain removed modules for legacy in-flight imports, but never ship them.
   const escape = name => name.replace(/[\\*?\[\]!# ]/g, '\\$&');
   await atomic(join(dist, '.npmignore'), `${obsolete.map(name => `/${escape(name)}`).join('\n')}\n*.tmp\n`);
+  await writeFile(join(directory, '.fam-published.json'), '{"schemaVersion":1}\n');
+  await rm(join(directory, '.fam-building.json'), {force: true});
   await atomic(join(root, '.fam-build.json'), `${JSON.stringify({directory: basename(directory)})}\n`);
+  // Cleanup failure must not turn a successfully published build into a failed
+  // build (whose finally block would delete the active snapshot).
+  try {return await cleanupBuilds(root);}
+  catch (error) {process.stderr.write(`fam: build cleanup skipped: ${error.message}\n`);}
 }
 
 async function run(root, args) {
@@ -55,6 +67,7 @@ export async function build(root) {
   const directory = await mkdtemp(join(root, '.fam-build-'));
   let published = false;
   try {
+    await markBuilding(directory);
     await run(root, ['node_modules/typescript/bin/tsc', '--outDir', directory, '--noEmitOnError']);
     await run(root, ['scripts/build-info.mjs', directory]);
     await run(root, ['scripts/generate-completions.mjs', directory]);

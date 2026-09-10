@@ -50,7 +50,7 @@ npm install --global .
 fam cli.completion install
 ```
 
-This installs one executable, `fam`, from the checkout. Keep the directory in place. To update, run `git pull`, `npm ci`, and `npm install --global .` in it. Provider commands use `fam PROVIDER.OBJECT ACTION --flags`; `fam cli.health check` checks provider health.
+This installs one executable, `fam`, from the checkout. Keep the directory in place. Run `fam cli.update` from any directory to pull its Git upstream and reinstall, or update from npm if installed as an npm package. `fam cli.update run --dry-run` previews the selected installation and commands. Builds automatically remove unused build folders while retaining versions used by running commands. See [update details](docs/setup.md#updates). Provider commands use `fam PROVIDER.OBJECT ACTION --flags`; `fam cli.health check` checks provider health.
 
 `fam cli.completion install` enables TAB completion for bash or zsh. Open a new shell afterward; for the current shell, run `eval "$(fam --completions zsh)"` (use `bash` in bash). It completes providers, commands, options, and file paths. Try `fam myheritage.record search <TAB>` to discover search flags without typing `--` first. See [completion setup](docs/setup.md#shell-completion) for details.
 

@@ -21,7 +21,27 @@ npm install --global --prefix "$HOME/.local/share/fam-alt" .
 
 On Windows, use an absolute Windows path for the prefix. npm puts the `.cmd` launchers directly in that directory.
 
-Use the same prefix when updating or uninstalling. To keep the credentials separate too, set `FAM_CONFIG_DIR` as described below.
+`fam cli.update` preserves the running installation; use the same prefix when uninstalling. To keep the credentials separate too, set `FAM_CONFIG_DIR` as described below.
+
+### Updates
+
+```sh
+fam cli.update
+fam cli.update run --dry-run
+fam cli.update run --json
+```
+
+`fam cli.update` is shorthand for `fam cli.update run`. It finds the running package independently of your working directory. Help, discovery, history, and completion register `cli.update run`. `--dry-run` inspects the installation and reports the exact commands without pulling or installing; it records command history normally.
+
+- **Git checkout, including npm links and custom symlinks:** requires a clean working tree, an attached branch, and a configured upstream. Runs `git pull --ff-only --no-rebase --no-autostash`, then `npm ci --include=dev --ignore-scripts=false`. npm's prepare step rebuilds fam; existing executable links automatically use the new build. A failed pull stops before installation. The updater never stashes, resets, or switches branches.
+- **Global npm package:** installs `@potatosalad/fam@latest` in the package's existing prefix, including a nondefault prefix.
+- **Local npm dependency:** installs the latest release in its owning project, updating that project's manifest and lockfile. Indirect dependencies and unrecognized layouts need to be updated through their owning installer.
+
+Update progress goes to stderr, leaving stdout available for the usual result or JSON envelope. Concurrent updates to an installation are serialized. A failed install is reported; it does not roll back the Git pull or npm's dependency changes. Resolve the reported problem and rerun the update.
+
+Every successful checkout build, including `npm ci` and `npm run build`, removes unused `.fam-build-*` folders. The current build stays, and running CLI commands register their build until they exit. A terminated command's stale record is reclaimed once its process is gone. A later installation removes its now-unused build. Builds with uncertain ownership, unreadable usage records, or processes on another host stay. Older launchers without tracking defer cleanup while they are running. If process inspection is unavailable, cleanup retains snapshots. Use the installed `fam` launcher for tracked execution.
+
+Snapshot retention protects checkout CLI modules. npm package replacement and dependency reinstallation follow npm's normal behavior; they do not snapshot `node_modules` or guarantee that other running commands can load replaced dependencies. Library consumers should restart after updating.
 
 ## Shell completion
 

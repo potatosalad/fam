@@ -47,7 +47,7 @@ export const objectDescriptions: Record<string, string> = {
   snapshot: 'Archived website captures and their dates.',
   'session.metadata': 'Saved session metadata.', site: 'Family sites and site membership.',
   story: 'Family stories and their contents.', subscription: 'Account subscription information.', tag: 'Tags and tagged content.',
-  tree: 'Family trees and their contents.', version: 'Installed CLI version.',
+  tree: 'Family trees and their contents.', version: 'Installed CLI version.', update: 'Update the installed CLI from Git or npm.',
 };
 export interface Flag {
   name: string;
@@ -547,6 +547,11 @@ add('cli', 'resolve', 'context resolve', 'Resolve known provider URLs and IDs lo
 add('cli', 'doctor', 'health check', 'Check saved sessions using existing provider health probes and bounded renewal.', [], 'provider offline live verbose format',
   {risk: {level: 'read', description: 'Live account checks may renew and save sessions. --offline performs no provider requests or session changes.'}, flags: {provider: {multiple: true, choices: [...providerNames]}, format: {default: 'text', choices: ['json', 'text']}}});
 add('cli', 'version', 'version get', 'Read the installed fam version.', [], '', cliRisk);
+add('cli', 'update', 'update run', 'Update fam from its Git upstream or npm latest; fam cli.update is shorthand.', [], '', {
+  risk: {level: 'write', description: 'Pulls the configured Git upstream and reinstalls dependencies, or installs the latest npm package in its existing prefix/project. Builds remove unused snapshots.'},
+  flags: {'dry-run': {description: 'Inspect the installation and show update commands without pulling or installing.'}},
+  examples: ['fam cli.update', 'fam cli.update run --dry-run'],
+});
 add('cli', 'completion-script', 'completion script', 'Print bash or zsh completion code for use with eval.', [], 'shell format',
   {...cliRisk, flags: {shell: {required: true, choices: ['bash', 'zsh']}, format: {default: 'text', choices: ['json', 'text']}}});
 add('cli', 'completion-install', 'completion install', 'Install or update a guarded completion hook in your shell startup files.', [], 'shell',

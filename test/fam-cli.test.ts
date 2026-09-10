@@ -21,6 +21,15 @@ const invoke = (...args: string[]) => run(process.execPath, ['--import', import.
 });
 const data = (stdout: string) => JSON.parse(stdout).data;
 
+test('cli.update shorthand exposes the registered update help and completion', async () => {
+  const help = (await invoke('cli.update', '--help')).stdout;
+  assert.equal(help, (await invoke('cli.update', 'run', '--help')).stdout);
+  assert.match(help, /npm|Git/);
+  assert.equal(data((await invoke('cli.command', 'describe', '--command', 'cli.update run', '--json')).stdout).id, 'cli.update run');
+  assert.ok(complete(completionCatalog(), ['cli.update', '']).candidates.includes('run'));
+  await assert.rejects(invoke('cli.update', '--invalid'), error => (error as {code: number}).code === 2);
+});
+
 test('bare fam and --help show a task-oriented overview; completion shortcuts print shell scripts', async () => {
   const overview = (await invoke()).stdout;
   assert.equal(overview, (await invoke('--help')).stdout);

@@ -145,6 +145,7 @@ export function overview(): string {
     'Browse commands for a provider:', '  fam cli.command list --provider familysearch',
     'Browse provider and object help:', '  fam familysearch', '  fam familysearch.image --help',
     'List available providers:', '  fam cli.provider list',
+    'Update this installation:', '  fam cli.update',
     'Enable completion in the current shell:', '  eval "$(fam --completions bash)"  # Use zsh in zsh.',
     'Install completion for future shells:', '  fam cli.completion install', '',
   ].join('\n');
@@ -173,7 +174,7 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     return `Saved ${saved}\n${metadata ? `Metadata: ${metadata}\n` : ''}${Object.keys(details).length ? renderData(details) + '\n' : ''}`;
   }
   if (command.id === 'cli.history archive') return historyOutput(data as HistoryView, width);
-  if (values['dry-run'] && object(data)) return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
+  if (values['dry-run'] && object(data) && command.id !== 'cli.update run') return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
   if (command.id === 'familysearch.api list') return operationList(data as Parameters<typeof operationList>[0]);
   if (command.id === 'familysearch.api describe' && !values.example) return operationDescription(data as Parameters<typeof operationDescription>[0]);
   if (command.provider === 'cli' && ['history', 'history.failures'].includes(command.object)) return historyOutput(data as HistoryView, width);
