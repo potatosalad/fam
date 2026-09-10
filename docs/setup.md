@@ -135,7 +135,7 @@ Run one process per profile when renewing sessions. Separate processes do not co
 
 ### Reset a session
 
-Run `fam cli.health check --provider PROVIDER` to verify the session and automatically renew it if needed before resetting anything. Use `--offline` only for local inspection. See [doctor coverage](doctor.md) for details.
+Run `fam cli.health check --provider PROVIDER` to check access, try refresh if supported, then try normal login if needed. Use `--no-fix` to check online without repairing or saving sessions, or `--offline` for local inspection. See [doctor coverage](doctor.md) for details.
 
 Run the CLI's `status` command to find its configuration directory. Remove that service's `session.json`, then run `auth`. Remove its `login.json` too if you want to forget the saved password. This clears local files; it does not revoke the session on the service.
 

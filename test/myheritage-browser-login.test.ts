@@ -4,6 +4,8 @@ import {createServer} from 'node:http';
 import {loginMyHeritage} from '../src/myheritage/browser-login.js';
 import {saveBrowserConfig, loadProviderSession} from '../src/shared/browser-config.js';
 import {readPrivateJson, writePrivateJson} from '../src/shared/storage.js';
+import {runDoctor, formatDoctor} from '../src/shared/doctor.js';
+import {MyHeritageHttp} from '../src/myheritage/http.js';
 
 const origin = 'https://www.myheritage.com';
 const home = `${origin}/family-sites/fixture/site`, tree = `${origin}/family-trees/fixture/site`;
@@ -76,6 +78,19 @@ test('MyHeritage adopts the existing rendered session during an earlier login co
     await loginMyHeritage();
     assert.equal(requests.some(r=>r.path==='/tabs'||r.path.endsWith('/navigate')||r.path==='/fam/input'),false);
     assert.equal(requests.filter(r=>r.path==='/fam/request').length,1);
+  });
+  await t.test('doctor repairs an unexpected saved-page response through the normal browser login and verifies again', async t => {
+    requests.length = 0;
+    let probes = 0;
+    t.mock.method(MyHeritageHttp.prototype, 'exchange', async () => ({data: ++probes === 1 ? '<html>Stale context</html>' : html, status: 200, headers: {}}));
+    const report = await runDoctor(['myheritage']);
+    assert.equal(report.status, 'ok', JSON.stringify(report));
+    assert.equal(probes, 2);
+    assert.deepEqual(report.providers[0].recovery, [{method: 'login', outcome: 'succeeded'}]);
+    assert.match(formatDoctor(report), /Signed in again and verified/);
+    assert.equal(requests.some(r => r.path === '/tabs' || r.path.endsWith('/navigate') || r.path === '/fam/input'), false);
+    assert.equal(requests.filter(r => r.path === '/fam/request').length, 1);
+    assert.equal((await readPrivateJson<any>('myheritage/browser-login-block.json')).blockedUntil, blockedUntil);
   });
   await t.test('never navigates a foreign tree link or probes a guessed tree URL', async()=>{
     requests.length=0; current=home; links=['https://evil.example/family-trees/fixture/site'];

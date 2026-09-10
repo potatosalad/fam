@@ -12,7 +12,8 @@ export const doctorProvider: DoctorProvider = {
     if (s.mode === 'browser') {requireSession(nonempty(object(s.browser).pageUrl)); checkTreePageUrl(s.browser.pageUrl);}
     return {mode: s.mode ?? 'native', refreshAvailable: s.mode !== 'browser'};
   },
-  recovery: () => 'Sign in on MyHeritage and import a fresh browser session with fam myheritage.session login --har FILE.',
+  recovery: () => 'Run fam myheritage.session login to restore the browser session and complete any website verification.',
+  login: {kind: 'browser', async run() {return (await import('./browser-login.js')).loginMyHeritage();}},
   refresh(value) {const s = value as MyHeritageSession; return renewMyHeritage(new MyHeritageHttp(s.cookies), s);},
   pending: [
     {file: 'myheritage/pending-auth.json', check: () => ({id: 'verification', status: 'warning', code: 'verification-pending', scope: 'password-login', message: 'Password sign-in requires verification.',

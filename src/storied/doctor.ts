@@ -9,6 +9,7 @@ export const doctorProvider: DoctorProvider = {
     return {mode: 'native', expiresAt: value.expiresAt, refreshAvailable: !!value.refreshToken};
   },
   recovery: () => 'Run fam storied.session login. Use --interactive if browser verification is required.',
+  login: {kind: 'browser', async run() {return (await import('./browser-auth.js')).authenticateBrowser();}},
   refresh: value => refreshStoried(value as StoriedSession),
   probe: {id: 'account', label: 'Account tree list', async run(value) {
     await validateAccess(new StoriedHttp(), value as StoriedSession);

@@ -99,6 +99,7 @@ test('providers sharing a session wait for renewal and read the saved replacemen
       inspect: value => ({mode: 'native', expiresAt: (value as {expiresAt: number}).expiresAt, refreshAvailable: true}),
       refresh: async () => {renewals++; return {expiresAt: Date.now() + 3600_000, rotated: true};},
       probe: {id: 'account', label: 'Synthetic shared account', run: async value => {
+        if (!(value as {rotated?: boolean}).rotated) throw {status: 401};
         assert.equal(++active, 1, 'shared session probes must not overlap');
         assert.equal((value as {rotated: boolean}).rotated, true);
         probes.push(service);
@@ -153,7 +154,7 @@ test('native doctor checks renew once, persist rotated tokens, then verify the s
         assert.equal(file, p.sessionFile); events.push('save'); saved = value;
       }});
       assert.equal(result.status, 'ok', JSON.stringify(result));
-      assert.deepEqual(events, [...expired ? [] : ['rejected'], 'refresh', 'save', 'verify', ...service === 'findmypast' ? [] : ['save']], service);
+      assert.deepEqual(events, ['rejected', 'refresh', 'save', 'verify', ...service === 'findmypast' ? [] : ['save']], service);
       if (service !== 'myheritage') assert.equal(saved.tokens.refresh_token, 'rotated-refresh');
       assert.equal(result.checks[0].code, 'session-verified');
       assert.doesNotMatch(JSON.stringify(result), /rotated-access|rotated-refresh|synthetic-/);
@@ -170,7 +171,7 @@ test('doctor bounds renewal, saves before failed verification, and leaves ordina
       probe: {id: 'trees', label: 'Session', run: async () => {events.push('probe'); throw {status};}}};
     const r = await diagnoseProvider(p, true, {...dependencies(p, s), write: async () => {events.push('save');}});
     assert.equal(r.status, 'error');
-    assert.deepEqual(events, expired ? ['refresh', 'save', 'probe'] : status === 401 ? ['probe', 'refresh', 'save', 'probe'] : ['probe']);
+    assert.deepEqual(events, [401, 403].includes(status) ? ['probe', 'refresh', 'save', 'probe'] : ['probe']);
   }
   for (const problem of ['rejected', 'network', 'save'] as const) {
     const events: string[] = [];
@@ -179,10 +180,10 @@ test('doctor bounds renewal, saves before failed verification, and leaves ordina
       if (problem === 'rejected') throw {status: 400};
       if (problem === 'network') throw new Error('Network request failed SECRET');
       return sessions.ancestry;
-    }, probe: {id: 'trees', label: 'Session', run: async () => {events.push('probe');}}};
+    }, probe: {id: 'trees', label: 'Session', run: async () => {events.push('probe'); throw {status: 401};}}};
     const result = await diagnoseProvider(p, true, {...dependencies(p, {...sessions.ancestry, expiresAt: now - 1}),
       write: async () => {events.push('save'); throw new Error('SECRET path');}});
-    assert.deepEqual(events, problem === 'save' ? ['refresh', 'save'] : ['refresh']);
+    assert.deepEqual(events, problem === 'save' ? ['probe', 'refresh', 'save'] : ['probe', 'refresh']);
     assert.equal(result.checks.at(-1)?.code, problem === 'rejected' ? 'refresh-rejected' : problem === 'save' ? 'session-save-failed' : 'network');
     assert.doesNotMatch(JSON.stringify(result), /SECRET/);
   }
@@ -291,7 +292,7 @@ test('known expiry and pending verification include provider-specific recovery; 
   assert.equal(old.status, 'ok');
 });
 
-test('live checks skip missing or malformed sessions without requests', async t => {
+test('live checks skip missing or malformed sessions without configured credentials or browser recovery', async t => {
   const fetch = t.mock.method(Impit.prototype, 'fetch', async () => {throw new Error('No request allowed');});
   for (const service of services) {
     const p = await provider(service);
@@ -374,7 +375,7 @@ test('sessions without renewal do not retry 401s, and null profiles fail', async
   await assert.rejects(p.probe.run(sessions.findmypast), e => e instanceof DoctorIssue && e.code === 'session-rejected');
 });
 
-test('Findmypast browser routing uses captured origin and MyHeritage expired pages require HAR recovery', async t => {
+test('Findmypast keeps the captured origin and MyHeritage requests browser setup when recovery is unavailable', async t => {
   const p = await provider('findmypast'), s = {mode: 'browser', apiBase: 'https://www.findmypast.co.uk/titan/marshal', cookies: jar.serializeSync()};
   assert.equal(p.inspect(s).mode, 'browser');
   assert.throws(() => p.inspect({...s, apiBase: 'https://evil.example/titan/marshal'}));
@@ -387,7 +388,7 @@ test('Findmypast browser routing uses captured origin and MyHeritage expired pag
   const mh = await provider('myheritage'), browser = {...sessions.myheritage, mode: 'browser', browser: {pageUrl: 'https://www.myheritage.com/family-trees/synthetic'}};
   const r = await diagnoseProvider(mh, true, dependencies(mh, browser));
   assert.equal(r.checks.find(c => c.id === 'account')?.code, 'session-rejected');
-  assert.match(r.checks.find(c => c.id === 'account')?.action!, /fam myheritage\.session login --har FILE/);
+  assert.match(r.checks.find(c => c.id === 'account')?.action!, /fam browser setup/);
   assert.equal(fetch.mock.callCount(), 2); // One Findmypast request, one MyHeritage request.
 });
 

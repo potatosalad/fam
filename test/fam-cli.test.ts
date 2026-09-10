@@ -52,8 +52,11 @@ test('doctor shorthand preserves health flags and canonical identity', async () 
   assert.equal(result.data.flags.live, true);
   assert.equal(result.data.flags['no-pretty'], true);
   assert.match(help(command('cli.health check')), /--no-pretty/);
+  assert.equal(parseInvocation(['cli.health', 'check', '--no-fix']).values['no-fix'], true);
+  assert.match(help(command('cli.health check')), /--no-fix/);
   assert.ok(complete(catalog, ['doc']).candidates.includes('doctor'));
   assert.ok(complete(catalog, ['doctor', '']).candidates.includes('--no-pretty'));
+  assert.ok(complete(catalog, ['doctor', '']).candidates.includes('--no-fix'));
   assert.deepEqual(complete(catalog, ['doctor', '--provider', 'anc']).candidates, ['ancestry']);
   for (const flag of ['--bogus', '--no-pretty=yes'])
     assert.throws(() => parseInvocation(['cli.health', 'check', flag]), UsageError);

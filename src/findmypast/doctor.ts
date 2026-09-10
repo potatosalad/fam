@@ -29,6 +29,10 @@ export const doctorProvider: DoctorProvider = {
   recovery: info => info?.mode === 'native' ? 'Run fam findmypast.session login --browser and complete account verification.'
     : 'Sign in on Findmypast and import a fresh browser session with fam findmypast.session login --har FILE.',
   refresh(value) {return refreshFindmypast(value as FindmypastSession);},
+  login: {kind: 'browser', async run(value) {
+    const region = object(value).apiBase === 'https://www.findmypast.co.uk/titan/marshal' ? 'co.uk' : 'com';
+    return (await import('./browser-login.js')).loginFindmypast({region});
+  }},
   pending: [
     {file: 'findmypast/verification-required.json', check: () => ({id: 'verification', status: 'warning', code: 'verification-required', scope: 'password-login',
       message: 'Password login requires browser verification; imported browser sessions may still work.',

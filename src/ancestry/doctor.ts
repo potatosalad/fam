@@ -17,6 +17,7 @@ export const doctorProvider: DoctorProvider = {
     return {mode: 'native', expiresAt: expiry(s.expiresAt), refreshAvailable: nonempty(tokens.refresh_token)};
   },
   recovery: () => 'Run fam ancestry.session login and complete any account verification.',
+  login: {kind: 'credentials', async run() {return (await import('./auth.js')).authenticateAncestry();}},
   refresh(value) {const s = value as AncestrySession; return refreshAncestrySession(new AncestryHttp(s.cookies), s);},
   pending: [{file: 'ancestry/pending-auth.json', check: () => ({id: 'verification', status: 'warning', code: 'verification-pending', scope: 'password-login',
     message: 'A sign-in is awaiting account verification.', action: 'Run fam ancestry.session login --send-code, then fam ancestry.session login --code CODE. Complete other verification methods on Ancestry.'})}],

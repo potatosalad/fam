@@ -23,11 +23,13 @@ export interface DoctorProvider {
   recovery(info?: SessionInfo): string;
   /** Token renewal only; return state without writing or starting a password login. */
   refresh?(session: unknown): Promise<unknown>;
+  /** The normal session-login flow; it validates and persists the new session. */
+  login?: {kind: 'credentials' | 'browser'; run(session?: unknown): Promise<unknown>};
   pending?: { file: string; check(value: unknown, now: number): DoctorCheck | undefined }[];
   probe: DoctorProbe;
   limitations: string[];
 }
-export type IssueCode = 'session-rejected' | 'refresh-rejected' | 'session-save-failed' | 'request-challenged' | 'access-denied' | 'verification-required' | 'rate-limited' | 'service-unavailable' | 'network' | 'api-changed' | 'check-failed' | 'no-data';
+export type IssueCode = 'session-rejected' | 'refresh-rejected' | 'session-save-failed' | 'request-challenged' | 'access-denied' | 'verification-required' | 'rate-limited' | 'service-unavailable' | 'network' | 'api-changed' | 'check-failed' | 'no-data' | 'login-failed' | 'login-blocked' | 'browser-unavailable';
 export class DoctorIssue extends Error {
   constructor(readonly code: IssueCode) { super(code); }
 }
@@ -69,6 +71,9 @@ export function failure(error: unknown, recovery: string): Pick<DoctorCheck, 'st
   const e = object(error), message = error instanceof Error ? error.message : '';
   const code: IssueCode = error instanceof DoctorIssue ? error.code
     : e.name === 'MyHeritageChallengeError' ? 'request-challenged'
+    : e.code === 'BROWSER_INTERACTION_REQUIRED' ? 'verification-required'
+    : e.code === 'BROWSER_LOGIN_BLOCKED' ? 'login-blocked'
+    : ['BROWSER_UNAVAILABLE', 'BROWSER_PLUGIN_REQUIRED', 'BROWSER_API_FAILED'].includes(e.code) ? 'browser-unavailable'
     : ['GeneanetError', 'NewspaperArchiveError', 'AmericanAncestorsError'].includes(e.name) && ['session-rejected', 'verification-required', 'api-changed'].includes(e.code) ? e.code
     : e.status === 401 ? 'session-rejected'
     : e.status === 403 || e.status === 451 ? 'access-denied'
@@ -83,14 +88,17 @@ export function failure(error: unknown, recovery: string): Pick<DoctorCheck, 'st
     'session-rejected': ['The saved session was rejected or no signed-in account was returned.', recovery],
     'refresh-rejected': ['Session renewal was rejected; sign-in is required.', recovery],
     'session-save-failed': ['The updated session could not be saved.', 'Check write permissions and available space in the active fam profile, then retry.'],
-    'request-challenged': ['The provider challenged this request; saved credentials were not proven expired.', 'Check MyHeritage website access from this machine and complete any verification before retrying; do not force a new login.'],
-    'access-denied': ['Access was denied; this does not establish that credentials expired.', 'Check this capability on the provider website, including account permissions, subscription, and any security challenge.'],
+    'request-challenged': ['The provider requires a website security check.', `Complete the security check in the browser. ${recovery}`],
+    'access-denied': ['The provider denied the account access check.', recovery],
     'verification-required': ['The provider requires website verification.', `Complete verification on the provider website. ${recovery}`],
     'rate-limited': ['The provider is rate limiting requests.', 'Wait for the provider cooldown before rerunning doctor; avoid repeated sign-in attempts.'],
     'service-unavailable': ['The provider returned a server error.', 'Retry later and check the provider website if the problem continues.'],
     network: ['The request failed to connect or timed out.', 'Check your connection, DNS, and proxy settings, then retry.'],
     'api-changed': ['The response did not match the expected API format.', 'Update fam and retry. If this persists, report the provider and check ID; the integration may need updating.'],
-    'check-failed': ['The check could not complete; credentials were not proven expired.', 'Check the provider website and update fam, then retry doctor for this provider.'],
+    'check-failed': ['The account access check could not complete.', recovery],
+    'login-failed': ['Automatic sign-in did not complete.', `Check the configured credentials and complete any required account verification. ${recovery}`],
+    'login-blocked': ['The provider has temporarily paused automatic sign-in.', 'Wait for the login cooldown, or complete sign-in manually in the configured browser. Run fam browser open to view it.'],
+    'browser-unavailable': ['Automatic sign-in could not reach the configured browser.', 'Run fam browser status and restore browser access, then retry fam doctor.'],
     'no-data': ['This account has no suitable data for this check.', 'Retry with an account that has a linked tree person.'],
   };
   return {status: code === 'no-data' ? 'skipped' : 'error', code, message: descriptions[code][0], action: descriptions[code][1]};

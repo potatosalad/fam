@@ -8,9 +8,10 @@ fam cli.health check --verbose               # Individual checks and recovery de
 fam cli.health check --json                  # Structured online report
 fam cli.health check --offline               # Local inspection, no requests or changes
 fam doctor --no-pretty                        # Plain report without animation or colors
+fam doctor --no-fix                           # Check online without changing saved sessions
 ```
 
-Doctor prints one row per provider and an actionable next step for failures. Add `--json` for a structured report. `OK` means an authenticated request succeeded during this run. `Session refreshed and verified` means doctor also renewed and saved the session first. An offline `SAVED` result only describes local files; it cannot establish that credentials still work. `--live` remains accepted as an alias for the default online behavior.
+Doctor prints one row per provider and an actionable next step for failures. Add `--json` for a structured report. `OK` means access was verified during this run. `Session refreshed and verified` means token renewal restored access; `Signed in again and verified` means the normal login flow restored it. An offline `SAVED` result only describes local files. `--live` remains accepted as an alias for the default online behavior.
 
 In a color-capable TTY with room for the provider rows, doctor immediately shows every selected provider with a spinner, the current check, and elapsed time. Completed providers change to a green check mark, yellow warning, or red failure while other checks continue. Browser verification links and other notices remain visible above the display. `--verbose` retains the live display and adds detailed results afterward.
 
@@ -20,28 +21,33 @@ Use `--no-pretty` to disable animation and colors. Piped output, `--out` files, 
 
 ## Session validation and renewal
 
-Doctor makes one small authenticated read for each saved session. If an access token is about to expire, it first uses the provider's existing renewal flow. If a read instead rejects authentication, doctor renews once and retries the read once. The renewed credentials are saved before verification so a rotated refresh token is retained even if the subsequent request fails. Successful checks also retain updated cookies; MyHeritage browser checks save the current API token from the authenticated tree page.
+Every authenticated provider follows the same sequence: check access with the saved session, try token renewal if supported, then try the provider's normal `session login` flow. Doctor checks access after each repair and stops as soon as it succeeds. Expiry metadata alone does not trigger renewal when access still works. Missing or malformed sessions can go directly to login when credentials and any required browser are configured.
 
-Doctor never submits a password, starts a new login, executes a password lookup helper, requests verification codes, or removes login cooldown markers. Pending password sign-in and credential configuration issues remain visible in detailed output without invalidating a working saved session. Missing or malformed sessions require setup before an online check can run.
+There is at most one refresh and one login attempt per saved session in a run, including sessions shared by Storied and NewspaperArchive. Rotated tokens are saved before verification. Successful checks retain updated cookies and browser credentials. `--no-fix` disables refresh, login, and doctor session saves; it still checks access online. `--offline` only inspects local state.
 
-Permission errors, verification challenges, rate limits, server errors, and connection failures do not trigger renewal or retries. MyHeritage can return an Incapsula challenge with HTTP 200; this is reported as `request-challenged`, not expired credentials or a password-login block. A failed renewal stops that provider's check. There are no searches, catalog reads, tree traversal, record purchases, downloads, or data writes to provider accounts. Requests do not follow redirects. Session writes use the normal private profile storage and its configured credential sync hook.
+Authentication rejection, account-access denial, and unexpected account responses can all trigger recovery: a stale session does not always produce HTTP 401. Rate limits, outages, connection failures, and local save failures stop recovery. Browser providers can use their normal browser flow to resolve website challenges. Login uses existing credentials or the configured browser, respects login cooldowns, and reports required human verification. Doctor does not configure a new browser, request verification codes, or retry a failed password submission. Healthy sessions never trigger login or credential-helper execution.
 
-| Provider | Authenticated check | Automatic renewal |
+Account probes and login validation make only the reads needed to establish access. There are no research searches, record purchases, downloads, or account-content writes. Login retains its normal origin and redirect restrictions. Session writes use private profile storage and its configured sync hook.
+
+| Provider | Authenticated check | Recovery |
 | --- | --- | --- |
-| FamilySearch | Current account | Saved refresh token |
-| Ancestry | Tree listing, limit one | Saved refresh token |
-| MyHeritage native | Account ID | Native token renewal |
-| MyHeritage browser | Saved signed-in tree page | Current API token and cookies from the page |
-| Findmypast native | Current account | Saved refresh token |
-| Findmypast browser | Current account on the captured regional API | Retain updated cookies; an expired website login requires sign-in |
-| Find a Grave | Signed-in contributor | No known renewal endpoint |
-| Geneanet | Signed-in account | Retain updated cookies; an expired website login requires sign-in |
+| FamilySearch | Current account | Refresh token, then normal Church Account login |
+| Ancestry | Tree listing, limit one | Refresh token, then normal login |
+| MyHeritage native | Account ID | Native renewal, then browser login |
+| MyHeritage browser | Saved signed-in tree page | Recapture the configured browser session or sign in there |
+| Findmypast native | Current account | Refresh token, then browser login |
+| Findmypast browser | Current account on the captured regional API | Browser login, preserving the region |
+| Find a Grave | Signed-in contributor | Normal login |
+| Geneanet | Signed-in account | Normal login |
+| Storied | Account tree list | Refresh token, then browser authorization |
+| NewspaperArchive | Identity and newspaper country catalog | Shared Storied refresh and browser authorization |
+| American Ancestors | Signed-in website session | Normal login |
 
-The same automatic token renewal applies to ordinary authenticated provider commands. You do not need to run `refresh` or `auth` first when the existing authorization can be renewed. An expired browser login or rejected refresh token can require sign-in or website verification; doctor reports the relevant recovery step. Password validity and unused refresh tokens are not tested speculatively when a session already works.
+Public providers Cyndi’s List and Wayback have no account login to repair. Ordinary provider commands retain their existing renewal behavior; doctor performs the additional login recovery described here.
 
 ## Output and exit codes
 
-Use `--verbose` for individual checks, scoped password-login notices, and coverage limits. JSON contains stable check IDs and issue codes, including `session-rejected`, `refresh-rejected`, `session-save-failed`, `access-denied`, and `rate-limited`. Reports omit tokens, passwords, cookie values, account details, and raw response bodies. `FAM_CONFIG_DIR` selects the profile using the normal CLI rules.
+Use `--verbose` for individual checks, recovery attempts, scoped password-login notices, and coverage limits. JSON includes each provider's attempted `recovery` steps and their outcomes, plus stable issue codes such as `session-rejected`, `refresh-rejected`, `login-failed`, `session-save-failed`, `access-denied`, and `rate-limited`. Reports omit tokens, passwords, cookie values, account details, and raw response bodies. `FAM_CONFIG_DIR` selects the profile using the normal CLI rules.
 
 Exit code `0` means no warnings or errors affecting the saved session in performed checks; `1` means attention is needed; `2` means invalid arguments. Offline success never establishes online readiness. Session validation does not prove every search, subscription feature, download, or write capability works. Select providers to avoid setup warnings for services you have never configured.
 
