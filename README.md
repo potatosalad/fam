@@ -16,7 +16,7 @@ These are unofficial clients. They use mobile and website APIs that can change w
 | `geneanet` | [Archival records, trees, portraits, and registers](docs/geneanet/README.md) |
 | `storied` | [Trees, stories, media, and historical records](docs/storied/README.md) |
 | `newspaperarchive` | [Newspaper search and OCR; shares Storied sign-in](docs/newspaperarchive/README.md) |
-| `cyndislist` | [Genealogy resource categories, page reading, and Google search](docs/cyndislist/README.md) |
+| `cyndislist` | [Genealogy resource categories, page reading, and site search](docs/cyndislist/README.md) |
 | `americanancestors` | [Native sign-in, records, citations, scans, volume browsing, and exports](docs/americanancestors/README.md) |
 | `wayback` | [Find snapshots and fetch archived web pages from the Internet Archive](docs/wayback/README.md) |
 
