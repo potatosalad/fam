@@ -129,7 +129,7 @@ fam storied.session login
 fam newspaperarchive.session login
 ```
 
-fam first checks for an existing signed-in browser session. If sign-in is needed, it tries configured credentials once per visible login-form step. Hidden login fields do not trigger password entry. Account verification runs again when the page changes or the form disappears, so a completed login can resume on the next poll. Password lookup follows the [shared credential rules](setup.md#credential-lookup); browser login does not prompt for a password in the terminal.
+fam first checks for an existing signed-in browser session. If sign-in is needed, it submits configured credentials at most once per visible login-form step. Hidden login fields do not trigger password entry. If the form disappears before input and Camofox confirms that nothing was submitted, fam can try that step again. Account verification runs again when the page changes or the form disappears, so a completed login can resume on the next poll. Password lookup follows the [shared credential rules](setup.md#credential-lookup); browser login does not prompt for a password in the terminal.
 
 `--interactive` autofills empty username and password fields by default, including a password field that appears after a username-only step. It never clicks Sign in or submits the form; you submit through the viewer. Autofill preserves values you have already entered. Use `--no-autofill` to leave the fields untouched and disable automatic credential submission, with or without `--interactive`:
 
@@ -141,6 +141,8 @@ fam myheritage.session login --interactive --no-autofill
 The same flags apply to Findmypast, Storied, and NewspaperArchive browser login. Interactive autofill requires the updated bundled fam Camofox plugin; older remote plugins must be updated and Camofox restarted. Until then, `--no-autofill` retains manual sign-in. For an existing local container, run `fam browser stop` followed by `fam browser start` after updating fam to load the new plugin.
 
 When MFA, CAPTCHA, or another interaction is needed, fam prints the viewer URL, opens it when possible, and waits for account verification. The default wait is ten minutes. `fam browser configure --timeout 0 --no-open` prints the URL and returns when interaction is needed. A command can override the setting with `--browser-timeout 120`. Finish in the viewer and rerun the login command after a timeout. Cookies remain available.
+
+Automatic sign-in allows up to five seconds for the page to load or redirect after submission before asking for interaction. Interactive sign-in and an expired timeout still show the viewer immediately when needed.
 
 MyHeritage and Findmypast validate account access before saving a browser session. Storied captures its native-app callback in the plugin, validates OAuth state, and exchanges the code with PKCE. NewspaperArchive shares Storied authentication. Saved OAuth refresh tokens continue to support ordinary native requests.
 

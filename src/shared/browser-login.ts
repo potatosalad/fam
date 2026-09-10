@@ -5,18 +5,20 @@ import {configuredBrowser, type BrowserTab} from './browser-runtime.js';
 import {readPrivateJson, writePrivateJson} from './storage.js';
 
 export interface BrowserLoginOptions {timeoutMs?: number; interactive?: boolean; autofill?: boolean}
+export interface BrowserLoginPage {origin: string; url?: string; password: boolean; email: boolean; text: string; document?: number}
 export function loginCooldown(text: string): number | undefined {
   return /access has been temporarily disabled|access has been temporarily blocked/i.test(text) && /(?:try again|retry) in 24 hours/i.test(text) ? 86400000 : undefined;
 }
-export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify: () => Promise<T | undefined>, options: BrowserLoginOptions = {}): Promise<T> {
+export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: BrowserLoginPage) => Promise<T | undefined>, options: BrowserLoginOptions = {}): Promise<T> {
   const timeout = options.timeoutMs ?? tab.browser.config.timeout * 1000;
   const deadline = Date.now() + timeout;
   let notified = false, credentials: {username: string; password: string} | undefined, loaded = false, nextCheck = 0;
+  let interactionAfter = Date.now() + (options.interactive || options.autofill === false ? 0 : 5000);
   let lastPage: string | undefined;
   const submitted = new Set<string>(), filled = new Set<string>();
   let autofillSupported = false;
   while (true) {
-    let page: {origin: string; url?: string; password: boolean; email: boolean; text: string; document?: number} | undefined;
+    let page: BrowserLoginPage | undefined;
     try {page = await tab.evaluate(`(() => {
       const visible = selector => Array.from(document.querySelectorAll(selector)).some(input =>
         !input.disabled && input.getClientRects().length > 0 && getComputedStyle(input).visibility !== 'hidden');
@@ -42,7 +44,7 @@ export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify
     const passwordPaused = !!block && Date.parse(block.blockedUntil) > Date.now();
     if (cooldown) throw new BrowserError(`${tab.provider} is displaying a temporary access restriction. Automatic password entry is paused until ${block!.blockedUntil}. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
     if (Date.now() >= nextCheck) {
-      const result = await verify();
+      const result = await verify(page);
       if (result !== undefined) {await tab.browser.state(tab.provider); return result;}
       nextCheck = Date.now() + 10000;
       // Verification may navigate to an authenticated page. Inspect its current
@@ -67,12 +69,18 @@ export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify
         const result = await tab.browser.api('/fam/autofill', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
         if (result.ready) filled.add(documentStep);
       } else if (credentials && !options.interactive && !submitted.has(step)) {
-        submitted.add(step);
-        await tab.browser.api('/fam/input', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
-        nextCheck = 0; await delay(1500); continue;
+        const result = await tab.browser.api('/fam/input', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
+        if (result.submitted === true) {
+          submitted.add(step);
+          interactionAfter = Date.now() + 5000;
+          nextCheck = 0; await delay(1500); continue;
+        }
+        // The form may disappear between inspection and input. An explicit
+        // non-submission permits another try; an ambiguous outcome does not.
+        if (result.submitted !== false) throw new BrowserError('Camofox did not confirm credential submission. Check the sign-in page before retrying.', 'BROWSER_API_FAILED', tab.browser.endpoint.vncUrl);
       }
     }
-    if (!notified) {await tab.browser.notify(timeout / 1000); notified = true;}
+    if (!notified && (Date.now() >= interactionAfter || Date.now() >= deadline)) {await tab.browser.notify(timeout / 1000); notified = true;}
     if (Date.now() >= deadline) throw new BrowserError(`Sign-in did not finish. Open ${tab.browser.endpoint.vncUrl}, complete sign-in or verification, and retry.`, 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
     await delay(Math.min(2000, Math.max(1, deadline - Date.now())));
   }

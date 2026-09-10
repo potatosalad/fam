@@ -15,6 +15,10 @@ Camofox retains the website session and tries configured credentials when needed
 
 Login reuses a working fam tab for the selected region, including a sign-in already in progress. Closed or crashed tabs are skipped. It validates the current account before saving the session; retrying after completing sign-in does not open another tab or submit credentials again.
 
+If an old home or research page has lost its authentication, fam opens sign-in in that tab once. It recognizes Findmypast's specific logged-out `BAD_USER_INPUT` response and resumes after account verification. Other API errors are reported directly instead of leaving login waiting indefinitely. A successful renewal replaces the request cookies, headers, and regional API address before retrying the interrupted operation; concurrent failures share that renewal.
+
+Both `--transport browser` and `--transport http` use the saved website session. Browser login remembers browser routing for that website. Public content and requests explicitly marked anonymous do not trigger login renewal.
+
 ## Native login and existing HAR files
 
 `fam findmypast.session login --native` retains the mobile password flow. If it requires browser verification, the default Camofox website login is available. For compatibility with a native-app callback file, `fam findmypast.session login --native --browser` starts native authorization and `fam findmypast.session login --callback-file FILE` completes it.

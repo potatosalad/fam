@@ -1,9 +1,10 @@
 import {loadProviderSession} from '../shared/browser-config.js';
+import {CookieJar} from 'tough-cookie';
 import { readPrivateJson } from '../shared/storage.js';
-import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
+import { withSessionRefresh } from '../shared/session-refresh.js';
 import type { ApiRequest, ApiResponse } from '../familysearch/transport-types.js';
 import { AUTH, CONTENT, GRAPHQL, TITAN, FindmypastHttp, FindmypastHttpError, checkFindmypastUrl } from './http.js';
-import { refreshFindmypast, saveFindmypastSession, sessionStatus, isBrowserSession, type SavedFindmypastSession, type FindmypastSession } from './auth.js';
+import { isFindmypastAuthenticationFailure, refreshFindmypast, saveFindmypastSession, sessionStatus, isBrowserSession, type SavedFindmypastSession, type FindmypastSession } from './auth.js';
 import { graphqlOperation, prepareRest, validateDocument, type RestArguments } from './catalog.js';
 export class FindmypastGraphQLError extends Error {
   constructor(readonly result: {data?: unknown; errors: unknown[]}) { super('Findmypast returned GraphQL errors; operation was not successful.'); this.name = 'FindmypastGraphQLError'; }
@@ -11,6 +12,7 @@ export class FindmypastGraphQLError extends Error {
 type Http = Pick<FindmypastHttp, 'exchange'> & Partial<Pick<FindmypastHttp, 'jar'>>;
 export class FindmypastClient {
   private refreshing?: Promise<void>;
+  private browserGeneration = 0;
   constructor(private session?: SavedFindmypastSession, private readonly http: Http = new FindmypastHttp(isBrowserSession(session) ? session.cookies : undefined),
     private readonly hooks: {refresh: typeof refreshFindmypast; save: (session: SavedFindmypastSession) => Promise<void>; browserLogin?: (session: SavedFindmypastSession) => Promise<SavedFindmypastSession>} = {refresh: refreshFindmypast, save: saveFindmypastSession}) {}
   static async open(anonymous = false): Promise<FindmypastClient> {
@@ -40,7 +42,14 @@ export class FindmypastClient {
     this.refreshing ??= (async () => {
       const previous = this.session!;
       const next = this.hooks.browserLogin ? await this.hooks.browserLogin(previous) : await (await import('./browser-login.js')).loginFindmypast({region: isBrowserSession(previous) && previous.apiBase.includes('.co.uk') ? 'co.uk' : 'com'});
+      if (!isBrowserSession(next)) throw new Error('Findmypast browser renewal did not return a website session.');
+      if (this.http.jar) {
+        const cookies = await (next.cookies ? CookieJar.deserializeSync(next.cookies) : new CookieJar()).serialize();
+        await this.http.jar.removeAllCookies();
+        await CookieJar.deserialize(cookies, this.http.jar.store);
+      }
       this.session = next;
+      this.browserGeneration++;
     })().finally(() => {this.refreshing = undefined;});
     await this.refreshing;
   }
@@ -54,27 +63,38 @@ export class FindmypastClient {
     const url = new URL(path.startsWith('/') ? `${TITAN}${path}` : path); checkFindmypastUrl(url);
     if (url.origin === AUTH) throw new Error('Auth routes are managed by fam findmypast.session login/refresh.');
     const browser = isBrowserSession(this.session) ? this.session : undefined;
-    if (browser && url.pathname.startsWith('/titan/marshal/')) {
-      if (!['https://www.findmypast.co.uk/titan/marshal', 'https://www.findmypast.com/titan/marshal'].includes(browser.apiBase)) throw new Error('Invalid browser API base.');
-      url.host = new URL(browser.apiBase).host;
-    }
+    const browserGeneration = this.browserGeneration;
+    const marshal = url.pathname.startsWith('/titan/marshal/') && ['https://www.findmypast.co.uk','https://www.findmypast.com'].includes(url.origin);
+    const browserUrl = () => {
+      const target = new URL(url);
+      const current = isBrowserSession(this.session) ? this.session : undefined;
+      if (current && marshal) {
+        if (!['https://www.findmypast.co.uk/titan/marshal', 'https://www.findmypast.com/titan/marshal'].includes(current.apiBase)) throw new Error('Invalid browser API base.');
+        target.host = new URL(current.apiBase).host;
+      }
+      return target;
+    };
+    browserUrl(); // Validate before any renewal or network request.
     if (browser && url.origin === 'https://tree.findmypast.co.uk') throw new Error('The legacy asset service requires native authentication; use media for browser sessions.');
     const authorized = !anonymous && url.origin !== new URL(CONTENT).origin && Boolean(this.session) && !browser;
     const token = authorized ? (this.session as FindmypastSession).tokens.access_token : undefined;
     const send = async () => {
-      const result = await this.http.exchange<T>(url, {...options, headers: {...options.headers,
-      ...(browser && url.pathname.startsWith('/titan/marshal/') ? browser.headers : {}),
+      const current = isBrowserSession(this.session) ? this.session : undefined;
+      const result = await this.http.exchange<T>(browserUrl(), {...options, headers: {...options.headers,
+      ...(current && marshal ? current.headers : {}),
       ...(authorized ? {Authorization: `Bearer ${(this.session as FindmypastSession).tokens.access_token}`} : {})}});
-      if (url.pathname.endsWith('/graphql') && isGraphQLAuthenticationFailure(result.data)) throw new FindmypastHttpError(401, url.pathname);
+      if (url.pathname.endsWith('/graphql') && isFindmypastAuthenticationFailure(result.data)) throw new FindmypastHttpError(401, url.pathname);
       if (browser?.browserInstance && (options.body as {operationName?: string} | undefined)?.operationName === 'GetCurrentUserProfile') {
-        const profile = (result.data as {data?: {currentUserProfile?: unknown}})?.data;
-        if (profile && Object.hasOwn(profile, 'currentUserProfile') && profile.currentUserProfile === null) throw new FindmypastHttpError(401, url.pathname);
+        const envelope = result.data as {data?: {currentUserProfile?: unknown}; errors?: unknown[]};
+        if (envelope?.data?.currentUserProfile === null && !envelope.errors?.length) throw new FindmypastHttpError(401, url.pathname);
       }
       return result;
     };
     const result = await withSessionRefresh(send, authorized ? async () => {
       if (token === (this.session as FindmypastSession).tokens.access_token) await this.refresh();
-    } : browser?.browserInstance ? () => this.renewBrowser() : undefined, authorized && (this.session as FindmypastSession).expiresAt <= Date.now() + 30_000);
+    } : !anonymous && marshal && browser?.browserInstance ? async () => {
+      if (this.browserGeneration === browserGeneration) await this.renewBrowser();
+    } : undefined, authorized && (this.session as FindmypastSession).expiresAt <= Date.now() + 30_000);
     if (browser) await this.saveBrowserCookies();
     return result;
   }

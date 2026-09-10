@@ -1,4 +1,5 @@
 import {saveProviderSession} from '../shared/browser-config.js';
+import {isGraphQLAuthenticationFailure} from '../shared/session-refresh.js';
 import { loadLoginCredentials, type Credentials } from '../shared/credentials.js';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { rm } from 'node:fs/promises';
@@ -14,6 +15,17 @@ export interface FindmypastTokens { access_token: string; refresh_token?: string
 export interface FindmypastSession { browserInstance?: string; tokens: FindmypastTokens; expiresAt: number; savedAt: string; }
 export interface FindmypastBrowserSession { browserInstance?: string; mode: 'browser'; cookies: ReturnType<CookieJar['serializeSync']>; apiBase: string; savedAt: string; headers?: Record<string,string>; }
 export type SavedFindmypastSession = FindmypastSession | FindmypastBrowserSession;
+/** The website labels its logged-out response BAD_USER_INPUT, including on
+ * account and tree reads. Other input errors and partial results are not auth. */
+export function isFindmypastAuthenticationFailure(value: unknown): boolean {
+  if (isGraphQLAuthenticationFailure(value)) return true;
+  if (!value || typeof value !== 'object') return false;
+  const result = value as {data?: unknown; errors?: {message?: unknown; extensions?: {code?: unknown}}[]};
+  const empty = result.data == null || typeof result.data === 'object' && !Array.isArray(result.data)
+    && Object.values(result.data).every(value => value === null);
+  return empty && Array.isArray(result.errors) && result.errors.length > 0 && result.errors.every(error =>
+    error?.extensions?.code === 'BAD_USER_INPUT' && error.message === 'Global member id is not authenticated. User must be logged in to make a request');
+}
 export function isBrowserSession(session?: SavedFindmypastSession): session is FindmypastBrowserSession { return Boolean(session && 'mode' in session && session.mode === 'browser'); }
 export const loadFindmypastCredentials = (): Promise<FindmypastCredentials> => loadLoginCredentials('findmypast');
 export function loginBody(credentials: FindmypastCredentials) {

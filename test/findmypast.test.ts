@@ -8,7 +8,7 @@ import { parse, Kind } from 'graphql';
 import { FindmypastHttp, FindmypastHttpError, checkFindmypastUrl, GRAPHQL, AUTH, CONTENT } from '../src/findmypast/http.js';
 import { FindmypastClient, FindmypastGraphQLError, searchFilters } from '../src/findmypast/client.js';
 import { contracts, graphqlOperation, validateDocument, prepareRest } from '../src/findmypast/catalog.js';
-import { CLIENT_ID, AUDIENCE, REDIRECT_URI, authenticateFindmypast, loadFindmypastCredentials, loginBody, sessionFromTokens, validateCallback, type FindmypastSession } from '../src/findmypast/auth.js';
+import { CLIENT_ID, AUDIENCE, REDIRECT_URI, authenticateFindmypast, isFindmypastAuthenticationFailure, loadFindmypastCredentials, loginBody, sessionFromTokens, validateCallback, type FindmypastSession } from '../src/findmypast/auth.js';
 import type { ApiRequest } from '../src/familysearch/transport-types.js';
 import { browserSessionFromHar, importFindmypastHar } from '../src/findmypast/har.js';
 import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from '../src/shared/storage.js';
@@ -305,4 +305,108 @@ test('Camofox Findmypast sessions renew at most once on an authentication reject
     await assert.rejects(client.me());
     assert.equal(sends,status===401?2:1);assert.equal(renewals,status===401?1:0);
   }
+});
+
+function websiteSession(region = 'com', value = 'old') {
+  const jar = new CookieJar();
+  jar.setCookieSync(`session=${value}; Path=/; Secure; HttpOnly`, `https://www.findmypast.${region}`);
+  return {mode:'browser' as const,browserInstance:'a'.repeat(24),apiBase:`https://www.findmypast.${region}/titan/marshal`,
+    savedAt:'2026-01-01T00:00:00Z',cookies:jar.serializeSync(),headers:{'x-csrf-token':value}};
+}
+
+test('the website logged-out error renews authentication without treating ordinary input errors or partial data as expiry', async () => {
+  const error={message:'Global member id is not authenticated. User must be logged in to make a request',extensions:{code:'BAD_USER_INPUT'}};
+  for (const data of [null,{currentUserProfile:null},{familyTreesV2:null}]) assert.equal(isFindmypastAuthenticationFailure({data,errors:[error]}),true);
+  for (const value of [{data:{currentUserProfile:{id:'fixture'}},errors:[error]},
+    {data:null,errors:[{...error,message:'Invalid tree ID'}]}, {data:null,errors:[{...error,extensions:{code:'INTERNAL_SERVER_ERROR'}}]},
+    {data:null,errors:[error,{message:'Invalid tree ID'}]}, null, {}]) assert.equal(isFindmypastAuthenticationFailure(value),false);
+  let sends=0,renewals=0;
+  const client=new FindmypastClient(websiteSession(),{exchange:async<T>()=>({data:(++sends===1?
+    {data:{familyTreesV2:null},errors:[error]}:{data:{familyTreesV2:{list:[]}}}) as T,status:200,headers:{}})},
+    {refresh:async()=>assert.fail('native refresh'),save:async()=>{},browserLogin:async()=>{renewals++;return websiteSession('com','fresh');}});
+  assert.deepEqual(await client.trees(),{familyTreesV2:{list:[]}});assert.equal(sends,2);assert.equal(renewals,1);
+});
+
+test('browser refresh installs current cookies, headers and region before requests resume or save', async () => {
+  for (const trigger of ['refresh', '401', 'null-profile']) {
+    const previous=websiteSession(), next=websiteSession('co.uk','fresh'), jar=CookieJar.deserializeSync(previous.cookies!);
+    let reads=0,renewals=0,saves=0;
+    const client=new FindmypastClient(previous,{jar,exchange:async<T>(url:string|URL,options:ApiRequest={})=>{
+      reads++;
+      if (trigger!=='refresh' && reads===1) {
+        assert.equal(String(url),`${previous.apiBase}/graphql`);
+        assert.equal(options.headers?.['x-csrf-token'],'old');
+        if (trigger==='401') throw new FindmypastHttpError(401,'/graphql');
+        return {data:{data:{currentUserProfile:null}} as T,status:200,headers:{}};
+      }
+      assert.equal(String(url),`${next.apiBase}/graphql`);
+      assert.equal(options.headers?.['x-csrf-token'],'fresh');
+      assert.equal(jar.getCookieStringSync(String(url)),'session=fresh');
+      assert.equal(jar.getCookieStringSync(previous.apiBase),'');
+      return {data:{data:{currentUserProfile:{id:'fixture-account'}}} as T,status:200,headers:{}};
+    }},{refresh:async()=>assert.fail('native refresh'),browserLogin:async()=>{renewals++;return next;},save:async value=>{
+      assert.ok('mode' in value);assert.equal(value.apiBase,next.apiBase);
+      assert.equal(CookieJar.deserializeSync(value.cookies!).getCookieStringSync(next.apiBase),'session=fresh');saves++;
+    }});
+    if (trigger==='refresh') await client.refresh();
+    assert.deepEqual(await client.me(),{currentUserProfile:{id:'fixture-account'}});
+    assert.equal(renewals,1);assert.equal(saves,1);assert.equal(reads,trigger==='refresh'?1:2);
+  }
+});
+
+test('late failures from one browser session reuse the completed renewal', async () => {
+  let sends=0,renewals=0,release!:()=>void;
+  const delayed=new Promise<void>(resolve=>{release=resolve;});
+  const client=new FindmypastClient(websiteSession(),{exchange:async<T>()=>{
+    const attempt=++sends;
+    if (attempt===2) await delayed;
+    if (attempt<=2) throw new FindmypastHttpError(401,'/graphql');
+    return {data:{data:{currentUserProfile:{id:'fixture-account'}}} as T,status:200,headers:{}};
+  }},{refresh:async()=>assert.fail('native refresh'),save:async()=>{},browserLogin:async()=>{renewals++;return websiteSession('com','fresh');}});
+  const first=client.me(), second=client.me();
+  try {await first;} finally {release();}
+  await second;
+  assert.equal(sends,4);assert.equal(renewals,1);
+});
+
+test('public requests and account service errors never start a browser login', async () => {
+  const hooks={refresh:async()=>assert.fail('native refresh'),save:async()=>{},browserLogin:async()=>assert.fail('browser login')};
+  const client=new FindmypastClient(websiteSession(),{exchange:async()=>{throw new FindmypastHttpError(401,'/denied');}},hooks);
+  await assert.rejects(client.call('content.repository'),(e:unknown)=>e instanceof FindmypastHttpError && e.status===401);
+  await assert.rejects(client.request('/public',{},true),(e:unknown)=>e instanceof FindmypastHttpError && e.status===401);
+  const failed=new FindmypastClient(websiteSession(),{exchange:async<T>()=>({data:{data:{currentUserProfile:null},errors:[{extensions:{code:'INTERNAL_SERVER_ERROR'}}]} as T,status:200,headers:{}})},hooks);
+  await assert.rejects(failed.me(),FindmypastGraphQLError);
+});
+
+test('failed browser renewal preserves the previous cookies without replaying the operation', async () => {
+  const previous=websiteSession(),jar=CookieJar.deserializeSync(previous.cookies!);
+  let sends=0;
+  const client=new FindmypastClient(previous,{jar,exchange:async()=>{sends++;throw new FindmypastHttpError(401,'/graphql');}},
+    {refresh:async()=>assert.fail('native refresh'),save:async()=>assert.fail('save'),browserLogin:async()=>{throw new Error('Login needs interaction');}});
+  await assert.rejects(client.me(),/Login needs interaction/);
+  assert.equal(sends,1);assert.equal(jar.getCookieStringSync(previous.apiBase),'session=old');
+});
+
+test('website tree and person reads retain IDs, pagination and the saved region', async () => {
+  const person={id:'fixture-person',name:'Fixture Person'};
+  const payloads:Record<string,unknown>={
+    GetListOfTrees:{familyTreesV2:{list:[{id:'fixture-tree'}]}},GetTreeSettings:{familyTree:{id:'fixture-tree'}},
+    GetPeopleInTree:{familyTree:{people:[person],rootPerson:person}},GetFamilyViewForNode:{familyTree:{familyView:{nodes:[{person}]}}},
+    GetFactsForPerson:{person:{facts:[]}},GetHintsForPerson:{hints:[]},GetPersonMedia:{person:{media:[]}},
+  };
+  const calls:{name:string;variables:unknown}[]=[];
+  const client=new FindmypastClient(websiteSession('co.uk'),{exchange:async<T>(url:string|URL,options:ApiRequest={})=>{
+    assert.equal(String(url),'https://www.findmypast.co.uk/titan/marshal/graphql');
+    assert.equal(options.headers?.Authorization,undefined);
+    const body=options.body as {operationName:string;variables:unknown};calls.push({name:body.operationName,variables:body.variables});
+    assert.ok(Object.hasOwn(payloads,body.operationName));
+    return {data:{data:payloads[body.operationName]} as T,status:200,headers:{}};
+  }},{refresh:async()=>assert.fail('native refresh'),save:async()=>{}});
+  await client.trees(5,10);await client.tree('fixture-tree');await client.people('fixture-tree');
+  assert.deepEqual(await client.person('fixture-tree','fixture-person'),person);
+  await client.relatives('fixture-tree','fixture-person');await client.facts('fixture-person');
+  await client.hints('fixture-tree','fixture-person',3,4);await client.media('fixture-person',2,6);
+  assert.deepEqual(calls.map(c=>c.variables),[{offset:10,limit:5},{treeId:'fixture-tree'},{treeId:'fixture-tree'},
+    {treeId:'fixture-tree',nodeId:'fixture-person'},{treeId:'fixture-tree',nodeId:'fixture-person'},
+    {personId:'fixture-person'},{familyTreeId:'fixture-tree',personId:'fixture-person',limit:3,offset:4},{id:'fixture-person',limit:2,offset:6}]);
 });

@@ -303,3 +303,32 @@ test('login completion is checked immediately after navigation or form disappear
     assert.equal(checks,2); assert.equal(states,1);
   }
 });
+
+test('automatic login waits through redirects without opening the viewer', async () => {
+  await writePrivateJson('findmypast/login.json',{username:'fixture@example.test',password:'fixture-password'});
+  let reads=0,checks=0,inputs=0;
+  const tab={provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',evaluate:async()=>{
+    const complete=++reads>=5;
+    return {origin:'https://auth.findmypast.com',document:complete?2:1,email:!complete,password:!complete,text:'Ready'};
+  },browser:{config:{timeout:10},endpoint:{vncUrl:'https://viewer.example.test'},state:async()=>{},
+    notify:async()=>assert.fail('automatic redirect should not request interaction'),api:async(path:string)=>{
+      assert.equal(path,'/fam/input');inputs++;return {submitted:true};
+    }}} as any;
+  assert.equal(await waitForLogin(tab,['https://auth.findmypast.com'],async()=>++checks===3?'signed-in':undefined),'signed-in');
+  assert.equal(inputs,1);
+});
+
+test('a form that is not ready can be retried only after confirmed non-submission', async () => {
+  await writePrivateJson('findmypast/login.json',{username:'fixture@example.test',password:'fixture-password'});
+  let inputs=0;
+  const tab={provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',
+    evaluate:async()=>({origin:'https://auth.findmypast.com',document:1,email:true,password:true,text:'Ready'}),
+    browser:{config:{timeout:10},endpoint:{vncUrl:'https://viewer.example.test'},state:async()=>{},notify:async()=>{},
+      api:async(path:string)=>{assert.equal(path,'/fam/input');return {submitted:++inputs===2};}}} as any;
+  assert.equal(await waitForLogin(tab,['https://auth.findmypast.com'],async()=>inputs===2?'signed-in':undefined),'signed-in');
+  assert.equal(inputs,2);
+  inputs=0;
+  tab.browser.api=async()=>{inputs++;return {};};
+  await assert.rejects(waitForLogin(tab,['https://auth.findmypast.com'],async()=>undefined), (e:any)=>e.code==='BROWSER_API_FAILED');
+  assert.equal(inputs,1);
+});
