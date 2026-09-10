@@ -2,13 +2,21 @@
 
 ```sh
 fam cli.health check                         # Verify sessions online and renew when needed
+fam doctor                                   # Alias for fam cli.health check --live
 fam cli.health check --provider ancestry --provider findmypast     # Check selected providers
 fam cli.health check --verbose               # Individual checks and recovery details
 fam cli.health check --json                  # Structured online report
 fam cli.health check --offline               # Local inspection, no requests or changes
+fam doctor --no-pretty                        # Plain report without animation or colors
 ```
 
 Doctor prints one row per provider and an actionable next step for failures. Add `--json` for a structured report. `OK` means an authenticated request succeeded during this run. `Session refreshed and verified` means doctor also renewed and saved the session first. An offline `SAVED` result only describes local files; it cannot establish that credentials still work. `--live` remains accepted as an alias for the default online behavior.
+
+In a color-capable TTY with room for the provider rows, doctor immediately shows every selected provider with a spinner, the current check, and elapsed time. Completed providers change to a green check mark, yellow warning, or red failure while other checks continue. Browser verification links and other notices remain visible above the display. `--verbose` retains the live display and adds detailed results afterward.
+
+Use `--no-pretty` to disable animation and colors. Piped output, `--out` files, JSON, CI, `TERM=dumb`, `NO_COLOR`, and `NODE_DISABLE_COLORS` use the plain output path automatically. Checks run concurrently in every output mode, and final reports retain the selected provider order. Integrations sharing a session, currently Storied and NewspaperArchive, take turns so renewal and session writes cannot race.
+
+`fam doctor` accepts the health command's flags and records the canonical `cli.health check` command in history. It explicitly selects `--live`, so use `fam cli.health check --offline` for local inspection.
 
 ## Session validation and renewal
 

@@ -30,6 +30,9 @@ export interface DoctorReport {
   status: CheckStatus;
   providers: ProviderReport[];
 }
+export type DoctorEvent =
+  | {type: 'progress'; provider: Provider; label: string}
+  | {type: 'complete'; provider: Provider; report: ProviderReport};
 type Dependencies = {
   read: typeof readPrivateJson;
   write: typeof writePrivateJson;
@@ -127,19 +130,40 @@ export async function diagnoseProvider(provider: DoctorProvider, live = true, de
   return {provider: provider.service, status: status(sessionChecks(checks, info)), session: info, checks, limitations: provider.limitations};
 }
 
-export async function runDoctor(services: Provider[], live = true, progress?: (label: string) => void): Promise<DoctorReport> {
-  const providers: ProviderReport[] = [];
-  for (const service of services) {
+export async function runDoctor(services: Provider[], live = true, progress?: (label: string) => void,
+  onEvent?: (event: DoctorEvent) => void): Promise<DoctorReport> {
+  // Integrations sharing a session must finish renewal and persistence before
+  // another check reads it. Independent providers can complete in any order.
+  const sessions = new Map<string, Promise<ProviderReport>>();
+  const providers = await Promise.all(services.map(async service => {
+    const update = (label: string) => {
+      progress?.(`${service}: ${label}`);
+      onEvent?.({type: 'progress', provider: service, label});
+    };
+    let report: ProviderReport;
     try {
-      if (service === 'cyndislist') {providers.push(await (await import('../cyndislist/doctor.js')).diagnose(live)); continue;}
-      if (service === 'wayback') {providers.push(await (await import('../wayback/doctor.js')).diagnose(live)); continue;}
-      const {doctorProvider} = await doctorProviders[service]();
-      providers.push(await diagnoseProvider(doctorProvider, live, dependencies, progress));
+      if (service === 'cyndislist' || service === 'wayback') {
+        update(live ? 'Checking public access' : 'Inspecting local configuration');
+        report = await (service === 'cyndislist' ? await import('../cyndislist/doctor.js') : await import('../wayback/doctor.js')).diagnose(live);
+      } else {
+        const {doctorProvider} = await doctorProviders[service]();
+        const previous = sessions.get(doctorProvider.sessionFile);
+        const pending = (async () => {
+          if (previous) {update('Waiting for shared session'); await previous.catch(() => {});}
+          update('Inspecting saved session');
+          return diagnoseProvider(doctorProvider, live, dependencies,
+            label => update(label.replace(`${service}: `, '')));
+        })();
+        sessions.set(doctorProvider.sessionFile, pending);
+        report = await pending;
+      }
     } catch {
-      providers.push({provider: service, status: 'error', checks: [{id: 'provider', status: 'error', code: 'provider-unavailable',
-        message: 'The provider integration could not be loaded.', action: 'Reinstall fam and its dependencies, then retry.'}], limitations: ['No capabilities were verified.']});
+      report = {provider: service, status: 'error', checks: [{id: 'provider', status: 'error', code: 'provider-unavailable',
+        message: 'The provider integration could not be loaded.', action: 'Reinstall fam and its dependencies, then retry.'}], limitations: ['No capabilities were verified.']};
     }
-  }
+    onEvent?.({type: 'complete', provider: service, report});
+    return report;
+  }));
   return {schemaVersion: 1, checkedAt: new Date().toISOString(), mode: live ? 'live' : 'local', status: status(providers), providers};
 }
 
@@ -148,42 +172,48 @@ function primaryIssue(provider: ProviderReport): DoctorCheck | undefined {
   return issues.find(c => c.code === 'login-blocked') ?? issues.find(c => c.status === 'error') ?? issues[0];
 }
 
+export function doctorSummary(provider: ProviderReport): {label: string; detail: string; action?: string} {
+  const details: Record<string, [string, string]> = {
+    'session-missing': ['SETUP', 'No saved session'],
+    'session-invalid': ['ERROR', 'Session file is unreadable or invalid'],
+    'session-expired': ['EXPIRED', 'Saved access token has expired'],
+    'credentials-invalid': ['ERROR', 'Credential configuration needs attention'],
+    'verification-pending': ['WAIT', 'Sign-in verification pending'],
+    'verification-required': ['WAIT', 'Website verification required'],
+    'authorization-pending': ['WAIT', 'Browser sign-in pending'],
+    'auth-state-invalid': ['ERROR', 'Authentication state is unreadable'],
+    'session-rejected': ['INVALID', 'Session rejected'],
+    'refresh-rejected': ['SIGN IN', 'Session could not be renewed'],
+    'session-save-failed': ['ERROR', 'Updated session could not be saved'],
+    'request-challenged': ['WAIT', 'Request challenged; session unverified'],
+    'access-denied': ['DENIED', 'Access denied; expiry is unconfirmed'],
+    'rate-limited': ['WAIT', 'Provider rate limit'],
+    'service-unavailable': ['ERROR', 'Provider unavailable'],
+    network: ['ERROR', 'Connection failed'],
+    'api-changed': ['ERROR', 'Unexpected provider response'],
+    'check-failed': ['ERROR', 'Session check failed'],
+    'provider-unavailable': ['ERROR', 'Integration could not load'],
+  };
+  const issue = primaryIssue(provider);
+  const passed = provider.checks.some(c => c.code === 'probe-passed');
+  const browser = provider.session?.mode === 'browser';
+  const [label, detail] = issue?.code === 'login-blocked' ? ['BLOCKED', issue.message.replace(/^Password sign-in is blocked /, '').replace(/\.$/, '')]
+    : issue ? details[issue.code] ?? [issue.status === 'warning' ? 'WARN' : 'ERROR', issue.message]
+    : provider.provider === 'cyndislist' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Directory access verified' : 'No account required; not checked online']
+    : provider.provider === 'wayback' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Archive index verified' : 'No account required; not checked online']
+    : passed ? ['OK', provider.checks.some(c => c.code === 'session-refreshed') ? 'Session refreshed and verified' : browser ? 'Browser session verified' : 'Session verified']
+    : ['SAVED', browser ? 'Browser session; not checked online' : 'Not checked online'];
+  return {label, detail, action: issue?.action?.split(/(?<=\.)\s+/)[0]};
+}
+
 export function formatDoctor(report: DoctorReport, verbose = false): string {
   if (!verbose) {
     const lines: string[] = [], actions: string[] = [];
-    const details: Record<string, [string, string]> = {
-      'session-missing': ['SETUP', 'No saved session'],
-      'session-invalid': ['ERROR', 'Session file is unreadable or invalid'],
-      'session-expired': ['EXPIRED', 'Saved access token has expired'],
-      'credentials-invalid': ['ERROR', 'Credential configuration needs attention'],
-      'verification-pending': ['WAIT', 'Sign-in verification pending'],
-      'verification-required': ['WAIT', 'Website verification required'],
-      'authorization-pending': ['WAIT', 'Browser sign-in pending'],
-      'auth-state-invalid': ['ERROR', 'Authentication state is unreadable'],
-      'session-rejected': ['INVALID', 'Session rejected'],
-      'refresh-rejected': ['SIGN IN', 'Session could not be renewed'],
-      'session-save-failed': ['ERROR', 'Updated session could not be saved'],
-      'request-challenged': ['WAIT', 'Request challenged; session unverified'],
-      'access-denied': ['DENIED', 'Access denied; expiry is unconfirmed'],
-      'rate-limited': ['WAIT', 'Provider rate limit'],
-      'service-unavailable': ['ERROR', 'Provider unavailable'],
-      network: ['ERROR', 'Connection failed'],
-      'api-changed': ['ERROR', 'Unexpected provider response'],
-      'check-failed': ['ERROR', 'Session check failed'],
-      'provider-unavailable': ['ERROR', 'Integration could not load'],
-    };
+    const width = Math.max(13, ...report.providers.map(provider => provider.provider.length));
     for (const provider of report.providers) {
-      const issue = primaryIssue(provider);
-      const passed = provider.checks.some(c => c.code === 'probe-passed');
-      const browser = provider.session?.mode === 'browser';
-      const [label, detail] = issue?.code === 'login-blocked' ? ['BLOCKED', issue.message.replace(/^Password sign-in is blocked /, '').replace(/\.$/, '')]
-        : issue ? details[issue.code] ?? ['ERROR', issue.message]
-        : provider.provider === 'cyndislist' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Directory access verified' : 'No account required; not checked online']
-        : provider.provider === 'wayback' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Archive index verified' : 'No account required; not checked online']
-        : passed ? ['OK', provider.checks.some(c => c.code === 'session-refreshed') ? 'Session refreshed and verified' : browser ? 'Browser session verified' : 'Session verified']
-        : ['SAVED', browser ? 'Browser session; not checked online' : 'Not checked online'];
-      lines.push(`${provider.provider.padEnd(13)} ${label.padEnd(7)} ${detail}`);
-      if (issue?.action) actions.push(`${provider.provider}: ${issue.action.split(/(?<=\.)\s+/)[0]}`);
+      const {label, detail, action} = doctorSummary(provider);
+      lines.push(`${provider.provider.padEnd(width)} ${label.padEnd(7)} ${detail}`);
+      if (action) actions.push(`${provider.provider}: ${action}`);
     }
     if (actions.length) lines.push('', ...actions);
     lines.push('', report.mode === 'local' ? 'Offline: sessions are unverified. Run fam cli.health check to check online.'

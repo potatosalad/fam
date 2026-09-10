@@ -15,6 +15,8 @@ fam cli.health check --provider ancestry --offline
 
 `src/shared/command-registry.ts` is the authoritative command registry. It supplies command identities, descriptions, examples, typed flags, required inputs and documented defaults, advisory response schemas, side effects, execution bindings, help, and completion. The build also exports it as `dist/shared/commands.json`. Provider adapters keep the existing clients and service behavior.
 
+`fam doctor` is shorthand for `fam cli.health check --live`, with the same flags, output, and exit codes. Independent provider checks run concurrently. Interactive color terminals show animated provider rows; use `--no-pretty` for plain output. Pipes, JSON, files, CI, and `NO_COLOR` disable the display automatically. See [health checks](doctor.md) for details and offline inspection.
+
 ## Local discovery
 
 Provider and object prefixes show local help without signing in or making provider requests:

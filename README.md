@@ -225,12 +225,16 @@ Check your setup and diagnose provider failures:
 
 ```sh
 fam cli.health check
+fam doctor                             # Alias for fam cli.health check --live
+fam doctor --no-pretty                  # Plain report without animation or colors
 fam cli.health check --verbose
 fam cli.health check --offline
 fam cli.health check --provider ancestry --provider findmypast --json
 ```
 
 Health checks verify saved sessions online, renew them automatically when needed, and print one row per provider with recovery steps. Add `--json` for a structured report. Provider commands also renew existing sessions automatically; a manual `session login` is only needed when renewal is unavailable or rejected. `--offline` inspects local files without requests or changes, and `--verbose` shows details. Password-login cooldowns do not mark working browser sessions as blocked. Doctor never submits passwords or runs searches. See [doctor checks and recovery](docs/doctor.md) for coverage and exit codes.
+
+Independent providers check concurrently. Color-capable terminals show all providers immediately with animated progress and success, warning, or failure indicators. `--no-pretty` disables this display; pipes, JSON, output files, CI, and `NO_COLOR` use plain output automatically. Storied and NewspaperArchive take turns because they share a saved session.
 
 ```sh
 fam familysearch.person get --person-id PERSON_ID

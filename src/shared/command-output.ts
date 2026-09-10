@@ -147,6 +147,7 @@ export function overview(): string {
     'Browse commands for a provider:', '  fam cli.command list --provider familysearch',
     'Browse provider and object help:', '  fam familysearch', '  fam familysearch.image --help',
     'List available providers:', '  fam cli.provider list',
+    'Check provider health:', '  fam doctor  # Same as fam cli.health check --live; use --no-pretty for plain output.',
     'Update this installation:', '  fam cli.update',
     'Enable completion in the current shell:', '  eval "$(fam --completions bash)"  # Use zsh in zsh.',
     'Install completion for future shells:', '  fam cli.completion install', '',

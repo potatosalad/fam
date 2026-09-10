@@ -52,11 +52,17 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
     case 'doctor': {
       if (v.live && v.offline) throw new UsageError('Use either --live or --offline.', 'fam cli.health check --offline');
       const {runDoctor, formatDoctor} = await import('./shared/doctor.js');
+      const {usePrettyDoctor, startDoctorDisplay, formatPrettyDoctor} = await import('./shared/doctor-output.js');
       const selected = v.provider ? Array.isArray(v.provider) ? v.provider : [String(v.provider)] : [...providerNames];
-      const report = await runDoctor([...new Set(selected)] as Provider[], !v.offline,
-        v.verbose && !wantsJson(v) ? label => process.stderr.write(`Checking ${label}…\n`) : undefined);
-      process.exitCode = report.status === 'ok' ? 0 : 1;
-      return wantsJson(v) ? report : {report, text: formatDoctor(report, !!v.verbose)};
+      const services = [...new Set(selected)] as Provider[];
+      const pretty = usePrettyDoctor(v, process.stdout, process.env, services.length);
+      const display = pretty ? startDoctorDisplay(services, !v.offline) : undefined;
+      try {
+        const report = await runDoctor(services, !v.offline,
+          !pretty && v.verbose && !wantsJson(v) ? label => process.stderr.write(`Checking ${label}…\n`) : undefined, display?.update);
+        process.exitCode = report.status === 'ok' ? 0 : 1;
+        return wantsJson(v) ? report : {report, text: (pretty ? formatPrettyDoctor : formatDoctor)(report, !!v.verbose)};
+      } finally {display?.stop();}
     }
     case 'completion-script': {
       const {completionScript} = await import('./shared/completion.js');
@@ -82,6 +88,7 @@ async function main() {
   jsonErrors = args.includes('--json') || args.includes('--format=json') || args.some((arg, i) => arg === '--format' && args[i + 1] === 'json');
   if (!args.length || args.length === 1 && ['--help', '-h'].includes(args[0])) {process.stdout.write(help()); return;}
   if (args[0] === '--version') args.splice(0, 1, 'cli.version', 'get');
+  if (args[0] === 'doctor') args.splice(0, 1, 'cli.health', 'check', '--live');
   if (args[0] === '--completions' || args[0].startsWith('--completions=')) {
     const shell = args[0] === '--completions' ? args[1] : args[0].slice('--completions='.length);
     if (!['bash', 'zsh'].includes(shell) || args.length !== (args[0] === '--completions' ? 2 : 1))

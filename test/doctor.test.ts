@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { Impit } from 'impit';
 import { CookieJar } from 'tough-cookie';
 import { CHURCH_CLIENT_ID } from '../src/familysearch/auth.js';
-import { diagnoseProvider, doctorProviders, runDoctor, formatDoctor, type DoctorReport } from '../src/shared/doctor.js';
+import { diagnoseProvider, doctorProviders, runDoctor, formatDoctor, type DoctorReport, type DoctorEvent } from '../src/shared/doctor.js';
 import { DoctorIssue, failure, graphData, type DoctorProvider } from '../src/shared/doctor-checks.js';
 import { inspectLoginCredentials, type Service } from '../src/shared/credentials.js';
 import { CREDENTIAL_DIR, writePrivateJson } from '../src/shared/storage.js';
@@ -46,12 +46,80 @@ test('CLI checks online by default and reports only verified sessions as OK', as
       return new Response('{"data":{"signedInContributor":{"id":"123"}}}');
     };`);
   try {
-    const result = await run(process.execPath, ['--import', preload, '--import', import.meta.resolve('tsx'), cli, 'cli.health', 'check', '--provider', 'findagrave', '--json'],
-      {cwd: CREDENTIAL_DIR, env: {...process.env, FAM_CREDENTIALS_COMMAND: '["helper-must-never-run"]'}});
-    const report = JSON.parse(result.stdout).data;
-    assert.equal(report.mode, 'live'); assert.equal(report.status, 'ok'); assert.equal(result.stderr, '');
-    assert.ok(report.providers[0].checks.some((c: any) => c.code === 'probe-passed'));
+    for (const command of [['cli.health', 'check'], ['doctor']]) {
+      const result = await run(process.execPath, ['--import', preload, '--import', import.meta.resolve('tsx'), cli, ...command, '--provider', 'findagrave', '--json'],
+        {cwd: CREDENTIAL_DIR, env: {...process.env, FAM_CREDENTIALS_COMMAND: '["helper-must-never-run"]'}});
+      const report = JSON.parse(result.stdout).data;
+      assert.equal(report.mode, 'live'); assert.equal(report.status, 'ok'); assert.equal(result.stderr, '');
+      assert.ok(report.providers[0].checks.some((c: any) => c.code === 'probe-passed'));
+    }
   } finally {await rm(preload); await rm(join(CREDENTIAL_DIR, 'findagrave/session.json'));}
+});
+
+test('independent health checks finish while a slow provider is pending, preserving report order and failures', {timeout: 5000}, async t => {
+  const gate = Promise.withResolvers<void>(), fast = Promise.withResolvers<void>();
+  const events: DoctorEvent[] = [];
+  const ancestry = await provider('ancestry'), grave = await provider('findagrave');
+  t.mock.method(doctorProviders, 'ancestry', async () => ({doctorProvider: {...ancestry,
+    probe: {...ancestry.probe, run: async () => {await gate.promise;}}}}));
+  t.mock.method(doctorProviders, 'findagrave', async () => ({doctorProvider: {...grave,
+    probe: {...grave.probe, run: async () => {throw {status: 401};}}}}));
+  t.mock.method(doctorProviders, 'geneanet', async () => {throw new Error('PRIVATE');});
+  await writePrivateJson('ancestry/session.json', sessions.ancestry);
+  await writePrivateJson('findagrave/session.json', sessions.findagrave);
+  const pending = runDoctor(['ancestry', 'findagrave', 'geneanet'], true, undefined, event => {
+    events.push(event);
+    if (event.type === 'complete' && event.provider === 'findagrave') fast.resolve();
+  });
+  try {
+    await fast.promise;
+    assert.ok(!events.some(event => event.type === 'complete' && event.provider === 'ancestry'));
+    gate.resolve();
+    const report = await pending;
+    assert.deepEqual(report.providers.map(p => p.provider), ['ancestry', 'findagrave', 'geneanet']);
+    assert.deepEqual(report.providers.map(p => p.status), ['ok', 'error', 'error']);
+    assert.equal(report.status, 'error');
+    assert.equal(report.providers[2].checks[0].code, 'provider-unavailable');
+    assert.equal(events.filter(event => event.type === 'complete').length, 3);
+    assert.doesNotMatch(JSON.stringify(report), /PRIVATE/);
+  } finally {
+    gate.resolve(); await pending;
+    await rm(join(CREDENTIAL_DIR, 'ancestry/session.json'), {force: true});
+    await rm(join(CREDENTIAL_DIR, 'findagrave/session.json'), {force: true});
+  }
+});
+
+test('providers sharing a session wait for renewal and read the saved replacement', {timeout: 5000}, async t => {
+  const first = Promise.withResolvers<void>(), waiting = Promise.withResolvers<void>();
+  const probes: string[] = [];
+  let active = 0, renewals = 0;
+  for (const service of ['storied', 'newspaperarchive'] as const) {
+    const original = (await doctorProviders[service]()).doctorProvider;
+    const synthetic: DoctorProvider = {...original, sessionFile: 'doctor-shared-session.json',
+      inspect: value => ({mode: 'native', expiresAt: (value as {expiresAt: number}).expiresAt, refreshAvailable: true}),
+      refresh: async () => {renewals++; return {expiresAt: Date.now() + 3600_000, rotated: true};},
+      probe: {id: 'account', label: 'Synthetic shared account', run: async value => {
+        assert.equal(++active, 1, 'shared session probes must not overlap');
+        assert.equal((value as {rotated: boolean}).rotated, true);
+        probes.push(service);
+        if (probes.length === 1) await first.promise;
+        active--;
+      }},
+    };
+    t.mock.method(doctorProviders, service, async () => ({doctorProvider: synthetic}));
+  }
+  await writePrivateJson('doctor-shared-session.json', {expiresAt: 0});
+  const pending = runDoctor(['storied', 'newspaperarchive'], true, undefined, event => {
+    if (event.type === 'progress' && event.label === 'Waiting for shared session') waiting.resolve();
+  });
+  try {
+    await waiting.promise;
+    first.resolve();
+    const report = await pending;
+    assert.equal(report.status, 'ok'); assert.equal(renewals, 1);
+    assert.equal(probes.length, 2);
+    assert.deepEqual(report.providers.map(p => p.provider), ['storied', 'newspaperarchive']);
+  } finally {first.resolve(); await pending; await rm(join(CREDENTIAL_DIR, 'doctor-shared-session.json'), {force: true});}
 });
 
 test('native doctor checks renew once, persist rotated tokens, then verify the session', async t => {

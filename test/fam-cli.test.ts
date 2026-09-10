@@ -42,6 +42,20 @@ test('cli.update shorthand exposes the registered update help and completion', a
   await assert.rejects(invoke('cli.update', '--invalid'), error => (error as {code: number}).code === 2);
 });
 
+test('doctor shorthand exposes health flags, help, completion, and canonical command identity', async () => {
+  assert.equal((await invoke('doctor', '--help')).stdout, (await invoke('cli.health', 'check', '--help')).stdout);
+  const result = JSON.parse((await invoke('doctor', '--provider', 'ancestry', '--no-pretty', '--dry-run', '--json')).stdout);
+  assert.equal(result.command, 'cli.health check');
+  assert.equal(result.data.flags.live, true);
+  assert.equal(result.data.flags['no-pretty'], true);
+  const catalog = completionCatalog();
+  assert.ok(complete(catalog, ['doc']).candidates.includes('doctor'));
+  assert.ok(complete(catalog, ['doctor', '']).candidates.includes('--no-pretty'));
+  assert.deepEqual(complete(catalog, ['doctor', '--provider', 'anc']).candidates, ['ancestry']);
+  for (const args of [['doctor', '--bogus'], ['doctor', '--offline'], ['doctor', '--no-pretty=yes']])
+    await assert.rejects(invoke(...args), error => (error as {code: number}).code === 2);
+});
+
 test('bare fam and --help show a task-oriented overview; completion shortcuts print shell scripts', async () => {
   const overview = (await invoke()).stdout;
   assert.equal(overview, (await invoke('--help')).stdout);
