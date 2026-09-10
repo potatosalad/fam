@@ -1,4 +1,4 @@
-import {test} from 'node:test';
+import {beforeEach,test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,writeFile,rm,stat,access} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -9,6 +9,8 @@ import {AmericanAncestorsHttp,WEB,APP} from '../src/americanancestors/http.js';
 import {imageDetails,searchResults} from '../src/americanancestors/parse.js';
 import {exportRecords,validateExport} from '../src/americanancestors/export.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
+import {simulateDelays} from './simulated-time.js';
+beforeEach(simulateDelays);
 const response=(text:string)=>new Response(text,{headers:{'content-type':'text/html'}});
 const schema=searchFields([{AttributeId:9007199254740993n,Name:'Generation',Type:'string'},{AttributeId:15,Name:'Article Title Only',Type:'boolean'}]);
 

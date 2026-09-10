@@ -1,6 +1,4 @@
-import test, {type TestContext} from 'node:test';
-import timers from 'node:timers/promises';
-import {syncBuiltinESMExports} from 'node:module';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
@@ -14,17 +12,7 @@ import {parseInvocation} from '../src/shared/command-runtime.js';
 import {complete, completionCatalog} from '../src/shared/completion.js';
 import {HttpSession} from '../src/familysearch/http.js';
 import {AmericanAncestorsHttp} from '../src/americanancestors/http.js';
-
-// Advance the application clock at each awaited delay; keep real socket/I/O timers intact.
-function simulateDelays(t: TestContext) {
-  t.mock.timers.enable({apis: ['Date'], now: Date.now()});
-  const delay = t.mock.method(timers, 'setTimeout', async (ms = 1, value?: unknown) => {
-    t.mock.timers.tick(ms);
-    return value;
-  });
-  syncBuiltinESMExports(); // Update the runtime's named imports of setTimeout.
-  t.after(() => {delay.mock.restore(); t.mock.timers.reset(); syncBuiltinESMExports();});
-}
+import {simulateDelays} from './simulated-time.js';
 
 test('challenge classification requires provider evidence rather than a generic denial', () => {
   assert.equal(isChallenge(new Headers({'cf-mitigated':'challenge'})), true);

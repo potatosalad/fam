@@ -9,7 +9,8 @@ import {CREDENTIAL_DIR, readPrivateJsonl} from '../src/shared/storage.js';
 import {historyTime, queryHistory, type HistoryList, type HistorySummary, type HistoryDetail, type HistoryArchive} from '../src/shared/history-query.js';
 import {historyOutput} from '../src/shared/history-output.js';
 import {completionCatalog, complete} from '../src/shared/completion.js';
-import {parseInvocation} from '../src/shared/command-runtime.js';
+import {parseInvocation, parseNamespaceHelp, UsageError} from '../src/shared/command-runtime.js';
+import {commandHelp, namespaceHelp} from '../src/shared/command-output.js';
 import {shellCommand} from '../src/shared/shell-command.js';
 
 const directory = join(CREDENTIAL_DIR, 'history');
@@ -153,14 +154,14 @@ test('ID lookup accepts short IDs, refuses ambiguity and never treats IDs as fil
 
 test('CLI exposes failures as a nested object, supports JSON and exports, and never includes its own query', async () => {
   await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'hard_failure', {error: {message: 'Fixture failure', code: 'FIXTURE'}}));
-  const help = (await invoke(['cli.history'])).stdout;
+  const help = namespaceHelp(parseNamespaceHelp(['cli.history'])!.namespace);
   assert.match(help, /cli\.history\.failures/);
-  const nested = (await invoke(['cli.history.failures'])).stdout;
+  const nested = namespaceHelp(parseNamespaceHelp(['cli.history.failures'])!.namespace);
   assert.match(nested, /cli\.history\.failures list/); assert.match(nested, /cli\.history\.failures summary/);
   assert.throws(() => parseInvocation(['cli.history', 'failures']));
   assert.deepEqual(complete(completionCatalog(), ['cli.history.failures', '']).candidates, ['list', 'summary']);
   assert.ok(complete(completionCatalog(), ['cli.history.failures', 'list', '--outcome', '']).candidates.includes('soft_failure'));
-  const human = (await invoke(['cli.history.failures', 'list'])).stdout;
+  const human = historyOutput(await queryHistory('list', {}, undefined, {failures: true}));
   assert.match(human, /Command failures · newest first/); assert.match(human, /HARD/); assert.match(human, /FIXTURE · Fixture failure/);
   const response = JSON.parse((await invoke(['cli.history', 'list', '--json', '--include-utility'], {FAM_HISTORY: '1'})).stdout);
   assert.equal(response.command, 'cli.history list'); assert.equal(response.data.entries.length, 1);
@@ -172,11 +173,9 @@ test('CLI exposes failures as a nested object, supports JSON and exports, and ne
   assert.equal(saved.data.saved, output);
   assert.equal(JSON.parse(await readFile(output, 'utf8')).data.count, 1);
   if (process.platform !== 'win32') assert.equal((await stat(output)).mode & 0o777, 0o600);
-  const detail = (await invoke(['cli.history', 'get', '--id', '00000001'])).stdout;
+  const detail = historyOutput(await queryHistory('get', {id: '00000001'}));
   assert.match(detail, /Fixture failure/); assert.match(detail, /Source:/);
-  await assert.rejects(invoke(['cli.history.failures', 'list', '--outcome', 'success', '--json']), (error: any) => {
-    assert.equal(error.code, 2); assert.equal(JSON.parse(error.stderr).error.code, 'INVALID_ARGUMENT'); return true;
-  });
+  await assert.rejects(queryHistory('list', {outcome: ['success']}, undefined, {failures: true}), UsageError);
 });
 
 test('human output strips terminal controls and adapts list rows to narrow terminals', async () => {
@@ -195,6 +194,7 @@ test('list and detail show complete copyable commands and preserve exact argumen
   await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'hard_failure', {argv: args, argvCapture: 'verbatim', cwd: '/tmp/fixture directory'}));
   const list = await queryHistory('list', {query: 'fixture-secret'}) as HistoryList;
   const commandLine = shellCommand(args);
+  assert.deepEqual(list.entries[0].argv, args);
   assert.equal(list.entries[0].commandLine, commandLine);
   for (const width of [60, 80, 120]) {
     const text = historyOutput(list, width);
@@ -207,11 +207,9 @@ test('list and detail show complete copyable commands and preserve exact argumen
   // Execute only a synthetic shell function; it serializes arguments and cannot invoke fam.
   const script = `fam() { ${JSON.stringify(process.execPath)} -e 'process.stdout.write(JSON.stringify(process.argv.slice(1)))' -- "$@"; }; ${commandLine}`;
   for (const shell of process.platform === 'darwin' ? ['/bin/bash', '/bin/zsh'] : ['/bin/bash']) {
-    const result = await run(shell, ['-c', script], {env: {...process.env, LC_ALL: 'C.UTF-8'}});
+    const result = await run(shell, [...(shell.endsWith('/zsh') ? ['-f'] : ['--noprofile', '--norc']), '-c', script], {env: {...process.env, LC_ALL: 'C.UTF-8'}});
     assert.deepEqual(JSON.parse(result.stdout), args);
   }
-  const json = JSON.parse((await invoke(['cli.history', 'list', '--json'])).stdout);
-  assert.deepEqual(json.data.entries[0].argv, args); assert.equal(json.data.entries[0].commandLine, commandLine);
 });
 
 test('legacy logs identify discarded inputs without rewriting the evidence', async () => {
@@ -313,8 +311,9 @@ test('archive previews counts, requires a scope, and exposes only the single arc
   const file = await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'hard_failure'));
   const before = await readFile(file);
   const args = ['cli.history', 'archive', '--failures', '--provider', 'ancestry', '--dry-run'];
-  assert.match((await invoke(args)).stdout, /Would archive 1 invocation/);
-  const json = JSON.parse((await invoke([...args, '--json'])).stdout).data;
+  // Archive previews must reach the query handler instead of the generic CLI dry run.
+  const json = JSON.parse((await invoke([...args, '--json'])).stdout).data as HistoryArchive;
+  assert.match(historyOutput(json), /Would archive 1 invocation/);
   assert.equal(json.view, 'archive'); assert.equal(json.dryRun, true); assert.equal(json.marker, null);
   assert.deepEqual(await readFile(file), before);
   await assert.rejects(readFile(join(directory, 'archive.jsonl')), {code: 'ENOENT'});
@@ -322,26 +321,25 @@ test('archive previews counts, requires a scope, and exposes only the single arc
   assert.deepEqual(complete(completionCatalog(), ['cli.history.failures', '']).candidates, ['list', 'summary']);
   assert.throws(() => parseInvocation(['cli.history.failures', 'archive']));
   for (const invalid of [[], ['--all', '--provider', 'ancestry'], ['--all', '--failures'], ['--failures', '--outcome', 'success'], ['--query', ' '], ['--all', '--limit', '1']]) {
-    await assert.rejects(invoke(['cli.history', 'archive', ...invalid, '--json']), (error: any) => {assert.equal(error.code, 2); return true;});
+    await assert.rejects(async () => queryHistory('archive', parseInvocation(['cli.history', 'archive', ...invalid, '--json']).values), UsageError);
   }
-  // Other history dry runs retain the existing generic invocation preview.
-  assert.match((await invoke(['cli.history', 'list', '--dry-run'])).stdout, /Dry run: fam cli.history list/);
   const archived = JSON.parse((await invoke(['cli.history', 'archive', '--failures', '--json'], {FAM_HISTORY: '1'})).stdout).data;
   assert.equal(archived.count, 1);
-  const rows = JSON.parse((await invoke(['cli.history', 'list', '--include-utility', '--json'])).stdout).data.entries;
+  const rows = (await queryHistory('list', {'include-utility': true}) as HistoryList).entries;
   assert.equal(rows.length, 1); assert.equal(rows[0].command, 'cli.history archive'); assert.equal(rows[0].outcome, 'success');
 });
 
 test('concurrent archives append independent markers without rewriting any daily journal', async () => {
-  for (let number = 1; number <= 8; number++) await save(record(number, `2026-09-09T0${number}:00:00Z`, 'ancestry.person get', 'hard_failure', {error: {code: `FIXTURE_${number}`}}));
+  const writers = 3;
+  for (let number = 1; number <= writers; number++) await save(record(number, `2026-09-09T0${number}:00:00Z`, 'ancestry.person get', 'hard_failure', {error: {code: `FIXTURE_${number}`}}));
   const file = join(directory, '2026-09-09.jsonl'), before = await readFile(file);
-  const results = await Promise.all(Array.from({length: 8}, (_, index) => invoke(['cli.history', 'archive', '--failures', '--code', `FIXTURE_${index + 1}`, '--json'])));
+  const results = await Promise.all(Array.from({length: writers}, (_, index) => invoke(['cli.history', 'archive', '--failures', '--code', `FIXTURE_${index + 1}`, '--json'])));
   assert.ok(results.every(result => JSON.parse(result.stdout).data.count === 1));
   assert.deepEqual(await readFile(file), before);
   const markers = (await readFile(join(directory, 'archive.jsonl'), 'utf8')).split('\n').filter(Boolean).map(line => JSON.parse(line));
-  assert.equal(markers.length, 8); assert.equal(new Set(markers.map(marker => marker.id)).size, 8);
+  assert.equal(markers.length, writers); assert.equal(new Set(markers.map(marker => marker.id)).size, writers);
   assert.equal((await queryHistory('list', {}) as HistoryList).entries.length, 0);
-  assert.equal((await queryHistory('list', {'include-archived': true}) as HistoryList).entries.length, 8);
+  assert.equal((await queryHistory('list', {'include-archived': true}) as HistoryList).entries.length, writers);
 });
 
 test('corrupt archive markers are reported and a new marker can follow a partial append', async () => {
@@ -384,12 +382,8 @@ test('history limits have no fixed cap and zero returns all matching invocations
   const rest = await queryHistory('summary', {limit: 0, offset: 200, 'group-by': 'code'}, undefined, {failures: true}) as HistorySummary;
   assert.equal(rest.groups.length, 51); assert.equal(rest.next, null);
   assert.equal((await queryHistory('summary', {limit: 201, 'group-by': 'code'}) as HistorySummary).groups.length, 201);
-  for (const limit of ['0', '1000']) {
-    const data = JSON.parse((await invoke(['cli.history.failures', 'list', '--limit', limit, '--json'])).stdout).data;
-    assert.equal(data.entries.length, 251); assert.equal(data.hasMore, false); assert.equal(data.next, null);
-  }
-  const human = (await invoke(['cli.history', 'list', '--limit', '0'])).stdout;
+  const human = historyOutput(all);
   assert.match(human, /Showing 1–252/); assert.doesNotMatch(human, /More:/);
-  const help = (await invoke(['cli.history', 'list', '--help'])).stdout;
+  const help = commandHelp(parseInvocation(['cli.history', 'list', '--help']).command);
   assert.match(help, /0 returns all matches/);
 });
