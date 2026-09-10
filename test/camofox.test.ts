@@ -1,4 +1,6 @@
-import test from 'node:test';
+import test, {type TestContext} from 'node:test';
+import timers from 'node:timers/promises';
+import {syncBuiltinESMExports} from 'node:module';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
@@ -12,6 +14,17 @@ import {parseInvocation} from '../src/shared/command-runtime.js';
 import {complete, completionCatalog} from '../src/shared/completion.js';
 import {HttpSession} from '../src/familysearch/http.js';
 import {AmericanAncestorsHttp} from '../src/americanancestors/http.js';
+
+// Advance the application clock at each awaited delay; keep real socket/I/O timers intact.
+function simulateDelays(t: TestContext) {
+  t.mock.timers.enable({apis: ['Date'], now: Date.now()});
+  const delay = t.mock.method(timers, 'setTimeout', async (ms = 1, value?: unknown) => {
+    t.mock.timers.tick(ms);
+    return value;
+  });
+  syncBuiltinESMExports(); // Update the runtime's named imports of setTimeout.
+  t.after(() => {delay.mock.restore(); t.mock.timers.reset(); syncBuiltinESMExports();});
+}
 
 test('challenge classification requires provider evidence rather than a generic denial', () => {
   assert.equal(isChallenge(new Headers({'cf-mitigated':'challenge'})), true);
@@ -107,7 +120,8 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
     const sent=calls.find(r=>r.path==='/fam/request').body;
     assert.equal(sent.headers.cookie,undefined);assert.equal(sent.headers.authorization,undefined);
   });
-  await t.test('browser recovery waits through a blank script document, navigates GET, and preserves binary output', async () => {
+  await t.test('browser recovery waits through a blank script document, navigates GET, and preserves binary output', async t => {
+    simulateDelays(t);
     const start = requests.length, image = Buffer.from([255,216,255,42]);
     responses.push({status:200,headers:{'content-type':'text/html'},bodyBase64:Buffer.from('<html><title>Pardon Our Interruption</title><body>We think you were a bot.</body></html>').toString('base64')},
       {status:200,headers:{'content-type':'image/jpeg'},bodyBase64:image.toString('base64')});
@@ -322,7 +336,8 @@ test('login completion is checked immediately after navigation or form disappear
   }
 });
 
-test('automatic login waits through redirects without opening the viewer', async () => {
+test('automatic login waits through redirects without opening the viewer', async t => {
+  simulateDelays(t);
   await writePrivateJson('findmypast/login.json',{username:'fixture@example.test',password:'fixture-password'});
   let reads=0,checks=0,inputs=0;
   const tab={close: async () => {}, provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',evaluate:async()=>{
@@ -336,7 +351,8 @@ test('automatic login waits through redirects without opening the viewer', async
   assert.equal(inputs,1);
 });
 
-test('a form that is not ready can be retried only after confirmed non-submission', async () => {
+test('a form that is not ready can be retried only after confirmed non-submission', async t => {
+  simulateDelays(t);
   await writePrivateJson('findmypast/login.json',{username:'fixture@example.test',password:'fixture-password'});
   let inputs=0;
   const tab={close: async () => {}, provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',
