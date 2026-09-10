@@ -291,3 +291,15 @@ test('interactive login autofills configured credentials without submitting, eve
   await assert.rejects(run(),(e:any)=>e.code==='BROWSER_PLUGIN_REQUIRED');
   assert.deepEqual(requests.map(r=>r.path),['/fam/capabilities']);
 });
+
+test('login completion is checked immediately after navigation or form disappearance', async () => {
+  for (const change of [{document:2}, {url:'https://www.myheritage.com/family-sites/fixture/site'}, {email:false,password:false}]) {
+    let reads = 0, checks = 0, states = 0;
+    const initial = {origin:'https://www.myheritage.com',url:'https://www.myheritage.com/login',document:1,email:true,password:true,text:'Ready'};
+    const tab = {provider:'myheritage',evaluate:async()=> ++reads === 1 ? initial : {...initial,...change},
+      browser:{config:{timeout:0},endpoint:{vncUrl:'https://viewer.example.test'},state:async()=>{states++;},
+        notify:async()=>assert.fail('completed sign-in should not ask for interaction'),api:async()=>assert.fail('no password input needed')}} as any;
+    assert.equal(await waitForLogin(tab, [initial.origin], async()=> ++checks === 2 ? 'signed-in' : undefined), 'signed-in');
+    assert.equal(checks,2); assert.equal(states,1);
+  }
+});

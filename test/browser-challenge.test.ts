@@ -45,3 +45,24 @@ test('inspection handles chunk boundaries, missing headers, large bodies and bin
   assert.equal(await isChallengeResponse(binary), false);
   assert.deepEqual(Buffer.from(await binary.arrayBuffer()), bytes);
 });
+
+test('signed-in pages with cookie descriptions and scripted error translations are not interstitials', async () => {
+  const script = '<script>var translations = {"cookie":"Set by Imperva, a cyber security service.","error":"Access denied", "verification":"Security check"};';
+  for (const html of [
+    `<html><title>Search historical records</title>${script}</script><body>Search records</body></html>`,
+    `<html><title>Search historical records</title><body>Cookies are set by Imperva, a cyber security service.</body></html>`,
+    `<html><title>Search historical records</title>${script}`,
+  ]) {
+    const response = new Response(html, {headers:{'content-type':'text/html'}});
+    assert.equal(isChallenge(new Headers(), html), false);
+    assert.equal(await isChallengeResponse(response), false);
+    assert.equal(await response.text(), html);
+  }
+  const stream = new ReadableStream<Uint8Array>({start(controller) {
+    controller.enqueue(Buffer.from(`<html>${script}`));
+    controller.enqueue(Buffer.from('</script><body>Search records</body></html>'));
+    controller.close();
+  }});
+  assert.equal(await isChallengeResponse(new Response(stream)), false);
+  assert.equal(isChallenge(new Headers(), '<html><title>Website</title><body>Access denied by Imperva.</body></html>'), true);
+});

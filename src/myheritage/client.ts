@@ -3,6 +3,7 @@ import {MyHeritageDocuments} from './documents.js';
 import {MyHeritageResearch, type RecordSearchOptions, type CatalogOptions} from './research.js';
 import {MyHeritageBrowser} from './browser.js';
 import {parse} from 'graphql';
+import {CookieJar} from 'tough-cookie';
 import { readPrivateJson } from '../shared/storage.js';
 import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
 import type { ApiRequest, ApiResponse, Query } from '../familysearch/transport-types.js';
@@ -44,6 +45,11 @@ export class MyHeritageClient {
     this.refreshing ??= (async () => {
       const next = this.hooks.browserLogin ? await this.hooks.browserLogin(this.session)
         : await (await import('./browser-login.js')).loginMyHeritage({treeUrl: this.session.browser?.pageUrl});
+      // Existing browser/research clients share this jar. Refresh it before
+      // retrying, including PHPSESSID embedded in website GraphQL forms.
+      const cookies = await (next.cookies ? CookieJar.deserializeSync(next.cookies) : new CookieJar()).serialize();
+      await this.http.jar.removeAllCookies();
+      await CookieJar.deserialize(cookies, this.http.jar.store);
       Object.assign(this.session, next);
     })().finally(() => {this.refreshing = undefined;});
     await this.refreshing;

@@ -12,11 +12,26 @@ export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify
   const timeout = options.timeoutMs ?? tab.browser.config.timeout * 1000;
   const deadline = Date.now() + timeout;
   let notified = false, credentials: {username: string; password: string} | undefined, loaded = false, nextCheck = 0;
+  let lastPage: string | undefined;
   const submitted = new Set<string>(), filled = new Set<string>();
   let autofillSupported = false;
   while (true) {
-    let page: {origin: string; password: boolean; email: boolean; text: string; document?: number} | undefined;
-    try {page = await tab.evaluate(`({origin: location.origin, document: performance.timeOrigin, password: !!document.querySelector('input[type=password]'), email: !!document.querySelector('input[type=email], input[autocomplete=username], input[name*="email" i], input[name=username], input[id=email-login]'), text: document.body.innerText.slice(-6000)})`);} catch {}
+    let page: {origin: string; url?: string; password: boolean; email: boolean; text: string; document?: number} | undefined;
+    try {page = await tab.evaluate(`(() => {
+      const visible = selector => Array.from(document.querySelectorAll(selector)).some(input =>
+        !input.disabled && input.getClientRects().length > 0 && getComputedStyle(input).visibility !== 'hidden');
+      return {origin: location.origin, url: location.href, document: performance.timeOrigin,
+        password: visible('input[type=password]'),
+        email: visible('input[type=email], input[autocomplete=username], input[name*="email" i], input[name=username], input[id=email-login]'),
+        text: document.body?.innerText.slice(-6000) ?? ''};
+    })()`);} catch {}
+    if (page) {
+      const currentPage = JSON.stringify([page.origin, page.url, page.document, page.email, page.password]);
+      // Verify immediately after navigation or the login form disappears. Keep
+      // the slower account probe interval while the user remains on one step.
+      if (currentPage !== lastPage) nextCheck = 0;
+      lastPage = currentPage;
+    }
     const blockFile = `${tab.provider}/browser-login-block.json`;
     const cooldown = page && origins.includes(page.origin) ? loginCooldown(page.text) : undefined;
     let block = await readPrivateJson<{blockedUntil: string}>(blockFile);

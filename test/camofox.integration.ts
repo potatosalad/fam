@@ -10,6 +10,7 @@ import {createHash} from 'node:crypto';
 import {chromium, type BrowserContext, type Page} from 'playwright';
 import {fetchWithBrowser, closeBrowserTransportTabs} from '../src/shared/browser-transport.js';
 import {saveBrowserConfig} from '../src/shared/browser-config.js';
+import {waitForLogin} from '../src/shared/browser-login.js';
 // @ts-expect-error This server-side JS plugin runs in Camofox, not the TypeScript SDK.
 import {register} from '../browser/camofox-plugin/index.js';
 // @ts-expect-error Express is only a development dependency for plugin integration tests.
@@ -71,6 +72,16 @@ test('Camofox plugin observes real browser responses, checkpoints state and isol
   const base=`http://127.0.0.1:${api.address().port}`;
   const call=async(path:string,value:unknown)=>{const r=await fetch(`${base}/fam/${path}`,{method:'POST',headers:{'content-type':'application/vnd.fam+json'},body:JSON.stringify(value)}); const result=await r.json();assert.equal(r.status,200,JSON.stringify(result));return result;};
   t.after(async()=>{events.emit('server:shutdown');await browser.close();await Promise.all([new Promise<void>(resolve=>web.close(()=>resolve())),new Promise<void>(resolve=>api.close(()=>resolve()))]);await rm(directory,{recursive:true,force:true});});
+  await t.test('login polling ignores hidden credential fields in a rendered page', async () => {
+    await page.setContent('<h1>Signed in</h1><div hidden><input type=email><input type=password></div><input type=email style="visibility:hidden">');
+    const snapshots: any[] = [];
+    const tab = {provider:'myheritage',evaluate:async(expression:string)=>{
+      const result=await page.evaluate(expression); snapshots.push(result); return result;
+    },browser:{config:{timeout:0},endpoint:{vncUrl:'https://viewer.example.test'},notify:async()=>{},api:async()=>assert.fail('hidden fields must not trigger autofill')}} as any;
+    await assert.rejects(waitForLogin(tab,[origin],async()=>undefined), (e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
+    assert.ok(snapshots.length>0);
+    assert.ok(snapshots.every(s=>s.email===false && s.password===false));
+  });
   await page.goto(`${origin}/form`);
   const interactive = await call('autofill', {userId,tabId:'owned',origin,username:'synthetic@example.test',password:'synthetic-password'});
   assert.equal(interactive.submitted,false); assert.equal(interactive.filled,true);

@@ -129,7 +129,7 @@ fam storied.session login
 fam newspaperarchive.session login
 ```
 
-fam first checks for an existing signed-in browser session. If sign-in is needed, it tries configured credentials once per login-form step. Password lookup follows the [shared credential rules](setup.md#credential-lookup); browser login does not prompt for a password in the terminal.
+fam first checks for an existing signed-in browser session. If sign-in is needed, it tries configured credentials once per visible login-form step. Hidden login fields do not trigger password entry. Account verification runs again when the page changes or the form disappears, so a completed login can resume on the next poll. Password lookup follows the [shared credential rules](setup.md#credential-lookup); browser login does not prompt for a password in the terminal.
 
 `--interactive` autofills empty username and password fields by default, including a password field that appears after a username-only step. It never clicks Sign in or submits the form; you submit through the viewer. Autofill preserves values you have already entered. Use `--no-autofill` to leave the fields untouched and disable automatic credential submission, with or without `--interactive`:
 
@@ -148,7 +148,7 @@ MyHeritage uses actual Firefox private windows. Firefox's ordinary Playwright co
 
 MyHeritage and Findmypast browser commands make at most one login renewal after an explicit session rejection. MFA and provider restrictions may still require your attention. A detected MyHeritage 24-hour login restriction suppresses further automatic password attempts until its recorded deadline; it does not invalidate an existing working session. Health checks do not submit passwords.
 
-MyHeritage login reuses an existing fam tab and follows its family-site page's tree link once to obtain the rendered tree context. A saved cooldown permits verification of an existing session and interactive autofill; it blocks automatic password submission. If the page itself still displays the restriction, fam stops without probing the account or filling credentials. There is no need to delete the cooldown file after signing in manually.
+MyHeritage login reuses an existing fam website tab, skips blank transport documents, and follows its family-site page's tree link once to obtain the rendered tree context. Renewed login cookies replace the active request cookies before an interrupted operation resumes. A saved cooldown permits verification of an existing session and interactive autofill; it blocks automatic password submission. If the page itself still displays the restriction, fam stops without probing the account or filling credentials. There is no need to delete the cooldown file after signing in manually.
 
 `--capture` remains an alias for Camofox login. It no longer records a HAR. Existing HAR files can still be imported using `fam myheritage.session login --har FILE` or `fam findmypast.session login --har FILE`; when a browser is configured, imported website cookies are installed into the selected instance and validated. Old unscoped HAR sessions are not silently copied to a remote browser. Use an explicit import or `--transport http` for a legacy direct-HTTP session. Native MyHeritage/Findmypast login is available with `--native`.
 

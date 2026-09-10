@@ -3,7 +3,7 @@ import {CookieJar} from 'tough-cookie';
 import {waitForLogin, type BrowserLoginOptions} from '../shared/browser-login.js';
 import {endpointId, rememberBrowser} from '../shared/browser-config.js';
 import {BrowserTab, configuredBrowser, updateCookieJar} from '../shared/browser-runtime.js';
-import {checkTreePageUrl, parseTreePage} from './browser.js';
+import {checkTreePageUrl, parseTreePage, pageValue} from './browser.js';
 import {MyHeritageHttp, WEB} from './http.js';
 import {saveMyHeritageSession, type MyHeritageSession} from './auth.js';
 
@@ -12,16 +12,17 @@ export async function loginMyHeritage(options: BrowserLoginOptions & {treeUrl?: 
   const browser = await configuredBrowser();
   const existing = await browser.api<{tabs: {tabId: string; url: string; listItemId: string}[]}>(`/tabs?userId=${encodeURIComponent(browser.userId('myheritage'))}`);
   const treePage = (url: string) => {try {return checkTreePageUrl(url).href;} catch {return undefined;}};
-  const tabs = (existing.tabs ?? []).filter(tab => {
-    try {const url = new URL(tab.url); return tab.listItemId === 'fam' && url.origin === WEB && !url.username && !url.password;} catch {return false;}
-  });
+  const reusable = (value: string) => {
+    try {const url = new URL(value); return url.origin === WEB && !url.username && !url.password && !url.pathname.startsWith('/.fam-browser-');} catch {return false;}
+  };
+  const tabs = (existing.tabs ?? []).filter(tab => tab.listItemId === 'fam' && reusable(tab.url));
   const priority = (url: string) => (treeUrl ? url === treeUrl : treePage(url)) ? 2 : new URL(url).pathname !== '/login' ? 1 : 0;
   tabs.sort((a,b) => priority(b.url) - priority(a.url));
   let reused: BrowserTab | undefined;
   for (const existing of tabs) {
     const candidate = new BrowserTab(browser, 'myheritage', existing.tabId);
     try {
-      if (new URL(await candidate.evaluate<string>('location.href')).origin === WEB) {reused = candidate; break;}
+      if (reusable(await candidate.evaluate<string>('location.href'))) {reused = candidate; break;}
     } catch { /* Camofox can retain a tab entry after the user closes its page. */ }
   }
   const tab = reused ?? await browser.tab('myheritage', treeUrl ?? `${WEB}/login`);
@@ -31,6 +32,10 @@ export async function loginMyHeritage(options: BrowserLoginOptions & {treeUrl?: 
     let current;
     try {current = await readPage();} catch {return;}
     if (new URL(current.url).origin !== WEB) return;
+    // Do not spend the one tree navigation while sign-in is still in progress:
+    // it can redirect back to login and leave no attempt after authentication.
+    const registration = pageValue(current.html, 'registrationClientData') as {isLoggedIn?: boolean} | undefined;
+    if (new URL(current.url).pathname === '/login' || registration?.isLoggedIn === false || pageValue(current.html, 'isLoggedIn') === false) return;
     // The family-site landing page is signed in but has no tree API context.
     // Follow its actual tree link once, allowing the browser to render the page
     // and keeping the manually completed login in the same tab and context.

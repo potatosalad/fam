@@ -252,3 +252,31 @@ test('Camofox tree session rejection renews once and leaves other failures alone
     else {await assert.rejects(client.me());assert.equal(reads,1);assert.equal(renewals,0);}
   }
 });
+
+test('browser login renewal replaces the active cookies before retrying research', async () => {
+  const origin = 'https://www.myheritage.com';
+  let reads = 0, renewals = 0;
+  const current = {...session(), mode:'browser' as const, browserInstance:'a'.repeat(24), browser:{pageUrl:`${origin}/FP/family-tree.php`}};
+  const http = mock(async (url, request) => {
+    if (url.endsWith('/research')) {
+      reads++;
+      if (reads === 1) return 'var clientData = {"user":{"isLoggedIn":false}};';
+      assert.equal(http.jar.getCookieStringSync(origin), 'PHPSESSID=renewed-cookie');
+      assert.equal(http.jar.getCookieStringSync(FAMILYGRAPH), '');
+      return 'var clientData = {"user":{"isLoggedIn":true,"siteId":"site","guestId":"guest"},"fgToken":"renewed-token","lang":"EN"}; var mhXsrfToken = "csrf";';
+    }
+    const form = new URLSearchParams(String(request.body));
+    assert.equal(form.get('mhc#PHPSESSID'), 'renewed-cookie');
+    assert.equal(form.get('bearer_token'), 'renewed-token');
+    return {data:{search_query_upload:{response:{summary:{},results:{count:0,data:[]}}}}};
+  });
+  http.jar.setCookieSync('PHPSESSID=old-cookie; Path=/; Secure', origin);
+  http.jar.setCookieSync('obsolete=old-cookie; Path=/; Secure', FAMILYGRAPH);
+  const fresh = new CookieJar(); fresh.setCookieSync('PHPSESSID=renewed-cookie; Path=/; Secure; HttpOnly', origin);
+  const client = new MyHeritageClient(current, http, {save:noSave, browserLogin:async value=>{
+    renewals++; return {...value,cookies:fresh.serializeSync()};
+  }});
+  assert.equal((await client.searchRecords({lastName:'Fixture'})).returned,0);
+  assert.equal(reads,2); assert.equal(renewals,1);
+  assert.equal(http.jar.getCookiesSync(origin)[0].httpOnly,true);
+});

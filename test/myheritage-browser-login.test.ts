@@ -12,7 +12,7 @@ const html = Object.entries({isLoggedIn:true, currentUserAccountID:'123', siteID
   .map(([key,value]) => `var ${key} = ${JSON.stringify(value)};`).join('\n');
 
 test('MyHeritage adopts the existing rendered session during an earlier login cooldown', async t => {
-  let current = home, links = [tree], restricted = false, restrictOnNavigate = false;
+  let current = home, links = [tree], restricted = false, restrictOnNavigate = false, completeLogin = false, loginPending = false;
   const requests: {path:string; body:any}[] = [];
   const server = createServer(async (req,res) => {
     let text = ''; for await (const chunk of req) text += chunk;
@@ -24,17 +24,27 @@ test('MyHeritage adopts the existing rendered session during an earlier login co
     else if (path.startsWith('/tabs?')) result = {tabs:[
       {tabId:'unrelated',url:tree,listItemId:'another-client'},
       {tabId:'wrong-origin',url:'https://www.myheritage.com.attacker.example/family-trees/fixture/site',listItemId:'fam'},
+      {tabId:'transport',url:`${origin}/.fam-browser-fixture`,listItemId:'fam'},
+      {tabId:'became-transport',url:tree,listItemId:'fam'},
       {tabId:'closed',url:tree,listItemId:'fam'},
       {tabId:'working',url:current,listItemId:'fam'},
       {tabId:'login',url:`${origin}/login`,listItemId:'fam'},
     ]};
+    else if (path === '/tabs/became-transport/evaluate') result = {result:`${origin}/.fam-browser-fixture`};
+    else if (path === '/tabs/transport/evaluate') assert.fail('transport documents must not be adopted for login');
     else if (path === '/tabs/working/evaluate') {
       const expression: string = body.expression;
-      result = {result:expression === 'location.href' ? current : expression === 'navigator.userAgent' ? 'fixture-agent'
-        : expression.includes('html:') ? {url:current,links,html:current===tree&&!restricted?html:'<html>Home</html>'}
-        : {origin,password:false,email:false,text:restricted?'Access has been temporarily disabled. Try again in 24 hours.':'Signed in'}};
+      if (loginPending && expression.includes('performance.timeOrigin')) {current=home; loginPending=false;}
+      if (completeLogin && expression.includes('html:')) {
+        result = {result:{url:current,links,html:'var registrationClientData = {"isLoggedIn":false};'}};
+        loginPending = true; completeLogin = false;
+      } else {
+        result = {result:expression === 'location.href' ? current : expression === 'navigator.userAgent' ? 'fixture-agent'
+          : expression.includes('html:') ? {url:current,links,html:current===tree&&!restricted?html:'<html>Home</html>'}
+          : {origin,url:current,password:false,email:false,text:restricted?'Access has been temporarily disabled. Try again in 24 hours.':'Signed in'}};
+      }
     } else if (path === '/tabs/working/navigate') {
-      current = body.url; restricted = restrictOnNavigate; result = {ok:true};
+      current = loginPending ? `${origin}/login` : body.url; restricted = restrictOnNavigate; result = {ok:true};
     } else if (path === '/fam/request') {
       assert.equal(body.tabId, 'working');
       assert.equal(new URL(body.url).pathname, '/FP/API/FamilyTree/get-current-user-permissions.php');
@@ -70,6 +80,14 @@ test('MyHeritage adopts the existing rendered session during an earlier login co
     requests.length=0; current=home; links=['https://evil.example/family-trees/fixture/site'];
     await assert.rejects(loginMyHeritage(),(e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');
     assert.equal(requests.some(r=>r.path==='/tabs'||r.path.endsWith('/navigate')||r.path==='/fam/request'||r.path==='/fam/input'),false);
+  });
+  await t.test('waits for sign-in before following a requested tree and detects completion on the next poll', async()=>{
+    requests.length=0; current=`${origin}/login`; links=[]; completeLogin=true;
+    const session=await loginMyHeritage({treeUrl:tree,autofill:false});
+    assert.equal(session.browser?.pageUrl,tree);
+    assert.equal(requests.filter(r=>r.path.endsWith('/navigate')).length,1);
+    assert.equal(requests.filter(r=>r.path==='/fam/request').length,1);
+    assert.equal(requests.some(r=>r.path==='/fam/input'),false);
   });
   await t.test('a newly displayed restriction stops verification and preserves the prior deadline', async()=>{
     requests.length=0; current=home; links=[tree]; restrictOnNavigate=true;

@@ -8,7 +8,13 @@ export function isChallenge(headers: Headers, text = ''): boolean {
   if (/(?:\/cdn-cgi\/challenge-platform\/[^\s"'<>]*orchestrate\/|\b_cf_chl_opt\b|<iframe\b[^>]*\bsrc\s*=\s*["']?[^"'\s>]*\/_Incapsula_Resource\b|Incapsula incident ID\s*:)/i.test(html)) return true;
   const title = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1].replace(/\s+/g, ' ').trim() ?? '';
   const vendor = /cloudflare|\bcf-(?:ray|error|browser|challenge)|challenge-platform|incapsula|imperva|distilnetworks/i.test(html);
-  const blocked = /(?:verify(?:ing)? (?:that )?you (?:are|are not)|checking your browser|security (?:check|verification|service)|unusual traffic|automated (?:requests|access)|(?:think|thought) you were a bot|enable javascript and cookies|access denied|you have been blocked)/i.test(html);
+  // Normal pages ship consent text and translated error messages in scripts.
+  // A vendor mention there is not an interstitial. Strip incomplete scripts as
+  // well: response inspection can end halfway through a JSON assignment.
+  const content = html.replace(/<!--[\s\S]*?(?:-->|$)/g, '')
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
+    .replace(/<[^>]*>/g, ' ');
+  const blocked = /(?:verify(?:ing)? (?:that )?you (?:are|are not)|checking your browser|security (?:check|verification)|unusual traffic|automated (?:requests|access)|(?:think|thought) you were a bot|enable javascript and cookies|access denied|you have been blocked)/i.test(content);
   if (/^(?:Just a moment|Attention Required|Access Denied|Forbidden|Security (?:Check|Verification)|Request (?:Rejected|Unsuccessful)|You have been blocked)/i.test(title) && vendor) return true;
   if (/^Pardon Our Interruption\b/i.test(title) && (vendor || blocked)) return true;
   // Some sites customize the title while retaining the vendor's block message.

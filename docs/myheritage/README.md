@@ -71,6 +71,8 @@ fam myheritage.record get --url "RECORD_URL"
 
 These commands use the saved website session. Search supports names, dates, places, relatives, keywords, collection/category scopes, record types and pagination. Advanced options add independent name matching, year ranges, translated-name controls, and collection-specific criteria through `search-fields` and `search --field`. `record` returns visible fields and source citations, plus image links when present. `document URL` lists the viewer’s original pages; `download-document URL --page 1 --out scan.jpg` saves a page with a source/checksum sidecar. [Full examples and coverage](research.md) include JSON input and TypeScript usage.
 
+Both `--transport browser` and `--transport http` support record search with the saved website login. Browser login currently remembers a browser route for the website, so subsequent `auto` requests use Camofox. Add `--transport http` to use direct HTTP for an individual command; this retains the same saved login.
+
 ## Research someone already in a tree
 
 IDs are service IDs such as `site-…`, `tree-…`, `individual-…`, and `family-…`; copy them from API results rather than website URLs. Keep them as strings.
