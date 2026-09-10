@@ -136,7 +136,7 @@ export async function cleanupBuilds(root) {
       const match = /^\s*(\d+)\s+(\S+)\s+(.*)$/.exec(line);
       // Shells can contain "fam" in completion scripts or command strings;
       // only Node processes can hold the CLI's JavaScript modules.
-      return match && ['node', 'nodejs', 'fam', basename(process.execPath), basename(process.execPath).slice(0, 15)].includes(match[2])
+      return match && ['node', 'nodejs', 'MainThread', 'fam', basename(process.execPath), basename(process.execPath).slice(0, 15)].includes(match[2])
         ? [{pid: Number(match[1]), args: match[3]}] : [];
     });
   } catch {}
