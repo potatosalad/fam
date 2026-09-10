@@ -43,9 +43,9 @@ export function searchUrl(query: string): string {
   const url = new URL('https://www.google.com/search'); url.searchParams.set('q', googleQuery(query)); url.searchParams.set('hl','en'); return url.href;
 }
 export function checkContinuation(value: string, query: string): string {
-  let u: URL; try {u = new URL(value);} catch {throw new Error('Invalid Google continuation URL.');}
+  let u: URL; try {u = new URL(value);} catch {throw new Error('Invalid site search continuation URL.');}
   if (u.origin !== 'https://www.google.com' || u.username || u.password || u.pathname !== '/search' || u.searchParams.get('q') !== googleQuery(query))
-    throw new Error('Google continuation must belong to the same Cyndi’s List search query.');
+    throw new Error('Continuation must belong to the same Cyndi’s List site search query.');
   u.hash = ''; return u.href;
 }
 /** Inspect only Google redirects; never request the linked Cyndi page here. */
@@ -58,10 +58,10 @@ export async function resolveGoogleLink(href: string, tab: Pick<BrowserTab, 'req
     if (embedded?.startsWith('https://') || embedded?.startsWith('http://')) {url = new URL(embedded); continue;}
     const response = await tab.request(url.href);
     const location = response.headers.get('location');
-    if (![301,302,303,307,308].includes(response.status) || !location) throw new Error(`Google did not resolve its result redirect (HTTP ${response.status}).`);
+    if (![301,302,303,307,308].includes(response.status) || !location) throw new Error(`Site search result redirect could not be resolved (HTTP ${response.status}).`);
     url = new URL(location, url);
   }
-  throw new Error('Google result redirect limit exceeded.');
+  throw new Error('Site search result redirect limit exceeded.');
 }
 async function ready(tab: BrowserTab): Promise<SearchSnapshot> {
   const loadEnd = Date.now() + 30000;
@@ -73,15 +73,15 @@ async function ready(tab: BrowserTab): Promise<SearchSnapshot> {
       if (challengeEnd === undefined) {challengeEnd = Date.now() + tab.browser.config.timeout * 1000; await tab.browser.notify();}
     } else if (state?.hits.length || state?.ready && state.empty) return state;
     if (Date.now() >= (challengeEnd ?? loadEnd)) {
-      if (challengeEnd !== undefined) throw new BrowserError('Google needs browser interaction. Complete verification or consent in the viewer, then retry.', 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
-      throw new Error('Google search results could not be recognized. This is not a confirmed empty search.');
+      if (challengeEnd !== undefined) throw new BrowserError('Site search needs browser interaction. Complete verification or consent in the viewer, then retry.', 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
+      throw new Error('Site search results could not be recognized. This is not a confirmed empty search.');
     }
     await delay(1000);
   }
 }
 export async function search(query: string, options: {allPages?: boolean; cursor?: string} = {}, getBrowser: () => Promise<Camofox> = configuredBrowser): Promise<SearchResult> {
   const initial = options.cursor ? checkContinuation(options.cursor, query) : searchUrl(query);
-  if (transportPreference(await browserConfig()).policy === 'http') throw new Error('Google search requires Camofox; use --transport browser or auto.');
+  if (transportPreference(await browserConfig()).policy === 'http') throw new Error('Site search requires a browser; use --transport browser or auto.');
   const browser = await getBrowser(), tab = await browser.tab('cyndislist', initial);
   let keepTab = false;
   const result: SearchResult = {query, googleQuery: googleQuery(query), results: [], pages: [], nextUrl: null, cursor: null, complete: false, errors: [], warnings: []};
@@ -91,7 +91,7 @@ export async function search(query: string, options: {allPages?: boolean; cursor
         const requestedPage: string = next;
       try {
         const pageKey = new URL(next).searchParams.get('start') ?? '0';
-        if (seenPages.has(pageKey)) throw new Error('Google repeated a results page; pagination stopped.');
+        if (seenPages.has(pageKey)) throw new Error('Site search repeated a results page; pagination stopped.');
         seenPages.add(pageKey);
         if (result.pages.length) await tab.navigate(next);
         const state = await ready(tab);

@@ -7,11 +7,11 @@ import {CATEGORY_INDEX} from './url.js';
 export async function diagnose(live: boolean): Promise<ProviderReport> {
   const report: ProviderReport = {provider: 'cyndislist', status: 'ok', checks: [
     {id: 'access', status: 'ok', code: 'public-access', message: 'Public provider; no account, credentials, or login required.'}],
-    limitations: ['Checks category index access. Google search and external resource destinations are not probed.']};
+    limitations: ['Checks category index access. Site search and external resource destinations are not probed.']};
   try {
     const configured = !!await browserConfig();
     report.checks.push({id: 'browser', status: configured ? 'ok' : 'warning', code: configured ? 'browser-configured' : 'browser-missing',
-      message: configured ? 'Camofox configured for Google search; not contacted by this check.' : 'Google search needs Camofox; direct Cyndi reads can still work.',
+      message: configured ? 'Browser configured for site search; not contacted by this check.' : 'Site search needs browser setup; directory browsing is available.',
       ...(configured ? {} : {action: 'Run fam browser setup --local.'})});
     if (!configured) report.status = 'warning';
     if (live) {

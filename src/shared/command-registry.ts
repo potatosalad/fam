@@ -11,7 +11,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   storied: {name: 'Storied', description: 'Family trees, stories, media, hints, and historical records.'},
   newspaperarchive: {name: 'NewspaperArchive', description: 'Historical newspapers, genealogy searches, publication locations, and page OCR.'},
   americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, indexed records, source citations, and digitized scans.'},
-  cyndislist: {name: 'Cyndi’s List', description: 'Browse genealogy resource categories, read directory pages, and search Google in Camofox.'},
+  cyndislist: {name: 'Cyndi’s List', description: 'Browse genealogy resources and search the site.'},
   wayback: {name: 'Wayback Machine', description: 'Find and read archived web pages from the Internet Archive.'},
   cli: {name: 'CLI', description: 'Command discovery, provider information, health checks, and shell completion.'},
 };
@@ -218,15 +218,15 @@ const cyndiFlags: Extras['flags'] = {
   url: {description: 'Any absolute Cyndi’s List URL; HTTP/non-www aliases are normalized.'},
 };
 const cyndiPaging = 'One page by default. --all-pages follows available pagination; nextUrl allows continuation. --depth expands child categories with their resources; pagination does not increase depth. Partial failures and completeness are explicit.';
-add('cyndislist', 'category-list', 'category list', 'Read the category index, including link counts and published update dates; optionally filter category names.', ['?filter'], 'refresh', {flags: {...cyndiFlags, filter: {description: 'Case-insensitive words to match in category names; no Google search.'}}});
+add('cyndislist', 'category-list', 'category list', 'Read the category index, including link counts and published update dates; optionally filter category names.', ['?filter'], 'refresh', {flags: {...cyndiFlags, filter: {description: 'Case-insensitive words to match in category names.'}}});
 add('cyndislist', 'category-get', 'category get', 'Read a category and optionally expand its child categories and resource listings.', ['url'], 'depth all-pages refresh', {flags: cyndiFlags, pagination: cyndiPaging});
 add('cyndislist', 'page', 'page get', 'Best-effort reading of any Cyndi’s List page, including text, links, categories, listings, and redirect destinations.', ['url'], 'all-pages refresh', {flags: cyndiFlags, pagination: cyndiPaging});
 add('cyndislist', 'resolve', 'resource resolve', 'Resolve a selected Cyndi link to its external destination without fetching that destination.', ['url'], 'refresh', {flags: cyndiFlags});
-add('cyndislist', 'search', 'resource search', 'Search Google in Camofox for Cyndi’s List pages; return titles, URLs, and snippets.', ['query'], 'all-pages cursor', {flags: {...cyndiFlags,
-  query: {description: 'Place and record-type keywords or Google query syntax; automatically restricted to site:cyndislist.com.'},
-  cursor: {description: 'Exact Google continuation URL returned by this same query.'},
-  transport: {choices: ['auto','browser'], description: 'Search always uses rendered Google pages in Camofox.'}},
-  pagination: 'One Google page by default. --all-pages follows observed next-page links; --cursor continues the same query. Challenges and partial failures are explicit.',
+add('cyndislist', 'search', 'resource search', 'Search Cyndi’s List.', ['query'], 'all-pages cursor', {flags: {...cyndiFlags,
+  query: {description: 'Site search keywords or search operators.'},
+  cursor: {description: 'Exact continuation URL returned by this same site search.'},
+  transport: {choices: ['auto','browser'], description: 'Site search uses the configured browser.'}},
+  pagination: 'One results page by default. --all-pages follows available next-page links; --cursor continues the same query. Challenges and partial failures are explicit.',
   examples: ['fam cyndislist.resource search --query "New Zealand probate" --json']});
 
 const waybackFlags: Extras['flags'] = {

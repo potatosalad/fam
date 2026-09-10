@@ -37,7 +37,7 @@ export function humanCyndisList(data: any): string {
   };
   if (data.saved) return `Saved ${data.saved}\n`;
   if (Array.isArray(data.results)) {
-    const s = data as SearchResult; lines.push(`Google: ${s.googleQuery}`, '');
+    const s = data as SearchResult; lines.push(`Site search: ${s.query}`, '');
     for (const hit of s.results) {lines.push(`${hit.rank}. ${hit.title}`, `   ${hit.url ?? hit.googleUrl}`); if (hit.snippet) lines.push(`   ${hit.snippet}`);}
     if (!s.results.length) lines.push('No matching results.');
     if (s.cursor) lines.push('', `Continue with the same --query and --cursor ${JSON.stringify(s.cursor)}`);

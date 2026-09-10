@@ -1,8 +1,8 @@
 # Cyndi’s List
 
-Browse Cyndi’s List directly to find genealogy resources by place and record type. Category browsing, page reading, and redirect resolution use public pages and require no account. Google search runs in the configured Camofox browser; see [browser setup](../browser.md).
+Browse Cyndi’s List directly to find genealogy resources by place and record type. Category browsing, page reading, and redirect resolution use public pages and require no account. Site search uses a [configured browser](../browser.md).
 
-## Browse categories without Google
+## Browse categories
 
 ```sh
 fam cyndislist.category list
@@ -31,16 +31,16 @@ The resource ID in the last example is illustrative; use an actual URL returned 
 
 Native HTTP is preferred, with the existing Camofox recovery for browser challenges. `--transport http|browser|auto` and `--browser-timeout` use the shared browser controls.
 
-## Search through Google in Camofox
+## Site search
 
 ```sh
 fam cyndislist.resource search --query "New Zealand probate"
 fam cyndislist.resource search --query "Richmond County Virginia court records" --all-pages --json
 ```
 
-Search is always restricted to `site:cyndislist.com`. It returns Google’s result titles, snippets, and actual Cyndi URLs. Google redirect URLs are resolved through the browser without fetching the destination pages. An unresolved result retains its Google link, a null Cyndi URL, and an error explaining the failure. Search does not automatically read Cyndi pages or use a local search index.
+Search Cyndi’s List for page titles, URLs, and snippets. Result links are resolved without fetching destination pages. Unresolved results retain their source link, a null Cyndi URL, and an error.
 
-One Google page is returned by default. To continue, repeat the original `--query` and pass the returned `cursor` as `--cursor`. `--all-pages` follows Google’s available next-page links. Google controls which results and pagination it exposes; this does not promise exhaustive site coverage. Google consent and verification use the existing viewer and configured timeout. `--browser-timeout 0` returns immediately when interaction is needed. A challenge is never reported as zero results, and an unfinished verification tab remains open.
+One results page is returned by default. To continue, repeat the original `--query` and pass the returned `cursor` as `--cursor`. `--all-pages` follows available next-page links; results may not cover the entire site. Consent and verification use the existing viewer and configured timeout. `--browser-timeout 0` returns immediately when interaction is needed. A challenge is never reported as zero results, and an unfinished verification tab remains open.
 
 ## Pagination and partial results
 
@@ -56,7 +56,7 @@ Cache files are private, atomic JSON beneath `cyndislist/cache/` in the active [
 - A cached page records its top-level category’s published update date and link count. A changed date or count invalidates cached descendants and pagination when they are next requested. Unchanged categories can remain cached beyond 24 hours.
 - Dates have day precision. Content fetched within 48 hours of its published date is checked again after 24 hours, covering same-day changes and the publisher’s unspecified timezone. A later fetch can then rely on the unchanged category marker.
 - Pages without an associated update marker, including resource redirects, use a 24-hour fallback. Removing a known marker also causes revalidation.
-- `--refresh` forces an index check and fresh reads of the requested pages. If a refresh fails, a saved copy is returned by default with `cache.status: "stale"`, its original `fetchedAt`, age, and warning. Failed fetches never replace successful saved content. Google searches run live.
+- `--refresh` forces an index check and fresh reads of the requested pages. If a refresh fails, a saved copy is returned by default with `cache.status: "stale"`, its original `fetchedAt`, age, and warning. Failed fetches never replace successful saved content. Site searches run live.
 
 Cyndi [documents category update dates](https://www.cyndislist.com/faqs/) as change signals. They are not per-resource versions or a guarantee against unannounced edits; `--refresh` remains available when exact current content matters.
 
@@ -69,6 +69,6 @@ fam cli.health check --provider cyndislist --offline
 fam cli.health check --provider cyndislist
 ```
 
-Offline health checks public-access configuration without credential lookup. Live health reads the category index; it does not search Google or visit external resource destinations.
+Offline health checks public-access configuration without credential lookup. Live health reads the category index; it does not run site searches or visit external resource destinations.
 
 TypeScript clients are exported from `@potatosalad/fam/cyndislist`.
