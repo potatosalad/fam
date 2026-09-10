@@ -34,7 +34,7 @@ Example plugin configuration in `/app/camofox.config.json`:
 {"plugins":{"persistence":{"enabled":true},"vnc":{"enabled":true},"fam":{"enabled":true}}}
 ```
 
-Preserve other plugins and settings when adding these entries to an existing installation. Restart Camofox after installing or updating the plugin. The packaged plugin supports Camofox 1.11.2 and 1.14.0; local setup pins the official 1.14.0 image digest. See [Camofox](https://github.com/jo-inc/camofox-browser) for server configuration.
+Preserve other plugins and settings when adding these entries to an existing installation. Restart Camofox after installing or updating the plugin, including to enable the 15-minute fam tab cleanup. The packaged plugin supports Camofox 1.11.2 and 1.14.0; local setup pins the official 1.14.0 image digest. See [Camofox](https://github.com/jo-inc/camofox-browser) for server configuration.
 
 ## Everyday commands
 
@@ -49,7 +49,9 @@ fam browser configure --timeout 1200 --open
 fam browser configure --vnc-url https://viewer.example.org --no-open
 ```
 
-Local `stop` stops the owned container and retains saved state. The container forwards shutdown signals to Camofox so it can finish checkpoints. `open` starts an idle browser before opening its viewer. Local idle timeouts are 24 hours; zero in upstream Camofox would mean immediate shutdown. Upgrading an older fam container retains it under a timestamped name and reuses its persistent profiles. Remote `stop` closes only tabs in fam's tab group for the selected session name. It leaves the browser process, other tab groups, and other users' work running. Ordinary commands leave the browser running; successful HTTP operations close their own transport tabs at CLI exit. Login and unfinished verification tabs remain available in the viewer.
+Local `stop` stops the owned container and retains saved state. The container forwards shutdown signals to Camofox so it can finish checkpoints. `open` starts an idle browser before opening its viewer. Local idle timeouts are 24 hours; zero in upstream Camofox would mean immediate shutdown. Upgrading an older fam container retains it under a timestamped name and reuses its persistent profiles. Remote `stop` closes only tabs in fam's tab group for the selected session name. It leaves the browser process, other tab groups, and other users' work running.
+
+Ordinary commands leave the browser running. HTTP operations close their own transport tabs at CLI exit; completed logins and failed setup/API operations also close their tabs. Unfinished sign-in and verification tabs remain available in the viewer. The fam plugin checks every minute and closes fam tabs after 15 minutes without browser API activity, including tabs abandoned by an interrupted or killed CLI. Active requests are protected, saved cookies/storage are checkpointed before cleanup, and unrelated users or tab groups are untouched. Closing the last tab also releases its browser context while preserving the saved login. The shared browser process retains its existing 24-hour idle setting.
 
 `fam browser` is a short alias for `fam cli.browser`. Help, command discovery, and completion describe the same operations.
 
@@ -102,7 +104,7 @@ Repeat `--header 'Name: value'` and `--cookie 'name=value'` as needed. A header 
 
 Navigation overrides apply to main-document requests on the starting origin and, as with Playwright header overrides, to their HTTP redirect chains. They are not added to third-party subresources. Request mode handles each HTTP redirect explicitly and drops all caller headers when crossing origins, while the browser applies cookie domain/path rules. Select `--redirects manual` to inspect a 3xx without following it, or `--redirects error` to reject it; the default follows up to 20 redirects. These policies apply to request mode.
 
-The default persistent context is `web`, separate from provider logins. Select `--context myheritage` (or another provider) to explicitly reuse that provider's browser cookies. The configured browser session name still scopes contexts. Each command creates and closes its own tab; `--keep-tab` retains it after success and includes its ID/viewer URL in JSON. Clear general browsing state with `fam cli.browser reset --provider web`; browser stop and reset-all also include it.
+The default persistent context is `web`, separate from provider logins. Select `--context myheritage` (or another provider) to explicitly reuse that provider's browser cookies. The configured browser session name still scopes contexts. Each command creates and closes its own tab; `--keep-tab` retains it after success and includes its ID/viewer URL in JSON. Retained tabs (including `--open=always` and unfinished verification) still expire after 15 minutes without browser API activity; viewer interaction alone does not extend that deadline. Clear general browsing state with `fam cli.browser reset --provider web`; browser stop and reset-all also include it.
 
 Private browsing is off by default. Add `--private` for real Firefox private windows in Camofox, using cookies separate from `web` and all provider logins. `--context web-private` selects the same context. Private-window behavior and durable session storage are separate: fam checkpoints private cookies so a browser restart can restore them. Clear this context with `fam cli.browser reset --provider web-private`. It requires the updated plugin's `privateFetch` capability.
 

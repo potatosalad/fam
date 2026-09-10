@@ -441,7 +441,7 @@ add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camo
       'browser-timeout': {type: 'integer', minimum: 0, maximum: 3600, description: 'Verification wait in seconds; zero returns the viewer URL immediately when challenged.'},
       'wait-for': {description: 'CSS selector to wait for and extract in navigate mode; full HTML output is retained.'},
       'wait-ms': {type: 'integer', minimum: 0, maximum: 60000, description: 'Additional settling time after the page/selector is ready.'},
-      'keep-tab': {type: 'boolean', description: 'Retain the command tab after success. Verification tabs are always retained.'},
+      'keep-tab': {type: 'boolean', description: 'Retain the command tab after success. Retained and verification tabs expire after 15 minutes without browser API activity.'},
       redirects: {choices: ['follow','manual','error'], default: 'follow', description: 'Request-mode redirect policy, limited to 20 hops. Navigation uses browser redirects.'},
     },
     risk: {level: 'write', description: 'Navigates user-selected URLs and executes their scripts; explicit request methods/bodies may change remote data. Uses and saves cookies in the selected context.'},

@@ -10,6 +10,18 @@ export function loginCooldown(text: string): number | undefined {
   return /access has been temporarily disabled|access has been temporarily blocked/i.test(text) && /(?:try again|retry) in 24 hours/i.test(text) ? 86400000 : undefined;
 }
 export async function waitForLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: BrowserLoginPage) => Promise<T | undefined>, options: BrowserLoginOptions = {}): Promise<T> {
+  let preserve = false;
+  try {return await pollLogin(tab, origins, verify, options);}
+  catch (error) {
+    preserve = error instanceof BrowserError && ['BROWSER_INTERACTION_REQUIRED', 'BROWSER_LOGIN_BLOCKED'].includes(error.code);
+    throw error;
+  } finally {
+    // Saved cookies survive tab closure. Leave unfinished human interaction in
+    // the viewer; the server's idle reaper bounds its lifetime after CLI exit.
+    if (!preserve) await tab.close().catch(() => {});
+  }
+}
+async function pollLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: BrowserLoginPage) => Promise<T | undefined>, options: BrowserLoginOptions): Promise<T> {
   const timeout = options.timeoutMs ?? tab.browser.config.timeout * 1000;
   const deadline = Date.now() + timeout;
   let notified = false, credentials: {username: string; password: string} | undefined, loaded = false, nextCheck = 0;

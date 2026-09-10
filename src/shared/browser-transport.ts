@@ -33,7 +33,7 @@ async function waitForChallenge(tab: BrowserTab, signal?: AbortSignal | null): P
 const tabs = new Map<string, Promise<BrowserTab>>();
 export async function closeBrowserTransportTabs(): Promise<void> {
   const pending = [...tabs.values()]; tabs.clear();
-  await Promise.allSettled(pending.map(async value => {const tab = await value; await tab.browser.api('/fam/close-tab', {userId: tab.userId, tabId: tab.id});}));
+  await Promise.allSettled(pending.map(async value => (await value).close()));
 }
 export async function browserRequest(provider: string, target: URL, init: HttpInit, jar?: CookieJar, sessionCookies: string[] = []): Promise<Response> {
   init.signal?.throwIfAborted();
@@ -45,19 +45,24 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
   if (!pending) {
     pending = (async () => {
       const tab = await browser.tab(provider);
-      if (jar) {
-        const state = await browser.state(provider);
-        // A native HTTP session can seed a new browser context on challenge.
-        // Existing browser cookies always win over stale HTTP snapshots.
-        const hasBrowserCookies = state.cookies.some(cookie => {const domain = cookie.domain.replace(/^\./,''); return target.hostname === domain || cookie.domain.startsWith('.') && target.hostname.endsWith(`.${domain}`);});
-        const cookies = hasBrowserCookies ? [] : jarCookies(jar, target.origin);
-        if (cookies.length) await browser.api('/fam/cookies', {userId: tab.userId, cookies});
-      }
-      await tab.prepare(target.origin); return tab;
+      try {
+        if (jar) {
+          const state = await browser.state(provider);
+          // A native HTTP session can seed a new browser context on challenge.
+          // Existing browser cookies always win over stale HTTP snapshots.
+          const hasBrowserCookies = state.cookies.some(cookie => {const domain = cookie.domain.replace(/^\./,''); return target.hostname === domain || cookie.domain.startsWith('.') && target.hostname.endsWith(`.${domain}`);});
+          const cookies = hasBrowserCookies ? [] : jarCookies(jar, target.origin);
+          if (cookies.length) await browser.api('/fam/cookies', {userId: tab.userId, cookies});
+        }
+        await tab.prepare(target.origin); return tab;
+      } catch (error) {await tab.close().catch(() => {}); throw error;}
     })();
     tabs.set(key, pending);
   }
-  const tab = await pending;
+  let tab: BrowserTab;
+  try {tab = await pending;}
+  catch (error) {if (tabs.get(key) === pending) tabs.delete(key); throw error;}
+  let verifying = false;
   try {
   const request = async () => {
     // Explicitly managed session cookies come from current authorization, not
@@ -74,7 +79,9 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
     void response.body?.cancel().catch(() => {});
     await rememberBrowser(provider, target.origin);
     await tab.navigate((init.method ?? 'GET') === 'GET' ? target.href : target.origin);
+    verifying = true;
     await waitForChallenge(tab, init.signal);
+    verifying = false;
     init.signal?.throwIfAborted();
     await tab.prepare(target.origin);
     response = await request();
@@ -90,8 +97,10 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
   await rememberBrowser(provider, target.origin);
   return response;
   } catch (error) {
-    // Keep a verification tab available after an interaction timeout or Ctrl-C.
-    tabs.delete(key); throw error;
+    // Retain only an actual unfinished verification, not ordinary API failures.
+    if (tabs.get(key) === pending) tabs.delete(key);
+    if (!verifying && !(error instanceof BrowserError && error.code === 'BROWSER_INTERACTION_REQUIRED')) await tab.close().catch(() => {});
+    throw error;
   }
 }
 /** Recover only evidenced challenge responses. Network failures, ordinary 403s,

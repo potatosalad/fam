@@ -50,6 +50,7 @@ test('MyHeritage adopts the existing rendered session during an earlier login co
       assert.equal(new URL(body.url).pathname, '/FP/API/FamilyTree/get-current-user-permissions.php');
       result = {status:200,headers:{'content-type':'application/json'},bodyBase64:Buffer.from('{"success":true}').toString('base64')};
     } else if (path === '/fam/storage') result = {state:{cookies:[{name:'PHPSESSID',value:'fixture-cookie',domain:'.myheritage.com',path:'/',expires:-1,httpOnly:true,secure:true}],origins:[]}};
+    else if (path === '/fam/close-tab') result = {};
     else {res.statusCode=400; result={error:'unexpected-browser-operation'};}
     res.setHeader('content-type','application/json'); res.end(JSON.stringify(result));
   });

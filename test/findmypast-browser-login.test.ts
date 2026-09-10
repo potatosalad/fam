@@ -21,7 +21,7 @@ test('Findmypast reuses a live login tab and saves only a verified account', asy
     else if (path === '/fam/capabilities') result = {version: 1, autofill: true};
     else if (path.startsWith('/tabs?')) result = {tabs};
     else if (path === '/tabs') {
-      tabs.push({tabId: 'created', url: body.url, listItemId: 'fam'});
+      tabs.push({tabId: 'created', url: body.url ?? 'about:blank', listItemId: 'fam'});
       result = {tabId: 'created'};
     } else if (path.endsWith('/evaluate')) {
       const tab = tabs.find(tab => path === `/tabs/${tab.tabId}/evaluate`);
@@ -34,8 +34,8 @@ test('Findmypast reuses a live login tab and saves only a verified account', asy
       }
     } else if (path.endsWith('/navigate')) {
       const tab = tabs.find(tab => path === `/tabs/${tab.tabId}/navigate`)!;
-      assert.equal(body.url, `${new URL(tab.url).origin}/sign-in`);
-      tab.url = completeOnNavigate ? `${new URL(tab.url).origin}/home` : body.url;
+      assert.equal(new URL(body.url).pathname, '/sign-in');
+      tab.url = completeOnNavigate ? `${new URL(body.url).origin}/home` : body.url;
       if (completeOnNavigate) signedIn = true;
       document++; result = {ok:true};
     } else if (path === '/fam/request') {
@@ -48,6 +48,7 @@ test('Findmypast reuses a live login tab and saves only a verified account', asy
       {name: '', value: 'fixture', domain: 'www.findmypast.com', path: '/titan/marshal', expires: -1, httpOnly: false, secure: true},
       {name: 'session', value: 'fixture-cookie', domain: '.findmypast.com', path: '/', expires: -1, httpOnly: true, secure: true},
     ], origins: []}};
+    else if (path === '/fam/close-tab') result = {};
     else if (path === '/fam/autofill') result = {ready: true, filled: true, submitted: false};
     else {res.statusCode = 400; result = {error: 'unexpected-browser-operation'};}
     res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(result));
@@ -98,7 +99,9 @@ test('Findmypast reuses a live login tab and saves only a verified account', asy
     tabs = tabs.filter(tab => ['closed', 'transport'].includes(tab.tabId));
     await loginFindmypast();
     assert.deepEqual(requests.filter(r => r.path === '/tabs').map(r => r.body),
-      [{userId: 'fam-test-findmypast', sessionKey: 'fam', url: `${website}/sign-in`}]);
+      [{userId: 'fam-test-findmypast', sessionKey: 'fam'}]);
+    assert.equal(requests.find(r => r.path === '/tabs/created/navigate')?.body.url, `${website}/sign-in`);
+    assert.equal(requests.find(r => r.path === '/fam/close-tab')?.body.tabId, 'created');
   });
   await t.test('interactive auth completion preserves its tab and never overwrites a session before validation', async () => {
     requests.length = 0; signedIn = false;

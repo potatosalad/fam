@@ -43,6 +43,7 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
   const app=express();app.use('/tabs',express.json());app.get('/health',(_req:any,res:any)=>res.json({ok:true}));
   app.post('/tabs',async(req:any,res:any)=>{
     const session=sessions.get(req.body.userId)??{context,tabGroups:new Map([['fam',new Map()]])};sessions.set(req.body.userId,session);
+    if(!session.tabGroups.has('fam'))session.tabGroups.set('fam',new Map());
     const id=`tab-${Date.now()}-${Math.random()}`,page=await context.newPage();session.tabGroups.get('fam').set(id,{page});res.json({tabId:id});
   });
   app.post('/tabs/:id/navigate',async(req:any,res:any)=>{
@@ -52,7 +53,7 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
   const api=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>api.once('listening',resolve));
   const base=`http://127.0.0.1:${api.address().port}`;
   await saveBrowserConfig({version:1,mode:'remote',remote:{url:base,vncUrl:`${base}/viewer`},timeout:3,transport:'auto',session:'test',open:false});
-  t.after(async()=>{await browser.close();await Promise.all([new Promise<void>(r=>web.close(()=>r())),new Promise<void>(r=>api.close(()=>r()))]);});
+  t.after(async()=>{events.emit('server:shutdown');await browser.close();await Promise.all([new Promise<void>(r=>web.close(()=>r())),new Promise<void>(r=>api.close(()=>r()))]);});
   const fetchPage=async(path:string,values:Record<string,any>={})=>fetchBrowserUrl(await browserFetchOptions({url:origin+path,open:'never',...values}));
   await t.test('rendered and original content differ; selector, settling and markup extraction work',async()=>{
     const rendered=await fetchPage('/',{format:'json','wait-for':'article','wait-ms':200,header:'X-Custom: navigation',cookie:'test=seed','user-agent':'navigation-agent',referer:'https://referrer.example/'});

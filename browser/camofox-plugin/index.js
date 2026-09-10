@@ -7,6 +7,8 @@ import {join} from 'node:path';
 // and OAuth redirects which never become a document URL (native app callbacks).
 export function register(app, ctx) {
   const watches = new Map(), queues = new Map(), resetting = new Set(), operations = new Map(), privateStates = new Map(), pages = new Map();
+  const activity = new WeakMap(), closing = new Map();
+  const tabIdleMs = 15 * 60 * 1000;
   let resettingAll = false;
   app.use('/fam', express.json({type: 'application/vnd.fam+json', limit: '72mb'}));
   app.use('/fam', ctx.auth());
@@ -44,10 +46,39 @@ export function register(app, ctx) {
     const session = ctx.sessions.get(owner(userId));
     for (const group of session?.tabGroups?.values() ?? []) {
       const state = group.get(tabId);
-      if (state && !state.page.isClosed()) {session.lastAccess = Date.now(); state.toolCalls = (state.toolCalls ?? 0) + 1; return {session, page: state.page};}
+      if (state && !state.page.isClosed()) {session.lastAccess = Date.now(); state.toolCalls = (state.toolCalls ?? 0) + 1; touch(state); return {session, page: state.page};}
     }
     fail('tab-not-found');
   }
+  function touch(state, now = Date.now()) {activity.set(state, {at: now, calls: state.toolCalls});}
+  // The upstream reaper is configured for a shared browser's much longer idle
+  // lifetime. Bound only fam's own tabs, even when the client dies or loses its
+  // connection before cleanup. Tool calls through either API count as activity.
+  async function reapIdleTabs(now = Date.now()) {
+    for (const [userId, session] of ctx.sessions) {
+      if (!isOwner(userId) || resettingAll || resetting.has(userId) || closing.has(userId)) continue;
+      for (const [id, state] of session.tabGroups.get('fam') ?? []) {
+        const seen = activity.get(state);
+        if (!seen || seen.calls !== state.toolCalls || operations.has(userId) || queues.has(id)) {touch(state, now); continue;}
+        if (now - seen.at < tabIdleMs) continue;
+        const idle = () => !operations.has(userId) && !queues.has(id) && !resettingAll && !resetting.has(userId)
+          && activity.get(state) === seen && state.toolCalls === seen.calls;
+        try {await closeTab(userId, id, idle);}
+        catch {ctx.log?.('warn', 'fam idle tab cleanup failed; will retry', {userId, tabId: id});}
+      }
+    }
+  }
+  let reaping = false;
+  const reaper = setInterval(async () => {
+    if (reaping) return;
+    reaping = true;
+    try {await reapIdleTabs();} finally {reaping = false;}
+  }, 60000);
+  reaper.unref();
+  ctx.events.on('tab:created', ({userId, tabId}) => {
+    const state = isOwner(userId) && ctx.sessions.get(userId)?.tabGroups.get('fam')?.get(tabId);
+    if (state) touch(state);
+  });
   async function checkpoint(userId) {return serial(`checkpoint:${owner(userId)}`, async () => {
     const session = ctx.sessions.get(owner(userId));
     if (!session) return {cookies: [], origins: []};
@@ -71,7 +102,7 @@ export function register(app, ctx) {
     queues.set(key, next);
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
-  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true, fetchInteraction: true,
+  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true, fetchInteraction: true, tabIdleMs,
     privateBrowsing: process.env.FAM_PRIVATE_CONTEXTS === '1', privateFetch: process.env.FAM_PRIVATE_CONTEXTS === '1',
     reset: !!ctx.config.profileDir && typeof ctx.closeSession === 'function'}));
   async function ownedSessions() {
@@ -115,7 +146,7 @@ export function register(app, ctx) {
   async function resetSession(userId) {
     // Finish even cookie imports which began before the reset lock. Otherwise an
     // older client could seed the fresh context after reset had already finished.
-    await Promise.allSettled([...(operations.get(userId) ?? [])]);
+    await Promise.allSettled([...(operations.get(userId) ?? []), queues.get(`close:${userId}`)].filter(Boolean));
     const session = ctx.sessions.get(userId);
     const resetId = randomUUID(), directory = profile(userId);
     const backup = join(ctx.config.profileDir, 'fam-reset-backups', `${createHash('sha256').update(userId).digest('hex').slice(0,32)}-${resetId}`);
@@ -150,6 +181,13 @@ export function register(app, ctx) {
   }
   ctx.events.on('session:creating', async ({userId, contextOptions}) => {
     if (!isOwner(userId)) return;
+    // getSession can begin replacing a closing context. Wait until its final
+    // checkpoint is durable, then override any state read by an earlier hook.
+    const pendingClose = closing.get(userId);
+    if (pendingClose) {
+      await pendingClose;
+      if (ctx.config.profileDir) contextOptions.storageState = JSON.parse(await readFile(join(profile(userId), 'storage-state.json'), 'utf8'));
+    }
     if (resettingAll || resetting.has(userId)) fail('session-reset-in-progress');
     // Firefox containers are not private windows. Keep the general private
     // browsing context separate from MyHeritage and ordinary web cookies.
@@ -198,12 +236,35 @@ export function register(app, ctx) {
     await session.context.addCookies(cookies);
     await checkpoint(userId); return {imported: cookies.length};
   });
-  route('post', 'close-tab', async ({userId, tabId}) => {
-    const {session, page} = tab(userId, tabId);
-    await checkpoint(userId); await page.close();
-    for (const group of session.tabGroups.values()) group.delete(tabId);
+  function closeTab(userId, tabId, eligible = () => true) {
+    // Two commands can finish together in the same provider context. Serialize
+    // closes so the final page always goes through context teardown.
+    return serial(`close:${owner(userId)}`, () => closeOwnedTab(userId, tabId, eligible));
+  }
+  async function closeOwnedTab(userId, tabId, eligible) {
+    const session = ctx.sessions.get(owner(userId)), group = session?.tabGroups.get('fam'), state = group?.get(tabId);
+    if (!state) return {}; // Idempotent, and never closes another tab group.
+    await checkpoint(userId);
+    if (!eligible() || ctx.sessions.get(userId) !== session || group.get(tabId) !== state) return {};
+    await releasePage(tabId);
+    if (!eligible() || ctx.sessions.get(userId) !== session || group.get(tabId) !== state) return {};
+    // Close the context while its final page is still alive. Firefox clears
+    // private cookies at the last window, so closing the page first would let
+    // upstream persistence overwrite our checkpoint with an empty session.
+    const onlyPage = [...session.tabGroups.values()].reduce((n, tabs) => n + tabs.size, 0) === 1
+      && session.context.pages().every(page => page === state.page || page.isClosed());
+    if (onlyPage && typeof ctx.closeSession === 'function') {
+      session._closing = true;
+      const pending = Promise.resolve().then(() => ctx.closeSession(userId, session, {reason: 'fam_tabs_closed', clearDownloads: true, clearLocks: true}));
+      closing.set(userId, pending);
+      try {await pending;} finally {closing.delete(userId); session._closing = false;}
+    } else {
+      await state.page.close(); group.delete(tabId);
+      if (!group.size) session.tabGroups.delete('fam');
+    }
     return {};
-  });
+  }
+  route('post', 'close-tab', async ({userId, tabId}) => closeTab(userId, tabId));
   route('post', 'prepare', async ({userId, tabId, origin}) => {
     const {page} = tab(userId, tabId), target = new URL(origin);
     if (!['https:', 'http:'].includes(target.protocol) || target.origin !== origin) fail('wrong-browser-origin');
@@ -442,15 +503,11 @@ export function register(app, ctx) {
     for (const userId of userIds) {
       const session = ctx.sessions.get(owner(userId));
       if (!session) continue;
-      await checkpoint(userId);
-      for (const [groupId, group] of session.tabGroups) {
-        if (groupId !== 'fam') continue;
-        for (const [id, state] of group) {await state.page.close(); group.delete(id); closed++;}
-        session.tabGroups.delete(groupId);
-      }
+      for (const id of [...(session.tabGroups.get('fam')?.keys() ?? [])]) {await closeTab(userId, id); closed++;}
     }
     return {closed};
   });
   ctx.events.on('session:destroyed', ({userId}) => {for (const [id, watch] of watches) if (watch.userId === userId) discard(id);});
-  ctx.events.on('server:shutdown', () => {for (const id of watches.keys()) discard(id);});
+  ctx.events.on('server:shutdown', () => {clearInterval(reaper); for (const id of watches.keys()) discard(id);});
+  return {reapIdleTabs};
 }

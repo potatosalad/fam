@@ -37,12 +37,14 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
   const requests: any[] = [];
   let page = '<html><body>Ready</body></html>', status = 200, challengeResponse = false, reply = Buffer.from([0,255,128,42]);
   const pageStates: Array<{html:string;ready:boolean}> = [];
+  let failedPath = '';
   const responses: Array<{status:number;headers:Record<string,string>;bodyBase64:string}> = [];
   const server = createServer(async (req,res) => {
     let text = ''; for await (const chunk of req) text += chunk;
     const body = text ? JSON.parse(text) : {};
     requests.push({path:req.url, body, auth:req.headers.authorization});
     res.setHeader('content-type','application/json');
+    if (req.url === failedPath) {res.writeHead(500); res.end(JSON.stringify({error:'synthetic-failure'})); return;}
     const result = req.url === '/health' ? {ok:true} : req.url === '/fam/capabilities' ? {version:1} : req.url === '/tabs' ? {tabId:randomUUID()}
       : req.url?.endsWith('/evaluate') ? {result:pageStates.shift() ?? {html:page,ready:true}} : req.url === '/fam/request' ? responses.shift() ?? {status, headers:{'content-type':'application/octet-stream', 'x-provider':'kept', ...(challengeResponse ? {'cf-mitigated':'challenge'} : {})},bodyBase64:reply.toString('base64')}
       : req.url === '/fam/storage' ? {state:{cookies:[{name:'session',value:'cookie-secret',domain:'.example.com',path:'/api',expires:2000000000,httpOnly:true,secure:true,sameSite:'Lax'},
@@ -197,12 +199,28 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
   });
   await t.test('zero wait surfaces the configured viewer URL for unattended intervention', async () => {
     await closeBrowserTransportTabs();
+    requests.length = 0;
     challengeResponse = true;
     page = '<html><script src="/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1"></script></html>';
     await assert.rejects(fetchWithBrowser('myheritage',target,{},async()=>new Response('unused')), (error:any)=>error.code==='BROWSER_INTERACTION_REQUIRED' && error.vncUrl===endpoint.vncUrl);
+    await closeBrowserTransportTabs();
+    assert.equal(requests.some(r=>r.path==='/fam/close-tab'),false);
     challengeResponse = false;
     page = '<html>Ready</html>'; status = 204; reply = Buffer.alloc(0);
     assert.equal((await fetchWithBrowser('myheritage',target,{},async()=>new Response('unused'))).status,204);
+  });
+  await t.test('setup and API failures close their tab and allow a fresh retry', async () => {
+    for (const path of ['/fam/storage', '/fam/prepare', '/fam/request']) {
+      await closeBrowserTransportTabs(); requests.length = 0; failedPath = path;
+      await assert.rejects(fetchWithBrowser('myheritage',target,{},async()=>new Response('unused'),jar), {code:'BROWSER_API_FAILED'});
+      const closed = requests.filter(r=>r.path==='/fam/close-tab');
+      assert.equal(closed.length, 1, path);
+      failedPath = '';
+      assert.equal((await fetchWithBrowser('myheritage',target,{},async()=>new Response('unused'),jar)).status,204);
+      assert.equal(requests.filter(r=>r.path==='/tabs').length, 2, path);
+      await closeBrowserTransportTabs();
+      assert.equal(requests.filter(r=>r.path==='/fam/close-tab').length, 2, path);
+    }
   });
 });
 test('cookie export respects domain, path, expiry and HTTP-only attributes', async () => {
@@ -238,7 +256,7 @@ test('provider lockouts stop password attempts without extending an existing coo
   assert.equal(loginCooldown('Access has been temporarily disabled. Please try again in 24 hours.'), 86400000);
   assert.equal(loginCooldown('Incorrect password'), undefined);
   let inputs = 0;
-  const tab = {provider: 'myheritage', evaluate: async () => ({origin:'https://www.myheritage.com', email:true, password:true, text:'Access has been temporarily disabled. Try again in 24 hours.'}),
+  const tab = {close: async () => {}, provider: 'myheritage', evaluate: async () => ({origin:'https://www.myheritage.com', email:true, password:true, text:'Access has been temporarily disabled. Try again in 24 hours.'}),
     browser: {config:{timeout:0}, endpoint:{vncUrl:'https://viewer.example.test'}, api:async()=>{inputs++;}}} as any;
   const verify = async () => assert.fail('do not probe a page displaying an access restriction');
   await assert.rejects(waitForLogin(tab, ['https://www.myheritage.com'], verify), (e:any)=>e.code==='BROWSER_LOGIN_BLOCKED');
@@ -253,7 +271,7 @@ test('a saved cooldown permits session reuse and manual completion without passw
   await writePrivateJson('myheritage/browser-login-block.json', {blockedUntil});
   let inputs = 0, states = 0;
   let form = false;
-  const tab = {provider: 'myheritage', evaluate: async () => ({origin:'https://www.myheritage.com', email:form, password:form, text:'Ready'}),
+  const tab = {close: async () => {}, provider: 'myheritage', evaluate: async () => ({origin:'https://www.myheritage.com', email:form, password:form, text:'Ready'}),
     browser: {config:{timeout:0}, endpoint:{vncUrl:'https://viewer.example.test'}, api:async()=>{inputs++;}, state:async()=>{states++;}, notify:async()=>{}}} as any;
   assert.equal(await waitForLogin(tab, ['https://www.myheritage.com'], async () => 'signed-in'), 'signed-in');
   assert.equal(states, 1);
@@ -270,7 +288,7 @@ test('interactive login autofills configured credentials without submitting, eve
   await writePrivateJson('myheritage/browser-login-block.json', {blockedUntil:new Date(Date.now()+86400000).toISOString()});
   let origin = 'https://www.myheritage.com', supported = true;
   const requests: {path:string; body:any}[] = [];
-  const tab = {provider:'myheritage', userId:'fam-test-myheritage', id:'test-tab',
+  const tab = {close: async () => {}, provider:'myheritage', userId:'fam-test-myheritage', id:'test-tab',
     evaluate:async()=>({origin,document:1,email:true,password:true,text:'Log in'}),
     browser:{config:{timeout:0},endpoint:{vncUrl:'https://viewer.example.test'},notify:async()=>{},api:async(path:string,body:any)=>{
       requests.push({path,body});return path==='/fam/capabilities'?{autofill:supported}:{ready:true,filled:true,submitted:false};
@@ -296,7 +314,7 @@ test('login completion is checked immediately after navigation or form disappear
   for (const change of [{document:2}, {url:'https://www.myheritage.com/family-sites/fixture/site'}, {email:false,password:false}]) {
     let reads = 0, checks = 0, states = 0;
     const initial = {origin:'https://www.myheritage.com',url:'https://www.myheritage.com/login',document:1,email:true,password:true,text:'Ready'};
-    const tab = {provider:'myheritage',evaluate:async()=> ++reads === 1 ? initial : {...initial,...change},
+    const tab = {close: async () => {}, provider:'myheritage',evaluate:async()=> ++reads === 1 ? initial : {...initial,...change},
       browser:{config:{timeout:0},endpoint:{vncUrl:'https://viewer.example.test'},state:async()=>{states++;},
         notify:async()=>assert.fail('completed sign-in should not ask for interaction'),api:async()=>assert.fail('no password input needed')}} as any;
     assert.equal(await waitForLogin(tab, [initial.origin], async()=> ++checks === 2 ? 'signed-in' : undefined), 'signed-in');
@@ -307,7 +325,7 @@ test('login completion is checked immediately after navigation or form disappear
 test('automatic login waits through redirects without opening the viewer', async () => {
   await writePrivateJson('findmypast/login.json',{username:'fixture@example.test',password:'fixture-password'});
   let reads=0,checks=0,inputs=0;
-  const tab={provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',evaluate:async()=>{
+  const tab={close: async () => {}, provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',evaluate:async()=>{
     const complete=++reads>=5;
     return {origin:'https://auth.findmypast.com',document:complete?2:1,email:!complete,password:!complete,text:'Ready'};
   },browser:{config:{timeout:10},endpoint:{vncUrl:'https://viewer.example.test'},state:async()=>{},
@@ -321,7 +339,7 @@ test('automatic login waits through redirects without opening the viewer', async
 test('a form that is not ready can be retried only after confirmed non-submission', async () => {
   await writePrivateJson('findmypast/login.json',{username:'fixture@example.test',password:'fixture-password'});
   let inputs=0;
-  const tab={provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',
+  const tab={close: async () => {}, provider:'findmypast',id:'fixture-tab',userId:'fam-test-findmypast',
     evaluate:async()=>({origin:'https://auth.findmypast.com',document:1,email:true,password:true,text:'Ready'}),
     browser:{config:{timeout:10},endpoint:{vncUrl:'https://viewer.example.test'},state:async()=>{},notify:async()=>{},
       api:async(path:string)=>{assert.equal(path,'/fam/input');return {submitted:++inputs===2};}}} as any;

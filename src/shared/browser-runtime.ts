@@ -216,9 +216,12 @@ export class Camofox {
   }
   userId(provider: string) {return browserUserId(this.config, provider);}
   async tab(provider: string, url?: string): Promise<BrowserTab> {
-    const result = await this.api('/tabs', {userId: this.userId(provider), sessionKey: 'fam', ...(url ? {url} : {})});
+    // Learn the ID before navigating so a failed navigation can be cleaned up.
+    const result = await this.api('/tabs', {userId: this.userId(provider), sessionKey: 'fam'});
     if (typeof result.tabId !== 'string') throw new BrowserError('Camofox did not create a browser tab.');
-    return new BrowserTab(this, provider, result.tabId);
+    const tab = new BrowserTab(this, provider, result.tabId);
+    try {if (url) await tab.navigate(url); return tab;}
+    catch (error) {await tab.close().catch(() => {}); throw error;}
   }
   async state(provider: string): Promise<StorageState> {return (await this.api('/fam/storage', {userId: this.userId(provider)})).state;}
   async openViewer(): Promise<boolean> {
@@ -230,6 +233,7 @@ export class Camofox {
 export class BrowserTab {
   constructor(readonly browser: Camofox, readonly provider: string, readonly id: string) {}
   get userId() {return this.browser.userId(this.provider);}
+  async close() {await this.browser.api('/fam/close-tab', {userId: this.userId, tabId: this.id});}
   async evaluate<T>(expression: string): Promise<T> {return (await this.browser.api(`/tabs/${this.id}/evaluate`, {userId: this.userId, expression})).result;}
   async navigate(url: string) {return this.browser.api(`/tabs/${this.id}/navigate`, {userId: this.userId, url});}
   async prepare(origin: string) {return this.browser.api('/fam/prepare', {userId: this.userId, tabId: this.id, origin});}
