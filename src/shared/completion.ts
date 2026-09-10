@@ -81,6 +81,7 @@ export function completionCatalog(): CompletionNode {
   const root = node();
   root.options['--help'] = {value: false}; root.options['-h'] = {value: false};
   root.options['--completions'] = {value: true, choices: ['bash', 'zsh']};
+  root.options['--version'] = {value: false};
   const helpNode = (): CompletionNode => ({...node(), options: {'--help': {value: false}, '-h': {value: false}, '--json': {value: false}}});
   for (const provider of Object.keys(providerInfo)) root.commands[provider] = helpNode();
   for (const command of commands) {

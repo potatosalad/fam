@@ -46,9 +46,9 @@ export async function startCommandHistory(args: string[]) {
     try {
       const {appendPrivateJsonl, writePrivateFile} = await import('./storage.js');
       const pkg = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
-      let build: unknown = null;
+      let build: {version?: string} | null = null;
       try {build = JSON.parse(await readFile(new URL('../build-info.json', import.meta.url), 'utf8'));} catch {}
-      base.version = pkg.version; base.build = build;
+      base.version = build?.version ?? pkg.version; base.build = build;
       const file = `history/${startedAt.slice(0, 10)}.jsonl`;
       append = value => appendPrivateJsonl(file, value);
       write({event: 'start'});

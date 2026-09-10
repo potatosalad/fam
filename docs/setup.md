@@ -29,9 +29,13 @@ On Windows, use an absolute Windows path for the prefix. npm puts the `.cmd` lau
 fam cli.update
 fam cli.update run --dry-run
 fam cli.update run --json
+fam --version
+fam --version --json
 ```
 
 `fam cli.update` is shorthand for `fam cli.update run`. It finds the running package independently of your working directory. Help, discovery, history, and completion register `cli.update run`. `--dry-run` inspects the installation and reports the exact commands without pulling or installing; it records command history normally.
+
+`fam --version` is shorthand for `fam cli.version get`. Both report the executing build's version and Git revision, its installation type and path, and its runtime path. Modified builds are labeled. JSON includes the full revision and `dirty` status; `null` means build metadata is unavailable. Each new build saves its package version alongside its revision, so a process pinned to an older build reports that build even after an update. TypeScript source execution is labeled `source` and reads the package version without claiming a compiled revision.
 
 - **Git checkout, including npm links and custom symlinks:** requires a clean working tree, an attached branch, and a configured upstream. Runs `git pull --ff-only --no-rebase --no-autostash`, then `npm ci --include=dev --ignore-scripts=false`. npm's prepare step rebuilds fam; existing executable links automatically use the new build. A failed pull stops before installation. The updater never stashes, resets, or switches branches.
 - **Global npm package:** installs `@potatosalad/fam@latest` in the package's existing prefix, including a nondefault prefix.

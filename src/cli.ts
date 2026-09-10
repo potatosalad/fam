@@ -1,4 +1,4 @@
-import {readFile, mkdir, writeFile, rename, rm} from 'node:fs/promises';
+import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
 import {dirname, basename} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {commands, commandById, providerNames, providerInfo, syntax, type Provider} from './shared/command-registry.js';
@@ -42,7 +42,7 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
     case 'list': return commands.filter(c => !v.provider || c.provider === v.provider).map(c => ({command: c.id, description: c.description, syntax: syntax(c), risk: c.risk}));
     case 'providers': return Object.entries(providerInfo).map(([provider, info]) => ({provider, ...info}));
     case 'resolve': return contextCommands(String(v.context), v.provider as string | undefined);
-    case 'version': return {version: (JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {version: string}).version};
+    case 'version': return (await import('./shared/cli-version.js')).cliVersion();
     case 'update': {
       // npm may replace dependencies and dist while the updater is running.
       // Load the finalizer before installation so completion needs no new imports.
@@ -81,6 +81,7 @@ async function main() {
   const args = process.argv.slice(2);
   jsonErrors = args.includes('--json') || args.includes('--format=json') || args.some((arg, i) => arg === '--format' && args[i + 1] === 'json');
   if (!args.length || args.length === 1 && ['--help', '-h'].includes(args[0])) {process.stdout.write(help()); return;}
+  if (args[0] === '--version') args.splice(0, 1, 'cli.version', 'get');
   if (args[0] === '--completions' || args[0].startsWith('--completions=')) {
     const shell = args[0] === '--completions' ? args[1] : args[0].slice('--completions='.length);
     if (!['bash', 'zsh'].includes(shell) || args.length !== (args[0] === '--completions' ? 2 : 1))

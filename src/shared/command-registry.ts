@@ -546,7 +546,7 @@ add('cli', 'providers', 'provider list', 'List available providers and what each
 add('cli', 'resolve', 'context resolve', 'Resolve known provider URLs and IDs locally into candidate commands and prefilled flags.', [], 'context provider', {...cliRisk, flags: {context: {required: true}, provider: {choices: [...providerNames]}}});
 add('cli', 'doctor', 'health check', 'Check saved sessions using existing provider health probes and bounded renewal.', [], 'provider offline live verbose format',
   {risk: {level: 'read', description: 'Live account checks may renew and save sessions. --offline performs no provider requests or session changes.'}, flags: {provider: {multiple: true, choices: [...providerNames]}, format: {default: 'text', choices: ['json', 'text']}}});
-add('cli', 'version', 'version get', 'Read the installed fam version.', [], '', cliRisk);
+add('cli', 'version', 'version get', 'Show the running fam version, build revision, installation type, and paths; also available as fam --version.', [], '', cliRisk);
 add('cli', 'update', 'update run', 'Update fam from its Git upstream or npm latest; fam cli.update is shorthand.', [], '', {
   risk: {level: 'write', description: 'Pulls the configured Git upstream and reinstalls dependencies, or installs the latest npm package in its existing prefix/project. Builds remove unused snapshots.'},
   flags: {'dry-run': {description: 'Inspect the installation and show update commands without pulling or installing.'}},

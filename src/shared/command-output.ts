@@ -6,6 +6,7 @@ import type {Values} from './command-runtime.js';
 import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navigation.js';
 import {fileURLToPath} from 'node:url';
 import {historyOutput} from './history-output.js';
+import {formatCliVersion, type CliVersion} from './cli-version.js';
 import type {HistoryView} from './history-query.js';
 import {searchTable, searchTree} from './command-search-output.js';
 import type {searchCommands} from './command-search.js';
@@ -135,6 +136,7 @@ export function overview(): string {
       ['--transport <MODE>', 'Use auto, http, or browser for a provider command.'],
       ['--browser-timeout <SECONDS>', 'Wait for browser verification; zero returns when interaction is needed.'],
       ['--completions <SHELL>', 'Print a shell completion script (bash or zsh).'],
+      ['--version', 'Show the running version, build revision, and installation path.'],
     ]),
     '', 'Place command options after the action. Credentials and sessions use the active fam profile.',
     'Set FAM_CONFIG_DIR to use a different profile.',
@@ -214,7 +216,7 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
       + (result.context.note ? `${result.context.note}\n` : '')
       + (result.commands.length ? `\n${candidates(result.commands, width)}\n` : 'No command parameters could be resolved.\n');
   }
-  if (command.id === 'cli.version get') return `${(data as {version: string}).version}\n`;
+  if (command.id === 'cli.version get') return formatCliVersion(data as CliVersion);
   if (object(data) && typeof data.text === 'string' && (command.provider === 'cli' || command.action === 'transcript')) return data.text.endsWith('\n') ? data.text : data.text + '\n';
   if (command.id === 'cli.completion install') {
     const result = data as {shell: string; files: string[]; next: string};

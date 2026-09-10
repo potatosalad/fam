@@ -21,6 +21,18 @@ const invoke = (...args: string[]) => run(process.execPath, ['--import', import.
 });
 const data = (stdout: string) => JSON.parse(stdout).data;
 
+test('--version reports the running version and installation outside the checkout', async () => {
+  const version = await invoke('--version');
+  assert.equal(version.stdout, (await invoke('cli.version', 'get')).stdout);
+  assert.match(version.stdout, /^fam \d+\.\d+\.\d+\nInstalled from: Git checkout\nInstallation: .+\nRunning source: .+\/src\n$/);
+  const result = JSON.parse((await invoke('--version', '--json')).stdout);
+  assert.equal(result.command, 'cli.version get');
+  assert.equal(result.data.installation.type, 'git');
+  assert.equal(result.data.runtime.type, 'source');
+  assert.ok(complete(completionCatalog(), ['--v']).candidates.includes('--version'));
+  await assert.rejects(invoke('--version', 'extra'), error => (error as {code: number}).code === 2);
+});
+
 test('cli.update shorthand exposes the registered update help and completion', async () => {
   const help = (await invoke('cli.update', '--help')).stdout;
   assert.equal(help, (await invoke('cli.update', 'run', '--help')).stdout);
@@ -63,7 +75,7 @@ test('discovery is readable by default even in a pipe; --json preserves the mach
   assert.match(description, /  operation_type: READ/); assert.match(description, /  confirmation_requirement: NONE/);
   assert.match(description, /  options:\n/); assert.match(description, /--ark <string>\s+Required\./); assert.match(description, /  examples:\n/);
   assert.match((await invoke('cli.provider', 'list')).stdout, /Available providers/);
-  assert.match((await invoke('cli.version', 'get')).stdout, /^\d+\.\d+\.\d+\n$/);
+  assert.match((await invoke('cli.version', 'get')).stdout, /^fam \d+\.\d+\.\d+\nInstalled from: Git checkout\nInstallation: /);
   await assert.rejects(invoke('ancestry.person', 'get'), error => {
     const e = error as {code: number; stderr: string};
     assert.equal(e.code, 2); assert.match(e.stderr, /^Error: Missing required flag/); assert.match(e.stderr, /Try: fam ancestry\.person get/); return true;
