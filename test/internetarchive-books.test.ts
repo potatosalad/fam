@@ -115,6 +115,7 @@ test('page OCR validates leaf and dimensions, retains words and boxes, and suppo
   assert.throws(() => parseOcr('<html>Login</html>', volume));
   assert.throws(() => parseOcr('<?xml version="1.0"?><!ENTITY x SYSTEM "file:///private">', volume));
   assert.throws(() => parseOcr(xml(xmlPage(3) + xmlPage(3)), volume), /Duplicate/);
+  assert.throws(() => parseOcr(xml(xmlPage(3)).slice(0, -15), volume), /complete DjVu XML/);
 });
 
 test('restricted and streaming books expose metadata but never request page content', async () => {
@@ -160,6 +161,10 @@ test('bad images, mismatched dimensions, size limits, and interrupted OCR leave 
   const dir = await mkdtemp(join(tmpdir(), 'fam-ia-invalid-'));
   try {
     const out = join(dir, 'failed.jpg');
+    const truncated = (await jpeg()).subarray(0, -25);
+    // The header remains readable, so only decoding the image catches this failure.
+    assert.equal((await sharp(truncated).metadata()).width, 100);
+    await assert.rejects(client({response: () => new Response(new Uint8Array(truncated))}).c.books.download(id, out, {leaf: 3}), {code: 'INVALID_RESPONSE'});
     await assert.rejects(client({response: () => new Response('<html>Login</html>')}).c.books.download(id, out, {leaf: 3}), {code: 'INVALID_RESPONSE'});
     const wrong = await sharp({create: {width: 50, height: 50, channels: 3, background: 'white'}}).jpeg().toBuffer();
     await assert.rejects(client({response: () => new Response(new Uint8Array(wrong))}).c.books.download(id, out, {leaf: 3}), {code: 'INTEGRITY_ERROR'});

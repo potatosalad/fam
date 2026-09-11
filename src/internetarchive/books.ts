@@ -73,7 +73,8 @@ function responseInteger(value: unknown, name: string, min = 0): number {
 }
 /** Parse only DjVu XML data; no external resources or declared entities are resolved. */
 export function parseOcr(xml: string, volume: string): OcrPage[] {
-  if (!/^\s*<\?xml\b/.test(xml) || /<!ENTITY\b/i.test(xml)) throw new InternetArchiveError('Expected DjVu XML OCR, not an access page or an entity declaration.', 'INVALID_RESPONSE');
+  if (!/^\s*<\?xml\b/.test(xml) || !/<\/(?:DjVuXML|OBJECT)>\s*$/.test(xml) || /<!ENTITY\b/i.test(xml))
+    throw new InternetArchiveError('Expected complete DjVu XML OCR, not an access page, truncated response, or an entity declaration.', 'INVALID_RESPONSE');
   const $ = load(xml, {xml: true});
   const seen = new Set<number>();
   const result: OcrPage[] = [];
@@ -238,7 +239,12 @@ export class ArchiveBooks {
     const url = readerUrl(page.imageUrl); url.searchParams.set('scale', String(scale)); url.searchParams.set('rotate', '0');
     const bytes = await readBytes(await this.http.request(url.href, {bookreader: true}), maxBytes);
     let image;
-    try {image = await sharp(bytes, {limitInputPixels: 100000000}).metadata();}
+    try {
+      const decoder = sharp(bytes, {limitInputPixels: 100000000, failOn: 'warning'});
+      image = await decoder.metadata();
+      // Metadata alone can succeed for a truncated JPEG. Decode pixels before accepting evidence.
+      await decoder.stats();
+    }
     catch {throw new InternetArchiveError('BookReader returned an invalid or oversized image, possibly an access page.', 'INVALID_RESPONSE');}
     if (image.format !== 'jpeg' || !image.width || !image.height || Math.abs(image.width - Math.ceil(page.width / scale)) > 2 || Math.abs(image.height - Math.ceil(page.height / scale)) > 2) throw new InternetArchiveError('Page image dimensions or format do not match the selected scan; no image was saved.', 'INTEGRITY_ERROR');
     return {bytes, provenance: {provider: 'internetarchive', identifier: book.identifier, volume: book.volume, page, sourceUrl: url.href,
