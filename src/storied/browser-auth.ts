@@ -22,9 +22,9 @@ export function callbackCode(location: string, state: string): string | undefine
   return url.searchParams.get('code')!;
 }
 
-/** Native PKCE through the configured persistent Camofox browser. */
+/** Native PKCE through the configured persistent browser. */
 export async function authenticateBrowser(options: {interactive?: boolean; autofill?: boolean; channel?: string; timeoutMs?: number} = {}) {
-  if (options.channel && options.channel !== 'camofox') throw new Error('Storied browser sign-in now uses Camofox. Run fam browser setup.');
+  if (options.channel && !['camofox', 'cloakbrowser'].includes(options.channel)) throw new Error('Select the browser with fam browser use --engine cloakbrowser or --engine camofox.');
   const {configuredBrowser} = await import('../shared/browser-runtime.js');
   const {waitForLogin} = await import('../shared/browser-login.js');
   const browser = await configuredBrowser(), tab = await browser.tab('storied');

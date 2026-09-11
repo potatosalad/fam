@@ -64,7 +64,7 @@ async function pollLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: 
       continue;
     }
     const loginForm = page && origins.includes(page.origin) && (page.email || page.password);
-    if (passwordPaused && loginForm && !options.interactive && options.autofill !== false) throw new BrowserError(`Automatic password submission for ${tab.provider} is paused until ${block!.blockedUntil} after an earlier restriction. Complete sign-in in Camofox or run fam ${tab.provider}.session login --interactive, then retry. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
+    if (passwordPaused && loginForm && !options.interactive && options.autofill !== false) throw new BrowserError(`Automatic password submission for ${tab.provider} is paused until ${block!.blockedUntil} after an earlier restriction. Complete sign-in in the browser or run fam ${tab.provider}.session login --interactive, then retry. Viewer: ${tab.browser.endpoint.vncUrl}`, 'BROWSER_LOGIN_BLOCKED', tab.browser.endpoint.vncUrl);
     if (options.autofill !== false && (options.interactive || !passwordPaused) && loginForm && page) {
       if (!loaded) {
         loaded = true;
@@ -75,7 +75,7 @@ async function pollLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: 
       if (credentials && options.interactive && !filled.has(documentStep)) {
         if (!autofillSupported) {
           const capabilities = await tab.browser.api('/fam/capabilities');
-          if (capabilities.autofill !== true) throw new BrowserError('Interactive autofill needs an updated fam Camofox plugin. Update the plugin and restart Camofox, or use --no-autofill to continue manually.', 'BROWSER_PLUGIN_REQUIRED', tab.browser.endpoint.vncUrl);
+          if (capabilities.autofill !== true) throw new BrowserError('Interactive autofill needs an updated fam browser service. Update the plugin and restart the browser, or use --no-autofill to continue manually.', 'BROWSER_PLUGIN_REQUIRED', tab.browser.endpoint.vncUrl);
           autofillSupported = true;
         }
         const result = await tab.browser.api('/fam/autofill', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
@@ -89,7 +89,7 @@ async function pollLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: 
         }
         // The form may disappear between inspection and input. An explicit
         // non-submission permits another try; an ambiguous outcome does not.
-        if (result.submitted !== false) throw new BrowserError('Camofox did not confirm credential submission. Check the sign-in page before retrying.', 'BROWSER_API_FAILED', tab.browser.endpoint.vncUrl);
+        if (result.submitted !== false) throw new BrowserError('The browser did not confirm credential submission. Check the sign-in page before retrying.', 'BROWSER_API_FAILED', tab.browser.endpoint.vncUrl);
       }
     }
     if (!notified && (Date.now() >= interactionAfter || Date.now() >= deadline)) {await tab.browser.notify(timeout / 1000); notified = true;}

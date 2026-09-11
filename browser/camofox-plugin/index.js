@@ -29,7 +29,7 @@ export function register(app, ctx) {
   });
   const fail = code => {throw Object.assign(new Error(code), {famCode: code});};
   const isOwner = userId => typeof userId === 'string' && /^fam-[a-zA-Z0-9._-]+$/.test(userId);
-  const isPrivate = userId => isOwner(userId) && /-(?:myheritage|web-private)$/.test(userId) && process.env.FAM_PRIVATE_CONTEXTS === '1';
+  const isPrivate = userId => ctx.engine !== 'cloakbrowser' && isOwner(userId) && /-(?:myheritage|web-private)$/.test(userId) && process.env.FAM_PRIVATE_CONTEXTS === '1';
   const owner = userId => isOwner(userId) ? userId : fail('invalid-fam-session');
   const profile = userId => join(ctx.config.profileDir, createHash('sha256').update(owner(userId)).digest('hex').slice(0, 32));
   async function wasReset(userId) {
@@ -102,11 +102,13 @@ export function register(app, ctx) {
     queues.set(key, next);
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
-  route('get', 'capabilities', async () => ({version: 1, response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true, fetchInteraction: true, tabIdleMs,
-    privateBrowsing: process.env.FAM_PRIVATE_CONTEXTS === '1', privateFetch: process.env.FAM_PRIVATE_CONTEXTS === '1',
+  route('get', 'capabilities', async () => ({version: 1, engine: ctx.engine ?? 'camofox', alternatives: ctx.config.browserAlternatives ?? JSON.parse(process.env.FAM_BROWSER_ALTERNATIVES ?? '{}'),
+    response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true, fetchInteraction: true, tabIdleMs,
+    privateBrowsing: !!ctx.privateBrowsing || process.env.FAM_PRIVATE_CONTEXTS === '1', privateFetch: !!ctx.privateBrowsing || process.env.FAM_PRIVATE_CONTEXTS === '1',
+    purge: !!ctx.config.profileDir && typeof ctx.closeSession === 'function',
     reset: !!ctx.config.profileDir && typeof ctx.closeSession === 'function'}));
   async function ownedSessions() {
-    const ids = new Set([...ctx.sessions.keys()].filter(isOwner));
+    const ids = new Set([...ctx.sessions.keys(), ...operations.keys()].filter(isOwner));
     const entries = await readdir(ctx.config.profileDir, {withFileTypes: true}).catch(error => {if (error.code === 'ENOENT') return []; throw error;});
     for (const entry of entries) {
       if (!entry.isDirectory() || !/^[a-f0-9]{32}$/.test(entry.name)) continue;
@@ -122,9 +124,9 @@ export function register(app, ctx) {
   function checkOwnership(userId) {
     if ([...(ctx.sessions.get(userId)?.tabGroups ?? [])].some(([group, tabs]) => group !== 'fam' && tabs.size)) fail('session-has-unrelated-tabs');
   }
-  route('post', 'reset', async ({userId, userIds, all = false}) => {
+  route('post', 'reset', async ({userId, userIds, all = false, discard = false}) => {
     if (!ctx.config.profileDir || typeof ctx.closeSession !== 'function') fail('session-reset-unsupported');
-    if (typeof all !== 'boolean' || userId !== undefined && userIds !== undefined || userIds !== undefined && !Array.isArray(userIds)) fail('invalid-sessions');
+    if (typeof all !== 'boolean' || typeof discard !== 'boolean' || userId !== undefined && userIds !== undefined || userIds !== undefined && !Array.isArray(userIds)) fail('invalid-sessions');
     const ids = new Set((userIds ?? (userId === undefined ? [] : [userId])).map(owner));
     if (!all && !ids.size) fail('invalid-sessions');
     if (resettingAll || all && resetting.size || [...ids].some(id => resetting.has(id))) fail('session-reset-in-progress');
@@ -135,15 +137,16 @@ export function register(app, ctx) {
       for (const id of ids) checkOwnership(id);
       for (const id of ids) resetting.add(id);
       const results = [];
-      for (const id of ids) results.push({userId: id, ...await resetSession(id)});
+      for (const id of ids) results.push({userId: id, ...await resetSession(id, discard)});
       if (all) {
         await mkdir(ctx.config.profileDir, {recursive: true, mode: 0o700});
         await atomicJson(join(ctx.config.profileDir, 'fam-reset-all.json'), {at: new Date().toISOString()});
+        if (discard) await rm(join(ctx.config.profileDir, 'fam-reset-backups'), {recursive: true, force: true});
       }
       return {all, sessions: results, browserStopped: false, ...(userId === undefined ? {} : results[0])};
     } finally {for (const id of ids) resetting.delete(id); if (all) resettingAll = false;}
   });
-  async function resetSession(userId) {
+  async function resetSession(userId, discard) {
     // Finish even cookie imports which began before the reset lock. Otherwise an
     // older client could seed the fresh context after reset had already finished.
     await Promise.allSettled([...(operations.get(userId) ?? []), queues.get(`close:${userId}`)].filter(Boolean));
@@ -156,10 +159,12 @@ export function register(app, ctx) {
       // Drain requests already using this context before closing/checkpointing it.
       const pending = [...(session?.tabGroups.values() ?? [])].flatMap(group => [...group.keys()].map(id => queues.get(id)));
       await Promise.allSettled([...pending, queues.get(`checkpoint:${userId}`)].filter(Boolean));
-      await mkdir(backup, {recursive: true, mode: 0o700});
-      try {await cp(directory, join(backup, 'before-close'), {recursive: true});}
-      catch (error) {if (error.code !== 'ENOENT') throw error;}
-      if (session) {
+      if (!discard) {
+        await mkdir(backup, {recursive: true, mode: 0o700});
+        try {await cp(directory, join(backup, 'before-close'), {recursive: true});}
+        catch (error) {if (error.code !== 'ENOENT') throw error;}
+      }
+      if (session && !discard) {
         try {await writeFile(join(backup, 'live-storage-state.json'), JSON.stringify(await session.context.storageState({indexedDB: true})), {mode: 0o600});}
         catch { /* The on-disk backup still permits resetting a dead context. */ }
       }
@@ -170,10 +175,10 @@ export function register(app, ctx) {
       checkOwnership(userId);
       const closedTabs = [...(session?.tabGroups.values() ?? [])].reduce((n, group) => n + group.size, 0);
       if (session) await ctx.closeSession(userId, session, {reason: 'fam_reset', clearDownloads: true, clearLocks: true});
-      try {await rename(directory, join(backup, 'closed-profile')); archived = true;}
+      try {if (discard) await rm(directory, {recursive: true, force: true}); else {await rename(directory, join(backup, 'closed-profile')); archived = true;}}
       catch (error) {if (error.code !== 'ENOENT') throw error;}
       await rename(staging, directory); replaced = true;
-      return {resetId, backupDirectory: backup, closedTabs, browserStopped: false};
+      return {resetId, ...(discard ? {discarded: true} : {backupDirectory: backup}), closedTabs, browserStopped: false};
     } catch (error) {
       if (archived && !replaced) await rename(join(backup, 'closed-profile'), directory);
       throw error;
@@ -509,5 +514,15 @@ export function register(app, ctx) {
   });
   ctx.events.on('session:destroyed', ({userId}) => {for (const [id, watch] of watches) if (watch.userId === userId) discard(id);});
   ctx.events.on('server:shutdown', () => {clearInterval(reaper); for (const id of watches.keys()) discard(id);});
-  return {reapIdleTabs};
+  // A compatible host can enroll its tab creation/navigation in the same reset
+  // barrier as /fam requests. Reset must finish these before replacing storage.
+  async function withSessionOperation(userId, action) {
+    const id = owner(userId);
+    if (resettingAll || resetting.has(id)) fail('session-reset-in-progress');
+    const pending = Promise.resolve().then(action);
+    if (!operations.has(id)) operations.set(id, new Set());
+    operations.get(id).add(pending);
+    try {return await pending;} finally {const active = operations.get(id); active?.delete(pending); if (!active?.size) operations.delete(id);}
+  }
+  return {reapIdleTabs, withSessionOperation};
 }

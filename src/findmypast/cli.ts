@@ -77,7 +77,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     if (values.native && (values.capture || values.har || values.interactive || values['no-autofill'])) throw new Error('Choose native sign-in or browser/HAR sign-in.');
     if (!values.native && !values.har && !values['callback-file']) {
       const {loginFindmypast} = await import('./browser-login.js');
-      if (values['browser-channel'] && values['browser-channel'] !== 'camofox') throw new Error('Browser sign-in now uses Camofox. Configure fam browser setup.');
+      if (values['browser-channel'] && !['camofox', 'cloakbrowser'].includes(String(values['browser-channel']))) throw new Error('Select the browser with fam browser use --engine cloakbrowser or --engine camofox.');
       result = sessionStatus(await loginFindmypast({interactive: values.interactive, autofill: !values['no-autofill'], timeoutMs: values['capture-timeout'] === undefined ? undefined : Number(values['capture-timeout']) * 1000, region: values.region}));
     } else result = values.har ? sessionStatus(await importFindmypastHar(values.har)) : values.browser ? await beginBrowserAuthorization() : sessionStatus(values['callback-file'] ?
       await finishBrowserAuthorization(await readFile(values['callback-file'], 'utf8')) : await authenticateFindmypast());

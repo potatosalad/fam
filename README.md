@@ -63,10 +63,10 @@ If installation fails or your shell can't find the commands, see [installation h
 ## Set up the browser
 
 ```sh
-fam browser setup --local
+fam cli.browser setup --local
 ```
 
-This starts persistent Camofox in Docker with a passwordless localhost viewer. On macOS, fam offers to install OrbStack when needed. For an existing server, use `fam browser setup --remote URL --vnc-url VIEWER_URL`. Switch with `fam browser use local` or `fam browser use remote`; each retains its logins. See [browser setup](docs/browser.md) for remote API keys, custom viewer URLs, start/stop, and timeouts.
+This starts persistent CloakBrowser in Docker with a passwordless localhost viewer. Switch engines with `fam cli.browser use --engine camofox` or `--engine cloakbrowser`; engine changes clear browser sessions at that location. On macOS, fam offers to install OrbStack when needed. For an existing server, use `fam cli.browser setup --remote URL --vnc-url VIEWER_URL`. Switch with `fam cli.browser use --mode local` or `fam cli.browser use --mode remote`; each retains its logins. See [browser setup](docs/browser.md) for remote API keys, custom viewer URLs, start/stop, and timeouts.
 
 Inspect which HTTP/browser transport will start each provider request with `fam cli.browser.transport list --transport auto`. Decisions are per provider and website origin; see [transport inspection](docs/browser.md#automatic-http-recovery) for exact-origin checks.
 
@@ -152,7 +152,7 @@ fam findmypast.session login
 fam findmypast.account get
 ```
 
-fam validates the account through Camofox and retains the login. Use `fam findmypast.session login --region co.uk` for the UK website, or `--interactive` to autofill credentials and submit the form yourself. Add `--no-autofill` to leave login fields untouched. See [browser setup](docs/browser.md).
+fam validates the account through the selected browser and retains the login. Use `fam findmypast.session login --region co.uk` for the UK website, or `--interactive` to autofill credentials and submit the form yourself. Add `--no-autofill` to leave login fields untouched. See [browser setup](docs/browser.md).
 
 See the [Findmypast guide](docs/findmypast/README.md) for native login, record and newspaper searches, and image downloads.
 

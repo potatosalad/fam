@@ -20,7 +20,7 @@ export type Provider = typeof providerNames[number];
 export const objectDescriptions: Record<string, string> = {
   category: 'Genealogy directory categories and their nested resource listings.',
   resource: 'Genealogy resource links and directory search.',
-  browser: 'Persistent local or remote Camofox browser and login viewer.',
+  browser: 'Persistent local or remote CloakBrowser/Camofox browser and login viewer.',
   'browser.transport': 'Remembered website decisions for automatic HTTP/browser transport.',
   account: 'Account profiles and current user information.', album: 'Photo albums and their contents.',
   api: 'Provider API catalogs, contracts, and operation execution.',
@@ -409,7 +409,8 @@ for (const cmd of registry) if (['findmypast', 'findagrave', 'geneanet', 'storie
 
 const browserFlags = {
   local: {type: 'boolean' as const, description: 'Use a managed local Docker browser.'},
-  remote: {description: 'Camofox API base URL (including a reverse proxy path if needed).'},
+  remote: {description: 'fam browser API base URL (including a reverse proxy path if needed).'},
+  engine: {choices: ['cloakbrowser', 'camofox'], description: 'Browser engine. CloakBrowser is the default. Changing engines clears browser sessions at the selected location.'},
   'vnc-url': {description: 'Exact viewer URL to open and suggest, including tunnels or custom hostnames.'},
   'api-key-file': {file: true, description: 'Read an existing remote API key from a private file.'},
   install: {type: 'boolean' as const, description: 'Offer/install OrbStack automatically on macOS when Docker is absent.'},
@@ -418,9 +419,9 @@ const browserFlags = {
   session: {description: 'Shared browser session name; defaults to default. Clients using the same name share remote logins.'},
   open: {type: 'boolean' as const, description: 'Open the configured viewer automatically when interaction is needed.'},
   'no-open': {type: 'boolean' as const, description: 'Print the viewer URL without opening it automatically.'},
-  mode: {choices: ['local','remote'], required: true}, transport: {choices: ['auto','http','browser']},
+  mode: {choices: ['local','remote']}, transport: {choices: ['auto','http','browser']},
 };
-add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camofox, execute browser verification, and extract page content or original response bytes.', [],
+add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through the configured browser, execute verification, and extract page content or original response bytes.', [],
   'url mode format method header headers-file cookie cookies-file user-agent referer body body-file context private open timeout browser-timeout wait-for wait-ms keep-tab redirects', {
     flags: {
       url: {required: true, description: 'Absolute HTTP(S) URL, with no provider allowlist.'},
@@ -434,8 +435,8 @@ add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camo
       'user-agent': {description: 'HTTP User-Agent override; does not change the browser fingerprint or navigator.userAgent.'},
       referer: {description: 'HTTP Referer override.'}, body: {sensitive: true, description: 'Literal UTF-8 request body.'},
       'body-file': {file: true, sensitive: true, description: 'File containing the exact request bytes (up to 48 MiB).'},
-      context: {choices: ['web', 'web-private', ...providerNames], default: 'web', description: 'Use web for regular windows, web-private for real Firefox private windows, or a provider to reuse its login. Each context saves separate cookies.'},
-      private: {type: 'boolean', description: 'Use real Firefox private windows with separate persistent cookies. Off by default; applies to the general web context.'},
+      context: {choices: ['web', 'web-private', ...providerNames], default: 'web', description: 'Use web for regular windows, web-private for private windows, or a provider to reuse its login. Each context saves separate cookies.'},
+      private: {type: 'boolean', description: 'Use private windows with separate persistent cookies. Off by default; applies to the general web context.'},
       open: {type: 'string', choices: ['auto','always','never'], default: 'auto', description: 'Viewer policy: auto opens for human prompts, challenges lasting 10 seconds, or a page timeout; always opens immediately and retains the tab; never only prints the viewer URL.'},
       timeout: {type: 'integer', minimum: 1, maximum: 3600, default: 60, description: 'Navigation and content wait timeout in seconds.'},
       'browser-timeout': {type: 'integer', minimum: 0, maximum: 3600, description: 'Verification wait in seconds; zero returns the viewer URL immediately when challenged.'},
@@ -450,8 +451,8 @@ add('cli', 'browser-fetch', 'browser fetch', 'Fetch any HTTP(S) URL through Camo
     outputSchema: {type: 'object', description: 'HTTP status, final URL, response headers, byte count, and extracted content. JSON preserves large integers; binary response bodies use base64. HTTP error bodies retain their status.'},
   });
 for (const [action, description, flags] of [
-  ['setup','Set up and start a persistent local Docker browser or connect to a remote URL.','local remote vnc-url api-key-file install timeout session open no-open api-port vnc-port'],
-  ['use','Switch between saved local and remote browser configurations.','mode'],
+  ['setup','Set up and start a persistent local Docker browser or connect to a remote URL.','engine local remote vnc-url api-key-file install timeout session open no-open api-port vnc-port'],
+  ['use','Select a location (retains logins) or engine (clears browser sessions). Both engines can be selected with one command.','mode engine'],
   ['start','Start the configured browser, retaining saved website logins.',''],
   ['stop','Stop the local container, or close only fam tabs on a remote browser. Saved logins remain.',''],
   ['status','Inspect browser connectivity and configuration without exposing API keys.',''],

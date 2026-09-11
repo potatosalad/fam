@@ -112,6 +112,6 @@ export async function fetchWithBrowser(provider: string, url: string | URL, init
   if (await directOnly() || !await challenged(response)) return response;
   void response.body?.cancel().catch(() => {});
   reportDiagnostic('BROWSER_FALLBACK', 'Website verification required automatic browser transport.');
-  process.stderr.write(`${provider}: website verification required; continuing in Camofox…\n`);
+  process.stderr.write(`${provider}: website verification required; continuing in the browser…\n`);
   return browserRequest(provider, target, init, jar, sessionCookies);
 }

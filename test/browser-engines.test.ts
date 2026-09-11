@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {browserConfig, browserEngine, endpointId, saveBrowserConfig, type BrowserConfig, type BrowserEngine} from '../src/shared/browser-config.js';
+import {discoveredEngine, localBrowserEndpoint, switchBrowserEngine, upgradeBrowser} from '../src/shared/browser-runtime.js';
+import {browserCommand} from '../src/shared/browser-cli.js';
+import {parseInvocation} from '../src/shared/command-runtime.js';
+import {readPrivateJson, writePrivateJson} from '../src/shared/storage.js';
+
+test('engine flags and endpoint identities support existing installations', () => {
+  assert.equal(parseInvocation(['cli.browser','use','--engine','cloakbrowser']).values.engine, 'cloakbrowser');
+  assert.equal(parseInvocation(['cli.browser','setup','--local','--engine','camofox']).values.engine, 'camofox');
+  assert.throws(() => parseInvocation(['cli.browser','use']));
+  assert.throws(() => parseInvocation(['cli.browser','use','--engine','chrome']));
+  const config: BrowserConfig = {version:1,mode:'remote',remote:{url:'https://browser.example/api',vncUrl:'https://browser.example/view'},timeout:600,transport:'auto',session:'default',open:true};
+  assert.equal(browserEngine(config), 'camofox');
+  assert.equal(endpointId(config), endpointId({...config,remote:{...config.remote!,engine:'camofox'}}));
+  assert.notEqual(endpointId(config), endpointId({...config,remote:{...config.remote!,engine:'cloakbrowser'}}));
+  const cloak=localBrowserEndpoint('cloakbrowser'), camo=localBrowserEndpoint('camofox');
+  assert.notEqual(cloak.container,camo.container);assert.notEqual(cloak.apiPort,camo.apiPort);assert.notEqual(cloak.vncPort,camo.vncPort);
+  assert.throws(()=>localBrowserEndpoint('cloakbrowser',{apiPort:1,vncPort:1}));
+  const found=discoveredEngine(config,'cloakbrowser',{cloakbrowser:{url:'/cloakbrowser',vncUrl:'/cloakbrowser-viewer/vnc.html'}})!;
+  assert.equal(found.url,'https://browser.example/cloakbrowser');
+  assert.throws(()=>discoveredEngine(config,'cloakbrowser',{cloakbrowser:{url:'https://other.example/api',vncUrl:'/viewer'}}));
+});
+
+test('switches erase both engines while location selection and credentials survive', async t => {
+  const calls: string[] = [], states={camofox:'old',cloakbrowser:'old'}, capabilities={purge:true};
+  const server=createServer(async(req,res)=>{
+    assert.equal(req.headers.authorization,'Bearer synthetic-engine-key');
+    const [engine,path]=req.url!.slice(1).split(/\/(.*)/s) as [BrowserEngine,string];
+    let raw='';for await(const chunk of req)raw+=chunk;
+    const body=raw?JSON.parse(raw):{};calls.push(`${engine}/${path}`);
+    res.setHeader('content-type','application/json');
+    if(path==='fam/capabilities')res.end(JSON.stringify({version:1,engine,...capabilities,alternatives:{cloakbrowser:{url:'/cloakbrowser',vncUrl:'/cloak-viewer'}}}));
+    else if(path==='fam/reset') {assert.equal(body.discard,true);assert.equal(body.all,true);states[engine]='';res.end(JSON.stringify({sessions:[{userId:'fam-default-myheritage'}]}));}
+    else res.end(JSON.stringify({browserRunning:true}));
+  });
+  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise<void>(resolve=>server.close(()=>resolve())));
+  const base=`http://127.0.0.1:${(server.address() as any).port}`;
+  const endpoint=(engine:BrowserEngine)=>({engine,url:`${base}/${engine}`,vncUrl:`${base}/${engine}-viewer`,apiKey:'synthetic-engine-key'});
+  const config:BrowserConfig={version:1,mode:'remote',remote:endpoint('camofox'),local:{...endpoint('camofox'),container:'unused'},engines:{remote:{camofox:endpoint('camofox'),cloakbrowser:endpoint('cloakbrowser')}},timeout:600,transport:'auto',session:'default',open:false};
+  await saveBrowserConfig(config);
+  for(const engine of ['camofox','cloakbrowser'] as const)await writePrivateJson(`browser/${endpointId({...config,remote:endpoint(engine)})}/myheritage/session.json`,{synthetic:'old'});
+  const localId=endpointId({...config,mode:'local'});
+  await writePrivateJson(`browser/${localId}/myheritage/session.json`,{synthetic:'local'});
+  await writePrivateJson('config.json',{credentialsCommand:['synthetic-helper']});
+  await switchBrowserEngine('cloakbrowser');
+  assert.deepEqual(states,{camofox:'',cloakbrowser:''});
+  assert.equal((await browserConfig())!.remote!.engine,'cloakbrowser');
+  for(const engine of ['camofox','cloakbrowser'] as const)assert.equal(await readPrivateJson(`browser/${endpointId({...config,remote:endpoint(engine)})}/myheritage/session.json`),undefined);
+  assert.deepEqual(await readPrivateJson(`browser/${localId}/myheritage/session.json`),{synthetic:'local'});
+  assert.deepEqual(await readPrivateJson('config.json'),{credentialsCommand:['synthetic-helper']});
+  const resetCount=()=>calls.filter(path=>path.endsWith('fam/reset')).length;
+  assert.equal(resetCount(),2);
+  await switchBrowserEngine('cloakbrowser');assert.equal(resetCount(),2);
+  await browserCommand('use',{mode:'local'});await browserCommand('use',{mode:'remote'});assert.equal(resetCount(),2);
+  await browserCommand('use',{mode:'local'});
+  await browserCommand('use',{mode:'remote',engine:'cloakbrowser'});
+  assert.equal((await browserConfig())!.mode,'remote');assert.equal(resetCount(),2);
+  capabilities.purge=false;
+  await assert.rejects(switchBrowserEngine('camofox'),/Update both remote/);
+  assert.equal((await browserConfig())!.remote!.engine,'cloakbrowser');assert.equal(resetCount(),2);
+  capabilities.purge=true;
+  await switchBrowserEngine('camofox');assert.equal(resetCount(),4);
+  const legacy={...config,remote:{...endpoint('camofox'),engine:undefined},engines:undefined};
+  await saveBrowserConfig(legacy);
+  assert.equal((await upgradeBrowser(legacy)).remote!.engine,'cloakbrowser');assert.equal(resetCount(),6);
+});

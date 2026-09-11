@@ -117,7 +117,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     if ((values.capture && values.har) || ((values.capture || values.har) && (values.code || values['verification-code'] || values['recaptcha-token-file']))) throw new Error('Use --capture, --har, or native login flags, one at a time.');
     if (!values.har && !values.native && !values.code && !values['verification-code'] && !values['recaptcha-token-file']) {
       const {loginMyHeritage} = await import('./browser-login.js');
-      if (values['browser-channel'] && values['browser-channel'] !== 'camofox') throw new Error('Browser sign-in now uses Camofox. Configure fam browser setup.');
+      if (values['browser-channel'] && !['camofox', 'cloakbrowser'].includes(String(values['browser-channel']))) throw new Error('Select the browser with fam browser use --engine cloakbrowser or --engine camofox.');
       const session = await loginMyHeritage({interactive: values.interactive, autofill: !values['no-autofill'], timeoutMs: values['capture-timeout'] === undefined ? undefined : Number(values['capture-timeout']) * 1000, treeUrl: values['tree-url']});
       result = new MyHeritageClient(session).status();
     } else {

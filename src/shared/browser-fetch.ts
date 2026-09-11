@@ -205,9 +205,9 @@ async function request(tab: BrowserTab, options: BrowserFetchOptions): Promise<W
 export async function fetchBrowserUrl(options: BrowserFetchOptions): Promise<BrowserFetchResult> {
   const browser = await configuredBrowser();
   const capabilities = await browser.capabilities();
-  if (!capabilities.fetch) throw new BrowserError('URL fetching needs an updated fam Camofox plugin. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
+  if (!capabilities.fetch) throw new BrowserError('URL fetching needs an updated fam browser service. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
   if (options.context === 'web-private' && !capabilities.privateFetch)
-    throw new BrowserError('Private URL fetching needs an updated fam Camofox plugin and its private-window engine support. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
+    throw new BrowserError('Private URL fetching needs an updated fam browser service and its private-window engine support. Update it and restart the browser once.', 'BROWSER_PLUGIN_REQUIRED', browser.endpoint.vncUrl);
   // Fetch's single policy controls this invocation independently of the saved
   // viewer preference used by provider login/setup commands.
   browser.config.open = options.open !== 'never';

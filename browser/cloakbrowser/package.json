@@ -1,0 +1,9 @@
+{
+  "name": "fam-cloakbrowser-service",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "express": "5.2.1",
+    "playwright": "1.63.0"
+  }
+}
