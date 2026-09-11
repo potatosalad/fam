@@ -7,11 +7,18 @@ fam cli.health check --provider ancestry --provider findmypast     # Check selec
 fam cli.health check --verbose               # Individual checks and recovery details
 fam cli.health check --json                  # Structured online report
 fam cli.health check --offline               # Local inspection, no requests or changes
+fam cli.health check --live --force          # Rerun live checks and replace cached results
 fam doctor --no-pretty                        # Plain report without animation or colors
 fam doctor --no-fix                           # Check online without changing saved sessions
 ```
 
-Doctor prints one row per provider and an actionable next step for failures. Add `--json` for a structured report. `OK` means access was verified during this run. `Session refreshed and verified` means token renewal restored access; `Signed in again and verified` means the normal login flow restored it. An offline `SAVED` result only describes local files. `--live` remains accepted as an alias for the default online behavior.
+Doctor prints one row per provider and an actionable next step for failures. Add `--json` for a structured report. `OK` means access passed its latest live check; reused results are labeled `cached live result`. `Session refreshed and verified` means token renewal restored access during this run; `Signed in again and verified` means the normal login flow restored it. An offline `SAVED` result only describes local files. `--live` remains accepted as an alias for the default online behavior.
+
+Each individual live check caches its completed result for one hour plus or minus 15 minutes of random jitter (45–75 minutes). The expiry is chosen independently when each result is saved; reading it does not extend its lifetime. Cache entries are keyed by provider and check ID under `<profile>/cache/health/`, using private atomic storage. Both successes and failures are reused, including failures after attempted recovery. Offline session, credential, pending-authentication, and browser-configuration checks run every time. Local blockers that prevented an online attempt are not cached.
+
+Overlapping invocations coordinate separately for each live check: the later invocation waits and reads the completed result. Other check IDs remain independent. If a check's lock cannot be acquired within one minute, it reports a warning and sends no provider requests.
+
+Use `--force` to bypass and replace the selected live checks' cached results, including immediately after changing credentials or sessions. This works with the default online mode, `--live`, and `fam doctor`. `--force --no-fix` checks again without repairing or saving sessions. `--offline --force` still performs only local inspection. Cache hits never repeat renewal or login, replay old recovery actions, or restore session data. `--no-fix` can still write the live-result cache. Missing, damaged, or unreadable cache entries are checked again; a cache write failure leaves the health result intact.
 
 In a color-capable TTY with room for the provider rows, doctor immediately shows every selected provider with a spinner, the current check, and elapsed time. Completed providers change to a green check mark, yellow warning, or red failure while other checks continue. Browser verification links and other notices remain visible above the display. `--verbose` retains the live display and adds detailed results afterward.
 
@@ -21,7 +28,7 @@ Use `--no-pretty` to disable animation and colors. Piped output, `--out` files, 
 
 ## Session validation and renewal
 
-Every authenticated provider follows the same sequence: check access with the saved session, try token renewal if supported, then try the provider's normal `session login` flow. Doctor checks access after each repair and stops as soon as it succeeds. Expiry metadata alone does not trigger renewal when access still works. Missing or malformed sessions can go directly to login when credentials and any required browser are configured.
+When a live check is due or forced, every authenticated provider follows the same sequence: check access with the saved session, try token renewal if supported, then try the provider's normal `session login` flow. Doctor checks access after each repair and stops as soon as it succeeds. Expiry metadata alone does not trigger renewal when access still works. Missing or malformed sessions can go directly to login when credentials and any required browser are configured.
 
 There is at most one refresh and one login attempt per saved session in a run, including sessions shared by Storied and NewspaperArchive. Rotated tokens are saved before verification. Successful checks retain updated cookies and browser credentials. `--no-fix` disables refresh, login, and doctor session saves; it still checks access online. `--offline` only inspects local state.
 
@@ -47,7 +54,7 @@ Public providers Cyndi’s List and Wayback have no account login to repair. Ord
 
 ## Output and exit codes
 
-Use `--verbose` for individual checks, recovery attempts, scoped password-login notices, and coverage limits. JSON includes each provider's attempted `recovery` steps and their outcomes, plus stable issue codes such as `session-rejected`, `refresh-rejected`, `login-failed`, `session-save-failed`, `access-denied`, and `rate-limited`. Reports omit tokens, passwords, cookie values, account details, and raw response bodies. `FAM_CONFIG_DIR` selects the profile using the normal CLI rules.
+Use `--verbose` for individual checks, their original check and expiry times, recovery attempts, scoped password-login notices, and coverage limits. JSON live results include `cached`, `checkedAt`, and `expiresAt` (when successfully cached). The report-level `checkedAt` describes the current invocation. JSON also includes each provider's attempted `recovery` steps and their outcomes, plus stable issue codes such as `session-rejected`, `refresh-rejected`, `login-failed`, `session-save-failed`, `access-denied`, and `rate-limited`. Reports omit tokens, passwords, cookie values, account details, and raw response bodies. `FAM_CONFIG_DIR` selects the profile using the normal CLI rules.
 
 Exit code `0` means no warnings or errors affecting the saved session in performed checks; `1` means attention is needed; `2` means invalid arguments. Offline success never establishes online readiness. Session validation does not prove every search, subscription feature, download, or write capability works. Select providers to avoid setup warnings for services you have never configured.
 

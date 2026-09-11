@@ -16,7 +16,8 @@ import {CHURCH_ORIGIN} from '../src/familysearch/http.js';
 import {StoriedHttp} from '../src/storied/http.js';
 
 // Recovery regressions must never contact a provider, credential helper, or browser.
-beforeEach(t => {
+beforeEach(async t => {
+  await rm(join(CREDENTIAL_DIR, 'cache/health'), {recursive: true, force: true});
   t.mock.method(Impit.prototype, 'fetch', async () => {assert.fail('Unexpected provider request');});
   t.mock.method(globalThis, 'fetch', async () => {assert.fail('Unexpected browser request');});
 });
@@ -127,7 +128,7 @@ test('NewspaperArchive has no hidden refresh and retains the rotated shared sess
     assert.equal(diagnostic.status, 'error'); assert.deepEqual(requests, ['/userinfo']);
     assert.deepEqual(await readPrivateJson('storied/session.json'), session);
     requests.length = 0;
-    const fixed = await runDoctor(['newspaperarchive']);
+    const fixed = await runDoctor(['newspaperarchive'], true, undefined, undefined, {force: true});
     assert.equal(fixed.status, 'ok', JSON.stringify(fixed));
     assert.deepEqual(requests.slice(0, 3), ['/userinfo', '/oauth/token', '/userinfo']);
     assert.equal(requests.length, 4);

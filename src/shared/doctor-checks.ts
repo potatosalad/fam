@@ -7,6 +7,10 @@ export interface DoctorCheck {
   id: string; status: CheckStatus; code: string; message: string; action?: string;
   /** A restriction on creating a new password session, not on reading with a saved session. */
   scope?: 'password-login';
+  /** Live result provenance; absent for offline checks. */
+  cached?: boolean;
+  checkedAt?: string;
+  expiresAt?: string;
 }
 export interface SessionInfo { mode: 'native' | 'browser'; expiresAt?: number; refreshAvailable: boolean }
 export interface DoctorProbe {

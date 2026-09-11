@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -14,6 +14,7 @@ import { inspectLoginCredentials, type Service } from '../src/shared/credentials
 import { CREDENTIAL_DIR, writePrivateJson } from '../src/shared/storage.js';
 
 const now = Date.now();
+beforeEach(() => rm(join(CREDENTIAL_DIR, 'cache/health'), {recursive: true, force: true}));
 const jar = new CookieJar();
 jar.setCookieSync('PHPSESSID=synthetic-cookie; Path=/; Secure', 'https://www.myheritage.com');
 const sessions: Partial<Record<Service, any>> = {
@@ -37,23 +38,39 @@ const invoke = (...args: string[]) => run(process.execPath, ['--import', import.
   cwd: CREDENTIAL_DIR, env: {...process.env, FAM_CREDENTIALS_COMMAND: '["helper-must-never-run"]'},
 });
 
-test('CLI checks online by default and reports only verified sessions as OK', async () => {
+test('CLI caches live checks across invocations and forwards --force, including the doctor alias', async () => {
   const preload = join(CREDENTIAL_DIR, 'doctor-network.mjs');
+  const requests = join(CREDENTIAL_DIR, 'doctor-requests.txt');
+  await writeFile(requests, '');
   await writePrivateJson('findagrave/session.json', sessions.findagrave);
   await writeFile(preload, `import {Impit} from ${JSON.stringify(import.meta.resolve('impit'))};
+    import {appendFile} from 'node:fs/promises';
     Impit.prototype.fetch = async function(url, init) {
       if (!String(init.body).includes('SignedInContributor')) throw new Error('Unexpected request');
+      await appendFile(${JSON.stringify(requests)}, 'x');
       return new Response('{"data":{"signedInContributor":{"id":"123"}}}');
     };`);
   try {
-    for (const command of [['cli.health', 'check'], ['doctor']]) {
+    for (const [command, cached, count] of [
+      [['cli.health', 'check'], false, 1], [['doctor'], true, 1], [['cli.health', 'check', '--live'], true, 1],
+      [['cli.health', 'check', '--live', '--force'], false, 2], [['doctor', '--force'], false, 3], [['doctor'], true, 3],
+    ] as const) {
       const result = await run(process.execPath, ['--import', preload, '--import', import.meta.resolve('tsx'), cli, ...command, '--provider', 'findagrave', '--json'],
         {cwd: CREDENTIAL_DIR, env: {...process.env, FAM_CREDENTIALS_COMMAND: '["helper-must-never-run"]'}});
       const report = JSON.parse(result.stdout).data;
       assert.equal(report.mode, 'live'); assert.equal(report.status, 'ok'); assert.equal(result.stderr, '');
-      assert.ok(report.providers[0].checks.some((c: any) => c.code === 'probe-passed'));
+      assert.equal(report.providers[0].checks.find((c: any) => c.code === 'probe-passed').cached, cached);
+      assert.equal((await readFile(requests, 'utf8')).length, count);
     }
-  } finally {await rm(preload); await rm(join(CREDENTIAL_DIR, 'findagrave/session.json'));}
+    await invoke('cli.health', 'check', '--provider', 'findagrave', '--force');
+    assert.equal((await readFile(requests, 'utf8')).length, 3, '--offline takes precedence over --force');
+    await rm(join(CREDENTIAL_DIR, 'cache/health'), {recursive: true, force: true});
+    const simultaneous = await Promise.all([0, 1].map(() => run(process.execPath,
+      ['--import', preload, '--import', import.meta.resolve('tsx'), cli, 'doctor', '--provider', 'findagrave', '--json'],
+      {cwd: CREDENTIAL_DIR, env: process.env})));
+    assert.deepEqual(simultaneous.map(result => JSON.parse(result.stdout).data.providers[0].checks.find((c: any) => c.code === 'probe-passed').cached).sort(), [false, true]);
+    assert.equal((await readFile(requests, 'utf8')).length, 4, 'overlapping processes share one live result');
+  } finally {await rm(preload); await rm(requests); await rm(join(CREDENTIAL_DIR, 'findagrave/session.json'));}
 });
 
 test('independent health checks finish while a slow provider is pending, preserving report order and failures', {timeout: 5000}, async t => {

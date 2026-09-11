@@ -280,12 +280,13 @@ fam cli.health check
 fam doctor                             # Alias for fam cli.health check --live
 fam doctor --no-pretty                  # Plain report without animation or colors
 fam doctor --no-fix                     # Check online without session repairs or saves
+fam cli.health check --live --force     # Rerun live checks and replace cached results
 fam cli.health check --verbose
 fam cli.health check --offline
 fam cli.health check --provider ancestry --provider findmypast --json
 ```
 
-Health checks verify access and try to renew expired sessions or sign in when needed. Use `--no-fix` to check without session changes, `--offline` to inspect local setup, or `--verbose` for details. Terminal output shows each provider’s progress; use `--no-pretty` for a plain report. See [health checks and recovery](docs/doctor.md) for coverage and exit codes.
+Health checks verify access and try to renew expired sessions or sign in when needed. Each individual live check caches its result for one hour plus or minus 15 minutes of random jitter; local checks run every time. Use `--force` to bypass and replace live results, `--no-fix` to check without session changes, `--offline` to inspect local setup, or `--verbose` for details and cache timestamps. Terminal output shows each provider’s progress; use `--no-pretty` for a plain report. See [health checks and recovery](docs/doctor.md) for coverage and exit codes.
 
 ## Review command history
 

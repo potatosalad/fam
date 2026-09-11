@@ -2,6 +2,7 @@ import type {Provider} from './command-registry.js';
 import {browserConfig, loadProviderSession, saveProviderSession} from './browser-config.js';
 import { inspectLoginCredentials, type Service } from './credentials.js';
 import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from './storage.js';
+import {doctorCheckCache, type DoctorCheckCache} from './doctor-cache.js';
 import { DoctorIssue, object, failure, type CheckStatus, type DoctorCheck, type DoctorProvider, type SessionInfo } from './doctor-checks.js';
 
 export const doctorProviders = {
@@ -35,7 +36,7 @@ export interface DoctorReport {
 export type DoctorEvent =
   | {type: 'progress'; provider: Provider; label: string}
   | {type: 'complete'; provider: Provider; report: ProviderReport};
-export interface DoctorOptions {repair?: boolean}
+export interface DoctorOptions {repair?: boolean; force?: boolean}
 type RepairAttempts = {refresh?: boolean; login?: boolean};
 type Dependencies = {
   read: typeof readPrivateJson;
@@ -43,12 +44,14 @@ type Dependencies = {
   credentials: typeof inspectLoginCredentials;
   now: () => number;
   browser?: () => Promise<boolean>;
+  cache?: DoctorCheckCache;
 };
 const dependencies: Dependencies = {
   read: name => /^(myheritage|findmypast|storied|newspapers|fold3)\/session\.json$/.test(name) ? loadProviderSession(name.split('/')[0]) : readPrivateJson(name),
   write: (name, value) => /^(myheritage|findmypast|storied|newspapers|fold3)\/session\.json$/.test(name) ? saveProviderSession(name.split('/')[0], value as {browserInstance?: string}) : writePrivateJson(name, value),
   credentials: inspectLoginCredentials, now: Date.now,
   browser: async () => !!await browserConfig(),
+  cache: doctorCheckCache,
 };
 function status(checks: {status: CheckStatus}[]): CheckStatus {
   return checks.some(c => c.status === 'error') ? 'error' : checks.some(c => c.status === 'warning') ? 'warning' : 'ok';
@@ -108,97 +111,100 @@ export async function diagnoseProvider(provider: DoctorProvider, live = true, de
     checks.push({id: probe.id, status: 'skipped', code: 'live-not-requested', message: `${probe.label}: not checked online.`});
     return finish();
   }
-  const save = async (next: unknown) => {
-    const nextInfo = provider.inspect(next);
-    try {await deps.write(provider.sessionFile, next);} catch {throw new DoctorIssue('session-save-failed');}
-    session = next; info = nextInfo;
-  };
-  const verify = async () => {
-    progress(`${provider.service}: ${probe.label}`);
-    const result = await probe.run(session);
-    if (result && repair) await save(result.session);
-  };
-  const repairable = (error: unknown, browserLogin = false) => {
-    const code = failure(error, '').code;
-    return ['session-rejected', 'refresh-rejected', 'access-denied', 'api-changed', 'check-failed'].includes(code)
-      || browserLogin && ['request-challenged', 'verification-required'].includes(code);
-  };
-  const attempt = async (method: 'refresh' | 'login', run: () => Promise<void>) => {
-    attempts[method] = true;
-    const entry: NonNullable<ProviderReport['recovery']>[number] = {method, outcome: 'failed'};
-    recovery.push(entry);
-    try {await run(); await verify(); entry.outcome = 'succeeded';}
-    catch (error) {entry.code = failure(error, '').code; throw error;}
-  };
-  let verified = false, problem: unknown;
-  if (info && session !== undefined) {
-    try {await verify(); verified = true;} catch (error) {problem = error;}
-    if (!verified && repair && !attempts.refresh && info.refreshAvailable && provider.refresh && repairable(problem)) {
-      try {
-        await attempt('refresh', async () => {
-          progress(`${provider.service}: refreshing session`);
+  const runLive = async (): Promise<DoctorCheck> => {
+    const save = async (next: unknown) => {
+      const nextInfo = provider.inspect(next);
+      try {await deps.write(provider.sessionFile, next);} catch {throw new DoctorIssue('session-save-failed');}
+      session = next; info = nextInfo;
+    };
+    const verify = async () => {
+      progress(`${provider.service}: ${probe.label}`);
+      const result = await probe.run(session);
+      if (result && repair) await save(result.session);
+    };
+    const repairable = (error: unknown, browserLogin = false) => {
+      const code = failure(error, '').code;
+      return ['session-rejected', 'refresh-rejected', 'access-denied', 'api-changed', 'check-failed'].includes(code)
+        || browserLogin && ['request-challenged', 'verification-required'].includes(code);
+    };
+    const attempt = async (method: 'refresh' | 'login', run: () => Promise<void>) => {
+      attempts[method] = true;
+      const entry: NonNullable<ProviderReport['recovery']>[number] = {method, outcome: 'failed'};
+      recovery.push(entry);
+      try {await run(); await verify(); entry.outcome = 'succeeded';}
+      catch (error) {entry.code = failure(error, '').code; throw error;}
+    };
+    let verified = false, problem: unknown;
+    if (info && session !== undefined) {
+      try {await verify(); verified = true;} catch (error) {problem = error;}
+      if (!verified && repair && !attempts.refresh && info.refreshAvailable && provider.refresh && repairable(problem)) {
+        try {
+          await attempt('refresh', async () => {
+            progress(`${provider.service}: refreshing session`);
+            let next: unknown;
+            try {next = await provider.refresh!(session);}
+            catch (error) {
+              if ([400, 401, 403].includes(object(error).status)) throw new DoctorIssue('refresh-rejected');
+              throw error;
+            }
+            // Save rotated tokens before verification, even if that request fails.
+            await save(next);
+            checks.push({id: 'refresh', status: 'ok', code: 'session-refreshed', message: 'Renewed session saved.'});
+          });
+          verified = true;
+        } catch (error) {problem = error;}
+      }
+    }
+    if (!verified && repair && provider.login && (session === undefined || repairable(problem, provider.login.kind === 'browser'))) {
+      const login = provider.login;
+      const blocked = login.kind === 'credentials' && checks.find(check => check.scope === 'password-login'
+        && ['login-blocked', 'verification-pending', 'verification-required', 'authorization-pending', 'auth-state-invalid'].includes(check.code));
+      let unavailable: DoctorCheck | undefined;
+      if (attempts.login) unavailable = {id: 'login', status: 'skipped', code: 'login-already-attempted',
+        message: 'Sign-in was already attempted for this shared session.', action: provider.recovery(info)};
+      else if (blocked) unavailable = {...blocked, id: 'login', scope: undefined};
+      else if (login.kind === 'credentials' && (!credentialSource || credentialSource === 'none')) unavailable = {
+        id: 'login', status: 'skipped', code: 'login-not-configured', message: 'Automatic sign-in needs configured login credentials.',
+        action: `Configure login credentials with fam ${provider.service}.credential set, then retry fam doctor.`};
+      else if (login.kind === 'browser') {
+        let configured = false;
+        try {configured = !!await deps.browser?.();} catch { /* Show setup instructions without exposing configuration. */ }
+        if (!configured) unavailable = {id: 'login', status: 'skipped', code: 'browser-not-configured',
+          message: 'Automatic browser sign-in needs a configured browser.', action: 'Run fam browser setup, then retry fam doctor.'};
+        else if (session === undefined && (!credentialSource || credentialSource === 'none')) unavailable = {
+          id: 'login', status: 'skipped', code: 'login-not-configured', message: 'No saved session or configured credentials for automatic sign-in.', action: provider.recovery()};
+      }
+      if (unavailable) checks.push(unavailable);
+      else try {
+        await attempt('login', async () => {
+          progress(`${provider.service}: signing in again${login.kind === 'browser' ? ' through the browser' : ''}`);
           let next: unknown;
-          try {next = await provider.refresh!(session);}
+          try {next = await login.run(session);}
           catch (error) {
-            if ([400, 401, 403].includes(object(error).status)) throw new DoctorIssue('refresh-rejected');
+            const code = failure(error, '').code;
+            if (['check-failed', 'api-changed', 'session-rejected', 'access-denied'].includes(code)) throw new DoctorIssue('login-failed');
             throw error;
           }
-          // Save rotated tokens before verification, even if that request fails.
-          await save(next);
-          checks.push({id: 'refresh', status: 'ok', code: 'session-refreshed', message: 'Renewed session saved.'});
+          // The regular login flow has already saved and validated this state.
+          info = provider.inspect(next); session = next;
+          checks.push({id: 'login', status: 'ok', code: 'session-login', message: 'Signed in and saved a new session.'});
         });
         verified = true;
       } catch (error) {problem = error;}
     }
-  }
-  if (!verified && repair && provider.login && (session === undefined || repairable(problem, provider.login.kind === 'browser'))) {
-    const login = provider.login;
-    const blocked = login.kind === 'credentials' && checks.find(check => check.scope === 'password-login'
-      && ['login-blocked', 'verification-pending', 'verification-required', 'authorization-pending', 'auth-state-invalid'].includes(check.code));
-    let unavailable: DoctorCheck | undefined;
-    if (attempts.login) unavailable = {id: 'login', status: 'skipped', code: 'login-already-attempted',
-      message: 'Sign-in was already attempted for this shared session.', action: provider.recovery(info)};
-    else if (blocked) unavailable = {...blocked, id: 'login', scope: undefined};
-    else if (login.kind === 'credentials' && (!credentialSource || credentialSource === 'none')) unavailable = {
-      id: 'login', status: 'skipped', code: 'login-not-configured', message: 'Automatic sign-in needs configured login credentials.',
-      action: `Configure login credentials with fam ${provider.service}.credential set, then retry fam doctor.`};
-    else if (login.kind === 'browser') {
-      let configured = false;
-      try {configured = !!await deps.browser?.();} catch { /* Show setup instructions without exposing configuration. */ }
-      if (!configured) unavailable = {id: 'login', status: 'skipped', code: 'browser-not-configured',
-        message: 'Automatic browser sign-in needs a configured browser.', action: 'Run fam browser setup, then retry fam doctor.'};
-      else if (session === undefined && (!credentialSource || credentialSource === 'none')) unavailable = {
-        id: 'login', status: 'skipped', code: 'login-not-configured', message: 'No saved session or configured credentials for automatic sign-in.', action: provider.recovery()};
+    if (verified) {
+      checks[0] = {id: 'session', status: 'ok', code: 'session-verified', message: 'Saved session accepted by the provider.'};
+      return {id: probe.id, status: 'ok', code: 'probe-passed', message: `${probe.label}: read succeeded.`};
+    } else if (problem !== undefined) {
+      const result = failure(problem, probe.recovery ?? provider.recovery(info));
+      const skippedLogin = checks.find(check => check.id === 'login' && check.status !== 'ok');
+      return {id: probe.id, ...result, ...(skippedLogin?.action ? {action: skippedLogin.action} : {}),
+        message: `${probe.label}: ${result.message}`};
+    } else {
+      return {id: probe.id, status: 'skipped', code: 'live-blocked', message: `${probe.label}: skipped because local state needs attention.`};
     }
-    if (unavailable) checks.push(unavailable);
-    else try {
-      await attempt('login', async () => {
-        progress(`${provider.service}: signing in again${login.kind === 'browser' ? ' through the browser' : ''}`);
-        let next: unknown;
-        try {next = await login.run(session);}
-        catch (error) {
-          const code = failure(error, '').code;
-          if (['check-failed', 'api-changed', 'session-rejected', 'access-denied'].includes(code)) throw new DoctorIssue('login-failed');
-          throw error;
-        }
-        // The regular login flow has already saved and validated this state.
-        info = provider.inspect(next); session = next;
-        checks.push({id: 'login', status: 'ok', code: 'session-login', message: 'Signed in and saved a new session.'});
-      });
-      verified = true;
-    } catch (error) {problem = error;}
-  }
-  if (verified) {
-    checks[0] = {id: 'session', status: 'ok', code: 'session-verified', message: 'Saved session accepted by the provider.'};
-    checks.push({id: probe.id, status: 'ok', code: 'probe-passed', message: `${probe.label}: read succeeded.`});
-  } else if (problem !== undefined) {
-    const result = failure(problem, probe.recovery ?? provider.recovery(info));
-    const skippedLogin = checks.find(check => check.id === 'login' && check.status !== 'ok');
-    checks.push({id: probe.id, ...result, ...(skippedLogin?.action ? {action: skippedLogin.action} : {}),
-      message: `${probe.label}: ${result.message}`});
-  } else {
-    checks.push({id: probe.id, status: 'skipped', code: 'live-blocked', message: `${probe.label}: skipped because local state needs attention.`});
-  }
+  };
+  checks.push(await (deps.cache ? deps.cache.run(provider.service, probe.id, runLive, options) : runLive()));
   return finish();
 }
 
@@ -217,7 +223,7 @@ export async function runDoctor(services: Provider[], live = true, progress?: (l
     try {
       if (service === 'cyndislist' || service === 'wayback' || service === 'internetarchive') {
         update(live ? 'Checking public access' : 'Inspecting local configuration');
-        report = await (service === 'internetarchive' ? await import('../internetarchive/doctor.js') : service === 'cyndislist' ? await import('../cyndislist/doctor.js') : await import('../wayback/doctor.js')).diagnose(live);
+        report = await (service === 'internetarchive' ? await import('../internetarchive/doctor.js') : service === 'cyndislist' ? await import('../cyndislist/doctor.js') : await import('../wayback/doctor.js')).diagnose(live, options);
       } else {
         const {doctorProvider} = await doctorProviders[service]();
         const attempts = repairs.get(doctorProvider.sessionFile) ?? {};
@@ -281,7 +287,8 @@ export function doctorSummary(provider: ProviderReport): {label: string; detail:
     : passed ? ['OK', provider.checks.some(c => c.code === 'session-login') ? 'Signed in again and verified'
       : provider.checks.some(c => c.code === 'session-refreshed') ? 'Session refreshed and verified' : browser ? 'Browser session verified' : 'Session verified']
     : ['SAVED', browser ? 'Browser session; not checked online' : 'Not checked online'];
-  return {label, detail, action: issue?.action?.split(/(?<=\.)\s+/)[0]};
+  return {label, detail: `${detail}${provider.checks.some(check => check.cached) ? ' (cached live result)' : ''}`,
+    action: issue?.action?.split(/(?<=\.)\s+/)[0]};
 }
 
 export function formatDoctor(report: DoctorReport, verbose = false): string {
@@ -307,6 +314,7 @@ export function formatDoctor(report: DoctorReport, verbose = false): string {
     for (const check of provider.checks) {
       const scope = check.scope === 'password-login' ? ' [password login only]' : '';
       lines.push(`  ${check.status.toUpperCase().padEnd(7)} ${check.id}${scope}: ${check.message}`);
+      if (check.checkedAt) lines.push(`          ${check.cached ? 'Cached result' : 'Checked'}: ${check.checkedAt}${check.expiresAt ? `; expires ${check.expiresAt}` : ''}.`);
       if (check.action) lines.push(`          Next: ${check.action}`);
     }
     for (const limitation of provider.limitations) lines.push(`  Coverage: ${limitation}`);

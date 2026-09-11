@@ -662,11 +662,12 @@ add('cli', 'docs-search', 'doc search', 'Find relevant sections in installed gui
 add('cli', 'list', 'command list', 'List every registered command, optionally restricted to a provider.', [], 'provider', {...cliRisk, flags: {provider: {choices: [...providerNames, 'cli']}}});
 add('cli', 'providers', 'provider list', 'List available providers and what each one supports.', [], '', cliRisk);
 add('cli', 'resolve', 'context resolve', 'Resolve known provider URLs and IDs locally into candidate commands and prefilled flags.', [], 'context provider', {...cliRisk, flags: {context: {required: true}, provider: {choices: [...providerNames]}}});
-add('cli', 'doctor', 'health check', 'Check provider access, then refresh or sign in again when needed; fam doctor is shorthand for --live.', [], 'provider offline live verbose no-pretty no-fix format',
+add('cli', 'doctor', 'health check', 'Check provider access, then refresh or sign in again when needed; cache each live check for 45–75 minutes. fam doctor is shorthand for --live.', [], 'provider offline live force verbose no-pretty no-fix format',
   {risk: {level: 'read', description: 'Live account checks can renew sessions or use configured credentials and browser sign-in to repair access. --no-fix skips repairs and session saves; --offline makes no provider requests.'}, flags: {
     provider: {multiple: true, choices: [...providerNames]}, format: {default: 'text', choices: ['json', 'text']},
     offline: {description: 'Inspect local configuration without provider requests or session changes.'},
-    live: {description: 'Check online (the default); cannot be combined with --offline.'},
+    live: {description: 'Check online (the default), reusing each live result for one hour plus or minus 15 minutes of random jitter; cannot be combined with --offline.'},
+    force: {type: 'boolean', description: 'Bypass and replace each selected live check’s cached result. Offline checks still make no requests.'},
     verbose: {description: 'Include individual checks, recovery steps, and coverage details.'},
     'no-pretty': {type: 'boolean', description: 'Disable the automatic color TTY display and spinners; print a plain report.'},
     'no-fix': {type: 'boolean', description: 'Check access without refreshing, signing in again, or updating saved sessions.'},

@@ -80,7 +80,7 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
       try {
         const report = await runDoctor(services, !v.offline,
           !pretty && v.verbose && !wantsJson(v) ? label => process.stderr.write(`Checking ${label}…\n`) : undefined,
-          display?.update, {repair: v['no-fix'] !== true});
+          display?.update, {repair: v['no-fix'] !== true, force: v.force === true});
         process.exitCode = report.status === 'ok' ? 0 : 1;
         return wantsJson(v) ? report : {report, text: (pretty ? formatPrettyDoctor : formatDoctor)(report, !!v.verbose)};
       } finally {display?.stop();}

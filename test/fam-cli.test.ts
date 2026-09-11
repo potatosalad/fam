@@ -46,19 +46,23 @@ test('entry-point shortcuts work outside the checkout and preserve JSON output',
 });
 
 test('doctor shorthand preserves health flags and canonical identity', async () => {
-  const result = JSON.parse((await invoke('doctor', '--provider', 'ancestry', '--no-pretty', '--dry-run', '--json')).stdout);
+  const result = JSON.parse((await invoke('doctor', '--provider', 'ancestry', '--no-pretty', '--force', '--dry-run', '--json')).stdout);
   assert.equal(result.command, 'cli.health check');
   assert.equal(result.data.dryRun, true);
   assert.equal(result.data.flags.live, true);
   assert.equal(result.data.flags['no-pretty'], true);
+  assert.equal(result.data.flags.force, true);
+  assert.equal(parseInvocation(['cli.health', 'check', '--force']).values.force, true);
+  assert.match(help(command('cli.health check')), /--force/);
   assert.match(help(command('cli.health check')), /--no-pretty/);
   assert.equal(parseInvocation(['cli.health', 'check', '--no-fix']).values['no-fix'], true);
   assert.match(help(command('cli.health check')), /--no-fix/);
   assert.ok(complete(catalog, ['doc']).candidates.includes('doctor'));
   assert.ok(complete(catalog, ['doctor', '']).candidates.includes('--no-pretty'));
   assert.ok(complete(catalog, ['doctor', '']).candidates.includes('--no-fix'));
+  assert.ok(complete(catalog, ['doctor', '']).candidates.includes('--force'));
   assert.deepEqual(complete(catalog, ['doctor', '--provider', 'anc']).candidates, ['ancestry']);
-  for (const flag of ['--bogus', '--no-pretty=yes'])
+  for (const flag of ['--bogus', '--no-pretty=yes', '--force=yes'])
     assert.throws(() => parseInvocation(['cli.health', 'check', flag]), UsageError);
 });
 
