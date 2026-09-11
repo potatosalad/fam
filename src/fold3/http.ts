@@ -32,7 +32,7 @@ export class Fold3Http {
   async request(value: string | URL, options: {body?: unknown; csrf?: string; native?: boolean} = {}) {
     let url = checkUrl(value);
     const method = options.body === undefined ? 'GET' : 'POST';
-    if (method === 'POST' && (url.origin !== WEB || !['/fold31-search/doc-search','/node/auth/user'].includes(url.pathname))) throw new Error('Unsupported Fold3 POST route.');
+    if (method === 'POST' && (url.origin !== WEB || !['/fold31-search/doc-search','/fold31-search/filmstrip/by-offset','/fold31/api/connection/list-objs','/node/auth/user'].includes(url.pathname))) throw new Error('Unsupported Fold3 POST route.');
     for (let hop = 0; hop < 6; hop++) {
       const cookie = await this.jar.getCookieString(url.href);
       const init: RequestInit = {method,redirect:'manual',headers:{Accept:'application/json, text/html;q=0.9, */*;q=0.8',

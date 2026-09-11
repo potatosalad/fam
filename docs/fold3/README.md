@@ -45,6 +45,49 @@ Search is one page per request. Pass `nextOffset` with unchanged filters. `incom
 
 Sort with `RELEVANCE`, `ALPHABETICAL`, `LAST_MODIFIED`, `CHRONOLOGICAL_ASC`, or `CHRONOLOGICAL_DESC`.
 
+## Browse a collection without a name index
+
+```sh
+fam fold3.publication browse --publication-id 750 --limit 20
+fam fold3.publication browse --publication-id 750 --prefix VPB --limit 20
+fam fold3.publication browse --publication-id 3 --json --out browse.json
+fam fold3.api call --operation publication-browse --input browse-request.json
+```
+
+Publication browsing follows the website's collection-specific hierarchy, such as source, subject, series, or file. A `kind: branches` response supplies each branch's label, count, and full `path`. Pass every value in that path as a repeated `--path` flag in order. The values are opaque and can contain tabs or control separators; preserve them exactly. For programmatic use, copy the array into a JSON request file shaped as `{"id":"3","path":["EXACT_RETURNED_VALUE"],"limit":20}` and use the API command above. SDK callers can pass the returned array directly to `client.browse(publicationId, {path})`.
+
+Branches use a bounded alphabetic list with `truncated` and `incomplete` indicators. Narrow a truncated list with `--prefix`. At the end of the hierarchy, `kind: images` returns scan IDs in filmstrip order; continue with `nextOffset` as `--offset`, keeping the path unchanged. Image pagination retains the 10,000-result bound. Branch counts describe provider search matches, not necessarily individual pages. Use an image ID to inspect and export its file.
+
+## Read and export a complete file
+
+```sh
+fam fold3.file get --image-id 295842756
+fam fold3.file.image list --image-id 295842756 --limit 10
+fam fold3.file.image list --image-id 295842756 --limit 10 --offset 10
+fam fold3.file download --image-id 4346701 --out declaration-file --max-pages 2
+fam fold3.file download --image-id 4346701 --out declaration-file --max-pages 2 --resume
+```
+
+An image anywhere in the file identifies its website scan cluster. `file get` reports that boundary and its page count; `file.image list` starts at the file's first page, regardless of the anchor's position. It returns ordered pages and `nextOffset`. The reader checks cluster identity, page positions, duplicate IDs, and the declared page count. It stops on missing pages or changing boundaries instead of silently including pages from the next file.
+
+`file download` enumerates the whole cluster before saving images sequentially. Its default bound is 500 pages; set `--max-pages` explicitly for larger files, up to 10,000. It creates a new private directory containing numbered JPGs, per-image citation/checksum sidecars, and `manifest.json` with the ordered page inventory and progress. The manifest becomes `complete: true` only after every page is saved. Every new image download requires current viewing and download permission.
+
+To continue an interrupted export, pass the same anchor image ID, directory, and adequate page bound with `--resume`. The exporter re-enumerates the file and checks the manifest's identity and page order, then verifies the size and SHA-256 of every existing image against its sidecar and recorded checksum. Completed pairs are reused; remaining pages are downloaded. Corrupt, missing, or half-written pairs cause a stop and remain unchanged. A completed image/sidecar pair can be recovered when a crash occurred before its manifest update. Concurrent exporters are excluded by `.fam-fold3.lock`; if the process was killed, remove that lock only after confirming no exporter is still running.
+
+A complete export means every page in Fold3's current cluster. It does not establish that the archival file itself is complete. Files can be grouped differently by collection, and the website JPG export may downsample. PDF assembly and bulk publication downloading are outside this workflow.
+
+## Follow linked evidence
+
+```sh
+fam fold3.connection list --type memorial --object-id 653615411 --direction outgoing --limit 20
+fam fold3.connection list --type image --object-id 4346701 --direction incoming --limit 2
+fam fold3.connection list --type image --object-id 4346701 --direction incoming --limit 2 --offset 2
+```
+
+Outgoing connections lead from the anchor to linked objects; incoming connections identify objects that link to the anchor. Results include the linked object's type, ID, title, metadata, source URL when known, and the connection's endpoints and available metadata. Supported anchor types are `image`, `record`, `memorial`, `unit`, `file`, `subject`, `battle`, and `sub-image`. File IDs are exact cluster keys returned by `file get`; other types use their own decimal IDs.
+
+Pass `nextOffset` with the same type, ID, and direction. A lookahead entry determines whether another page exists; the local bound is 10,000 connections. These are website links and contributions, and may include contextual documents rather than relatives. Verify the underlying evidence before treating a connection as a family relationship. This command complements the facts and relationships already embedded in record, memorial, and unit reads.
+
 ## Read evidence and follow pages
 
 ```sh
@@ -65,7 +108,7 @@ Record, memorial, unit, and image-source reads parse the site's structured hydra
 
 OCR availability is independent of viewing and subscription status. Some images have no transcription; others expose OCR even when the scan is subscription restricted. OCR hits retain the API's compact rectangle encoding. Always check important names and dates against the scan.
 
-Downloads require the current response to allow both `VIEW` and `DOWNLOAD` and provide a fresh image token. The CLI uses the viewer's whole-image JPG export, reports both source and exported dimensions (the website may downsample), checks that it decodes as JPEG, and writes a private `.jpg.json` sidecar with source metadata, citation, download time, dimensions, and SHA-256. Existing image or sidecar files are not overwritten. Subscription restrictions are reported instead of requesting the image. PDF export, annotations, tree writes, and bulk collection downloading are not implemented.
+Downloads require the current response to allow both `VIEW` and `DOWNLOAD` and provide a fresh image token. The CLI uses the viewer's whole-image JPG export, reports both source and exported dimensions (the website may downsample), checks that it decodes as JPEG, and writes a private `.jpg.json` sidecar with source metadata, citation, download time, dimensions, and SHA-256. Existing image or sidecar files are not overwritten. Subscription restrictions are reported instead of requesting the image. PDF export, annotation editing, tree writes, and bulk collection downloading are not implemented.
 
 ## Direct API and browser transport
 

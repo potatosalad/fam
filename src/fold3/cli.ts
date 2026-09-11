@@ -10,9 +10,11 @@ import {parseJson,stringifyJson} from '../shared/json.js';
 import {Fold3Client,operations,type Operation,type SearchOptions} from './client.js';
 import {loadSession,loginBrowser,loginNative,sessionStatus} from './auth.js';
 import {downloadImage,saveDownload} from './download.js';
-const strings=['keyword','name','type','publication-id','place','conflict','service-number','year','birth-year','death-year','limit','offset','sort','out'];
+import {exportFile} from './file-export.js';
+import type {ConnectionOptions} from './research.js';
+const strings=['keyword','name','type','publication-id','place','conflict','service-number','year','birth-year','death-year','limit','offset','sort','out','prefix','direction','max-pages'];
 export async function runProvider(argv:string[]){
-  const {values,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(name=>[name,{type:'string' as const}])),...Object.fromEntries(['filter','field','facet'].map(name=>[name,{type:'string' as const,multiple:true}])),...Object.fromEntries(['native','stdin','interactive','no-autofill'].map(name=>[name,{type:'boolean' as const}]))}});
+  const {values,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(name=>[name,{type:'string' as const}])),...Object.fromEntries(['filter','field','facet','path'].map(name=>[name,{type:'string' as const,multiple:true}])),...Object.fromEntries(['native','stdin','interactive','no-autofill','resume'].map(name=>[name,{type:'boolean' as const}]))}});
   const v=values as Record<string,any>,options=Object.fromEntries(Object.entries(v).filter(([key])=>!['out','native','stdin','interactive','no-autofill'].includes(key)).map(([key,value])=>[key.replace(/-([a-z])/g,(_m,c)=>c.toUpperCase()),['limit','offset','year','birth-year','death-year'].includes(key)?Number(value):value])) as SearchOptions;
   let result:unknown;
   if(command==='credentials'){await configureCredentials('fold3',{stdin:v.stdin});result={saved:true};}
@@ -25,6 +27,11 @@ export async function runProvider(argv:string[]){
     if(command==='search')result=await client.search(options);else if(command==='facets')result=await client.facets(options);
     else if(command==='publications')result=await client.publications(v.keyword,options.limit,options.offset);
     else if(command==='publication')result=await client.publication(arg);
+    else if(command==='publication-browse')result=await client.browse(arg,{path:v.path,prefix:v.prefix,limit:options.limit,offset:options.offset});
+    else if(command==='file')result=await client.file(arg);
+    else if(command==='file-images')result=await client.fileImages(arg,options.limit,options.offset);
+    else if(command==='connections')result=await client.connections(arg,{type:v.type,direction:v.direction,limit:options.limit,offset:options.offset} as ConnectionOptions);
+    else if(command==='file-download')return exportFile(client,arg,v.out,{maxPages:v['max-pages']===undefined?undefined:Number(v['max-pages']),resume:v.resume});
     else if(command==='image')result=await client.image(arg);
     else if(command==='record'||command==='memorial'||command==='unit'||command==='document')result=await client.record(arg,command);
     else if(command==='filmstrip')result=await client.filmstrip(arg,options.limit);

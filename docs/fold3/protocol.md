@@ -22,6 +22,10 @@ Primary sources: [Fold3](https://www.fold3.com/), [login](https://www.fold3.com/
 | Image metadata | `GET /fold31-image-data/image/document/IMAGE/{id}?flag=PERMISSIONS` | Wrapped image plus actual allowed/denied actions |
 | Image authorization | Same image route, with `flag=TOKEN` too | `r.o.token` only when granted; consumed internally |
 | Neighboring pages | `GET /fold31-search/filmstrip/{id}?count=N&prev-count=0` | Nodes and clusters; a bounded fragment |
+| File pages by position | `POST /fold31-search/filmstrip/by-offset?offset=N&count=N&prev-count=0` | Compact cluster sort key body; anchor plus subsequent pages, possibly spilling into the next cluster |
+| Collection hierarchy labels | `GET /fold31-search/search-util/browse-levels/{publicationId}` | Ordered collection-specific level labels |
+| Collection branches / leaf images | `POST /fold31-search/doc-search` | `general.title.browse.1` through `.6` facets and filters; `FILMSTRIP` image ordering |
+| Linked research objects | `POST /fold31/api/connection/list-objs?thumb-height=100&thumb-width=100` | Directional object connections, with `offset` and `count` in the body |
 | OCR | `GET /fold31-image-data/ocr/text/IMAGE/{id}` | Plain transcription; unsupported/denied responses also occur |
 | OCR hits | `GET /fold31-image-data/ocr/hits/IMAGE/{id}?keyword=TEXT` | Compact scan-coordinate rectangles |
 | Image export | `GET https://img.fold3.com/img/img` | JPG using `id`, fresh `token`, `a=download`, `width=0`, `height=0`, `rotation=0`, `anchor`, and `title` |
@@ -41,6 +45,22 @@ The JSON body uses expanded names: `keywords`, `fieldedKeywords`, `filters`, `fa
 Hits use compact keys (`doc.id.ct`, `doc.id.id`, `doc.t`, `doc.pid`, `doc.md`, `hp`, `ohp`, `s`); metadata has `n`, `v`, and optional `l`. Facets contain `type` and entries with `v` (value), `c` (count), and optional `l` (label). The CLI normalizes hits and retains facet values for subsequent filtering. Sorting names were taken from the website's selector.
 
 The CLI's 10,000-result window is a conservative local bound, not a claim about a permanent server limit. It reports incomplete responses and does not automatically exhaust result sets. Facet results and page fragments can be partial.
+
+## File boundaries and collection traversal
+
+Filmstrip nodes carry `i` (image ID), `c` (cluster ID), and `o` (zero-based position). Clusters carry `i`, `t` (title), `z` (page count), `s` (sort key), and `f` (indexed-file flag). A cluster ID begins with its publication ID followed by a dot. A by-offset request serializes the `ClusterSortKey` as `{p: publicationId, s: clusterSortKey}`. The response includes its anchor plus `count` subsequent nodes. Live verification confirmed that the response can cross the next cluster boundary; the file reader restricts output to the original cluster and checks each expected ordinal and the declared size.
+
+The shipped viewer also exposes `/fold31/api/file/index/image/{id}` and `/index/cluster/{key}`. The image-index probes returned empty bodies for the tested non-indexed clusters, so file traversal uses the verified filmstrip route. A scan cluster is a website grouping, which can represent a case file, report, or another collection-specific unit. It is not independent proof of archival completeness.
+
+Hierarchy labels describe `general.title.browse.1` through `.6`. Branch requests use a facet with `sort: ALPHA`, then apply the exact selected value as a `TERM` filter at that level. Values contain provider sort keys, labels, and separators; they must not be reconstructed from display labels. A `PREFIX` filter on the next browse field narrows a long branch list. Empty levels may have label `␀`; their values remain in the path so subsequent levels keep the correct index. Leaf requests use `sortOrder: FILMSTRIP` and the image document type. Live verification covered two hierarchy levels, image results, and prefix filtering.
+
+File exports first enumerate the complete bounded cluster, then obtain fresh authorization and save each JPG with its normal citation sidecar. A private manifest records page order and completion; resume re-enumerates and compares page identities, then checks existing bytes against SHA-256 and sidecar metadata. Live verification covered a permitted two-page export and a second run that reused both pages. Synthetic tests cover interrupted downloads, corrupt or mismatched artifacts, locks, and recovery after an image/sidecar pair was saved before its manifest update.
+
+## Connection traversal
+
+`list-objs` accepts `{id: {ct: contentType, id: objectId}, forward: boolean, offset, count}`. `forward: true` follows the anchor's outgoing links; `false` follows incoming links. Live checks confirmed distinct pages using `offset` and `count` and both directions. The CLI requests one lookahead entry and retains a 10,000-entry bound.
+
+Each returned content object has a compact reference `id`, title `t`, metadata `md`, and connection `c`. Connection fields include `id` (connection ID), `p` (principle/source reference, using the provider's spelling), `t` (target reference), `md` (optional metadata), and `c` (creation time). The reader validates that each connection has the requested directional anchor and normalizes references to type, exact ID, and source URL when known. Public output excludes authorization fields and account context. Website connections may represent contextual links or contributions; they must not be automatically interpreted as biological relationships.
 
 ## Images and research provenance
 

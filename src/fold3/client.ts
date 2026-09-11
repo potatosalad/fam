@@ -1,6 +1,7 @@
 import {Fold3Http,Fold3Error,WEB} from './http.js';
 import {loadSession,saveSession,type Fold3Session} from './auth.js';
 import {account,hit,id,imageDetails,integer,object,page,publication,publicData} from './parse.js';
+import {browsePublication,connections,fileInfo,fileImages,type BrowseOptions,type ConnectionOptions} from './research.js';
 export const types = {research:['IMAGE','INDEX_RECORD','STORY_PAGE'],image:['IMAGE'],record:['INDEX_RECORD'],memorial:['STORY_PAGE'],unit:['MILITARY_UNIT'],publication:['PUBLICATION'],all:[]} as const;
 export interface SearchOptions {keyword?:string;name?:string;type?:keyof typeof types;publicationId?:string;place?:string;conflict?:string;serviceNumber?:string;year?:number;birthYear?:number;deathYear?:number;limit?:number;offset?:number;sort?:'RELEVANCE'|'CHRONOLOGICAL_ASC'|'CHRONOLOGICAL_DESC'|'ALPHABETICAL'|'LAST_MODIFIED';filter?:string[];field?:string[];facet?:string[]}
 const facetName=(value:string)=>{if(typeof value!=='string'||! /^[a-z][a-z0-9.-]{0,150}$/.test(value))throw new Error('Expected a Fold3 facet/field name.');return value;};
@@ -36,6 +37,10 @@ export const operations = {
   facets:{method:'POST',path:'/fold31-search/doc-search',input:'SearchOptions; facet[] selects facet names',description:'Browse publication, place, conflict, date, and other facets.'},
   publications:{method:'GET',path:'/fold31/api/publication',input:'{keyword?, limit?, offset?}',description:'Fetch the public publication catalog and filter/page it locally.'},
   publication:{method:'GET',path:'/fold31/api/publication/pub/{id}',input:'{id}',description:'Publication description, source metadata, and configured access level.'},
+  'publication-browse':{method:'GET/POST',path:'/fold31-search/search-util/browse-levels/{id}, /fold31-search/doc-search',input:'{id, path?: string[], prefix?, limit?, offset?}',description:'Navigate publication hierarchy with exact returned path values; leaf paths return ordered images.'},
+  file:{method:'GET',path:'/fold31-search/filmstrip/{id}',input:'{id: imageId}',description:'Identify the anchor scan’s file/cluster boundary and total page count.'},
+  'file-images':{method:'GET/POST',path:'/fold31-search/filmstrip/{id}, /fold31-search/filmstrip/by-offset',input:'{id: imageId, limit?, offset?}',description:'Read ordered pages within the anchor’s cluster; offsets start at the first page.'},
+  connections:{method:'POST',path:'/fold31/api/connection/list-objs',input:'{id, type: image|record|memorial|unit|file|subject|battle|sub-image, direction?: incoming|outgoing, limit?, offset?}',description:'Page through linked documents, with connection metadata and source references.'},
   record:{method:'GET',path:'/record/{id}',input:'{id}',description:'Indexed record, source citation, and related records from page hydration.'},
   memorial:{method:'GET',path:'/memorial/{id}',input:'{id}',description:'Memorial facts, stories, and source links from page hydration.'},
   unit:{method:'GET',path:'/unit/{id}',input:'{id}',description:'Military unit history and research links from page hydration.'},
@@ -70,6 +75,10 @@ export class Fold3Client {
     return {items:all.slice(offset,offset+limit),total:all.length,offset,limit,nextOffset:offset+limit<all.length?offset+limit:null,pagination:'The website catalog is fetched once per call; keyword filtering and pagination are local.'};
   }
   async publication(value:string){return publication(await this.http.json(`${WEB}/fold31/api/publication/pub/${id(value)}`));}
+  browse(value:string,options:BrowseOptions={}){return browsePublication(this,value,options);}
+  file(value:string){return fileInfo(this,value);}
+  async fileImages(value:string,limit=100,offset=0){return fileImages(this,await fileInfo(this,value),limit,offset);}
+  connections(value:string,options:ConnectionOptions){return connections(this,value,options);}
   async record(value:string,kind:'record'|'memorial'|'unit'|'document'='record'){
     if(!['record','memorial','unit','document'].includes(kind))throw new Error('Unsupported Fold3 page type.');
     const result=await this.http.request(`${WEB}/${kind}/${id(value)}`);return page(result.text(),result.url);
@@ -97,8 +106,8 @@ export class Fold3Client {
   }
   async call(name:string,input:Record<string,any>={}){
     if(!Object.hasOwn(operations,name))throw new Error('Unknown Fold3 read operation. Run fam fold3.api list.');object(input);
-    const keys=name==='search'||name==='facets'?undefined:name==='publications'?['keyword','limit','offset']:name==='filmstrip'?['id','limit']:name==='ocr-hits'?['id','keyword']:['id'];
+    const keys=name==='search'||name==='facets'?undefined:name==='publications'?['keyword','limit','offset']:name==='publication-browse'?['id','path','prefix','limit','offset']:name==='file-images'?['id','limit','offset']:name==='connections'?['id','type','direction','limit','offset']:name==='filmstrip'?['id','limit']:name==='ocr-hits'?['id','keyword']:['id'];
     if(keys&&Object.keys(input).some(key=>!keys.includes(key)))throw new Error('Unknown Fold3 operation input. Inspect fam fold3.api describe.');
-    switch(name as Operation){case 'search':return this.search(input);case 'facets':return this.facets(input);case 'publications':return this.publications(input.keyword,input.limit,input.offset);case 'publication':return this.publication(input.id);case 'record':return this.record(input.id);case 'memorial':return this.record(input.id,'memorial');case 'unit':return this.record(input.id,'unit');case 'image':return this.image(input.id);case 'filmstrip':return this.filmstrip(input.id,input.limit);case 'ocr':return this.ocr(input.id);case 'ocr-hits':return this.ocrHits(input.id,input.keyword);}
+    switch(name as Operation){case 'search':return this.search(input);case 'facets':return this.facets(input);case 'publications':return this.publications(input.keyword,input.limit,input.offset);case 'publication':return this.publication(input.id);case 'publication-browse':{const {id,...options}=input;return this.browse(id,options);}case 'file':return this.file(input.id);case 'file-images':return this.fileImages(input.id,input.limit,input.offset);case 'connections':{const {id,...options}=input;return this.connections(id,options as ConnectionOptions);}case 'record':return this.record(input.id);case 'memorial':return this.record(input.id,'memorial');case 'unit':return this.record(input.id,'unit');case 'image':return this.image(input.id);case 'filmstrip':return this.filmstrip(input.id,input.limit);case 'ocr':return this.ocr(input.id);case 'ocr-hits':return this.ocrHits(input.id,input.keyword);}
   }
 }

@@ -33,6 +33,8 @@ export const objectDescriptions: Record<string, string> = {
   'image.ocr': 'Machine transcription from document scans.',
   'image.neighbor': 'Neighboring scans and document clusters.',
   'image.source': 'Image source details, citations, and related collections.',
+  'file.image': 'Ordered scans within a document file.',
+  connection: 'Links between research objects and their source documents.',
   category: 'Genealogy directory categories and their nested resource listings.',
   resource: 'Genealogy resource links and directory search.',
   browser: 'Persistent local or remote CloakBrowser/Camofox browser and login viewer.',
@@ -242,6 +244,11 @@ add('fold3','search','record search','Search military and genealogy records, ind
 add('fold3','facets','catalog browse','Browse matching publication, place, conflict, and date facets.', [], fold3Search, {flags:fold3Flags});
 add('fold3','publications','publication list','List and filter the website publication catalog.', [], 'keyword limit offset', {flags:{limit:{maximum:1000}},pagination:'Fetches the website catalog once per call and filters/pages it locally.'});
 add('fold3','publication','publication get','Read a publication description, source metadata, and access level.', ['publication-id']);
+add('fold3','publication-browse','publication browse','Navigate a publication’s hierarchy and list the scanned pages at the end of a path.', ['publication-id'], 'path prefix limit offset', {flags:{path:{multiple:true,description:'Exact returned browse value; repeat in order for every component of the path.'},prefix:{description:'Narrow the next branch by its label prefix.'},limit:{minimum:1,maximum:100,default:20}},pagination:'Branches report truncated; use --prefix to narrow them. Image lists return nextOffset. Copy an item’s entire path when descending.'});
+add('fold3','file','file get','Identify the selected image’s file/scan cluster, title, and total page count.', ['image-id']);
+add('fold3','file-images','file.image list','List pages in order within the selected file, with checked boundaries and page positions.', ['image-id'], 'limit offset', {flags:{limit:{minimum:1,maximum:100,default:100}},pagination:'Pass nextOffset with the same image-id. Offset zero is the file’s first page, even when the anchor is in its middle.'});
+add('fold3','file-download','file download','Export every page in the selected file with a resumable manifest and citation/checksum sidecars.', ['image-id'], 'max-pages resume', {flags:{out:{required:true,description:'New destination directory, or the original export directory with --resume.'},'max-pages':{type:'integer',minimum:1,maximum:10000,default:500,description:'Refuse to start when the file exceeds this explicit page bound.'},resume:{type:'boolean',description:'Verify saved page identities and checksums, then download remaining pages.'}}});
+add('fold3','connections','connection list','Follow incoming or outgoing links between images, indexed records, memorials, military units, and other research objects.', ['object-id'], 'type direction limit offset', {flags:{type:{required:true,choices:['image','record','memorial','unit','file','subject','battle','sub-image'],description:'Type of the anchor object.'},direction:{choices:['incoming','outgoing'],default:'outgoing',description:'Outgoing links start at the anchor; incoming links point to it.'},limit:{minimum:1,maximum:100,default:20}},pagination:'Pass nextOffset with the same object-id, type, and direction. Reads are bounded to 10,000 connections.'});
 add('fold3','record','record get','Read an indexed record, citation, and related research links.', ['record-id']);
 add('fold3','memorial','memorial get','Read memorial facts, events, stories, and sources.', ['memorial-id']);
 add('fold3','unit','unit get','Read military unit history and related research links.', ['unit-id']);
