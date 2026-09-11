@@ -36,11 +36,11 @@ If installation fails or your shell can't find the commands, see [installation h
 | `cyndislist` | [Genealogy resources by place and topic, plus site search](docs/cyndislist/README.md) |
 | `findagrave` | [Memorials, cemeteries, relatives, biographies, and photos](docs/findagrave/README.md) |
 | `findmypast` | [Family trees, historical records, newspapers, and images](docs/findmypast/README.md) |
+| `fold3` | [Military records, publications, memorials, OCR, and images](docs/fold3/README.md) |
 | `geneanet` | [Archival records, trees, portraits, registers, and books](docs/geneanet/README.md) |
 | `internetarchive` | [Books, catalog and OCR search, collections, metadata, and public downloads](docs/internetarchive/README.md) |
 | `myheritage` | [Family sites, trees, historical records, matches, and documents](docs/myheritage/README.md) |
 | `newspaperarchive` | [Newspaper search, publications, locations, and page OCR](docs/newspaperarchive/README.md) |
-| `fold3` | [Military records, publications, memorials, OCR, and images](docs/fold3/README.md) |
 | `newspapers` | [Newspaper search, publications, clippings, and page OCR](docs/newspapers/README.md) |
 | `storied` | [Family trees, stories, media, hints, and historical records](docs/storied/README.md) |
 | `wayback` | [Find archived web pages and read captures from a chosen date](docs/wayback/README.md) |

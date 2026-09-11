@@ -9,5 +9,6 @@
 - Document only `fam PROVIDER.OBJECT ACTION --flags` and `npm run fam -- PROVIDER.OBJECT ACTION --flags`. Old names belong only in explicit migration/compatibility guidance, not current setup or usage examples.
 - Preserve origin restrictions, token redaction in provider output, private atomic storage, exact large integers, and bounded auth retries. Command history intentionally stores verbatim arguments, consumed inputs, and diagnostic text without redaction for failure reproduction; do not reintroduce history redaction. Add focused regression tests when changing those behaviors.
 - Keep CLI help and README setup examples in sync. Check `npm pack --dry-run` when changing packaging; all commands must work outside the checkout.
+- List FamilySearch first, then other providers alphabetically.
 - Use readable text by default, including when piped; `--json` selects structured output and errors. Keep bare `fam`, `fam --help`, and `fam --completions bash|zsh` useful to humans.
 - Never commit passwords, sessions, HARs, genealogy exports, downloaded artifacts, or live account reports. Live verification is opt-in and must not run in CI.
