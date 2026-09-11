@@ -336,6 +336,52 @@ add('internetarchive', 'download', 'file download', 'Download one public item fi
   'max-bytes': {type: 'integer', default: 536870912, minimum: 1, maximum: 2147483648, description: 'Maximum download bytes; default 512 MiB, maximum 2 GiB.'}},
   examples: ['fam internetarchive.file download --identifier historyofnewyork00irvi --file historyofnewyork00irvi_djvu.txt --out book.txt']});
 
+
+const archiveBookFlags: Extras['flags'] = {...archiveFlags,
+  volume: {description: 'Exact readable volume prefix from internetarchive.book list; required when the item contains multiple volumes.'},
+  page: {default: undefined, minimum: 1, maximum: 1000000, description: 'One-based reader position, including covers. Select exactly one of page, leaf, or page-label.'},
+  leaf: {type: 'integer', minimum: 0, maximum: 1000000, description: 'Scan leaf number from page list; it may differ from the reader position.'},
+  'page-label': {description: 'Exact supplied printed-page label; duplicate labels require page or leaf instead.'},
+  offset: {default: 0, maximum: 1000000, description: 'Zero-based position in the returned page map or match list.'},
+  query: {description: 'Search-inside words or a quoted phrase; results retain the server’s OCR snippets and page coordinates.'},
+};
+const archiveBookRead = 'volume timeout user-agent-suffix';
+const archivePageRead = `${archiveBookRead} page leaf page-label`;
+add('internetarchive', 'book-list', 'book list', 'List readable scan volume prefixes within one item.', ['identifier'], 'timeout user-agent-suffix', {flags: archiveBookFlags});
+add('internetarchive', 'book-get', 'book get', 'Read the BookReader page map, volume metadata, and public/restricted access capabilities.', ['identifier'], archiveBookRead, {flags: archiveBookFlags});
+add('internetarchive', 'book-search', 'book search', 'Search OCR inside one selected book or volume and link matching scan leaves to reader pages.', ['identifier'], `${archiveBookRead} query limit offset`, {flags: {...archiveBookFlags, query: {...archiveBookFlags.query, required: true}},
+  pagination: 'Slices one server match response. nextOffset continues that response on a fresh request; totalReturned is not a guarantee of complete indexing.',
+  examples: ['fam internetarchive.book search --identifier historyofnewyork00irvi --query Knickerbocker']});
+add('internetarchive', 'page-list', 'page list', 'List reader positions, scan leaves, supplied printed-page labels, and page links.', ['identifier'], `${archiveBookRead} offset limit`, {flags: {...archiveBookFlags, limit: {default: 50, minimum: 1, maximum: 1000}},
+  pagination: 'One slice of the complete reader page map. Follow data.nextOffset with the same identifier and volume.'});
+add('internetarchive', 'page-get', 'page get', 'Resolve one page by reader position, scan leaf, or printed label.', ['identifier'], archivePageRead, {flags: archiveBookFlags});
+add('internetarchive', 'page-ocr', 'page ocr', 'Read public OCR for one page, retaining words and their image coordinates.', ['identifier'], archivePageRead, {flags: archiveBookFlags,
+  examples: ['fam internetarchive.page ocr --identifier historyofnewyork00irvi --page-label 1 --json']});
+const archiveImageFlags: Extras['flags'] = {...archiveBookFlags,
+  scale: {type: 'integer', default: 1, minimum: 1, maximum: 32, choices: ['1','2','4','8','16','32'], description: 'Image downsampling divisor; 1 requests full resolution, 2 requests half width and height.'},
+  'max-bytes': {type: 'integer', default: 33554432, minimum: 1, maximum: 67108864, description: 'Maximum JPEG bytes; default 32 MiB, maximum 64 MiB. Page OCR has a separate 16 MiB cap.'},
+  out: {required: true, binding: 'out', description: 'New JPEG destination, with an adjacent .json provenance file; neither may already exist.'},
+};
+add('internetarchive', 'page-download', 'page download', 'Download one public JPEG page, validate dimensions, and save its citation position and SHA-256 provenance.', ['identifier'], `${archivePageRead} scale max-bytes`, {flags: archiveImageFlags,
+  examples: ['fam internetarchive.page download --identifier historyofnewyork00irvi --leaf 23 --out page.jpg']});
+add('internetarchive', 'citation', 'citation get', 'Draft a source citation from item metadata, optionally resolving a volume and page.', ['identifier'], archivePageRead, {flags: archiveBookFlags});
+add('internetarchive', 'evidence', 'evidence export', 'Save one public page image, OCR with coordinates, draft citation, and a checksum manifest in a new directory.', ['identifier'], `${archivePageRead} scale max-bytes`, {flags: {...archiveImageFlags,
+  out: {required: true, binding: 'out', description: 'New evidence directory; refuses existing paths. manifest.json is written last as the completion marker.'}},
+  examples: ['fam internetarchive.evidence export --identifier historyofnewyork00irvi --page-label 1 --out evidence-page-1']});
+const archiveResearchFlags: Extras['flags'] = {...archiveFlags,
+  book: {required: true, multiple: true, description: 'IDENTIFIER or IDENTIFIER/VOLUME; repeat for up to 20 selected books, in search order.'},
+  query: {required: true, multiple: true, binding: 'term', description: 'Literal name or phrase; repeat for up to 20 explicit spelling variants. Not a Lucene expression.'},
+  refresh: {type: 'boolean', default: false, description: 'Fetch fresh public OCR and replace each completed cache only after successful verification.'},
+  fuzzy: {type: 'boolean', default: false, description: 'Single words only, 4–40 letters/digits: allow one insertion, deletion, or substitution and label approximate matches.'},
+  offset: {default: 0, maximum: Number.MAX_SAFE_INTEGER, description: 'Zero-based match offset; retain the same books, queries, mode, and cache contents.'},
+  'max-bytes': {type: 'integer', default: 33554432, minimum: 1, maximum: 67108864, description: 'Maximum uncompressed DjVu XML bytes per book. Caches are also limited to 64 MiB each.'},
+};
+add('internetarchive', 'research-cache', 'research cache', 'Cache public page OCR for selected books; rerunning resumes by reusing completed private local caches.', [], 'book refresh max-bytes timeout user-agent-suffix', {flags: archiveResearchFlags,
+  examples: ['fam internetarchive.research cache --book historyofnewyork00irvi']});
+add('internetarchive', 'research-search', 'research search', 'Search selected cached books offline for names, phrases, or explicitly marked approximate OCR matches.', [], 'book query fuzzy offset limit', {flags: archiveResearchFlags,
+  pagination: 'One hit per query per reader page; nextOffset continues stable cache contents. status:partial and errors/missingOcrPages disclose coverage gaps.',
+  examples: ['fam internetarchive.research search --book historyofnewyork00irvi --query Knickerbocker --query Knickerbacker --fuzzy']});
+
 const waybackFlags: Extras['flags'] = {
   url: {description: 'Original HTTP(S) URL or a full web.archive.org snapshot URL.'},
   date: {description: 'Find the capture closest to YYYY, YYYY-MM-DD, or YYYYMMDDhhmmss. Default: newest indexed HTTP 200 capture.'},

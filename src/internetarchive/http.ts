@@ -22,18 +22,24 @@ export function fileUrl(id: string, name: string): string {
     throw new InternetArchiveError('Invalid archive file name.', 'INVALID_ARGUMENT');
   return `${ARCHIVE}/download/${id}/${name.split('/').map(encodeURIComponent).join('/')}?cnt=0`;
 }
-function checkedUrl(value: string, download: boolean): URL {
+export function readerUrl(value: string): URL {
+  return checkedUrl(value, false, true);
+}
+function checkedUrl(value: string, download: boolean, bookreader = false): URL {
   const url = new URL(value);
   const archive = url.origin === ARCHIVE;
-  const dataNode = /^ia\d+[a-z0-9-]*\.(?:us|eu)\.archive\.org$/.test(url.hostname);
+  const dataNode = /^(?:ia|dn)\d+[a-z0-9-]*\.(?:us|eu|ca)\.archive\.org$/.test(url.hostname);
   if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash ||
-      !(archive || download && dataNode || !download && url.href === FULLTEXT))
+      !(archive || (download || bookreader) && dataNode || !download && !bookreader && url.href === FULLTEXT))
     throw new InternetArchiveError('Internet Archive returned an unsupported request or redirect origin.', 'UNSAFE_URL');
   if (download && archive && !url.pathname.startsWith('/download/'))
     throw new InternetArchiveError('Internet Archive redirected to an account or unavailable-file page. Public access does not grant restricted downloads.', 'ACCESS_DENIED');
+  if (bookreader && !['/BookReader/BookReaderJSIA.php', '/BookReader/BookReaderImages.php', '/BookReader/BookReaderGetTextWrapper.php', '/fulltext/inside.php'].includes(url.pathname))
+    throw new InternetArchiveError('Unsupported BookReader endpoint or access redirect.', 'UNSAFE_URL');
   return url;
 }
 export interface HttpOptions {fetch?: typeof fetch; timeout?: number; userAgentSuffix?: string}
+interface RequestOptions {body?: unknown; download?: boolean; bookreader?: boolean}
 export class ArchiveHttp {
   private readonly fetcher: typeof fetch;
   private readonly timeout: number;
@@ -50,8 +56,8 @@ export class ArchiveHttp {
       .then(text => `fam/${JSON.parse(text).version} (+https://github.com/potatosalad/fam)${this.suffix ? ` ${this.suffix}` : ''}`);
     return this.agent;
   }
-  async request(value: string, options: {body?: unknown; download?: boolean} = {}): Promise<Response> {
-    let url = checkedUrl(value, !!options.download);
+  async request(value: string, options: RequestOptions = {}): Promise<Response> {
+    let url = checkedUrl(value, !!options.download, !!options.bookreader);
     const signal = AbortSignal.timeout(this.timeout);
     const headers = {'User-Agent': await this.userAgent(), Accept: options.download ? '*/*' : 'application/json',
       ...(options.body !== undefined ? {'Content-Type': 'application/json'} : {})};
@@ -68,7 +74,7 @@ export class ArchiveHttp {
         await response.body?.cancel();
         const location = response.headers.get('location');
         if (!location || ++redirects > 5 || options.body !== undefined) throw new InternetArchiveError('Unexpected Internet Archive redirect.', 'UNSAFE_URL');
-        url = checkedUrl(new URL(location, url).href, !!options.download);
+        url = checkedUrl(new URL(location, url).href, !!options.download, !!options.bookreader);
         continue;
       }
       if ([429,502,503,504].includes(response.status)) {
@@ -89,16 +95,22 @@ export class ArchiveHttp {
       return response;
     }
   }
-  async json(url: string, body?: unknown): Promise<Record<string, unknown>> {
-    const response = await this.request(url, {body});
+  async jsonValue(url: string, options: RequestOptions = {}): Promise<unknown> {
+    const response = await this.request(url, options);
     let value: unknown;
     try {value = parseJson((await readBytes(response, 32 * 1024 * 1024)).toString('utf8'));}
     catch (error) {if (error instanceof InternetArchiveError) throw error; throw new InternetArchiveError('Internet Archive returned invalid JSON.', 'INVALID_RESPONSE');}
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const data = value as Record<string, unknown>;
+      if (data.error || data.success === false) throw new InternetArchiveError(`Internet Archive API error${data.errcode ? ` (${data.errcode})` : ''}: ${typeof data.error === 'string' ? data.error.slice(0, 500) : 'request failed'}.`, 'API_ERROR');
+    }
+    return value;
+  }
+  async json(url: string, body?: unknown, bookreader = false): Promise<Record<string, unknown>> {
+    const value = await this.jsonValue(url, {body, bookreader});
     if (Array.isArray(value) && value.length === 0) throw new InternetArchiveError('Internet Archive item was not found.', 'NOT_FOUND');
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new InternetArchiveError('Internet Archive returned an unexpected response.', 'INVALID_RESPONSE');
-    const data = value as Record<string, unknown>;
-    if (data.error || data.success === false) throw new InternetArchiveError(`Internet Archive API error${data.errcode ? ` (${data.errcode})` : ''}: ${typeof data.error === 'string' ? data.error.slice(0, 500) : 'request failed'}.`, 'API_ERROR');
-    return data;
+    return value as Record<string, unknown>;
   }
 }
 export async function* chunks(response: Response, maxBytes: number): AsyncGenerator<Uint8Array> {

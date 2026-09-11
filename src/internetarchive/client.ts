@@ -3,6 +3,8 @@ import {mkdir, open, writeFile, link, rm, lstat} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {ARCHIVE, FULLTEXT, ArchiveHttp, InternetArchiveError, identifier, integer, fileUrl, chunks, readBytes, type HttpOptions} from './http.js';
 import {stringifyJson} from '../shared/json.js';
+import {ArchiveBooks} from './books.js';
+import {ArchiveResearch} from './research.js';
 
 type Data = Record<string, unknown>;
 export interface ArchiveFile extends Data {name: string; format?: string; size?: string; md5?: string; private?: string | boolean | number; downloadUrl: string}
@@ -51,7 +53,13 @@ function verifyFile(file: ArchiveFile, bytes: number, md5: string): void {
 /** Public, read-only Archive.org APIs. Never loads credentials, cookies, or a browser session. */
 export class InternetArchiveClient {
   readonly http: ArchiveHttp;
-  constructor(options: HttpOptions = {}) {this.http = new ArchiveHttp(options);}
+  readonly books: ArchiveBooks;
+  readonly research: ArchiveResearch;
+  constructor(options: HttpOptions = {}) {
+    this.http = new ArchiveHttp(options);
+    this.books = new ArchiveBooks(this.http, id => this.item(id));
+    this.research = new ArchiveResearch(this.books, id => this.item(id));
+  }
 
   async search(input: string, options: SearchOptions = {}) {
     const q = query(input), limit = integer(options.limit ?? 20, 'limit', 1, 1000), page = integer(options.page ?? 1, 'page', 1, 10000);

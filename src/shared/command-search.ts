@@ -38,7 +38,17 @@ export function resolveContext(input: string, provider?: string): Context {
           if (!/[\x00-\x1f\x7f\\]/.test(file) && file.split('/').every(part => part && part !== '.' && part !== '..'))
             return {...result, object: 'file', flags: {identifier: item[2], file}};
         } catch {}
-      } else return {...result, object: 'item', flags: {identifier: item[2]}};
+      } else {
+        const page = (item[3] ?? '').match(/^(?:(.+)\/)?page\/n(\d+)(?:\/mode\/(?:1up|2up|thumb))?\/?$/);
+        if (item[1] === 'details' && page && Number(page[2]) < 1000000) {
+          try {
+            const volume = page[1] ? decodeURIComponent(page[1]) : undefined;
+            if (volume && (/[\x00-\x1f\x7f\\]/.test(volume) || volume.split('/').some(p => !p || p === '.' || p === '..'))) throw new Error('Invalid volume');
+            return {...result, object: 'page', flags: {identifier: item[2], ...(volume ? {volume} : {}), page: String(Number(page[2]) + 1)}};
+          } catch {}
+        }
+        return {...result, object: 'item', flags: {identifier: item[2]}};
+      }
     }
     return {...result, note: 'Archive.org URL recognized; use an item identifier from its details page.'};
   }

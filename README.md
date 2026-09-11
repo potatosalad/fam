@@ -38,7 +38,7 @@ If installation fails or your shell can't find the commands, see [installation h
 | `findmypast` | [Family trees, historical records, newspapers, and images](docs/findmypast/README.md) |
 | `fold3` | [Military records, publications, memorials, OCR, and images](docs/fold3/README.md) |
 | `geneanet` | [Archival records, trees, portraits, registers, and books](docs/geneanet/README.md) |
-| `internetarchive` | [Books, catalog and OCR search, collections, metadata, and public downloads](docs/internetarchive/README.md) |
+| `internetarchive` | [Books, OCR search, page evidence, citations, collections, and public downloads](docs/internetarchive/README.md) |
 | `myheritage` | [Family sites, trees, historical records, matches, and documents](docs/myheritage/README.md) |
 | `newspaperarchive` | [Newspaper search, publications, locations, and page OCR](docs/newspaperarchive/README.md) |
 | `newspapers` | [Newspaper search, publications, clippings, and page OCR](docs/newspapers/README.md) |
@@ -119,10 +119,13 @@ Public research needs no credentials or browser setup:
 fam internetarchive.item search --query 'collection:genealogy AND mediatype:texts'
 fam internetarchive.fulltext search --query '"John Smith" AND "Lancaster"' --limit 10
 fam internetarchive.item get --identifier historyofnewyork00irvi --json
-fam internetarchive.text get --identifier historyofnewyork00irvi --limit 2000
+fam internetarchive.book search --identifier historyofnewyork00irvi --query Knickerbocker
+fam internetarchive.evidence export --identifier historyofnewyork00irvi --leaf 23 --out evidence-page-23
+fam internetarchive.research cache --book historyofnewyork00irvi
+fam internetarchive.research search --book historyofnewyork00irvi --query Knickerbocker
 ```
 
-Catalog search matches item metadata; full-text search matches indexed OCR and returns snippets. Search hits can include restricted books whose files require account access. See the [Internet Archive guide](docs/internetarchive/README.md) for authentication limits, API endpoints, collection browsing, pagination, and verified downloads.
+Catalog search matches item metadata; full-text search matches indexed OCR and returns snippets. Search hits can include restricted books whose files require account access. See the [Internet Archive guide](docs/internetarchive/README.md) for authentication limits, API endpoints, page/leaf mapping, citation and evidence export, cached surname searches, and verified downloads.
 
 ## Set up credentials
 

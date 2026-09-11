@@ -55,6 +55,26 @@ export async function readPrivateJson<T>(name: string): Promise<T | undefined> {
   }
 }
 
+/** Bounded snapshot of a regular private file, including caches that are too large for unbounded JSON reads. */
+export async function readPrivateFile(name: string, maxBytes: number): Promise<Buffer | undefined> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error('A positive file byte limit is required.');
+  let file;
+  try {file = await open(credentialPath(name), constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));}
+  catch (error) {if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error;}
+  try {
+    const info = await file.stat();
+    if (!info.isFile() || info.size > maxBytes) throw new Error('Private file is not regular or exceeds the byte limit.');
+    const bytes = Buffer.alloc(info.size);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const {bytesRead} = await file.read(bytes, offset, bytes.length - offset, offset);
+      if (!bytesRead) throw new Error('Private file changed while reading.');
+      offset += bytesRead;
+    }
+    return bytes;
+  } finally {await file.close();}
+}
+
 export async function historyFiles(): Promise<string[]> {
   try {
     return (await readdir(credentialPath('history'), {withFileTypes: true}))

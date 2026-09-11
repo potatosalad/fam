@@ -192,13 +192,13 @@ test('CLI adapters, provider discovery, completion, URL resolution, offline doct
   const invocation = parseInvocation(['internetarchive.item', 'search', '--query', 'genealogy', '--field', 'title', '--field', 'creator', '--json']);
   const result = await runProvider(invocation.args) as {items: unknown[]}; assert.deepEqual(result.items, []);
   const providerCommands = commands.filter(command => command.provider === 'internetarchive');
-  assert.equal(providerCommands.length, 8);
+  assert.equal(providerCommands.length, 19);
   assert.ok(providerCommands.every(command => command.risk.level === 'read'));
   assert.ok(!authenticatedProviderNames.some(name => String(name) === 'internetarchive'));
   assert.ok(complete(completionCatalog(), ['internetarchive.item', '']).candidates.includes('search'));
   assert.throws(() => parseInvocation(['internetarchive.file', 'download', '--identifier', 'book', '--file', 'book.pdf']));
   const resolved = resolveContext('https://archive.org/details/synthetic-book/page/n3/mode/2up');
-  assert.equal(resolved.provider, 'internetarchive'); assert.deepEqual(resolved.flags, {identifier: 'synthetic-book'});
+  assert.equal(resolved.provider, 'internetarchive'); assert.equal(resolved.object, 'page'); assert.deepEqual(resolved.flags, {identifier: 'synthetic-book', page: '4'});
   assert.deepEqual(resolveContext('https://archive.org/download/book/folder/a%20b.txt').flags, {identifier: 'book', file: 'folder/a b.txt'});
   assert.deepEqual(resolveContext('https://archive.org/details/book', 'geneanet').flags, {});
   assert.equal(resolveContext('https://archive.org.evil.example/details/book').provider, undefined);
