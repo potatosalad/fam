@@ -28,6 +28,9 @@ export type Provider = typeof providerNames[number];
 /** Shared object descriptions used by provider help and command correction. */
 export const objectDescriptions: Record<string, string> = {
   unit: 'Military units, service histories, and related records.',
+  catalog: 'Historical record and publication catalogs.',
+  'image.hits': 'Keyword match coordinates within scans.',
+  'image.ocr': 'Machine transcription from document scans.',
   'image.neighbor': 'Neighboring scans and document clusters.',
   'image.source': 'Image source details, citations, and related collections.',
   category: 'Genealogy directory categories and their nested resource listings.',
@@ -53,7 +56,7 @@ export const objectDescriptions: Record<string, string> = {
   location: 'Geographic locations and location lookup.', media: 'Linked photographs and other media.',
   memorial: 'Memorials, biographies, relatives, and photographs.', 'mobile.version': 'Mobile application version information.',
   newspaper: 'Historical newspaper research.', notification: 'Account notifications.', person: 'People and genealogy profiles.',
-  page: 'Website or newspaper pages, source citations, and extracted text.', publication: 'Newspaper titles and publication locations.',
+  page: 'Website or newspaper pages, source citations, and extracted text.', publication: 'Published record collections and newspaper titles.',
   'person.mobile': 'Person information through mobile API operations.', photo: 'Photographs and photo metadata.',
   'photo.request': 'Grave photograph requests.', place: 'Place names and geographic information.',
   provider: 'Available genealogy providers.', record: 'Historical records and record search.',
