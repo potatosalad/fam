@@ -5,7 +5,7 @@ WORKDIR /opt/fam-browser
 COPY cloakbrowser/package*.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY camofox-plugin/index.js ./camofox-plugin/index.js
-COPY cloakbrowser/ ./cloakbrowser/
+COPY cloakbrowser/launch.py cloakbrowser/server.mjs cloakbrowser/humanize.mjs cloakbrowser/main.mjs ./cloakbrowser/
 ENV CLOAKBROWSER_AUTO_UPDATE=false FAM_BROWSER_PROFILE_DIR=/data/profiles
 EXPOSE 9377 6080
 CMD ["node", "/opt/fam-browser/cloakbrowser/main.mjs"]
