@@ -60,8 +60,15 @@ export function resolveContext(input: string, provider?: string): Context {
     const id = url.searchParams.get('id');
     if (id) return {...result, object: 'record', flags: {'record-id': id}};
   } else if (detected === 'newspapers' && ['www.newspapers.com','newspapers.com'].includes(host) && !url.port) {
+    const clipping=path.match(/^\/(?:clip|clipping)\/([1-9]\d{0,19})(?:\/[^/]*)?\/?$/);
+    if(clipping)return {...result,object:'clipping',flags:{'clipping-id':clipping[1]}};
     const page = path.match(/^\/(?:image|newspage)\/([1-9]\d*)\/?$/);
-    if (page) return {...result,object:'page',flags:{'page-id':page[1]}};
+    if (page) {
+      const article=url.searchParams.get('article'),clip=url.searchParams.get('clipping_id');
+      if(clip&&/^[1-9]\d{0,19}$/.test(clip))return {...result,object:'clipping',flags:{'page-id':page[1],'clipping-id':clip}};
+      if(article&&/^(?:[1-9]\d{0,19}|[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12})$/i.test(article))return {...result,object:'article',flags:{'page-id':page[1],'article-id':article.toLowerCase()}};
+      return {...result,object:'page',flags:{'page-id':page[1]}};
+    }
   } else if (detected === 'newspaperarchive' && /-p-\d+\/?$/.test(path)) {
     return {...result, object: 'page', flags: {url: url.href}};
   }

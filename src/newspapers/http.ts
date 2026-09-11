@@ -5,9 +5,10 @@ import {parseJson} from '../shared/json.js';
 export const WEB = 'https://www.newspapers.com';
 export const IMG = 'https://img.newspapers.com';
 export class NewspapersError extends Error {
-  constructor(readonly code: 'http' | 'session-rejected' | 'api-changed' | 'access-denied' | 'verification-required', readonly status?: number) {
+  constructor(readonly code: 'http' | 'session-rejected' | 'api-changed' | 'access-denied' | 'verification-required' | 'not-found', readonly status?: number) {
     super(code === 'session-rejected' ? 'Newspapers sign-in is required. Run fam newspapers.session login.'
       : code === 'access-denied' ? 'Newspapers did not grant this account access to the requested content.'
+      : code === 'not-found' ? 'The requested Newspapers record was not found.'
       : code === 'verification-required' ? 'Newspapers requires browser verification. Use --transport browser and complete verification in the viewer.'
       : code === 'api-changed' ? 'Newspapers returned an unexpected response format.' : `Newspapers HTTP ${status}; the request was not retried.`);
     this.name = 'NewspapersError';

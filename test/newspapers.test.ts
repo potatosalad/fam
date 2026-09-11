@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CookieJar} from 'tough-cookie';
 import {NewspapersHttp, NewspapersError, WEB, IMG} from '../src/newspapers/http.js';
-import {NewspapersClient, id, searchQuery} from '../src/newspapers/client.js';
+import {NewspapersClient, id, searchQuery, clippingQuery} from '../src/newspapers/client.js';
+import {articleId, articleCollections, articleTypes, selectArticle, rectangle, clippingRecord} from '../src/newspapers/records.js';
 import {account, pageMetadata, pageObjects, publicValue} from '../src/newspapers/parse.js';
 import {setBrowserOverrides} from '../src/shared/browser-config.js';
 import {waitForLogin} from '../src/shared/browser-login.js';
@@ -13,6 +14,7 @@ import {mkdtemp,readFile,writeFile,stat,readdir,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {downloadDimensions,saveDownload} from '../src/newspapers/download.js';
+import {parseJson} from '../src/shared/json.js';
 const script = (chunks: string[]) => chunks.map(chunk=>`<script>self.__next_f.push(${JSON.stringify([1,chunk])})</script>`).join('');
 const signedIn = {id:123,username:'reader',email:'reader@example.test',isAuthenticated:true,isSubscriber:false};
 const accountHtml = script(['0:'+JSON.stringify(signedIn)+'\n']);
@@ -75,7 +77,7 @@ test('catalog rejects writes and unknown inputs before making any request; empty
 });
 test('OCR validates selection geometry and exposes empty text without inventing a transcript',async()=>{
  let requests=0;const c=new NewspapersClient(new NewspapersHttp(undefined,async(url)=>{requests++;return new Response(JSON.stringify(url.includes('/authorize')?{image:{imageId:123,publicationId:9,publicationTitle:'Synthetic',canView:true,width:100,height:100},iat:'synthetic',rights:{Get:{allowed:true}}}:{ocr:''}));}));
- assert.throws(()=>c.ocr('123',{articleId:'4'}));assert.throws(()=>c.ocr('123',{x:0}));
+ assert.throws(()=>c.ocr('123',{articleId:'../4'}));assert.throws(()=>c.ocr('123',{x:0}));
  await assert.rejects(c.ocr('123',{x:90,y:0,width:20,height:10}),/exceeds/);assert.equal(requests,1);
  const result=await c.ocr('123',{x:0,y:0,width:50,height:50});assert.equal(result.available,false);assert.equal(result.text,'');
  const full=await c.ocr('123');assert.equal(full.available,false);
@@ -93,6 +95,11 @@ test('CLI exposes documented reads and resolves exact page IDs',()=>{
  assert.deepEqual(resolveContext(WEB+'/image/9007199254740997/').flags,{'page-id':'9007199254740997'});
  assert.deepEqual(resolveContext('https://evil.newspapers.com/image/123/').flags,{});
  assert.deepEqual(resolveContext(WEB+':8443/image/123/').flags,{});
+ assert.deepEqual(resolveContext(WEB+'/clip/9007199254740997/example/').flags,{'clipping-id':'9007199254740997'});
+ assert.deepEqual(resolveContext(WEB+'/clipping/123/').flags,{'clipping-id':'123'});
+ assert.deepEqual(resolveContext(WEB+'/image/123/?article=12345678-1234-1234-1234-123456789ABC&fcfToken=private').flags,{'page-id':'123','article-id':'12345678-1234-1234-1234-123456789abc'});
+ assert.deepEqual(resolveContext(WEB+'/image/123/?clipping_id=456&fcfToken=private').flags,{'page-id':'123','clipping-id':'456'});
+ assert.deepEqual(resolveContext('https://evil.newspapers.com/clipping/123/').flags,{});
 });
 
 const downloadAuthorization={image:{imageId:123,publicationId:9,publicationTitle:'Synthetic Gazette',title:'Page 1',date:'1900-01-01',canView:true,width:32,height:48},iat:'synthetic-private-authorization',rights:{Download:{allowed:true,fcfToken:'synthetic-private-token'}}};
@@ -117,6 +124,94 @@ test('whole-page download checks current rights before reading the account or re
   const calls:URL[]=[];await assert.rejects(downloadClient(authorization,Buffer.alloc(0),'image/jpeg',calls).download('123'),{code:'access-denied'});
   assert.equal(calls.length,1);
  }
+});
+
+const articleUuid='12345678-1234-1234-1234-123456789abc';
+const smallRect={x:2,y:4,width:12,height:16};
+function indexedArticles(){return {...Object.fromEntries(Object.values(articleCollections).map(key=>[key,[]])),marriages:[{id:articleUuid,articleId:'87654321-4321-4321-4321-cba987654321',rectangle:smallRect,marriage:{self:{fullName:'Synthetic Reader'},spouse:{fullName:'Other Reader'}},iat:'private'}]};}
+test('indexed searches retain record types and opaque cursors; malformed IDs never reach the service',async()=>{
+ for(const type of articleTypes)assert.equal(searchQuery({keyword:'Reader',type,cursor:'opaque+/='})['entity-types'],type);
+ assert.equal(searchQuery({keyword:'Reader'})['entity-types'],'page');
+ assert.throws(()=>searchQuery({keyword:'Reader',type:'unsupported' as any}));
+ assert.equal(articleId(articleUuid.toUpperCase()),articleUuid);assert.equal(articleId('9007199254740997'),'9007199254740997');
+ for(const value of ['../123','',123,articleUuid+'?x=1'])assert.throws(()=>articleId(value));
+ const c=new NewspapersClient(new NewspapersHttp(undefined,async()=>{throw new Error('Unexpected request')}));
+ assert.throws(()=>c.article('123','../456'));assert.throws(()=>c.downloadArticle('123',articleUuid,'unknown' as any));
+});
+test('article selection preserves extracted relatives, resolves entity IDs, and refuses missing or ambiguous matches',()=>{
+ const result=selectArticle(indexedArticles(),downloadAuthorization,'123',articleUuid);
+ assert.equal(result.type,'marriage');assert.equal(result.details[0].marriage.spouse.fullName,'Other Reader');assert.deepEqual(result.rectangle,smallRect);
+ assert.ok(!JSON.stringify(result).includes('private'));assert.match(result.sourceUrl,/article=12345678/);
+ assert.throws(()=>selectArticle(indexedArticles(),downloadAuthorization,'123','999'),{code:'not-found'});
+ assert.throws(()=>selectArticle({},downloadAuthorization,'123',articleUuid),{code:'api-changed'});
+ const polygon=[{x:0.25,y:0.25},{x:0.75,y:0.25},{x:0.75,y:0.75},{x:0.25,y:0.75}];
+ const duplicate={...indexedArticles(),births:[{id:articleUuid,polygon}]};
+ assert.throws(()=>selectArticle(duplicate,downloadAuthorization,'123',articleUuid),/--type/);
+ assert.equal(selectArticle(duplicate,downloadAuthorization,'123',articleUuid,'birth').type,'birth');
+ duplicate.births.push({id:articleUuid,polygon});
+ assert.equal(selectArticle(duplicate,downloadAuthorization,'123',articleUuid,'birth').details.length,2);
+ for(const rect of [{...smallRect,x:Infinity},{...smallRect,width:0},{...smallRect,x:30},{...smallRect,rotation:90}])assert.throws(()=>rectangle(rect,32,48),{code:'api-changed'});
+ for(const type of ['birth','enslavement'] as const){
+  const records={...indexedArticles(),[articleCollections[type]]:[{id:articleUuid,polygon}]};
+  assert.deepEqual(selectArticle(records,downloadAuthorization,'123',articleUuid,type).rectangle,{x:8,y:12,width:16,height:24});
+  for(const invalid of [[],[{x:0,y:0}],polygon.map(p=>({...p,x:2})),polygon.map(p=>({...p,y:NaN}))]){
+   records[articleCollections[type]][0].polygon=invalid;
+   assert.throws(()=>selectArticle(records,downloadAuthorization,'123',articleUuid,type),{code:'api-changed'});
+  }
+ }
+ const crimes={...indexedArticles(),crimeArticles:[{articleId:'different-parent-id',rectangle:smallRect,crime:{CrimeId:articleUuid,Crime:'Synthetic report'}}]};
+ assert.equal(selectArticle(crimes,downloadAuthorization,'123',articleUuid,'crime').details[0].crime.Crime,'Synthetic report');
+ const conflicting={...indexedArticles(),marriages:[...indexedArticles().marriages,{...indexedArticles().marriages[0],rectangle:{...smallRect,x:3}}]};
+ assert.throws(()=>selectArticle(conflicting,downloadAuthorization,'123',articleUuid),{code:'api-changed'});
+});
+test('article OCR resolves coordinates automatically and keeps the selected entity ID',async()=>{
+ const calls:URL[]=[];const c=new NewspapersClient(new NewspapersHttp(undefined,async value=>{
+  const url=new URL(value);calls.push(url);
+  if(url.pathname.includes('/authorize'))return Response.json(downloadAuthorization);
+  if(url.pathname.endsWith('/articles'))return Response.json(indexedArticles());
+  assert.equal(url.searchParams.get('objectId'),articleUuid);assert.equal(url.searchParams.get('type'),'article');
+  for(const [key,value] of Object.entries(smallRect))assert.equal(url.searchParams.get(key),String(value));
+  return Response.json({ocr:'Synthetic article text'});
+ }));
+ assert.equal((await c.ocr('123',{articleId:articleUuid,type:'marriage'})).text,'Synthetic article text');assert.equal(calls.length,3);
+ assert.throws(()=>c.ocr('123',{type:'birth'}),/requires an article ID/);
+ await assert.rejects(c.ocr('123',{articleId:'999'}),{code:'not-found'});
+});
+test('clipping search scopes private results to the verified account and handles cursor termination',async()=>{
+ assert.throws(()=>clippingQuery({mine:true,user:'another-user'}));assert.throws(()=>clippingQuery({mine:'yes' as any}));
+ assert.throws(()=>clippingQuery({from:'1900-01-01'}));assert.throws(()=>clippingQuery({limit:0}));
+ const query=clippingQuery({keyword:'Reader',tag:'surname',publicationId:'99',sort:'date-asc',cursor:'opaque+/='});
+ assert.equal(query.visibility,'public');assert.equal(query.sort,'paper-date-asc');assert.equal(query.cursor_mark,'opaque+/=');assert.equal(query.title,'99');
+ let cycle=false;const seen:URL[]=[];const c=new NewspapersClient(new NewspapersHttp(undefined,async value=>{
+  const url=new URL(value);seen.push(url);if(url.pathname==='/account/')return new Response(accountHtml);
+  assert.equal(url.searchParams.get('visibility'),'all');assert.equal(url.searchParams.get('user'),'123');
+  return Response.json({clippings:[{clipping_id:456,page_token:'private'}],next_cursor_mark:cycle?'*':'next+/=',more_results:cycle});
+ }));
+ const result=await c.searchClippings({mine:true});assert.equal(result.nextCursor,null);assert.equal(seen.length,2);assert.ok(!JSON.stringify(result).includes('private'));
+ cycle=true;await assert.rejects(c.searchClippings({mine:true}),{code:'api-changed'});
+ const empty=new NewspapersClient(new NewspapersHttp(undefined,async()=>Response.json({clippings:[],next_cursor_mark:0,more_results:false})));
+ assert.equal((await empty.searchClippings()).nextCursor,null);
+ assert.throws(()=>clippingRecord({clipping_id:1,page_id:2,title:''},'3'),{code:'api-changed'});
+});
+test('article and clipping downloads retain crop provenance and never fetch images without Download permission',async()=>{
+ const jpg=await sharp({create:{width:12,height:16,channels:3,background:'white'}}).jpeg().toBuffer();
+ const clipping={clipping_id:456,page_id:123,title:'Synthetic clipping',rectangle:{...smallRect,width:4},rectangles:[{...smallRect,width:4},{...smallRect,x:10,width:4}],page_token:'private',ocr:'Synthetic text'};
+ let allowed=true,images=0;const c=new NewspapersClient(new NewspapersHttp(undefined,async value=>{
+  const url=new URL(value);
+  if(url.pathname==='/article/api/456/')return Response.json(clipping);
+  if(url.pathname.includes('/authorize'))return Response.json({...downloadAuthorization,rights:{Download:{allowed}}});
+  if(url.pathname.endsWith('/articles'))return Response.json(indexedArticles());
+  if(url.pathname==='/account/')return new Response(accountHtml);
+  images++;assert.equal(url.origin,IMG);assert.equal(url.searchParams.get('iat'),downloadAuthorization.iat);
+  if(url.searchParams.has('clippingId')){assert.equal(url.searchParams.get('clippingId'),'456');assert.ok(!url.searchParams.has('crop'));}
+  else assert.equal(url.searchParams.get('crop'),'2_4_12_16');
+  return new Response(new Uint8Array(jpg),{headers:{'content-type':'image/jpeg'}});
+ }));
+ const article=await c.downloadArticle('123',articleUuid);assert.equal(article.metadata.selection?.kind,'article');assert.deepEqual(article.bytes,jpg);
+ const clip=await c.downloadClipping('456');assert.equal(clip.metadata.selection?.kind,'clipping');assert.deepEqual(clip.metadata.selection?.rectangle,smallRect);
+ assert.equal(clip.metadata.selection?.rectangles.length,2);
+ assert.ok(!JSON.stringify(clip.metadata).includes('private'));assert.equal(images,2);
+ allowed=false;await assert.rejects(c.downloadArticle('123',articleUuid),{code:'access-denied'});await assert.rejects(c.downloadClipping('456'),{code:'access-denied'});assert.equal(images,2);
 });
 test('JPG export follows viewer sizing without enlarging small pages',()=>{
  assert.deepEqual(downloadDimensions(1000,2000),{width:1000,height:2000});
@@ -146,5 +241,8 @@ test('download preserves JPEG bytes, validates all pixels, and withholds signed 
   await assert.rejects(saveDownload(conflict,result),{code:'EEXIST'});
   assert.equal(await readFile(conflict+'.json','utf8'),'preserve');await assert.rejects(stat(conflict),{code:'ENOENT'});
   assert.deepEqual((await readdir(dir)).sort(),['conflict.jpg.json','scan.jpg','scan.jpg.json']);
+  const exact={...result,metadata:{...result.metadata,citation:{...result.metadata.citation,syntheticId:9007199254740997n}}};
+  const exactOutput=await saveDownload(join(dir,'exact.jpg'),exact);
+  assert.deepEqual(parseJson(await readFile(exactOutput.sidecar,'utf8')),exact.metadata);
  }finally{await rm(dir,{recursive:true,force:true});}
 });

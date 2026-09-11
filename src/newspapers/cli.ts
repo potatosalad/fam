@@ -10,9 +10,10 @@ import {parseJson,stringifyJson} from '../shared/json.js';
 import {NewspapersClient, operations, type Operation} from './client.js';
 import {loadSession, loginNewspapers, sessionStatus} from './auth.js';
 import {saveDownload} from './download.js';
-const strings=['keyword','publication-id','country','region','city','from','to','sort','limit','cursor','offset','article-id','clipping-id','x','y','width','height','out'] as const;
+import type {ArticleType} from './records.js';
+const strings=['type','keyword','publication-id','country','region','city','from','to','sort','limit','cursor','offset','article-id','clipping-id','user','tag','x','y','width','height','out'] as const;
 export async function runProvider(argv: string[]) {
-  const {values:parsed,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(k=>[k,{type:'string' as const}])),stdin:{type:'boolean'},interactive:{type:'boolean'},'no-autofill':{type:'boolean'}}});
+  const {values:parsed,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(k=>[k,{type:'string' as const}])),mine:{type:'boolean'},stdin:{type:'boolean'},interactive:{type:'boolean'},'no-autofill':{type:'boolean'}}});
   const v=parsed as Record<string,string|boolean|undefined>;
   const number=(name:string)=>v[name]===undefined?undefined:Number(v[name]);
   const options=Object.fromEntries(Object.entries(v).filter(([k])=>k !== 'out' && (strings as readonly string[]).includes(k)).map(([k,value])=>[k.replace(/-([a-z])/g,(_m,l)=>l.toUpperCase()),['limit','offset','x','y','width','height'].includes(k)?Number(value):value]));
@@ -26,14 +27,17 @@ export async function runProvider(argv: string[]) {
     const client=await NewspapersClient.open();
     if(command==='me')result=await client.me();else if(command==='verify')result=await client.verify();else if(command==='refresh')result=await client.refresh();
     else if(command==='search')result=await client.search(options);
+    else if(command==='clipping-search')result=await client.searchClippings({...options,mine:v.mine as boolean|undefined});
+    else if(command==='clipping')result=await client.clipping(arg);
+    else if(command==='article')result=await client.article(arg,extra,v.type as ArticleType|undefined);
     else if(command==='locations')result=await client.locations(arg,number('limit'));
     else if(command==='browse')result=await client.browse(arg);
     else if(command==='publication')result=await client.publication(arg);
     else if(command==='issue')result=await client.issue(arg,extra);
     else if(command==='page')result=await client.page(arg);
-    else if(command==='download'){
-      if(typeof v.out!=='string' || !v.out.trim())throw new Error('Supply --out FILE.jpg for the page download.');
-      return saveDownload(v.out,await client.download(arg));
+    else if(['download','article-download','clipping-download'].includes(command)){
+      if(typeof v.out!=='string' || !v.out.trim())throw new Error('Supply --out FILE.jpg for the download.');
+      return saveDownload(v.out,await(command==='article-download'?client.downloadArticle(arg,extra,v.type as ArticleType|undefined):command==='clipping-download'?client.downloadClipping(arg):client.download(arg)));
     }
     else if(command==='hits')result=await client.hits(arg,v.keyword as string);
     else if(command==='clippings')result=await client.clippings(arg,number('offset'),number('limit'));
