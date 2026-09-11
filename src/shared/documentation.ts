@@ -147,7 +147,7 @@ export function documentationPassages(catalog: DocumentationCatalog): DocPassage
     return sections.flatMap(section => {
       const body = lines.slice(section.startLine - 1, section.contentEndLine).join('\n');
       if (!body.trim()) return [];
-      const references = [...new Set([...body.matchAll(/\bfam(?:\s+--)?\s+([a-z]+\.[a-z.-]+)\s+([a-z-]+)/g)]
+      const references = [...new Set([...body.matchAll(/\bfam(?:\s+--)?\s+([a-z][a-z0-9]*\.[a-z.-]+)\s+([a-z-]+)/g)]
         .map(match => `${match[1]} ${match[2]}`).filter(id => commandById.has(id)))];
       const words = body.replace(/^\s*(?:#{1,6}\s+|`{3,}.*$|~{3,}.*$)/gm, '').split(/\s+/).filter(Boolean);
       const passages: DocPassage[] = [];

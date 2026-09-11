@@ -16,7 +16,7 @@ const originKey = (value: string) => createHash('sha256').update(value).digest('
 /** Read only the selected instance's routing metadata, never browser sessions,
  * cookies or endpoint secrets. No provider/browser connections or writes. */
 export async function browserRouting(providers: readonly string[], requestedOrigin?: string) {
-  if (providers.some(provider => !/^[a-z]+$/.test(provider))) throw new BrowserError('Invalid browser provider.');
+  if (providers.some(provider => !/^[a-z][a-z0-9]*$/.test(provider))) throw new BrowserError('Invalid browser provider.');
   const selectedOrigin = requestedOrigin === undefined ? undefined : origin(requestedOrigin);
   const config = await browserConfig(), preference = transportPreference(config);
   const directory = config ? `browser/${endpointId(config)}/routing` : undefined;
@@ -35,7 +35,7 @@ export async function browserRouting(providers: readonly string[], requestedOrig
     }) : [];
     for (const provider of providers) {
       const savedRoutes: Array<{origin:string;enabled:boolean}> = [];
-      for (const file of files.filter(file => file.startsWith(`${provider}-`) && /^[a-z]+-[a-f0-9]{24}\.json$/.test(file))) {
+      for (const file of files.filter(file => file.startsWith(`${provider}-`) && /^[a-z][a-z0-9]*-[a-f0-9]{24}\.json$/.test(file))) {
         const saved = await readPrivateJson<{origin:string;enabled:boolean}>(`${directory}/${file}`);
         if (!saved || typeof saved.origin !== 'string' || typeof saved.enabled !== 'boolean') throw new BrowserError('Invalid browser transport routing metadata.');
         const value = origin(saved.origin);

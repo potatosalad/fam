@@ -4,7 +4,7 @@ export function compareCliNames(a: string, b: string): number {
   const familysearch = (name: string) => /^familysearch(?:[. /]|$)/.test(name);
   return Number(familysearch(b)) - Number(familysearch(a)) || (a < b ? -1 : a > b ? 1 : 0);
 }
-export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'geneanet', 'internetarchive', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
+export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'fold3', 'geneanet', 'internetarchive', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
 export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'|'internetarchive'> => name !== 'cyndislist' && name !== 'wayback' && name !== 'internetarchive');
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Trees, records, images, and full-text research.'},
@@ -18,6 +18,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   internetarchive: {name: 'Internet Archive', description: 'Books, OCR text, collections, and public files.'},
   myheritage: {name: 'MyHeritage', description: 'Family sites, trees, records, matches, and documents.'},
   newspaperarchive: {name: 'NewspaperArchive', description: 'Newspaper search, publications, locations, and OCR.'},
+  fold3: {name: 'Fold3', description: 'Military records, memorials, publications, and scans.'},
   newspapers: {name: 'Newspapers.com', description: 'Newspaper search, publications, clippings, and OCR.'},
   storied: {name: 'Storied', description: 'Trees, stories, media, hints, and records.'},
   wayback: {name: 'Wayback Machine', description: 'Archived web pages from the Internet Archive.'},
@@ -26,6 +27,9 @@ export const namespaceNames = Object.keys(providerInfo).sort(compareCliNames);
 export type Provider = typeof providerNames[number];
 /** Shared object descriptions used by provider help and command correction. */
 export const objectDescriptions: Record<string, string> = {
+  unit: 'Military units, service histories, and related records.',
+  'image.neighbor': 'Neighboring scans and document clusters.',
+  'image.source': 'Image source details, citations, and related collections.',
   category: 'Genealogy directory categories and their nested resource listings.',
   resource: 'Genealogy resource links and directory search.',
   browser: 'Persistent local or remote CloakBrowser/Camofox browser and login viewer.',
@@ -199,20 +203,20 @@ for (const provider of authenticatedProviderNames) {
   add(provider, 'credentials', 'credential set', 'Save login credentials from helper, environment, prompt, or JSON stdin.', [], 'stdin', {risk: {level: 'local', description: 'Writes private credentials and may invoke the configured credential sync helper.'}});
   add(provider, 'sync', 'credential sync', 'Run the explicitly configured credential synchronization helper.', [], '', {risk: {level: 'write', description: 'Invokes the user-configured synchronization helper, which may contact another host.'}});
   const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'interactive no-autofill native capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
-    : provider === 'findmypast' ? 'interactive no-autofill native capture har browser callback-file browser-channel capture-timeout region' : provider === 'newspapers' ? 'interactive no-autofill' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive no-autofill browser-channel' : '';
+    : provider === 'findmypast' ? 'interactive no-autofill native capture har browser callback-file browser-channel capture-timeout region' : provider === 'fold3' ? 'native interactive no-autofill' : provider === 'newspapers' ? 'interactive no-autofill' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive no-autofill browser-channel' : '';
   add(provider, 'auth', 'session login', 'Sign in and save a session; use the provider-specific authentication options.', [], auth, {risk: login, flags: provider === 'findmypast' ? {region: {choices: ['com', 'co.uk']}} : undefined});
   add(provider, 'status', 'session get', 'Inspect saved session metadata without tokens or live authentication.', [], '', {risk: local});
-  if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive', 'newspapers'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
-  if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
+  if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive', 'newspapers', 'fold3'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
+  if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors', 'fold3'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
   if (provider !== 'ancestry') add(provider, provider === 'familysearch' ? 'whoami' : 'me', 'account get', 'Read the current account profile and available tree context.', [], provider === 'myheritage' ? 'query' : '');
   add(provider, 'ops', 'api list', 'List and filter the provider’s known API operations and aliases.', ['?filter'], '', {risk: local,
     ...(provider === 'familysearch' ? {examples: ['fam familysearch.api list', 'fam familysearch.api list --filter memories', 'fam familysearch.api list --filter "duplicate people"']} : {})});
   add(provider, 'schema', 'api describe', 'Inspect the contract, inputs, response information, and availability of one provider API operation.', ['operation'], provider === 'familysearch' ? 'example' : '', {risk: local});
-  if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors'].includes(provider)) {
+  if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors', 'fold3'].includes(provider)) {
     add(provider, 'gql', 'api.gql query', 'Execute a cataloged GraphQL query or mutation with variables.', ['operation', '?variables'], '', {risk: api});
     if (provider !== 'ancestry') add(provider, 'query', 'api.gql execute', 'Execute a custom GraphQL document from a file.', ['document', '?variables'], '', {risk: api});
   }
-  if (!['geneanet', 'newspaperarchive', 'newspapers', 'americanancestors'].includes(provider)) add(provider, 'call', 'api call', provider === 'familysearch'
+  if (!['geneanet', 'newspaperarchive', 'newspapers', 'americanancestors', 'fold3'].includes(provider)) add(provider, 'call', 'api call', provider === 'familysearch'
     ? 'Execute genealogy operations for memories, people, relationships, sources, hints, groups, history, and ordinances. Add --operation NAME --help to inspect inputs, outputs, and effects.'
     : 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
     provider === 'familysearch' ? ['operation'] : ['operation', '?input'], provider === 'familysearch' ? 'input query' : provider === 'ancestry' ? 'query base' : ['myheritage', 'findmypast'].includes(provider) ? 'query' : '',
@@ -220,6 +224,30 @@ for (const provider of authenticatedProviderNames) {
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});
   if (['myheritage', 'findmypast', 'findagrave', 'storied'].includes(provider)) add(provider, 'models', 'api.model list', 'List and filter recovered provider model fields.', ['?filter'], '', {risk: local});
 }
+
+const fold3Search = 'name keyword type publication-id place conflict service-number year birth-year death-year filter field facet sort limit offset';
+const fold3Flags: Record<string, Partial<Flag>> = {
+  type:{choices:['research','image','record','memorial','unit','publication','all'],default:'research'},
+  filter:{multiple:true,description:'Fold3 facet NAME=VALUE; repeat for multiple filters. Values come from facet results.'},
+  field:{multiple:true,description:'Fold3 field NAME=VALUE, for example full-name=Jane Smith.'},
+  facet:{multiple:true,description:'Return counts for this facet, for example general.title.id or military.conflict.'},
+  limit:{minimum:1,maximum:100,default:20},offset:{minimum:0,maximum:9999,default:0},
+  sort:{choices:['RELEVANCE','CHRONOLOGICAL_ASC','CHRONOLOGICAL_DESC','ALPHABETICAL','LAST_MODIFIED'],default:'RELEVANCE'},
+};
+add('fold3','call','api call','Execute a documented Fold3 read operation. Login and image tokens are managed internally.', ['operation','?input']);
+add('fold3','search','record search','Search military and genealogy records, indexed names, scanned pages, and memorials.', [], fold3Search, {flags:fold3Flags,pagination:'Pass nextOffset with the same search criteria. The CLI bounds the result window to 10,000; narrow searches beyond that window.'});
+add('fold3','facets','catalog browse','Browse matching publication, place, conflict, and date facets.', [], fold3Search, {flags:fold3Flags});
+add('fold3','publications','publication list','List and filter the website publication catalog.', [], 'keyword limit offset', {flags:{limit:{maximum:1000}},pagination:'Fetches the website catalog once per call and filters/pages it locally.'});
+add('fold3','publication','publication get','Read a publication description, source metadata, and access level.', ['publication-id']);
+add('fold3','record','record get','Read an indexed record, citation, and related research links.', ['record-id']);
+add('fold3','memorial','memorial get','Read memorial facts, events, stories, and sources.', ['memorial-id']);
+add('fold3','unit','unit get','Read military unit history and related research links.', ['unit-id']);
+add('fold3','image','image get','Read scan metadata, dimensions, and current viewing/download permissions.', ['image-id']);
+add('fold3','document','image.source get','Read scan source details, citation, and related publications.', ['image-id']);
+add('fold3','filmstrip','image.neighbor list','Read a bounded filmstrip of neighboring scans and document clusters.', ['image-id'], 'limit', {flags:{limit:{maximum:100}},pagination:'Continue from a returned imageId; the fragment is not a complete roll.'});
+add('fold3','ocr','image.ocr get','Read machine OCR for a scan when supplied by Fold3.', ['image-id']);
+add('fold3','ocr-hits','image.hits get','Locate keyword matches in provider scan coordinates.', ['image-id'], 'keyword', {flags:{keyword:{required:true}}});
+add('fold3','download','image download','Save an authorized whole-image JPG export and citation/checksum sidecar without overwriting files.', ['image-id'], '', {flags:{out:{required:true,description:'Destination JPG file; also writes FILE.jpg.json with source citation and checksum.'}}});
 
 add('newspapers','call','api call','Execute a documented Newspapers read operation. Authorization tokens are managed internally.', ['operation','?input']);
 add('newspapers','search','newspaper search','Search newspaper pages or indexed births, marriages, obituaries, enslavement records, and crime articles.', [], 'type keyword publication-id country region city from to sort limit cursor', {pagination:'One page per request. Pass nextCursor verbatim as --cursor with the same filters and record type.',flags:{type:{choices:['page','obituary','marriage','birth','enslavement','crime'],default:'page'},limit:{type:'integer',minimum:1,maximum:100,default:20},sort:{choices:['score','date-asc','date-desc']}}});

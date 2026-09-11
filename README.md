@@ -40,6 +40,7 @@ If installation fails or your shell can't find the commands, see [installation h
 | `internetarchive` | [Books, catalog and OCR search, collections, metadata, and public downloads](docs/internetarchive/README.md) |
 | `myheritage` | [Family sites, trees, historical records, matches, and documents](docs/myheritage/README.md) |
 | `newspaperarchive` | [Newspaper search, publications, locations, and page OCR](docs/newspaperarchive/README.md) |
+| `fold3` | [Military records, publications, memorials, OCR, and images](docs/fold3/README.md) |
 | `newspapers` | [Newspaper search, publications, clippings, and page OCR](docs/newspapers/README.md) |
 | `storied` | [Family trees, stories, media, hints, and historical records](docs/storied/README.md) |
 | `wayback` | [Find archived web pages and read captures from a chosen date](docs/wayback/README.md) |

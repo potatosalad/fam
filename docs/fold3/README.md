@@ -1,0 +1,82 @@
+# Fold3
+
+Search military and genealogy records, browse publications, read indexed records and memorials, follow neighboring scans, and save permitted images with citations. Fold3 focuses on military service, pensions, casualty records, draft registrations, and related family history; its catalog also includes nonmilitary material.
+
+Use the [shared setup](../setup.md) for installation, profiles, and credential helpers. Run `fam fold3 --help` to explore commands or `fam cli.doc read --provider fold3` to read this guide in the CLI. The [protocol notes](protocol.md) distinguish observed website APIs from a supported public developer API.
+
+## Authentication
+
+```sh
+fam fold3.credential set
+fam fold3.session login
+fam fold3.session get
+fam fold3.session verify
+fam fold3.account get
+```
+
+Credentials come from `FOLD3_USERNAME` and `FOLD3_PASSWORD`, an explicitly configured generic credential helper, or the profile's private `fold3/login.json`. The shared runtime has no host or secret-store defaults. See [credential lookup](../setup.md).
+
+Browser login is the default. It opens Fold3's `/login`, fills and submits configured credentials once per login step, and verifies the account through `/node/refreshUser` before saving cookies. Use `--interactive` to fill without submitting, or `--no-autofill` for manual login. Only the exact Fold3 origin receives automatic credential entry. The website also offers Ancestry sign-in; complete that route manually in the viewer when needed. A linked Ancestry account or Ancestry subscription does not establish Fold3 premium access.
+
+Browser cookies stay in the selected local or remote browser instance. Session snapshots use private, atomic profile storage; credentials and session tokens are not returned by status/account commands. See [browser setup and routing](../browser.md).
+
+`fam fold3.session login --native --transport http` makes a native attempt: GET `/login`, read its CSRF value, POST `{username,password}` once to `/node/auth/user`, and verify the account. The observed native POST received a Cloudflare challenge, so browser login is the verified path. Native login does not replay credentials through redirects or switch to another host. A failed login leaves the previous saved session intact.
+
+`fam fold3.session refresh` revalidates existing cookies and saves rotations. It is not an OAuth refresh-token grant; expired cookies require login again. `fam cli.health check --provider fold3` checks session structure and current identity. It does not prove access to every record.
+
+## Find ancestors and collections
+
+```sh
+fam fold3.record search --name 'Abraham Lincoln' --type record --limit 20
+fam fold3.record search --keyword 'pension' --conflict 'US Civil War'
+fam fold3.record search --name 'Abraham Lincoln' --birth-year 1886
+fam fold3.record search --publication-id 3 --type image --limit 20
+fam fold3.record search --publication-id 3 --type image --offset 20 --limit 20
+fam fold3.publication list --keyword 'Civil War' --limit 20
+fam fold3.publication get --publication-id 3
+fam fold3.catalog browse --name 'Abraham Lincoln' --facet general.title.id --facet military.conflict
+```
+
+The default `--type research` searches scans, indexed records, and memorials. Other types are `image`, `record`, `memorial`, `unit`, `publication`, and `all`. Names use Fold3's analyzed `full-name` field; they are not a guaranteed literal phrase match. `--keyword` includes OCR. Search results retain native identifiers, indexed metadata, highlights, publication IDs, and source links.
+
+Filter by `--place`, `--conflict`, `--service-number`, `--year`, `--birth-year`, or `--death-year`. Facet values are provider identifiers: copy returned values instead of guessing labels. Use `--filter NAME=VALUE` for a returned facet and `--field NAME=VALUE` for additional fielded text. Repeat a filter with the same name to add alternatives; different filter names narrow the query together. `--facet NAME` includes counts in search responses; catalog browsing returns counts without record hits. Examples of facet names include `general.title.id`, `place`, `military.conflict`, `military.service.branch`, and `date.vital.birth`.
+
+Search is one page per request. Pass `nextOffset` with unchanged filters. `incomplete` reports timeout, failed search shards, or an unexpectedly empty continuation. The CLI bounds search to 10,000 results; narrow queries when `windowLimitReached` is true. Facets may be truncated to the requested `--limit`, and a filmstrip is only a fragment. Publication listing fetches the site's catalog once per call and applies keyword filtering and pagination locally; it reflects the current site's available catalog, not every historical Fold3 publication.
+
+Sort with `RELEVANCE`, `ALPHABETICAL`, `LAST_MODIFIED`, `CHRONOLOGICAL_ASC`, or `CHRONOLOGICAL_DESC`.
+
+## Read evidence and follow pages
+
+```sh
+fam fold3.record get --record-id 50189
+fam fold3.memorial get --memorial-id 653615411
+fam fold3.unit get --unit-id 138483
+fam fold3.image get --image-id 4346701
+fam fold3.image.source get --image-id 4346701
+fam fold3.image.neighbor list --image-id 4346701 --limit 10
+fam fold3.image.ocr get --image-id 295842756
+fam fold3.image.hits get --image-id 295842756 --keyword Navy
+fam fold3.image download --image-id 4346701 --out declaration.jpg
+```
+
+Indexed record IDs (`/record/`) and image IDs (`/image/` or `/document/`) identify different kinds of content. Memorials and military units have their own IDs. Use `fam cli.context resolve --context URL` to discover the matching commands for a Fold3 URL. Large decimal IDs stay exact.
+
+Record, memorial, unit, and image-source reads parse the site's structured hydration data without executing its scripts. Their `data` retains the provider's nested facts, events, relationships, source links, related collections, and available permissions. Image reads use the compact JSON API and normalize dimensions, metadata, publication IDs, and permissions. Sign-in context, CSRF values, and image tokens are excluded from research output.
+
+OCR availability is independent of viewing and subscription status. Some images have no transcription; others expose OCR even when the scan is subscription restricted. OCR hits retain the API's compact rectangle encoding. Always check important names and dates against the scan.
+
+Downloads require the current response to allow both `VIEW` and `DOWNLOAD` and provide a fresh image token. The CLI uses the viewer's whole-image JPG export, reports both source and exported dimensions (the website may downsample), checks that it decodes as JPEG, and writes a private `.jpg.json` sidecar with source metadata, citation, download time, dimensions, and SHA-256. Existing image or sidecar files are not overwritten. Subscription restrictions are reported instead of requesting the image. PDF export, annotations, tree writes, and bulk collection downloading are not implemented.
+
+## Direct API and browser transport
+
+```sh
+fam fold3.api list
+fam fold3.api describe --operation search
+fam fold3.api call --operation search --input '{"name":"Abraham Lincoln","type":"record","limit":5}'
+fam fold3.publication get --publication-id 3 --transport http
+fam fold3.record search --name 'Abraham Lincoln' --transport browser
+```
+
+The operation catalog exposes curated reads using the same input fields as the TypeScript client, in camelCase. It does not accept arbitrary URLs, methods, credentials, or raw backend flags. Use `--json` for structured output, or `--out FILE.json` to save research responses privately.
+
+`auto` starts with native HTTP and uses the configured browser when it encounters an evidenced website challenge. Reads do not initiate password login. Explicit `--transport http` never opens a browser; explicit `browser` uses browser requests. The website's same-origin proxy API is the verified integration surface. Availability and fields may change without notice.

@@ -14,6 +14,7 @@ export const doctorProviders = {
   storied: () => import('../storied/doctor.js'),
   americanancestors: () => import('../americanancestors/doctor.js'),
   newspapers: () => import('../newspapers/doctor.js'),
+  fold3: () => import('../fold3/doctor.js'),
   newspaperarchive: () => import('../newspaperarchive/doctor.js'),
 };
 export interface ProviderReport {
@@ -44,8 +45,8 @@ type Dependencies = {
   browser?: () => Promise<boolean>;
 };
 const dependencies: Dependencies = {
-  read: name => /^(myheritage|findmypast|storied|newspapers)\/session\.json$/.test(name) ? loadProviderSession(name.split('/')[0]) : readPrivateJson(name),
-  write: (name, value) => /^(myheritage|findmypast|storied|newspapers)\/session\.json$/.test(name) ? saveProviderSession(name.split('/')[0], value as {browserInstance?: string}) : writePrivateJson(name, value),
+  read: name => /^(myheritage|findmypast|storied|newspapers|fold3)\/session\.json$/.test(name) ? loadProviderSession(name.split('/')[0]) : readPrivateJson(name),
+  write: (name, value) => /^(myheritage|findmypast|storied|newspapers|fold3)\/session\.json$/.test(name) ? saveProviderSession(name.split('/')[0], value as {browserInstance?: string}) : writePrivateJson(name, value),
   credentials: inspectLoginCredentials, now: Date.now,
   browser: async () => !!await browserConfig(),
 };

@@ -115,7 +115,7 @@ function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, 
     }));
   const findings = [...new Set([...codes(error), ...diagnostics.flatMap(d => [d.code, ...codes(d.error)])])];
   if (!findings.length && outcome !== 'success') findings.push(outcome === 'incomplete' ? 'NO_FINISH' : 'EXECUTION_FAILED');
-  return {id: String(record.id), command, provider: string(record.provider) ?? (/^[a-z]+\./.test(command) ? command.split('.')[0] : null),
+  return {id: String(record.id), command, provider: string(record.provider) ?? (/^[a-z][a-z0-9]*\./.test(command) ? command.split('.')[0] : null),
     startedAt: new Date(String(record.startedAt)).toISOString(), finishedAt: finish ? new Date(String(finish.timestamp)).toISOString() : null,
     lastRecordedAt: new Date(lastRecordedAt).toISOString(), archived: false, archivedAt: null, archiveId: null,
     outcome, durationMs: number(record.durationMs), exitCode: number(record.exitCode), settled: typeof record.settled === 'boolean' ? record.settled : null,

@@ -12,7 +12,7 @@ delete process.env.FAMILYSEARCH_CONFIG_DIR;
 delete process.env.FAM_CREDENTIALS_COMMAND;
 delete process.env.FAM_CREDENTIALS_SYNC_COMMAND;
 delete process.env.FAM_CREDENTIALS_SYNC_DISABLED;
-for (const service of ['FAMILYSEARCH', 'ANCESTRY', 'MYHERITAGE', 'FINDMYPAST', 'FINDAGRAVE', 'GENEANET', 'STORIED', 'NEWSPAPERS']) {
+for (const service of ['FAMILYSEARCH', 'ANCESTRY', 'MYHERITAGE', 'FINDMYPAST', 'FINDAGRAVE', 'GENEANET', 'STORIED', 'NEWSPAPERS', 'FOLD3']) {
   delete process.env[`${service}_USERNAME`];
   delete process.env[`${service}_PASSWORD`];
 }

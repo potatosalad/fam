@@ -21,6 +21,7 @@ const providers = {
   americanancestors: () => import('./americanancestors/cli.js'),
   newspaperarchive: () => import('./newspaperarchive/cli.js'),
   newspapers: () => import('./newspapers/cli.js'),
+  fold3: () => import('./fold3/cli.js'),
   cyndislist: () => import('./cyndislist/cli.js'),
   internetarchive: () => import('./internetarchive/cli.js'),
   wayback: () => import('./wayback/cli.js'),

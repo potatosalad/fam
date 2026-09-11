@@ -68,7 +68,7 @@ test('overview stays compact with ordered providers and single-line descriptions
     'fam familysearch.image --help', 'fam cli --help', '--completions <SHELL>']) assert.ok(overview.includes(text), text);
   const providerLines = overview.split('Available providers:\n')[1].split('\n\n')[0].split('\n');
   assert.deepEqual(providerLines.map(line => line.trim().split(/\s+/)[0]), [
-    'familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast',
+    'familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'fold3',
     'geneanet', 'internetarchive', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback',
   ]);
   assert.ok(overview.trimEnd().split('\n').length <= 50);
@@ -170,7 +170,7 @@ test('every old provider command has a unique registered mapping', async () => {
   const before = JSON.parse(await readFile(new URL('fixtures/cli-before-migration.json', import.meta.url), 'utf8'));
   assert.equal(new Set(commands.map(c => c.id)).size, commands.length);
   for (const command of commands) {
-    assert.match(command.id, /^[a-z]+\.[a-z-]+(?:\.[a-z-]+)* [a-z-]+$/);
+    assert.match(command.id, /^[a-z][a-z0-9]*\.[a-z-]+(?:\.[a-z-]+)* [a-z-]+$/);
     assert.equal(new Set(command.flags.map(f => f.name)).size, command.flags.length, command.id);
     assert.ok(command.description && command.examples.length && command.outputSchema && command.risk);
     assert.ok(!command.flags.some(f => f.name === 'confirm'));
