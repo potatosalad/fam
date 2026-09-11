@@ -562,7 +562,7 @@ add('cli', 'search', 'command search', 'Find commands by intent with 20% BM25 an
       context: {description: 'Optional provider URL or ID to resolve locally and prefill matching flags.'},
       limit: {default: 10, maximum: 100, description: 'Number of ranked matches to show.'}, offset: {description: 'Zero-based offset into ranked matches.'},
       lexical: {type: 'boolean', description: 'Use only BM25; skip model loading and downloads.'},
-      'no-rerank': {type: 'boolean', description: 'Skip the default MiniLM reranker and return BM25 + Arctic scores only.'},
+      'no-rerank': {type: 'boolean', description: 'Skip the default Ettin reranker and return BM25 + Arctic scores only.'},
       scores: {type: 'boolean', description: 'Show relevance scores in table, tree, and text output. JSON always includes scores.'},
       format: {default: 'table', choices: ['table', 'tree', 'text', 'json'], description: 'Ranked table, provider/object tree, detailed invocation templates, or JSON.'}},
     examples: ['fam cli.command search --query "save a full resolution scan of a historical document"',
@@ -583,7 +583,7 @@ add('cli', 'docs-search', 'doc search', 'Find relevant sections in installed gui
   {...cliRisk, flags: {...docFlags, query: {required: true, description: 'What you want to learn from the guides.'},
     limit: {default: 10, maximum: 100, description: 'Number of matching sections to show.'}, offset: {description: 'Zero-based offset into matching sections.'},
     lexical: {type: 'boolean', description: 'Search with BM25 only; no model downloads or loading.'},
-    'no-rerank': {type: 'boolean', description: 'Skip MiniLM reranking and use BM25 + Arctic scores.'}},
+    'no-rerank': {type: 'boolean', description: 'Skip Ettin reranking and use BM25 + Arctic scores.'}},
     examples: ['fam cli.doc search --query "collection-specific fields"', 'fam cli.doc search --provider americanancestors --query "search by spouse" --lexical']});
 add('cli', 'list', 'command list', 'List every registered command, optionally restricted to a provider.', [], 'provider', {...cliRisk, flags: {provider: {choices: [...providerNames, 'cli']}}});
 add('cli', 'providers', 'provider list', 'List available providers and what each one supports.', [], '', cliRisk);

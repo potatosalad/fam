@@ -47,7 +47,7 @@ If installation fails or your shell can't find the commands, see [installation h
 
 ## Find and run commands
 
-Search for what you want to do in plain language. Search uses command descriptions and relevant guide sections. It runs locally without an API key, downloads about 48 MB of models on first use, then works offline. Use `--lexical` to search without downloading models. See [search options](docs/cli.md#local-discovery) for ranking, filters, and caching.
+Search for what you want to do in plain language. Search uses command descriptions and relevant guide sections. It runs locally without an API key, downloads about 95 MB of models on first use, then works offline. Use `--lexical` to search without downloading models. See [search options](docs/cli.md#local-discovery) for ranking, filters, and caching.
 
 ```sh
 fam cli.command search --query "download an original image"

@@ -47,6 +47,13 @@ test('real Arctic embeddings: cold setup, intent ranking, offline restart and ca
   const guide = await searchDocumentation('search records using a spouse name', {provider: 'americanancestors', limit: 5});
   assert.equal(guide.engine, 'local-bm25-embeddings-reranked', guide.warnings?.join('\n'));
   assert.ok(guide.results.slice(0, 3).some(item => item.section === 'family-members-and-collection-specific-fields'), guide.results.map(item => item.section).join(', '));
+  const ranked = await searchCommands(query, {limit: 10});
+  assert.equal(ranked.engine, 'local-bm25-embeddings-reranked', ranked.warnings?.join('\n'));
+  assert.equal(ranked.reranker?.id, 'cross-encoder/ettin-reranker-17m-v1');
+  assert.equal(ranked.results[0].command, 'familysearch.image download');
+  const guideCommand = await searchCommands('search collection-specific fields and generation numbers', {provider: 'americanancestors'});
+  assert.equal(guideCommand.engine, 'local-bm25-embeddings-reranked', guideCommand.warnings?.join('\n'));
+  assert.equal(guideCommand.results[0].command, 'americanancestors.record search');
   assert.equal((await stat(indexPath)).mode & 0o777, 0o600);
   const combined = await snapshot();
   assert.equal(combined.entries.length, commands.entries.length + new Set(catalog.passages.filter(doc => doc.provider === 'americanancestors').map(doc => doc.text)).size);

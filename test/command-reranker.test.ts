@@ -9,15 +9,15 @@ import {parseInvocation} from '../src/shared/command-runtime.js';
 const semantic: SemanticScorer = async docs => docs.map((_, i) => 1 - i / (docs.length + 1));
 const identity = (row: {command: string; operation?: string}) => row.command + (row.operation ? ` --operation ${row.operation}` : '');
 
-test('BERT pairs preserve both segments, separators and the 512-token bound without mutating inputs', () => {
-  assert.deepEqual(rerankerPair([10, 11], [12]), {ids: [101, 10, 11, 102, 12, 102], types: [0, 0, 0, 0, 1, 1]});
+test('Ettin pairs preserve both texts, model-specific separators and the 512-token bound without mutating inputs', () => {
+  assert.deepEqual(rerankerPair([10, 11], [12]), [50281, 10, 11, 50282, 12, 50282]);
   const query = Array(700).fill(10), document = Array(800).fill(20), pair = rerankerPair(query, document);
-  assert.equal(pair.ids.length, 512); assert.equal(pair.types.length, 512);
-  assert.equal(pair.ids.filter(id => id === 102).length, 2);
-  assert.equal(pair.ids.filter(id => id === 10).length, 255);
-  assert.equal(pair.ids.filter(id => id === 20).length, 254);
+  assert.equal(pair.length, 512);
+  assert.equal(pair.filter(id => id === 50282).length, 2);
+  assert.equal(pair.filter(id => id === 10).length, 255);
+  assert.equal(pair.filter(id => id === 20).length, 254);
   assert.equal(query.length, 700); assert.equal(document.length, 800);
-  assert.equal(rerankerPair([], document).ids.length, 512);
+  assert.equal(rerankerPair([], document).length, 512);
 });
 
 test('reranker loads lazily, retries failed loading and preserves batch order and negative logits', async () => {
@@ -25,7 +25,7 @@ test('reranker loads lazily, retries failed loading and preserves batch order an
   const batches: number[] = [];
   const score = createReranker(async () => {
     if (++loads === 1) throw new Error('download failed');
-    return {encode: text => [Number(text)], score: async pairs => {batches.push(pairs.length); return pairs.map(pair => -pair.ids[3]);}};
+    return {encode: text => [Number(text)], score: async pairs => {batches.push(pairs.length); return pairs.map(pair => -pair[3]);}};
   });
   assert.deepEqual(await score([], '1'), []); assert.equal(loads, 0);
   const docs = Array.from({length: 19}, (_, i) => ({id: String(i), text: String(i)}));
@@ -73,7 +73,7 @@ test('default reranking only sees the genuine fixed shortlist, uses raw logits, 
 test('mixed guide/command lengths batch together efficiently while scores return in input order', async () => {
   const lengths: number[][] = [];
   const score = createReranker(async () => ({encode: text => text === 'query' ? [99] : Array(Number(text)).fill(Number(text)),
-    score: async pairs => {lengths.push(pairs.map(pair => pair.ids.length)); return pairs.map(pair => -pair.ids[3]);}}));
+    score: async pairs => {lengths.push(pairs.map(pair => pair.length)); return pairs.map(pair => -pair[3]);}}));
   const docs = Array.from({length: 16}, (_, i) => ({id: String(i), text: String(i % 2 ? 200 + i : i + 1)}));
   assert.deepEqual(await score(docs, 'query'), docs.map(doc => -Number(doc.text)));
   assert.ok(lengths[0].every(length => length < 25));
@@ -90,6 +90,15 @@ test('provider and context filtering apply before reranking; invocation requirem
   assert.deepEqual(result.results[0].prefilledFlags, {ark: '3:1:TEST'});
   assert.deepEqual(result.results[0].missingFlags, ['out']);
   assert.ok(result.results.every(row => row.command.startsWith('familysearch.')));
+});
+
+test('search trees keep providers in reranked relevance order, including ahead of FamilySearch', async () => {
+  const targets = ['myheritage.document download', 'familysearch.image download'];
+  const result = await searchCommands('zxqv', {limit: 2}, async docs => docs.map(doc => targets.includes(doc.id) ? 1 : 0.1),
+    async docs => docs.map(doc => doc.id === targets[0] ? 20 : doc.id === targets[1] ? 10 : -1));
+  assert.deepEqual(result.results.map(row => row.command), targets);
+  const tree = humanOutput(commandById.get('cli.command search')!, result, {format: 'tree'});
+  assert.ok(tree.indexOf('\nmyheritage\n') < tree.indexOf('\nfamilysearch\n'));
 });
 
 test('disabled, lexical, empty and failed embedding searches skip reranking; reranker failure keeps the complete baseline', async () => {
