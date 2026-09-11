@@ -119,6 +119,10 @@
     "./newspapers": {
       "types": "./dist/newspapers/index.d.ts",
       "import": "./dist/newspapers/index.js"
+    },
+    "./internetarchive": {
+      "types": "./dist/internetarchive/index.d.ts",
+      "import": "./dist/internetarchive/index.js"
     }
   },
   "files": [

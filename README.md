@@ -37,6 +37,7 @@ If installation fails or your shell can't find the commands, see [installation h
 | `findagrave` | [Memorials, cemeteries, relatives, biographies, and photos](docs/findagrave/README.md) |
 | `findmypast` | [Family trees, historical records, newspapers, and images](docs/findmypast/README.md) |
 | `geneanet` | [Archival records, trees, portraits, registers, and books](docs/geneanet/README.md) |
+| `internetarchive` | [Books, catalog and OCR search, collections, metadata, and public downloads](docs/internetarchive/README.md) |
 | `myheritage` | [Family sites, trees, historical records, matches, and documents](docs/myheritage/README.md) |
 | `newspaperarchive` | [Newspaper search, publications, locations, and page OCR](docs/newspaperarchive/README.md) |
 | `newspapers` | [Newspaper search, publications, clippings, and page OCR](docs/newspapers/README.md) |
@@ -84,7 +85,7 @@ This starts persistent CloakBrowser in Docker with a passwordless localhost view
 
 Inspect which HTTP/browser transport will start each provider request with `fam cli.browser.transport list --transport auto`. Decisions are per provider and website origin; see [transport inspection](docs/browser.md#automatic-http-recovery) for exact-origin checks.
 
-Browser sign-ins reuse cookies and try configured credentials when needed. fam opens or prints the viewer URL for MFA or CAPTCHA and waits for completion. All provider HTTP clients automatically recover evidenced Cloudflare challenges through the browser and remember the website until `fam cli.browser.transport reset`. Use `fam cli.browser reset --provider myheritage` to clear that provider's browser site data, or `fam cli.browser reset --all` to reset all fam-managed browser sessions. See [reset scope and backups](docs/browser.md#reset-browser-sessions).
+Browser sign-ins reuse cookies and try configured credentials when needed. fam opens or prints the viewer URL for MFA or CAPTCHA and waits for completion. Provider clients with browser transport automatically recover evidenced Cloudflare challenges through the browser and remember the website until `fam cli.browser.transport reset`. Internet Archive public API commands use HTTP directly. Use `fam cli.browser reset --provider myheritage` to clear that provider's browser site data, or `fam cli.browser reset --all` to reset all fam-managed browser sessions. See [reset scope and backups](docs/browser.md#reset-browser-sessions).
 
 Fetch any HTTP(S) URL through the browser, including pages that require JavaScript verification:
 
@@ -109,13 +110,26 @@ fam wayback.snapshot list --url https://example.org/page --from 2010 --to 2020
 
 Add `--date 2015-01-01` to fetch the closest capture to that date. See the [Wayback guide](docs/wayback/README.md) for formats, capture provenance, and browser fallback.
 
+## Search Internet Archive books and text
+
+Public research needs no credentials or browser setup:
+
+```sh
+fam internetarchive.item search --query 'collection:genealogy AND mediatype:texts'
+fam internetarchive.fulltext search --query '"John Smith" AND "Lancaster"' --limit 10
+fam internetarchive.item get --identifier historyofnewyork00irvi --json
+fam internetarchive.text get --identifier historyofnewyork00irvi --limit 2000
+```
+
+Catalog search matches item metadata; full-text search matches indexed OCR and returns snippets. Search hits can include restricted books whose files require account access. See the [Internet Archive guide](docs/internetarchive/README.md) for authentication limits, API endpoints, collection browsing, pagination, and verified downloads.
+
 ## Set up credentials
 
 Set up the services you use. `fam PROVIDER.credential set` saves login details from environment variables or a configured helper; otherwise, it prompts for your username and hides the password as you type. `fam PROVIDER.session login` signs in. Browser-session imports do not require saving a password.
 
 To use a credential helper for all providers, configure `credentialsCommand` once in `~/.config/fam/config.json`. See [persistent credential-helper setup](docs/setup.md#external-credential-helpers). With a helper configured, password-based sign-in can use `fam PROVIDER.session login` directly.
 
-Cyndi’s List and the Wayback Machine do not require provider credentials.
+Cyndi’s List, the Wayback Machine, and the Internet Archive public provider do not require provider credentials.
 
 ### FamilySearch
 

@@ -4,8 +4,8 @@ export function compareCliNames(a: string, b: string): number {
   const familysearch = (name: string) => /^familysearch(?:[. /]|$)/.test(name);
   return Number(familysearch(b)) - Number(familysearch(a)) || (a < b ? -1 : a > b ? 1 : 0);
 }
-export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'geneanet', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
-export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'> => name !== 'cyndislist' && name !== 'wayback');
+export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'geneanet', 'internetarchive', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
+export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'|'internetarchive'> => name !== 'cyndislist' && name !== 'wayback' && name !== 'internetarchive');
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Trees, records, images, and full-text research.'},
   americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, records, citations, and scans.'},
@@ -15,6 +15,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   findagrave: {name: 'Find a Grave', description: 'Memorials, cemeteries, biographies, and photos.'},
   findmypast: {name: 'Findmypast', description: 'Trees, records, newspapers, and images.'},
   geneanet: {name: 'Geneanet', description: 'Archives, trees, portraits, registers, and books.'},
+  internetarchive: {name: 'Internet Archive', description: 'Books, OCR text, collections, and public files.'},
   myheritage: {name: 'MyHeritage', description: 'Family sites, trees, records, matches, and documents.'},
   newspaperarchive: {name: 'NewspaperArchive', description: 'Newspaper search, publications, locations, and OCR.'},
   newspapers: {name: 'Newspapers.com', description: 'Newspaper search, publications, clippings, and OCR.'},
@@ -44,6 +45,7 @@ export const objectDescriptions: Record<string, string> = {
   history: 'Recent CLI calls, diagnostics, and failure trends from the active profile.',
   'history.failures': 'Soft and hard failures recorded in CLI history.',
   image: 'Document images, downloads, and transcriptions.', library: 'Books and archival library material.',
+  item: 'Archive items, catalog search, and metadata.', file: 'Item file listings and downloads.', text: 'Machine-readable OCR text from scanned documents.',
   location: 'Geographic locations and location lookup.', media: 'Linked photographs and other media.',
   memorial: 'Memorials, biographies, relatives, and photographs.', 'mobile.version': 'Mobile application version information.',
   newspaper: 'Historical newspaper research.', notification: 'Account notifications.', person: 'People and genealogy profiles.',
@@ -169,7 +171,7 @@ function add(provider: Command['provider'], legacy: string, objectAction: string
   positional: string[] = [], names = '', extra: Extras = {}) {
   const [object, action] = objectAction.split(' ');
   const positionals = positional.map(name => name.replace(/^\?/, ''));
-  const flagList = [...(provider !== 'cli' ? [flag('transport', {choices: ['auto','http','browser'], binding: false, description: 'Override automatic HTTP/browser transport for this command.'}), flag('browser-timeout', {type: 'integer', minimum: 0, maximum: 3600, binding: false, description: 'Override the wait for browser verification, in seconds.'})] : []), ...positional.map(name => flag(name.replace(/^\?/, ''), {required: !name.startsWith('?')})),
+  const flagList = [...(!['cli', 'internetarchive'].includes(provider) ? [flag('transport', {choices: ['auto','http','browser'], binding: false, description: 'Override automatic HTTP/browser transport for this command.'}), flag('browser-timeout', {type: 'integer', minimum: 0, maximum: 3600, binding: false, description: 'Override the wait for browser verification, in seconds.'})] : []), ...positional.map(name => flag(name.replace(/^\?/, ''), {required: !name.startsWith('?')})),
     ...names.split(' ').filter(Boolean).map(name => flag(name)),
     ...['out', 'json', 'dry-run', 'help'].filter(name => !names.split(' ').includes(name) && !positionals.includes(name)).map(name => flag(name))];
   for (const f of flagList) Object.assign(f, extra.flags?.[f.name]);
@@ -254,6 +256,47 @@ add('cyndislist', 'search', 'resource search', 'Search Cyndi’s List.', ['query
   transport: {choices: ['auto','browser'], description: 'Site search uses the configured browser.'}},
   pagination: 'One results page by default. --all-pages follows available next-page links; --cursor continues the same query. Challenges and partial failures are explicit.',
   examples: ['fam cyndislist.resource search --query "New Zealand probate" --json']});
+
+const archiveFlags: Extras['flags'] = {
+  identifier: {description: 'Internet Archive item or collection identifier, as shown after /details/ in its URL.'},
+  query: {description: 'Archive-native Lucene query. Catalog searches metadata; fulltext searches indexed OCR text.'},
+  limit: {default: 20, minimum: 1, maximum: 1000, description: 'Results per catalog page; use item scan beyond the first 10000 results.'},
+  page: {default: 1, minimum: 1, maximum: 10000, description: 'One-based catalog page; page × limit must not exceed 10000.'},
+  field: {multiple: true, description: 'Metadata field to return; repeat for several fields. Identifier is always included.'},
+  sort: {multiple: true, description: 'Sort field, optionally followed by asc or desc; repeat to break ties. Scan requires identifier last.'},
+  timeout: {type: 'integer', default: 60, minimum: 1, maximum: 3600, description: 'HTTP request timeout in seconds, including retries and response streaming.'},
+  'user-agent-suffix': {description: 'Printable ASCII identification appended to fam/version; automated agents should include their tool and model.'},
+  out: {binding: false, description: 'Save readable output, or structured output with --json, to this file.'},
+};
+const archivePaging = 'One catalog page. data.total, hasMore, and nextPage describe continuation. At the 10000-result window, use item scan.';
+add('internetarchive', 'search', 'item search', 'Search Internet Archive item metadata for books, directories, newspapers, maps, audio, and other research material.', ['query'], 'limit page field sort timeout user-agent-suffix', {flags: archiveFlags, pagination: archivePaging,
+  examples: ['fam internetarchive.item search --query \'collection:genealogy AND mediatype:texts\'', 'fam internetarchive.item search --query \'title:"city directory" AND year:[1880 TO 1920]\' --sort "date asc" --json']});
+add('internetarchive', 'scan', 'item scan', 'Read one cursor page of catalog metadata for large searches; preserve the returned cursor for the next call.', ['query'], 'count cursor field sort timeout user-agent-suffix', {flags: {...archiveFlags,
+  count: {default: 100, minimum: 100, maximum: 10000, description: 'Items requested per scan page; API minimum is 100.'}},
+  pagination: 'One scrape API page. Reuse data.cursor with the same query, fields, and sort. data.total is remaining matches when a cursor is supplied; changing indexes can omit or repeat items.'});
+add('internetarchive', 'collection', 'collection items', 'Browse items in an Internet Archive collection, optionally filtering catalog metadata.', ['identifier'], 'query limit page field sort timeout user-agent-suffix', {flags: archiveFlags, pagination: archivePaging,
+  examples: ['fam internetarchive.collection items --identifier genealogy --query \'title:history\'']});
+add('internetarchive', 'fulltext', 'fulltext search', 'Search indexed OCR text across Internet Archive items and return matching snippets (experimental).', ['query'], 'limit offset timeout user-agent-suffix', {flags: {...archiveFlags,
+  limit: {default: 20, minimum: 1, maximum: 100}, offset: {default: 0, minimum: 0, maximum: 9999, description: 'Zero-based hit offset; offset + limit must not exceed 10000.'}},
+  pagination: 'One full-text page. data.nextOffset continues within 10000 hits; narrow the query for more. Totals may be estimates and hits may repeat an item. timedOut means partial results.',
+  examples: ['fam internetarchive.fulltext search --query \'"John Smith" AND "Lancaster"\' --limit 10']});
+add('internetarchive', 'item', 'item get', 'Read complete public item metadata, bibliographic fields, access flags, reviews, and file metadata.', ['identifier'], 'timeout user-agent-suffix', {flags: archiveFlags,
+  examples: ['fam internetarchive.item get --identifier historyofnewyork00irvi --json']});
+add('internetarchive', 'files', 'file list', 'List exact item file names, formats, sizes, checksums, access flags, and download URLs.', ['identifier'], 'file-format name source timeout user-agent-suffix', {flags: {...archiveFlags,
+  'file-format': {description: 'Exact format label, case insensitive, such as DjVuTXT, Text PDF, or Single Page Processed JP2 ZIP.'},
+  name: {description: 'Case-insensitive substring of the file name.'}, source: {choices: ['original', 'derivative'], description: 'Restrict files by their original/derivative source field.'}},
+  examples: ['fam internetarchive.file list --identifier historyofnewyork00irvi --file-format DjVuTXT']});
+add('internetarchive', 'text', 'text get', 'Read a bounded excerpt of public OCR text; automatically selects a unique DjVuTXT file.', ['identifier'], 'file offset limit max-bytes timeout user-agent-suffix', {flags: {...archiveFlags,
+  file: {description: 'Exact uncompressed .txt file name; otherwise select the unique public DjVuTXT file.'},
+  offset: {default: 0, maximum: 52428800, description: 'Zero-based UTF-16 character offset, not a page number.'},
+  limit: {default: 20000, minimum: 1, maximum: 200000, description: 'Maximum UTF-16 characters to display.'},
+  'max-bytes': {type: 'integer', default: 52428800, minimum: 1, maximum: 52428800, description: 'Maximum bytes fetched for the complete OCR file before extracting the excerpt.'}},
+  pagination: 'data.nextOffset continues the excerpt; each call fetches the whole OCR file. Use file download for repeated local searching.'});
+add('internetarchive', 'download', 'file download', 'Download one public item file, verify available size/MD5 metadata, and save a SHA-256 provenance sidecar.', ['identifier'], 'file max-bytes timeout user-agent-suffix', {flags: {...archiveFlags,
+  file: {required: true, description: 'Exact file name from internetarchive.file list; no globbing or automatic directory download.'},
+  out: {required: true, binding: 'out', description: 'Explicit destination; refuses to overwrite this path or its .json provenance sidecar.'},
+  'max-bytes': {type: 'integer', default: 536870912, minimum: 1, maximum: 2147483648, description: 'Maximum download bytes; default 512 MiB, maximum 2 GiB.'}},
+  examples: ['fam internetarchive.file download --identifier historyofnewyork00irvi --file historyofnewyork00irvi_djvu.txt --out book.txt']});
 
 const waybackFlags: Extras['flags'] = {
   url: {description: 'Original HTTP(S) URL or a full web.archive.org snapshot URL.'},

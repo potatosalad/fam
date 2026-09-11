@@ -69,7 +69,7 @@ test('overview stays compact with ordered providers and single-line descriptions
   const providerLines = overview.split('Available providers:\n')[1].split('\n\n')[0].split('\n');
   assert.deepEqual(providerLines.map(line => line.trim().split(/\s+/)[0]), [
     'familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast',
-    'geneanet', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback',
+    'geneanet', 'internetarchive', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback',
   ]);
   assert.ok(overview.trimEnd().split('\n').length <= 50);
   for (const line of overview.split('\n')) assert.ok(line.length <= 80, line);

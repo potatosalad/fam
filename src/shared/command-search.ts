@@ -27,6 +27,21 @@ export function resolveContext(input: string, provider?: string): Context {
   if (host === 'web.archive.org' && !url.port) {
     try {if (replaySnapshot(url.href) && !provider) return {...result, provider:'wayback', object:'page', flags:{url:url.href}};} catch {}
   }
+  if (host === 'archive.org' && !url.port) {
+    if (provider && provider !== 'internetarchive') return {...result, note: 'URL belongs to internetarchive, conflicting with the explicit provider. No flags were inferred.'};
+    result.provider = 'internetarchive';
+    const item = path.match(/^\/(details|metadata|download)\/([A-Za-z0-9][A-Za-z0-9._-]{0,99})(?:\/(.*))?$/);
+    if (item) {
+      if (item[1] === 'download' && item[3]) {
+        try {
+          const file = decodeURIComponent(item[3]);
+          if (!/[\x00-\x1f\x7f\\]/.test(file) && file.split('/').every(part => part && part !== '.' && part !== '..'))
+            return {...result, object: 'file', flags: {identifier: item[2], file}};
+        } catch {}
+      } else return {...result, object: 'item', flags: {identifier: item[2]}};
+    }
+    return {...result, note: 'Archive.org URL recognized; use an item identifier from its details page.'};
+  }
   const detected = providerNames.find(p => host === `${p}.org` || host.endsWith(`.${p}.org`) || host === `${p}.com` || host.endsWith(`.${p}.com`))
     || (/^((www|search|search-records)\.)?findmypast\.(co\.uk|ie|com\.au)$/.test(host) ? 'findmypast' : undefined)
     || (/^(www\.)?ancestry\.(co\.uk|ca|com\.au)$/.test(host) ? 'ancestry' : undefined);
