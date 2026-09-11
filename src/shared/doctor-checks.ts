@@ -74,7 +74,7 @@ export function failure(error: unknown, recovery: string): Pick<DoctorCheck, 'st
     : e.code === 'BROWSER_INTERACTION_REQUIRED' ? 'verification-required'
     : e.code === 'BROWSER_LOGIN_BLOCKED' ? 'login-blocked'
     : ['BROWSER_UNAVAILABLE', 'BROWSER_PLUGIN_REQUIRED', 'BROWSER_API_FAILED'].includes(e.code) ? 'browser-unavailable'
-    : ['GeneanetError', 'NewspaperArchiveError', 'AmericanAncestorsError'].includes(e.name) && ['session-rejected', 'verification-required', 'api-changed'].includes(e.code) ? e.code
+    : ['GeneanetError', 'NewspaperArchiveError', 'NewspapersError', 'AmericanAncestorsError'].includes(e.name) && ['session-rejected', 'verification-required', 'api-changed'].includes(e.code) ? e.code
     : e.status === 401 ? 'session-rejected'
     : e.status === 403 || e.status === 451 ? 'access-denied'
     : e.status === 406 || e.name === 'MyHeritageResearchVerificationError' ? 'verification-required'

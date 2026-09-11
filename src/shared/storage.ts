@@ -120,7 +120,7 @@ export async function writePrivateFile(name: string, data: string | Uint8Array):
 /** Atomic replacement prevents a partially written refresh token after interruption. */
 export async function writePrivateJson(name: string, value: unknown): Promise<void> {
   await writePrivateFile(name, `${JSON.stringify(value, null, 2)}\n`);
-  const changed = /^(?:(ancestry|myheritage|findmypast|findagrave|geneanet|storied|americanancestors)\/)?(?:login|session|device)\.json$/.exec(name);
+  const changed = /^(?:(ancestry|myheritage|findmypast|findagrave|geneanet|storied|newspapers|americanancestors)\/)?(?:login|session|device)\.json$/.exec(name);
   if (changed) {
     const {syncCredentials} = await import('./credential-sync.js');
     try {await syncCredentials(changed[1] ?? 'familysearch', CREDENTIAL_DIR, name);}

@@ -69,6 +69,8 @@ To uninstall completion, remove the marked `fam bash completion` or `fam zsh com
 
 American Ancestors uses `AMERICANANCESTORS_USERNAME` and `AMERICANANCESTORS_PASSWORD` or the configured helper with the `americanancestors` argument. See its [provider guide](americanancestors/README.md) for native login, collections, record search, and scans.
 
+Newspapers.com uses `NEWSPAPERS_USERNAME` and `NEWSPAPERS_PASSWORD` or the configured helper with the `newspapers` argument. See the [Newspapers guide](newspapers/README.md) for browser sign-in and native HTTP reads.
+
 NewspaperArchive shares Storied authentication: use `STORIED_USERNAME` and `STORIED_PASSWORD`. Its credential helper receives `storied`, and both providers use `storied/login.json` and the selected Storied session. See the [NewspaperArchive guide](newspaperarchive/README.md).
 
 When a login is needed, fam reads its username and password from the environment first, then an explicitly configured credential helper, then its saved login file. A partial or empty environment pair is an error. API commands never prompt for a password.
@@ -87,7 +89,7 @@ Configure a helper once in `~/.config/fam/config.json` to use it for every provi
 }
 ```
 
-No environment variable is needed for the persistent file setting. `FAM_CREDENTIALS_COMMAND='["node","/absolute/path/to/credential-helper.mjs"]'` is an optional override. fam runs the executable directly, without a shell, appending exactly one argument: `familysearch`, `ancestry`, `myheritage`, `findmypast`, `findagrave`, `geneanet`, `storied`, or `americanancestors`. The working directory is the caller's directory; use absolute paths for helper files. Environment variables are inherited and stdin is closed.
+No environment variable is needed for the persistent file setting. `FAM_CREDENTIALS_COMMAND='["node","/absolute/path/to/credential-helper.mjs"]'` is an optional override. fam runs the executable directly, without a shell, appending exactly one argument: `familysearch`, `ancestry`, `myheritage`, `findmypast`, `findagrave`, `geneanet`, `storied`, `newspapers`, or `americanancestors`. The working directory is the caller's directory; use absolute paths for helper files. Environment variables are inherited and stdin is closed.
 
 The helper must exit successfully and print only a JSON object with nonempty string `username` and `password` fields. Password whitespace is preserved. Output is limited to 64 KiB and execution to two minutes. Failures suppress command output and stop lookup; fam never silently falls back to an older saved password. Use this hook for a password manager, local executable, or SSH-backed helper. No helper runs unless configured, and help/status commands do not look up passwords.
 
@@ -101,7 +103,7 @@ For noninteractive setup, pipe a JSON object with string `username` and `passwor
 fam familysearch.credential set --stdin < /private/path/login.json
 ```
 
-The same option works with `ancestry`, `myheritage`, `findmypast`, `findagrave`, `geneanet`, `storied`, and `americanancestors`. It takes precedence over environment variables. The CLI preserves the password exactly and does not print it. Keep the input file private.
+The same option works with `ancestry`, `myheritage`, `findmypast`, `findagrave`, `geneanet`, `storied`, `newspapers`, and `americanancestors`. It takes precedence over environment variables. The CLI preserves the password exactly and does not print it. Keep the input file private.
 
 ## Storage and profiles
 
@@ -115,7 +117,7 @@ All providers use the same configuration root:
 
 `FAMILYSEARCH_CONFIG_DIR` remains a compatibility alias when `FAM_CONFIG_DIR` is unset. New installations default to `fam`; old directories are never imported automatically.
 
-FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, `findmypast/`, `findagrave/`, `geneanet/`, `storied/`, and `americanancestors/` subdirectories. Device IDs, cookies, and pending authentication state also live here. Camofox configuration and instance-scoped provider sessions live under `browser/`; see [browser storage](browser.md#session-storage-and-sharing).
+FamilySearch stores `login.json` and `session.json` at the root. The other services use `ancestry/`, `myheritage/`, `findmypast/`, `findagrave/`, `geneanet/`, `storied/`, `newspapers/`, and `americanancestors/` subdirectories. Device IDs, cookies, and pending authentication state also live here. Browser configuration and instance-scoped provider sessions live under `browser/`; see [browser storage](browser.md#session-storage-and-sharing).
 
 On POSIX systems, the CLI uses `0700` directories and `0600` files. Windows uses your user profile's ACLs. Credential writes replace files atomically.
 
@@ -189,6 +191,7 @@ Keep that checkout and its dependencies in place, or install a packed archive cr
 | Findmypast | `@potatosalad/fam/findmypast` | [Provider guide](findmypast/README.md#typescript) |
 | Find a Grave | `@potatosalad/fam/findagrave` | [Provider guide](findagrave/README.md#typescript) |
 | Geneanet | `@potatosalad/fam/geneanet` | [Provider guide](geneanet/README.md#api-catalog-and-typescript) |
+| Newspapers.com | `@potatosalad/fam/newspapers` | [Provider guide](newspapers/README.md#typescript) |
 | American Ancestors | `@potatosalad/fam/americanancestors` | [Provider guide](americanancestors/README.md#typescript) |
 
 The root import, `@potatosalad/fam`, also exports the FamilySearch API. Library clients use the same profile, credential helper and saved sessions as the CLI. Set `FAM_CONFIG_DIR` before starting Node when using a separate profile.

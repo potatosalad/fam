@@ -1,5 +1,5 @@
 /** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
-export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors', 'cyndislist', 'wayback'] as const;
+export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors', 'cyndislist', 'wayback'] as const;
 export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'> => name !== 'cyndislist' && name !== 'wayback');
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Family trees, historical records, original images, and full-text research.'},
@@ -9,6 +9,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   findagrave: {name: 'Find a Grave', description: 'Memorials, cemeteries, relatives, biographies, and photographs.'},
   geneanet: {name: 'Geneanet', description: 'Archival records, family trees, portraits, registers, and library material.'},
   storied: {name: 'Storied', description: 'Family trees, stories, media, hints, and historical records.'},
+  newspapers: {name: 'Newspapers.com', description: 'Historical newspaper search, publication browsing, page access, clippings, and OCR.'},
   newspaperarchive: {name: 'NewspaperArchive', description: 'Historical newspapers, genealogy searches, publication locations, and page OCR.'},
   americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, indexed records, source citations, and digitized scans.'},
   cyndislist: {name: 'Cyndi’s List', description: 'Browse genealogy resources and search the site.'},
@@ -189,20 +190,20 @@ for (const provider of authenticatedProviderNames) {
   add(provider, 'credentials', 'credential set', 'Save login credentials from helper, environment, prompt, or JSON stdin.', [], 'stdin', {risk: {level: 'local', description: 'Writes private credentials and may invoke the configured credential sync helper.'}});
   add(provider, 'sync', 'credential sync', 'Run the explicitly configured credential synchronization helper.', [], '', {risk: {level: 'write', description: 'Invokes the user-configured synchronization helper, which may contact another host.'}});
   const auth = provider === 'ancestry' ? 'send-code code' : provider === 'myheritage' ? 'interactive no-autofill native capture har code verification-code recaptcha-token-file browser-channel capture-timeout tree-url'
-    : provider === 'findmypast' ? 'interactive no-autofill native capture har browser callback-file browser-channel capture-timeout region' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive no-autofill browser-channel' : '';
+    : provider === 'findmypast' ? 'interactive no-autofill native capture har browser callback-file browser-channel capture-timeout region' : provider === 'newspapers' ? 'interactive no-autofill' : ['storied', 'newspaperarchive'].includes(provider) ? 'interactive no-autofill browser-channel' : '';
   add(provider, 'auth', 'session login', 'Sign in and save a session; use the provider-specific authentication options.', [], auth, {risk: login, flags: provider === 'findmypast' ? {region: {choices: ['com', 'co.uk']}} : undefined});
   add(provider, 'status', 'session get', 'Inspect saved session metadata without tokens or live authentication.', [], '', {risk: local});
-  if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
-  if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
+  if (['familysearch', 'ancestry', 'myheritage', 'findmypast', 'storied', 'newspaperarchive', 'newspapers'].includes(provider)) add(provider, 'refresh', 'session refresh', 'Renew and save the existing provider session.', [], '', {risk: login});
+  if (['familysearch', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors'].includes(provider)) add(provider, 'verify', 'session verify', 'Verify saved account access with the existing provider smoke check.');
   if (provider !== 'ancestry') add(provider, provider === 'familysearch' ? 'whoami' : 'me', 'account get', 'Read the current account profile and available tree context.', [], provider === 'myheritage' ? 'query' : '');
   add(provider, 'ops', 'api list', 'List and filter the provider’s known API operations and aliases.', ['?filter'], '', {risk: local,
     ...(provider === 'familysearch' ? {examples: ['fam familysearch.api list', 'fam familysearch.api list --filter memories', 'fam familysearch.api list --filter "duplicate people"']} : {})});
   add(provider, 'schema', 'api describe', 'Inspect the contract, inputs, response information, and availability of one provider API operation.', ['operation'], provider === 'familysearch' ? 'example' : '', {risk: local});
-  if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive', 'americanancestors'].includes(provider)) {
+  if (!['familysearch', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors'].includes(provider)) {
     add(provider, 'gql', 'api.gql query', 'Execute a cataloged GraphQL query or mutation with variables.', ['operation', '?variables'], '', {risk: api});
     if (provider !== 'ancestry') add(provider, 'query', 'api.gql execute', 'Execute a custom GraphQL document from a file.', ['document', '?variables'], '', {risk: api});
   }
-  if (!['geneanet', 'newspaperarchive', 'americanancestors'].includes(provider)) add(provider, 'call', 'api call', provider === 'familysearch'
+  if (!['geneanet', 'newspaperarchive', 'newspapers', 'americanancestors'].includes(provider)) add(provider, 'call', 'api call', provider === 'familysearch'
     ? 'Execute genealogy operations for memories, people, relationships, sources, hints, groups, history, and ordinances. Add --operation NAME --help to inspect inputs, outputs, and effects.'
     : 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
     provider === 'familysearch' ? ['operation'] : ['operation', '?input'], provider === 'familysearch' ? 'input query' : provider === 'ancestry' ? 'query base' : ['myheritage', 'findmypast'].includes(provider) ? 'query' : '',
@@ -210,6 +211,18 @@ for (const provider of authenticatedProviderNames) {
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});
   if (['myheritage', 'findmypast', 'findagrave', 'storied'].includes(provider)) add(provider, 'models', 'api.model list', 'List and filter recovered provider model fields.', ['?filter'], '', {risk: local});
 }
+
+add('newspapers','call','api call','Execute a documented Newspapers read operation. Authorization tokens are managed internally.', ['operation','?input']);
+add('newspapers','search','newspaper search','Search Newspapers.com pages by keywords, publication, place, and dates.', [], 'keyword publication-id country region city from to sort limit cursor', {pagination:'One page per request. Pass nextCursor verbatim as --cursor with the same filters.',flags:{limit:{type:'integer',minimum:1,maximum:100,default:20},sort:{choices:['score','date-asc','date-desc']}}});
+add('newspapers','locations','location search','Suggest places for newspaper search.', ['prefix'], 'limit');
+add('newspapers','browse','publication browse','Browse newspaper places and titles using returned paths.', ['?path']);
+add('newspapers','publication','publication get','Resolve a newspaper title and browse path.', ['publication-id']);
+add('newspapers','issue','publication.issue get','List editions and pages for one publication date.', ['publication-id','date']);
+add('newspapers','page','page get','Read page metadata, citation fields, and current account access rights.', ['page-id']);
+add('newspapers','hits','page.hits get','Locate keyword matches in scan coordinates.', ['page-id'], 'keyword', {flags:{keyword:{required:true}}});
+add('newspapers','clippings','page.clipping list','List public clippings on a newspaper page.', ['page-id'], 'offset limit', {pagination:'Use nextOffset to continue; one page per request.'});
+add('newspapers','articles','page.article list','Read structured article categories for an accessible page.', ['page-id']);
+add('newspapers','ocr','page.ocr get','Read page OCR, or select a clipping or rectangle; unavailable text is explicit.', ['page-id'], 'article-id clipping-id x y width height');
 
 const cyndiFlags: Extras['flags'] = {
   'all-pages': {type: 'boolean', default: false, description: 'Follow available pagination from the requested page onward.'},

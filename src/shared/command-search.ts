@@ -66,6 +66,9 @@ export function resolveContext(input: string, provider?: string): Context {
   } else if (detected === 'findmypast') {
     const id = url.searchParams.get('id');
     if (id) return {...result, object: 'record', flags: {'record-id': id}};
+  } else if (detected === 'newspapers' && ['www.newspapers.com','newspapers.com'].includes(host) && !url.port) {
+    const page = path.match(/^\/(?:image|newspage)\/([1-9]\d*)\/?$/);
+    if (page) return {...result,object:'page',flags:{'page-id':page[1]}};
   } else if (detected === 'newspaperarchive' && /-p-\d+\/?$/.test(path)) {
     return {...result, object: 'page', flags: {url: url.href}};
   }

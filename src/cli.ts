@@ -20,6 +20,7 @@ const providers = {
   findagrave: () => import('./findagrave/cli.js'), geneanet: () => import('./geneanet/cli.js'), storied: () => import('./storied/cli.js'),
   americanancestors: () => import('./americanancestors/cli.js'),
   newspaperarchive: () => import('./newspaperarchive/cli.js'),
+  newspapers: () => import('./newspapers/cli.js'),
   cyndislist: () => import('./cyndislist/cli.js'),
   wayback: () => import('./wayback/cli.js'),
 };

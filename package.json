@@ -2,7 +2,7 @@
   "name": "@potatosalad/fam",
   "version": "0.3.2",
   "type": "module",
-  "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, and American Ancestors; genealogy resource browsing with Cyndi\u2019s List",
+  "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, Newspapers.com, and American Ancestors; genealogy resource browsing with Cyndi\u2019s List",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/setup.mjs --import tsx --test test/*.test.ts",
@@ -114,6 +114,10 @@
     "./wayback": {
       "types": "./dist/wayback/index.d.ts",
       "import": "./dist/wayback/index.js"
+    },
+    "./newspapers": {
+      "types": "./dist/newspapers/index.d.ts",
+      "import": "./dist/newspapers/index.js"
     }
   },
   "files": [

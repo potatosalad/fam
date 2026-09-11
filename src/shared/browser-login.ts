@@ -4,7 +4,7 @@ import {BrowserError} from './browser-config.js';
 import {configuredBrowser, type BrowserTab} from './browser-runtime.js';
 import {readPrivateJson, writePrivateJson} from './storage.js';
 
-export interface BrowserLoginOptions {timeoutMs?: number; interactive?: boolean; autofill?: boolean}
+export interface BrowserLoginOptions {timeoutMs?: number; interactive?: boolean; autofill?: boolean; readyToSubmit?: () => Promise<boolean>}
 export interface BrowserLoginPage {origin: string; url?: string; password: boolean; email: boolean; text: string; document?: number}
 export function loginCooldown(text: string): number | undefined {
   return /access has been temporarily disabled|access has been temporarily blocked/i.test(text) && /(?:try again|retry) in 24 hours/i.test(text) ? 86400000 : undefined;
@@ -72,7 +72,8 @@ async function pollLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: 
       }
       const step = `${page.origin}:${page.password ? 'password' : 'username'}`;
       const documentStep = `${step}:${page.document ?? 0}`;
-      if (credentials && options.interactive && !filled.has(documentStep)) {
+      const fillOnly = options.interactive || options.readyToSubmit && !await options.readyToSubmit();
+      if (credentials && fillOnly && !filled.has(documentStep)) {
         if (!autofillSupported) {
           const capabilities = await tab.browser.api('/fam/capabilities');
           if (capabilities.autofill !== true) throw new BrowserError('Interactive autofill needs an updated fam browser service. Update the plugin and restart the browser, or use --no-autofill to continue manually.', 'BROWSER_PLUGIN_REQUIRED', tab.browser.endpoint.vncUrl);
@@ -80,7 +81,7 @@ async function pollLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: 
         }
         const result = await tab.browser.api('/fam/autofill', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
         if (result.ready) filled.add(documentStep);
-      } else if (credentials && !options.interactive && !submitted.has(step)) {
+      } else if (credentials && !fillOnly && !submitted.has(step)) {
         const result = await tab.browser.api('/fam/input', {userId: tab.userId, tabId: tab.id, origin: page.origin, ...credentials});
         if (result.submitted === true) {
           submitted.add(step);
