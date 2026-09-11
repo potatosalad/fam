@@ -65,7 +65,7 @@ export async function enterInstallation(root, args = process.argv.slice(2)) {
       const directory = await pinBuild(root);
       // Explicit update controls, completion, and offline/dry-run commands do no
       // automatic network work. Source execution is deliberately not a launcher.
-      if (args[0] !== 'cli.update' && args[0] !== 'cli.completion'
+      if (!['cli.update', 'update', 'cli.completion'].includes(args[0])
         && !args.some(arg => arg.startsWith('--completions') || ['--dry-run', '--offline'].includes(arg))
         && await autoUpdateEnabled(root) && await updateDue(root)) {
         process.once('exit', () => {

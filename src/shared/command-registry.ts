@@ -743,10 +743,10 @@ add('cli', 'doctor', 'health check', 'Check provider access, then refresh or sig
     'no-fix': {type: 'boolean', description: 'Check access without refreshing, signing in again, or updating saved sessions.'},
   }});
 add('cli', 'version', 'version get', 'Show the running fam version, build revision, installation type, and paths; also available as fam --version.', [], '', cliRisk);
-add('cli', 'update', 'update run', 'Update fam from its Git upstream or npm latest; fam cli.update is shorthand.', [], '', {
+add('cli', 'update', 'update run', 'Update fam from its Git upstream or npm latest; fam update is shorthand.', [], '', {
   risk: {level: 'write', description: 'Pulls the configured Git upstream and reinstalls dependencies, or installs the latest npm package in its existing prefix/project. Builds remove unused snapshots.'},
   flags: {'dry-run': {description: 'Inspect the installation and show update commands without pulling or installing.'}},
-  examples: ['fam cli.update', 'fam cli.update run --dry-run'],
+  examples: ['fam update', 'fam update --dry-run', 'fam cli.update run'],
 });
 for (const action of ['enable', 'disable']) add('cli', `update-${action}`, `update ${action}`,
   `${action === 'enable' ? 'Enable' : 'Disable'} silent daily automatic updates for this installation.`, [], '',

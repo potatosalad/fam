@@ -45,17 +45,20 @@ test('entry-point shortcuts work outside the checkout and preserve JSON output',
   assert.ok(complete(catalog, ['cli.update', '']).candidates.includes('run'));
 });
 
-test('update group help exposes every action while explicit run help and the execution shortcut still work', async () => {
-  const [shortHelp, jsonHelp, runHelp, shortcut, explicit] = await Promise.all([
-    invoke('cli.update', '-h'), invoke('cli.update', '--json', '--help'), invoke('cli.update', 'run', '--help'),
+test('bare cli.update only browses actions; update runs the updater unless help is requested', async () => {
+  const [bare, shortHelp, jsonHelp, aliasHelp, aliasShortHelp, aliasJsonHelp, runHelp, shortcut, explicit] = await Promise.all([
+    invoke('cli.update'), invoke('cli.update', '-h'), invoke('cli.update', '--json'),
+    invoke('update', '--help'), invoke('update', '-h'), invoke('update', '--json', '--help'), invoke('cli.update', 'run', '--help'),
     // Development branches may be dirty or lack an upstream. Both spellings
     // must reach the same planner, which previews or reports that local state.
-    invoke('cli.update', '--dry-run', '--json').catch(error => error),
+    invoke('update', '--dry-run', '--json').catch(error => error),
     invoke('cli.update', 'run', '--dry-run', '--json').catch(error => error),
   ]);
   for (const action of ['enable', 'disable', 'run']) assert.match(shortHelp.stdout, new RegExp(`cli\\.update ${action}`));
   assert.match(shortHelp.stdout, /Available actions \(3\)/);
+  for (const response of [bare, aliasHelp, aliasShortHelp]) assert.equal(response.stdout, shortHelp.stdout);
   const group = JSON.parse(jsonHelp.stdout);
+  assert.deepEqual(JSON.parse(aliasJsonHelp.stdout), group);
   assert.equal(group.command, null);
   assert.deepEqual(group.data.actions.map((action: {command: string}) => action.command), ['cli.update disable', 'cli.update enable', 'cli.update run']);
   assert.equal(runHelp.stdout, help(command('cli.update run')));
@@ -64,7 +67,10 @@ test('update group help exposes every action while explicit run help and the exe
   assert.equal(result.command, 'cli.update run');
   if (result.ok) assert.equal(result.data.dryRun, true);
   else assert.match(result.error.message, /uncommitted changes|no upstream|detached HEAD/);
-  for (const response of [shortHelp, jsonHelp, runHelp]) assert.equal(response.stderr, '');
+  for (const response of [bare, shortHelp, jsonHelp, aliasHelp, aliasShortHelp, aliasJsonHelp, runHelp]) assert.equal(response.stderr, '');
+  assert.ok(complete(catalog, ['upd']).candidates.includes('update'));
+  assert.deepEqual(complete(catalog, ['update', '']).candidates, complete(catalog, ['cli.update', 'run', '']).candidates);
+  assert.ok(complete(catalog, ['update', '--dry']).candidates.includes('--dry-run'));
 });
 
 test('doctor shorthand preserves health flags and canonical identity', async () => {
@@ -91,7 +97,7 @@ test('doctor shorthand preserves health flags and canonical identity', async () 
 test('overview stays compact with ordered providers and single-line descriptions', () => {
   const overview = help();
   for (const text of ['fam - Genealogy CLI', 'Available providers:', 'Common tasks:', 'Global options:', 'Find commands:',
-    'fam familysearch.image --help', 'fam cli --help', '--completions <SHELL>']) assert.ok(overview.includes(text), text);
+    'fam familysearch.image --help', 'fam cli --help', 'fam update', 'fam doctor', '--completions <SHELL>']) assert.ok(overview.includes(text), text);
   const providerLines = overview.split('Available providers:\n')[1].split('\n\n')[0].split('\n');
   assert.deepEqual(providerLines.map(line => line.trim().split(/\s+/)[0]), [
     'familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'fold3',

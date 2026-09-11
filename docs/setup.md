@@ -21,7 +21,7 @@ npm install --global --prefix "$HOME/.local/share/fam-alt" .
 
 On Windows, use an absolute Windows path for the prefix. npm puts the `.cmd` launchers directly in that directory.
 
-`fam cli.update` preserves the running installation; use the same prefix when uninstalling. To keep the credentials separate too, set `FAM_CONFIG_DIR` as described below.
+`fam update` preserves the running installation; use the same prefix when uninstalling. To keep the credentials separate too, set `FAM_CONFIG_DIR` as described below.
 
 ### Updates
 
@@ -32,7 +32,7 @@ fam cli.update disable
 fam cli.update enable
 ```
 
-These commands save the preference for the running installation, across profiles and rebuilds. Existing installations gain the same enabled default after their next manual `fam cli.update`; an explicit opt-out is preserved by manual and automatic updates. Set `FAM_AUTO_UPDATE=0` to suppress automatic checks temporarily, including in CI. This does not prevent a manual update.
+These commands save the preference for the running installation, across profiles and rebuilds. Existing installations gain the same enabled default after their next manual update; an explicit opt-out is preserved by manual and automatic updates. Set `FAM_AUTO_UPDATE=0` to suppress automatic checks temporarily, including in CI. This does not prevent a manual update.
 
 Checks use the same update lock as manual updates. Active launcher commands defer the check until a later invocation; commands started during installation wait until it finishes before loading the runtime. A busy installation is not counted as checked. Once a check starts, its timestamp is saved before any network request, so concurrent invocations, offline failures, and failed installs cannot trigger repeated checks that day. Network checks have a 20-second timeout, and each installation step has a five-minute timeout. Dirty, detached, untracked, ahead, or diverged Git checkouts are left alone. An interrupted checkout install is retried on the next daily attempt, even if Git already advanced.
 
@@ -41,14 +41,16 @@ Completion, explicit update controls, `--offline`, and `--dry-run` do not schedu
 To update immediately or inspect an installation:
 
 ```sh
-fam cli.update
-fam cli.update run --dry-run
+fam update
+fam update --dry-run
 fam cli.update run --json
+fam cli.update
+fam update --help
 fam --version
 fam --version --json
 ```
 
-`fam cli.update` is shorthand for `fam cli.update run`. It finds the running package independently of your working directory. `fam cli.update --help` lists `run`, `enable`, and `disable`; use `fam cli.update run --help` for manual-update flags. Discovery, history, and completion register `cli.update run`. `--dry-run` inspects the installation and reports the exact commands without pulling or installing; it records command history normally.
+`fam update` is shorthand for `fam cli.update run`. It finds the running package independently of your working directory. Bare `fam cli.update`, `fam cli.update --help`, and `fam update --help` list `run`, `enable`, and `disable` without updating anything; use `fam cli.update run --help` for manual-update flags. Discovery and history use the canonical command `cli.update run`; completion supports both spellings. `--dry-run` inspects the installation and reports the exact commands without pulling or installing; it records command history normally.
 
 `fam --version` is shorthand for `fam cli.version get`. Both report the executing build's version and Git revision, its installation type and path, and its runtime path. Modified builds are labeled. JSON includes the full revision and `dirty` status; `null` means build metadata is unavailable. Each new build saves its package version alongside its revision, so a process pinned to an older build reports that build even after an update. TypeScript source execution is labeled `source` and reads the package version without claiming a compiled revision.
 
@@ -60,7 +62,7 @@ Manual update progress goes to stderr, leaving stdout available for the usual re
 
 Every successful checkout build, including `npm ci` and `npm run build`, removes unused `.fam-build-*` folders. The current build stays, and running CLI commands register their build until they exit. A terminated command's stale record is reclaimed once its process is gone. A later installation removes its now-unused build. Builds with uncertain ownership, unreadable usage records, or processes on another host stay. Older launchers without tracking defer cleanup while they are running. If process inspection is unavailable, cleanup retains snapshots. Use the installed `fam` launcher for tracked execution.
 
-Snapshot retention protects checkout CLI modules, and the update lock protects active commands using the installed launcher from dependency replacement. Source execution, older launchers, library consumers, and external npm/build processes do not participate in that lock. npm installation failures can still leave dependency changes; rerun `fam cli.update` (or `npm ci` in a checkout that cannot start). Library consumers should restart after updating.
+Snapshot retention protects checkout CLI modules, and the update lock protects active commands using the installed launcher from dependency replacement. Source execution, older launchers, library consumers, and external npm/build processes do not participate in that lock. npm installation failures can still leave dependency changes; rerun `fam update` (or `npm ci` in a checkout that cannot start). Library consumers should restart after updating.
 
 ## Shell completion
 

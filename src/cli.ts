@@ -123,9 +123,10 @@ async function main() {
     if (args[1] === 'use' && ['local','remote'].includes(args[2])) args.splice(2, 1, '--mode', args[2]);
   }
   if (args[0] === 'browser.transport') args[0] = 'cli.browser.transport';
-  // Explicit help belongs to the update group; only execution defaults to run.
-  if (args[0] === 'cli.update' && (!args[1] || args[1].startsWith('-'))
-    && !args.includes('--help') && !args.includes('-h')) args.splice(1, 0, 'run');
+  // Only the short alias defaults to execution. Both help spellings browse the
+  // update group; bare cli.update remains ordinary namespace help.
+  if (args[0] === 'update') args.splice(0, 1, 'cli.update',
+    ...(!args.includes('--help') && !args.includes('-h') ? ['run'] : []));
   const namespace = parseNamespaceHelp(args);
   if (namespace) {
     process.stdout.write(namespace.json ? `${stringifyJson({schemaVersion: 1, ok: true, command: null, data: namespace.namespace}, 2)}\n`

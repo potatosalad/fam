@@ -108,6 +108,7 @@ export function completionCatalog(documentation?: DocumentationCatalog): Complet
     }
   }
   root.commands.doctor = root.commands['cli.health'].commands.check;
+  root.commands.update = root.commands['cli.update'].commands.run;
   return root;
 }
 

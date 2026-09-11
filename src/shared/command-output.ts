@@ -130,9 +130,9 @@ export function overview(): string {
     rows([
       ['fam cli.browser setup --local', 'Set up a browser.'],
       ['fam cli.completion install', 'Enable TAB completion.'],
-      ['fam cli.health check', 'Check provider access.'],
+      ['fam doctor', 'Check provider access.'],
       ['fam cli.history list', 'Browse command history.'],
-      ['fam cli.update', 'Update this installation.'],
+      ['fam update', 'Update this installation.'],
     ], 80), '',
     'Global options:',
     rows([

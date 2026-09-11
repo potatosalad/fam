@@ -341,7 +341,7 @@ test('launcher detaches a silent worker after exit without changing output or ex
   await writeFile(join(root, 'worker-release'), 'yes');
   await waitFor('worker-finished');
   await rm(join(root, 'worker-started'));
-  for (const args of [['cli.update', 'disable'], ['--completions=zsh'], ['cli.completion', 'query'], ['--offline'], ['--dry-run']]) {
+  for (const args of [['cli.update'], ['cli.update', 'disable'], ['update'], ['update', '--help'], ['--completions=zsh'], ['cli.completion', 'query'], ['--offline'], ['--dry-run']]) {
     await execute(process.execPath, [join(root, 'bin/fam.mjs'), ...args]).catch(error => {assert.equal(error.code, 7);});
   }
   await assert.rejects(readFile(join(root, 'worker-started')), {code: 'ENOENT'});

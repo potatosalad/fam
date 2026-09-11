@@ -16,7 +16,9 @@ npm install --global .
 fam cli.completion install
 ```
 
-This installs one executable, `fam`, from the checkout. Keep the directory in place. Automatic updates are enabled by default: fam quietly checks for updates after a command exits, at most once every 24 hours. Use `fam cli.update disable` to opt out, or `fam cli.update enable` to turn them back on. Run `fam cli.update` from any directory to update immediately, or `fam cli.update run --dry-run` to preview the update. See [update details](docs/setup.md#updates).
+This installs one executable, `fam`, from the checkout. Keep the directory in place. Automatic updates are enabled by default: fam quietly checks for updates after a command exits, at most once every 24 hours. Use `fam cli.update disable` to opt out, or `fam cli.update enable` to turn them back on. Run `fam update` from any directory to update immediately, or `fam update --dry-run` to preview the update. Bare `fam cli.update` and `fam update --help` show the available update actions. See [update details](docs/setup.md#updates).
+
+Run `fam doctor` to check provider access and try to renew expired sessions or sign in when needed. Use `fam doctor --help` for options or see [health checks](#check-provider-access).
 
 Run `fam --version` to check the installed version and location.
 
