@@ -48,7 +48,7 @@ fam --version
 fam --version --json
 ```
 
-`fam cli.update` is shorthand for `fam cli.update run`. It finds the running package independently of your working directory. Help, discovery, history, and completion register `cli.update run`. `--dry-run` inspects the installation and reports the exact commands without pulling or installing; it records command history normally.
+`fam cli.update` is shorthand for `fam cli.update run`. It finds the running package independently of your working directory. `fam cli.update --help` lists `run`, `enable`, and `disable`; use `fam cli.update run --help` for manual-update flags. Discovery, history, and completion register `cli.update run`. `--dry-run` inspects the installation and reports the exact commands without pulling or installing; it records command history normally.
 
 `fam --version` is shorthand for `fam cli.version get`. Both report the executing build's version and Git revision, its installation type and path, and its runtime path. Modified builds are labeled. JSON includes the full revision and `dirty` status; `null` means build metadata is unavailable. Each new build saves its package version alongside its revision, so a process pinned to an older build reports that build even after an update. TypeScript source execution is labeled `source` and reads the package version without claiming a compiled revision.
 

@@ -38,11 +38,33 @@ test('entry-point shortcuts work outside the checkout and preserve JSON output',
   assert.match(result.data.version, /^\d+\.\d+\.\d+$/);
   assert.equal(result.data.installation.type, 'git');
   assert.equal(result.data.runtime.type, 'source');
-  assert.equal(update.stdout, help(command('cli.update run')));
+  assert.equal(update.stdout, namespaceHelp(namespaceInfo('cli.update')!));
   assert.equal(completion.stdout, completionScript('zsh'));
   for (const response of [version, update, completion]) assert.equal(response.stderr, '');
   assert.ok(complete(catalog, ['--v']).candidates.includes('--version'));
   assert.ok(complete(catalog, ['cli.update', '']).candidates.includes('run'));
+});
+
+test('update group help exposes every action while explicit run help and the execution shortcut still work', async () => {
+  const [shortHelp, jsonHelp, runHelp, shortcut, explicit] = await Promise.all([
+    invoke('cli.update', '-h'), invoke('cli.update', '--json', '--help'), invoke('cli.update', 'run', '--help'),
+    // Development branches may be dirty or lack an upstream. Both spellings
+    // must reach the same planner, which previews or reports that local state.
+    invoke('cli.update', '--dry-run', '--json').catch(error => error),
+    invoke('cli.update', 'run', '--dry-run', '--json').catch(error => error),
+  ]);
+  for (const action of ['enable', 'disable', 'run']) assert.match(shortHelp.stdout, new RegExp(`cli\\.update ${action}`));
+  assert.match(shortHelp.stdout, /Available actions \(3\)/);
+  const group = JSON.parse(jsonHelp.stdout);
+  assert.equal(group.command, null);
+  assert.deepEqual(group.data.actions.map((action: {command: string}) => action.command), ['cli.update disable', 'cli.update enable', 'cli.update run']);
+  assert.equal(runHelp.stdout, help(command('cli.update run')));
+  const result = JSON.parse(shortcut.stdout || shortcut.stderr);
+  assert.deepEqual(result, JSON.parse(explicit.stdout || explicit.stderr));
+  assert.equal(result.command, 'cli.update run');
+  if (result.ok) assert.equal(result.data.dryRun, true);
+  else assert.match(result.error.message, /uncommitted changes|no upstream|detached HEAD/);
+  for (const response of [shortHelp, jsonHelp, runHelp]) assert.equal(response.stderr, '');
 });
 
 test('doctor shorthand preserves health flags and canonical identity', async () => {
