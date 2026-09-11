@@ -1,4 +1,5 @@
 import type {searchCommands} from './command-search.js';
+import {compareCliNames} from './command-registry.js';
 type Result = Awaited<ReturnType<typeof searchCommands>>['results'][number];
 const identity = (item: Result) => item.command + ('operation' in item ? ` --operation ${item.operation}` : '');
 const clipped = (text: string, width: number) => text.length <= width ? text : text.slice(0, width - 1) + '…';
@@ -23,8 +24,8 @@ export function searchTree(results: Result[], scores = false): string {
     if (!objects.has(namespace)) objects.set(namespace, []);
     objects.get(namespace)!.push(item);
   }
-  return [...groups].map(([provider, objects]) => [provider,
-    ...[...objects].flatMap(([namespace, items], oi) => {
+  return [...groups].sort(([a], [b]) => compareCliNames(a, b)).map(([provider, objects]) => [provider,
+    ...[...objects].sort(([a], [b]) => compareCliNames(a, b)).flatMap(([namespace, items], oi) => {
       const lastObject = oi === objects.size - 1, indent = lastObject ? '      ' : '  │   ';
       return [`  ${lastObject ? '└──' : '├──'} ${namespace}`, ...items.flatMap((item, i) => {
         const last = i === items.length - 1, childIndent = indent + (last ? '    ' : '│   ');
