@@ -62,12 +62,40 @@ test('doctor shorthand preserves health flags and canonical identity', async () 
     assert.throws(() => parseInvocation(['cli.health', 'check', flag]), UsageError);
 });
 
-test('overview presents providers, useful tasks, and completion shortcuts', () => {
+test('overview stays compact with ordered providers and single-line descriptions', () => {
   const overview = help();
-  for (const text of ['fam - Genealogy CLI', 'Available providers:', 'Common tasks:', 'Global options', 'Find a command:',
-    'Inspect command options:', 'fam cli.provider list', '--completions <SHELL>']) assert.ok(overview.includes(text), text);
-  for (const provider of providerNames) assert.match(overview, new RegExp(`^  ${provider} +\\S`, 'm'));
+  for (const text of ['fam - Genealogy CLI', 'Available providers:', 'Common tasks:', 'Global options:', 'Find commands:',
+    'fam familysearch.image --help', 'fam cli --help', '--completions <SHELL>']) assert.ok(overview.includes(text), text);
+  const providerLines = overview.split('Available providers:\n')[1].split('\n\n')[0].split('\n');
+  assert.deepEqual(providerLines.map(line => line.trim().split(/\s+/)[0]), [
+    'familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast',
+    'geneanet', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback',
+  ]);
+  assert.ok(overview.trimEnd().split('\n').length <= 50);
+  for (const line of overview.split('\n')) assert.ok(line.length <= 80, line);
   assert.deepEqual(complete(catalog, ['--completions', '']).candidates, ['bash', 'zsh']);
+});
+
+test('provider discovery, command listings, namespace actions, and completion use consistent ordering', async () => {
+  const providerList = JSON.parse((await invoke('cli.provider', 'list', '--json')).stdout).data;
+  const ordered = ['familysearch', ...[...providerNames.filter(name => name !== 'familysearch'), 'cli'].sort()];
+  assert.deepEqual(providerList.map((item: {provider: string}) => item.provider), ordered);
+  assert.deepEqual(lookupFailure('nonsense').available.map(item => item.name), ordered);
+  const list = JSON.parse((await invoke('cli.command', 'list', '--json')).stdout).data;
+  assert.deepEqual([...new Set(list.map((item: {command: string}) => item.command.split('.')[0]))], ordered);
+  for (const provider of ordered) {
+    const names = list.filter((item: {command: string}) => item.command.startsWith(`${provider}.`))
+      .map((item: {command: string}) => item.command);
+    assert.deepEqual(names, [...names].sort());
+    for (const object of namespaceInfo(provider)!.objects) {
+      const actions = namespaceInfo(object.name)!.actions.map(item => item.command);
+      assert.deepEqual(actions, [...actions].sort());
+    }
+  }
+  const candidates = complete(catalog, ['']).candidates;
+  const familysearch = candidates.filter(name => name === 'familysearch' || name.startsWith('familysearch.'));
+  assert.deepEqual(candidates, [...familysearch.sort(), ...candidates.filter(name => !familysearch.includes(name)).sort()]);
+  assert.deepEqual(complete(catalog, ['cli.command', 'list', '--provider', '']).candidates, ordered);
 });
 
 test('discovery renders readable results and actionable command details', async () => {

@@ -1,21 +1,27 @@
 /** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
-export const providerNames = ['familysearch', 'ancestry', 'myheritage', 'findmypast', 'findagrave', 'geneanet', 'storied', 'newspaperarchive', 'newspapers', 'americanancestors', 'cyndislist', 'wayback'] as const;
+/** Provider namespaces and commands: FamilySearch first, then alphabetical. */
+export function compareCliNames(a: string, b: string): number {
+  const familysearch = (name: string) => name.split(/[. ]/, 1)[0] === 'familysearch';
+  return Number(familysearch(b)) - Number(familysearch(a)) || (a < b ? -1 : a > b ? 1 : 0);
+}
+export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'geneanet', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
 export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'> => name !== 'cyndislist' && name !== 'wayback');
 export const providerInfo: Record<string, {name: string; description: string}> = {
-  familysearch: {name: 'FamilySearch', description: 'Family trees, historical records, original images, and full-text research.'},
-  ancestry: {name: 'Ancestry', description: 'Family trees, people, historical records, hints, and media.'},
-  myheritage: {name: 'MyHeritage', description: 'Family sites and trees, record collections, matches, and documents.'},
-  findmypast: {name: 'Findmypast', description: 'Family trees, historical records, newspapers, and record images.'},
-  findagrave: {name: 'Find a Grave', description: 'Memorials, cemeteries, relatives, biographies, and photographs.'},
-  geneanet: {name: 'Geneanet', description: 'Archival records, family trees, portraits, registers, and library material.'},
-  storied: {name: 'Storied', description: 'Family trees, stories, media, hints, and historical records.'},
-  newspapers: {name: 'Newspapers.com', description: 'Historical newspaper search, publication browsing, page access, clippings, and OCR.'},
-  newspaperarchive: {name: 'NewspaperArchive', description: 'Historical newspapers, genealogy searches, publication locations, and page OCR.'},
-  americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, indexed records, source citations, and digitized scans.'},
-  cyndislist: {name: 'Cyndi’s List', description: 'Browse genealogy resources and search the site.'},
-  wayback: {name: 'Wayback Machine', description: 'Find and read archived web pages from the Internet Archive.'},
-  cli: {name: 'CLI', description: 'Command discovery, provider information, health checks, and shell completion.'},
+  familysearch: {name: 'FamilySearch', description: 'Trees, records, images, and full-text research.'},
+  americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, records, citations, and scans.'},
+  ancestry: {name: 'Ancestry', description: 'Trees, people, records, hints, and media.'},
+  cli: {name: 'CLI', description: 'Command discovery, setup, history, and health checks.'},
+  cyndislist: {name: 'Cyndi’s List', description: 'Genealogy resource browsing and site search.'},
+  findagrave: {name: 'Find a Grave', description: 'Memorials, cemeteries, biographies, and photos.'},
+  findmypast: {name: 'Findmypast', description: 'Trees, records, newspapers, and images.'},
+  geneanet: {name: 'Geneanet', description: 'Archives, trees, portraits, registers, and books.'},
+  myheritage: {name: 'MyHeritage', description: 'Family sites, trees, records, matches, and documents.'},
+  newspaperarchive: {name: 'NewspaperArchive', description: 'Newspaper search, publications, locations, and OCR.'},
+  newspapers: {name: 'Newspapers.com', description: 'Newspaper search, publications, clippings, and OCR.'},
+  storied: {name: 'Storied', description: 'Trees, stories, media, hints, and records.'},
+  wayback: {name: 'Wayback Machine', description: 'Archived web pages from the Internet Archive.'},
 };
+export const namespaceNames = Object.keys(providerInfo).sort(compareCliNames);
 export type Provider = typeof providerNames[number];
 /** Shared object descriptions used by provider help and command correction. */
 export const objectDescriptions: Record<string, string> = {
@@ -580,10 +586,10 @@ add('cli', 'completion-install', 'completion install', 'Install or update a guar
 add('cli', 'completion-query', 'completion query', 'Return local shell completion candidates from the command registry.', [], 'word format',
   {...cliRisk, flags: {word: {multiple: true, description: 'Command word, repeated in order; include the current incomplete word.'}, format: {default: 'text', choices: ['json', 'text']}}});
 
-export const commands: readonly Command[] = registry;
+export const commands: readonly Command[] = registry.sort((a, b) => compareCliNames(a.id, b.id));
 export const commandById = new Map(commands.map(command => [command.id, command]));
 
-/** Common tasks are part of the registry, so overview help cannot invent commands. */
+/** Curated namespace suggestions also enrich registered command examples. */
 export const commonTasks = [
   {command: 'ancestry.record search', title: 'Search historical records', example: 'fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809'},
   {command: 'familysearch.person get', title: 'Read a person in FamilySearch', example: 'fam familysearch.person get --person-id <PERSON_ID>'},

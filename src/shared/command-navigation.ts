@@ -1,4 +1,4 @@
-import {commands, commonTasks, commandById, providerInfo, objectDescriptions, syntax, type Command} from './command-registry.js';
+import {commands, commonTasks, commandById, providerInfo, namespaceNames, objectDescriptions, syntax, type Command} from './command-registry.js';
 import {operationGroups} from '../familysearch/discovery.js';
 
 export const knownProvider = (name: string): boolean => Object.hasOwn(providerInfo, name);
@@ -77,7 +77,7 @@ export function lookupFailure(name: string, action?: string) {
   if (!knownProvider(provider)) {
     message = `${JSON.stringify(provider)} is not a valid provider.`;
     title = 'Available providers';
-    available = Object.entries(providerInfo).map(([name, info]) => ({name, description: info.description}));
+    available = namespaceNames.map(name => ({name, description: providerInfo[name].description}));
     help = 'Use "fam <provider> --help" to see available object types.';
   } else if (!namespace || namespace.kind === 'provider') {
     message = namespace ? `Choose an object before the action ${JSON.stringify(action ?? '')} for provider ${JSON.stringify(provider)}.`

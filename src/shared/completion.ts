@@ -1,4 +1,4 @@
-import {commands, providerInfo} from './command-registry.js';
+import {commands, namespaceNames, compareCliNames} from './command-registry.js';
 import {operationNames} from '../familysearch/discovery.js';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -48,7 +48,7 @@ export function complete(catalog: CompletionNode, input: string[]): Completion {
     } else positional++;
   }
   const matches = (values: string[], prefix = current, leading = ''): Completion => ({
-    kind: 'words', prefix, candidates: [...new Set(values)].filter(value => value.startsWith(prefix)).sort().map(value => leading + value),
+    kind: 'words', prefix, candidates: [...new Set(values)].filter(value => value.startsWith(prefix)).sort(compareCliNames).map(value => leading + value),
   });
   const valueCompletion = (option: Option, prefix: string, leading = ''): Completion => {
     if (option.choices) return matches(option.choices, prefix, leading);
@@ -83,7 +83,7 @@ export function completionCatalog(): CompletionNode {
   root.options['--completions'] = {value: true, choices: ['bash', 'zsh']};
   root.options['--version'] = {value: false};
   const helpNode = (): CompletionNode => ({...node(), options: {'--help': {value: false}, '-h': {value: false}, '--json': {value: false}}});
-  for (const provider of Object.keys(providerInfo)) root.commands[provider] = helpNode();
+  for (const provider of namespaceNames) root.commands[provider] = helpNode();
   for (const command of commands) {
     const name = `${command.provider}.${command.object}`;
     const parts = name.split('.');
@@ -128,7 +128,11 @@ _fam_complete() {
     done
   fi
 }
-complete -o filenames -F _fam_complete fam
+if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )); then
+  complete -o filenames -o nosort -F _fam_complete fam
+else
+  complete -o filenames -F _fam_complete fam
+fi
 `;
   if (shell === 'zsh') return `# fam native zsh completion
 if ! (( $+functions[compdef] )); then
@@ -146,7 +150,7 @@ _fam_complete() {
       _files
       ;;
     words)
-      (( \${#response} > 2 )) && compadd -Q -- "\${(@)response[3,-1]}"
+      (( \${#response} > 2 )) && compadd -Q -V fam -- "\${(@)response[3,-1]}"
       ;;
   esac
 }

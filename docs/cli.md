@@ -28,7 +28,7 @@ fam ancestry.api --help
 fam ancestry.api.gql
 ```
 
-Provider help lists every registered object type, documentation, and suggested next commands. Object help lists available actions and nested object types. Append `--json` to either for structured help. Namespace help uses the usual success envelope with `command: null` and the inspected namespace in `data`.
+Provider help lists every registered object type, documentation, and suggested next commands. Object help lists available actions and nested object types. Provider and command listings put FamilySearch first, then sort alphabetically; objects and actions are alphabetical within each provider. Search results remain ordered by relevance. Append `--json` to either for structured help. Namespace help uses the usual success envelope with `command: null` and the inspected namespace in `data`.
 
 `fam cli.command describe --command "ancestry.person get"` prints a compact, indented description with provider, object, action, operation type, effects, typed options, requirements, and examples. `--json` returns the complete registry schema. Confirmation requirements are `none`; fam does not add confirmation prompts.
 

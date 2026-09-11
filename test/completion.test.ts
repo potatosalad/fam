@@ -116,11 +116,15 @@ for (const shell of ['/bin/bash', 'bash']) test(`${shell} completion function re
     assert.ok((await invoke(['myheritage.record', 'search', ''])).split('\n').includes('--first-name'));
     assert.equal(await invoke(['ancestry.tree', 'list', '--out=a']), 'a space.json\n');
     assert.equal(await invoke(['geneanet.record', 'search', '--event=b']), 'birth\n');
+    const registration = (await run(shell, ['--noprofile', '--norc', '-c', `${completionScript('bash')}\nprintf '%s.%s\\n' "\${BASH_VERSINFO[0]}" "\${BASH_VERSINFO[1]}"\ncomplete -p fam`])).stdout;
+    const [major, minor] = registration.split('\n')[0].split('.').map(Number);
+    assert.equal(registration.includes('-o nosort'), major > 4 || (major === 4 && minor >= 4));
+    assert.equal((await invoke(['cli.command', 'list', '--provider', ''])).split('\n')[0], 'familysearch');
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
 test('native zsh completion passes candidates to compadd and delegates filenames', async t => {
   try { await run('zsh', ['--version']); } catch { t.skip('zsh unavailable'); return; }
-  const script = `compdef() { :; }\n${completionScript('zsh')}\ncompadd() { shift 2; print -rl -- "$@"; }\n_files() { print -r -- FILES; }\nwords=(${quote(cli)} familysearch.image d)\nCURRENT=3\n_fam_complete\nwords=(${quote(cli)} ancestry.tree list --out a)\nCURRENT=5\nPREFIX=a\n_fam_complete`;
-  assert.equal((await run('zsh', ['-f', '-c', script])).stdout, 'download\nFILES\n');
+  const script = `compdef() { :; }\n${completionScript('zsh')}\ncompadd() { print -rl -- "$@"; }\n_files() { print -r -- FILES; }\nwords=(${quote(cli)} familysearch.image d)\nCURRENT=3\n_fam_complete\nwords=(${quote(cli)} ancestry.tree list --out a)\nCURRENT=5\nPREFIX=a\n_fam_complete`;
+  assert.equal((await run('zsh', ['-f', '-c', script])).stdout, '-Q\n-V\nfam\n--\ndownload\nFILES\n');
 });

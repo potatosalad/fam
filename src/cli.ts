@@ -1,7 +1,7 @@
 import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
 import {dirname, basename} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {commands, commandById, providerNames, providerInfo, syntax, type Provider} from './shared/command-registry.js';
+import {commands, commandById, providerNames, providerInfo, namespaceNames, syntax, type Provider} from './shared/command-registry.js';
 import {parseInvocation, parseNamespaceHelp, unknownCommand, describe, help, UsageError, type Invocation} from './shared/command-runtime.js';
 import {searchCommands, contextCommands} from './shared/command-search.js';
 import {stringifyJson} from './shared/json.js';
@@ -41,7 +41,7 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
       return describe(found);
     }
     case 'list': return commands.filter(c => !v.provider || c.provider === v.provider).map(c => ({command: c.id, description: c.description, syntax: syntax(c), risk: c.risk}));
-    case 'providers': return Object.entries(providerInfo).map(([provider, info]) => ({provider, ...info}));
+    case 'providers': return namespaceNames.map(provider => ({provider, ...providerInfo[provider]}));
     case 'resolve': return contextCommands(String(v.context), v.provider as string | undefined);
     case 'version': return (await import('./shared/cli-version.js')).cliVersion();
     case 'update': {

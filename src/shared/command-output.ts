@@ -1,7 +1,7 @@
 import {humanCyndisList} from '../cyndislist/output.js';
 import {humanWayback} from '../wayback/output.js';
 import {operationDescription, operationList} from '../familysearch/discovery-output.js';
-import {commandById, commonTasks, providerInfo, providerNames, syntax, type Command, type Flag} from './command-registry.js';
+import {commandById, providerInfo, providerNames, syntax, type Command, type Flag} from './command-registry.js';
 import type {Values} from './command-runtime.js';
 import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navigation.js';
 import {fileURLToPath} from 'node:url';
@@ -120,37 +120,31 @@ export function commandHelp(command: Command, schema = false, width = 100): stri
 export function overview(): string {
   return ['fam - Genealogy CLI', '===================', '',
     'Usage: fam <provider>.<object> <action> [options]', '', 'Available providers:',
-    rows(providerNames.map(provider => [provider, providerInfo[provider].description])),
-    '', 'Browse provider commands and documentation: fam <provider> --help', '', 'Common tasks:',
-    ...commonTasks.flatMap(task => [`  ${task.title}`, `    ${task.example}`]), '',
-    'Persistent browser: fam browser setup --local | fam browser setup --remote URL',
-    'Manage it with fam browser use, start, stop, status, open, configure, or reset.',
-    'Inspect starting HTTP/browser routes: fam cli.browser.transport list --transport auto', '',
-    'Fetch a URL: fam cli.browser fetch --url URL --format text|markdown|html|raw|json', '',
-    'Global options', '--------------',
+    rows(providerNames.map(provider => [provider, providerInfo[provider].description]), 80), '',
+    'Browse provider commands and documentation: fam <provider> --help', '',
+    'Find commands:',
+    '  fam cli.command search --query "download an original image"',
+    '  fam familysearch.image --help', '',
+    'Common tasks:',
     rows([
-      ['--help, -h', 'Show help, including command flags and examples.'],
-      ['--json', 'Return structured JSON instead of readable text.'],
-      ['--out <FILE>', 'Save results or downloads to a file.'],
-      ['--dry-run', 'Show an invocation without executing it.'],
-      ['--transport <MODE>', 'Use auto, http, or browser for a provider command.'],
-      ['--browser-timeout <SECONDS>', 'Wait for browser verification; zero returns when interaction is needed.'],
-      ['--completions <SHELL>', 'Print a shell completion script (bash or zsh).'],
-      ['--version', 'Show the running version, build revision, and installation path.'],
-    ]),
-    '', 'Place command options after the action. Credentials and sessions use the active fam profile.',
-    'Set FAM_CONFIG_DIR to use a different profile.',
-    'Command history: fam cli.history list | fam cli.history.failures list',
-    'History files: <profile>/history/YYYY-MM-DD.jsonl. Set FAM_HISTORY=0 to disable recording.', '',
-    'Find a command:', '  fam cli.command search --query "what you want to accomplish"',
-    'Inspect command options:', '  fam cli.command describe --command "provider.object action"',
-    'Browse commands for a provider:', '  fam cli.command list --provider familysearch',
-    'Browse provider and object help:', '  fam familysearch', '  fam familysearch.image --help',
-    'List available providers:', '  fam cli.provider list',
-    'Check provider health:', '  fam doctor  # Same as fam cli.health check --live; use --no-pretty for plain output.',
-    'Update this installation:', '  fam cli.update',
-    'Enable completion in the current shell:', '  eval "$(fam --completions bash)"  # Use zsh in zsh.',
-    'Install completion for future shells:', '  fam cli.completion install', '',
+      ['fam cli.browser setup --local', 'Set up a browser.'],
+      ['fam cli.completion install', 'Enable TAB completion.'],
+      ['fam cli.health check', 'Check provider access.'],
+      ['fam cli.history list', 'Browse command history.'],
+      ['fam cli.update', 'Update this installation.'],
+    ], 80), '',
+    'Global options:',
+    rows([
+      ['--browser-timeout <SECONDS>', 'Seconds to wait for browser verification.'],
+      ['--completions <SHELL>', 'Print bash or zsh completion code.'],
+      ['--dry-run', 'Preview an invocation without running it.'],
+      ['--help, -h', 'Show help, flags, and examples.'],
+      ['--json', 'Return structured JSON.'],
+      ['--out <FILE>', 'Save results or downloads.'],
+      ['--transport <MODE>', 'Use auto, http, or browser.'],
+      ['--version', 'Show version, revision, and install path.'],
+    ], 80), '',
+    'Place command options after the action. More utilities: fam cli --help', '',
   ].join('\n');
 }
 function commandList(data: {command: string; description: string}[], width: number): string {
