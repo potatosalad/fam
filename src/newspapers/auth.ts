@@ -1,5 +1,5 @@
 import {CookieJar} from 'tough-cookie';
-import {BrowserError, directOnly, endpointId, loadProviderSession, rememberBrowser, saveProviderSession} from '../shared/browser-config.js';
+import {BrowserError, directOnly, endpointId, loadProviderSession, saveProviderSession} from '../shared/browser-config.js';
 import {configuredBrowser, BrowserTab, updateCookieJar} from '../shared/browser-runtime.js';
 import {waitForLogin, type BrowserLoginOptions} from '../shared/browser-login.js';
 import {isChallengeResponse} from '../shared/browser-challenge.js';
@@ -36,6 +36,6 @@ export async function loginNewspapers(options: BrowserLoginOptions = {}): Promis
     }
     const jar = new CookieJar(); await updateCookieJar(jar, await browser.state('newspapers'), WEB);
     const session: NewspapersSession = {mode:'browser',browserInstance:endpointId(browser.config),cookies:jar.serializeSync(),savedAt:new Date().toISOString(),userAgent:await tab!.evaluate<string>('navigator.userAgent')};
-    await saveSession(session); await rememberBrowser('newspapers', WEB); return session;
+    await saveSession(session); return session;
   }, {...options, readyToSubmit:async () => tab!.evaluate<boolean>(`!!document.querySelector('input[name="cf-turnstile-response"]')?.value`)});
 }
