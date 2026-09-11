@@ -4,7 +4,7 @@ import {createHash, randomUUID, timingSafeEqual} from 'node:crypto';
 import {EventEmitter} from 'node:events';
 import {spawn} from 'node:child_process';
 import {createServer} from 'node:net';
-import {mkdir, readFile, writeFile, rename, rm} from 'node:fs/promises';
+import {mkdir, readFile, writeFile, rename, rm, readdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {register} from '../camofox-plugin/index.js';
@@ -29,6 +29,20 @@ async function terminate(child) {
   let timer;
   try {await Promise.race([ended, new Promise(resolve => {timer = setTimeout(() => {child.kill('SIGKILL'); resolve();}, 15000);})]);}
   finally {clearTimeout(timer);}
+}
+
+export async function clearStaleProcessLocks(directory, processRoot = '/proc') {
+  // Chromium's lock contains the container hostname. After replacement it can
+  // mistake a dead process in the old container for a live browser elsewhere.
+  // This service exclusively owns its profile mount. Never clear a lock while
+  // a process in this container is actually using that profile.
+  for (const pid of (await readdir(processRoot)).filter(value => /^\d+$/.test(value))) {
+    let args;
+    try {args = (await readFile(join(processRoot, pid, 'cmdline'), 'utf8')).split('\0');}
+    catch (error) {if (['ENOENT', 'ESRCH'].includes(error.code)) continue; throw error;}
+    if (args.includes(`--user-data-dir=${directory}`)) throw new Error('Chromium profile is already in use.');
+  }
+  for (const name of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) await rm(join(directory, name), {force: true});
 }
 
 /** Implements the existing fam browser protocol with persistent Chromium profiles. */
@@ -74,6 +88,7 @@ export async function createService({apiKey, profileDir, launch, launchContext, 
   }
   async function startContext(id, directory, state) {
     if (launchContext) return launchContext({id, directory, state}); // Synthetic browser integration tests.
+    await clearStaleProcessLocks(join(directory, 'chromium'));
     const port = await freePort();
     const seed = String(parseInt(ownerHash(id).slice(0, 8), 16));
     const args = launch.args.filter(arg => !/^--(?:headless|fingerprint|remote-debugging-port|remote-debugging-address|user-data-dir)(?:=|$)/.test(arg));
@@ -98,6 +113,10 @@ export async function createService({apiKey, profileDir, launch, launchContext, 
       if (!id.endsWith('-web-private') && state) await context.setStorageState(state);
       return {context, browser, child, stop: async () => {
         if (id.endsWith('-web-private')) await context.close().catch(() => {});
+        // Closing a CDP connection only disconnects Playwright. Ask Chromium to
+        // exit normally so it flushes its profile and removes process locks.
+        const cdp = await browser.newBrowserCDPSession().catch(() => undefined);
+        if (cdp) await Promise.race([cdp.send('Browser.close').catch(() => {}), delay(3000)]);
         await terminate(child); await browser.close().catch(() => {});
       }};
     } catch (error) {await terminate(child); await browser?.close().catch(() => {}); throw error;}
