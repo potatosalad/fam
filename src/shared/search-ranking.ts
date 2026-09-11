@@ -24,6 +24,19 @@ export function bm25Index(documents: string[]) {
   };
 }
 
+/** Keep guide context near matching terms so command reranking stays inexpensive. */
+export function searchExcerpt(text: string, query: string): string {
+  const words = text.split(/\s+/), width = 64;
+  if (words.length <= width) return text;
+  const windows: string[] = [];
+  for (let start = 0; start < words.length; start += width / 2) {
+    windows.push(words.slice(Math.min(start, words.length - width), Math.min(start, words.length - width) + width).join(' '));
+    if (start + width >= words.length) break;
+  }
+  const scores = bm25Index(windows)(query);
+  return windows[scores.indexOf(Math.max(...scores))];
+}
+
 export const searchWeights = {lexical: 0.20, semantic: 0.80} as const;
 /** Max-normalized BM25 and nonnegative cosine similarity both live in [0, 1]. */
 export function fuseScores(lexical: number[], semantic?: number[]) {

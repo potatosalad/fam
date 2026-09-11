@@ -70,6 +70,16 @@ test('default reranking only sees the genuine fixed shortlist, uses raw logits, 
   assert.match(humanOutput(command, baselinePage, {'no-rerank': true, limit: 10}), /More:.*--no-rerank/);
 });
 
+test('mixed guide/command lengths batch together efficiently while scores return in input order', async () => {
+  const lengths: number[][] = [];
+  const score = createReranker(async () => ({encode: text => text === 'query' ? [99] : Array(Number(text)).fill(Number(text)),
+    score: async pairs => {lengths.push(pairs.map(pair => pair.ids.length)); return pairs.map(pair => -pair.ids[3]);}}));
+  const docs = Array.from({length: 16}, (_, i) => ({id: String(i), text: String(i % 2 ? 200 + i : i + 1)}));
+  assert.deepEqual(await score(docs, 'query'), docs.map(doc => -Number(doc.text)));
+  assert.ok(lengths[0].every(length => length < 25));
+  assert.ok(lengths[1].every(length => length > 200));
+});
+
 test('provider and context filtering apply before reranking; invocation requirements survive', async () => {
   const result = await searchCommands('synthetic intent', {provider: 'familysearch', rerank: true,
     context: 'https://www.familysearch.org/ark:/61903/3:1:TEST'}, semantic, async docs => {

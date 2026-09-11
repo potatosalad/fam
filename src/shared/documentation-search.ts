@@ -11,7 +11,7 @@ export async function searchDocumentation(query: string, options: DocumentationS
     if (!guide) throw new DocumentationError(`Unknown document ${JSON.stringify(options.doc)}.`);
     if (options.provider && guide.provider !== options.provider) throw new DocumentationError(`Document ${guide.id} belongs to ${guide.provider}, not ${options.provider}.`);
   }
-  const {catalog, warnings, semantic, passageScores} = await scoreCatalog(query, options, scoreSemantic);
+  const {catalog, warnings, semantic, passageScores} = await scoreCatalog(query, {...options, target: 'documentation'}, scoreSemantic);
   let ranked = (searchTokens(query).length ? catalog.passages : []).map((entry, i) => ({entry, ...passageScores[i], retrievalScore: passageScores[i].score, rerankScore: null as number | null}))
     .filter(row => row.score > 0 && (!options.provider || row.entry.provider === options.provider) && (!options.doc || row.entry.doc === options.doc))
     .sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id, 'en'));

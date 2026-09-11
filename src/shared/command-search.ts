@@ -2,7 +2,7 @@ import {commands, providerNames, type Command, type Provider} from './command-re
 import type {operationSummary} from '../familysearch/discovery.js';
 import {replaySnapshot} from '../wayback/url.js';
 
-import {searchTokens, searchWeights} from './search-ranking.js';
+import {searchExcerpt, searchTokens, searchWeights} from './search-ranking.js';
 import {embeddingModel, semanticScores, type SearchProgress} from './command-embeddings.js';
 import {scoreCatalog, type SemanticScorer} from './search-catalog.js';
 import type {DocPassage} from './documentation.js';
@@ -106,20 +106,20 @@ export async function searchCommands(query: string, options: SearchOptions = {},
   const intent = words.length ? queryText : context?.object || '';
   const {catalog, warnings, semantic, commandScores, passageScores} = await scoreCatalog(intent, {...options, provider: explicitProvider}, scoreSemantic);
   const selected = catalog.commands.map((entry, i) => ({entry, i})).filter(({entry}) => !explicitProvider || entry.command.provider === explicitProvider);
-  const evidence = new Map<string, {passage: DocPassage; score: number; rawScore: number}>();
+  const evidence = new Map<string, {passage: DocPassage; score: number}>();
   for (const [i, passage] of catalog.passages.entries()) {
     if (explicitProvider && passage.provider !== explicitProvider && passage.provider !== 'cli') continue;
     const score = passageScores[i].score * 0.9;
     for (const command of passage.commands) {
-      if (score > (evidence.get(command)?.score ?? 0)) evidence.set(command, {passage, score, rawScore: passageScores[i].score});
+      if (score > (evidence.get(command)?.score ?? 0)) evidence.set(command, {passage, score});
     }
   }
   let ranked = (intent ? selected : []).map(({entry, i}) => {
     // A passage can surface only the registered actions explicitly mentioned in its section.
-    // Direct command matches retain their score; guide evidence is a discounted alternative.
+    // Guide BM25 enriches lexical retrieval without embedding every guide on a command lookup.
     const found = entry.operation ? undefined : evidence.get(entry.id);
-    const guide = found && found.rawScore >= commandScores[i].score ? found : undefined;
-    const score = Math.max(guide?.score ?? 0, commandScores[i].score);
+    const guide = found && found.score > commandScores[i].lexicalScore ? found : undefined;
+    const score = commandScores[i].score + (guide ? (guide.score - commandScores[i].lexicalScore) * (semantic ? searchWeights.lexical : 1) : 0);
     const documentation = guide ? {doc: guide.passage.doc, section: guide.passage.section, title: guide.passage.title,
       heading: guide.passage.heading, source: guide.passage.source, read: guide.passage.read, excerpt: guide.passage.excerpt, score: guide.score} : undefined;
     return {entry, ...commandScores[i], score, documentation, retrievalScore: score, rerankScore: null as number | null};
@@ -130,7 +130,7 @@ export async function searchCommands(query: string, options: SearchOptions = {},
     try {
       // A fixed shortlist before pagination keeps ordering independent of page size.
       // Only reranker logits order this set; never mix them with retrieval scores.
-      const shortlist = ranked.slice(0, 100), logits = await scoreRerank(shortlist.map(row => ({id: row.entry.id, text: row.entry.text + (row.documentation ? `\n\n${row.documentation.heading}\n${row.documentation.excerpt}` : '')})), intent, options.progress);
+      const shortlist = ranked.slice(0, 100), logits = await scoreRerank(shortlist.map(row => ({id: row.entry.id, text: row.entry.text + (row.documentation ? `\n\n${row.documentation.heading}\n${searchExcerpt(row.documentation.excerpt, intent)}` : '')})), intent, options.progress);
       if (logits.length !== shortlist.length || logits.some(n => !Number.isFinite(n))) throw new Error('Invalid reranker scores.');
       ranked = shortlist.map((row, i) => ({...row, score: logits[i], rerankScore: logits[i]}))
         .sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id, 'en'));

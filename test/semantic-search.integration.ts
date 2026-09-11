@@ -7,6 +7,7 @@ import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {createSemanticScorer, embeddingModel} from '../src/shared/command-embeddings.js';
 import {searchCommands} from '../src/shared/command-search.js';
 import {searchDocumentation} from '../src/shared/documentation-search.js';
+import {searchCatalog} from '../src/shared/search-catalog.js';
 
 const searchEmbeddings: typeof searchCommands = (query, options, ...scorers) => searchCommands(query, {...options, rerank: false}, ...scorers);
 
@@ -31,18 +32,25 @@ const cases = [
   ['search collection-specific fields and generation numbers', 'americanancestors', 'americanancestors.record search'],
 ];
 
-test('real Arctic embeddings: cold setup, intent ranking, offline restart and cache recovery', {timeout: 420_000}, async t => {
+test('real Arctic embeddings: cold setup, intent ranking, offline restart and cache recovery', {timeout: 180_000}, async t => {
   const progress: string[] = [], started = performance.now();
-  const cold = await searchEmbeddings(cases[0][0], {provider: cases[0][1], progress: message => progress.push(message)});
+  const query = 'download an original image';
+  const cold = await searchEmbeddings(query, {progress: message => progress.push(message)});
   assert.equal(cold.engine, 'local-bm25-embeddings', cold.warnings?.join('\n'));
   assert.ok(progress.some(message => message.startsWith('Downloading')));
   assert.ok(progress.some(message => message.startsWith('Indexing')));
-  t.diagnostic(`Cold model download + full catalog: ${((performance.now() - started) / 1000).toFixed(2)}s`);
+  t.diagnostic(`Cold model download + command index: ${((performance.now() - started) / 1000).toFixed(2)}s`);
+  const indexPath = join(CREDENTIAL_DIR, 'cache/command-search/index.json');
+  const snapshot = async () => JSON.parse(await readFile(indexPath, 'utf8'));
+  const commands = await snapshot(), catalog = await searchCatalog();
+  assert.equal(commands.entries.length, new Set(catalog.commands.map(doc => doc.text)).size, 'A command lookup must not precompute guide vectors.');
   const guide = await searchDocumentation('search records using a spouse name', {provider: 'americanancestors', limit: 5});
   assert.equal(guide.engine, 'local-bm25-embeddings-reranked', guide.warnings?.join('\n'));
   assert.ok(guide.results.slice(0, 3).some(item => item.section === 'family-members-and-collection-specific-fields'), guide.results.map(item => item.section).join(', '));
-  const indexPath = join(CREDENTIAL_DIR, 'cache/command-search/index.json');
   assert.equal((await stat(indexPath)).mode & 0o777, 0o600);
+  const combined = await snapshot();
+  assert.equal(combined.entries.length, commands.entries.length + new Set(catalog.passages.filter(doc => doc.provider === 'americanancestors').map(doc => doc.text)).size);
+  for (const entry of commands.entries) assert.deepEqual(combined.entries.find(([key]: [string]) => key === entry[0]), entry, 'Guide indexing retains all command vectors.');
   let first = 0, topThree = 0;
   // Prove that both fresh model loading and new query inference need no network once cached.
   const originalFetch = globalThis.fetch;
@@ -61,12 +69,12 @@ test('real Arctic embeddings: cold setup, intent ranking, offline restart and ca
     assert.deepEqual(offlineGuide.results, guide.results);
     t.diagnostic(`${first}/${cases.length} expected commands ranked first; ${topThree}/${cases.length} in the top three; all in the default ten results.`);
     const warmStart = performance.now(), warmProgress: string[] = [];
-    const warm = await searchEmbeddings(cases[0][0], {provider: cases[0][1], progress: message => warmProgress.push(message)}, createSemanticScorer());
+    const warm = await searchEmbeddings(query, {progress: message => warmProgress.push(message)}, createSemanticScorer());
     assert.deepEqual(warm.results, cold.results);
     assert.deepEqual(warmProgress, []);
     t.diagnostic(`Cached offline restart: ${((performance.now() - warmStart) / 1000).toFixed(2)}s`);
     await writeFile(indexPath, '{broken json');
-    const rebuilt = await searchEmbeddings(cases[0][0], {provider: cases[0][1]}, createSemanticScorer());
+    const rebuilt = await searchEmbeddings(query, {}, createSemanticScorer());
     assert.deepEqual(rebuilt.results, cold.results);
     const tokenizerPath = join(CREDENTIAL_DIR, `cache/command-search/models/${embeddingModel.revision}/tokenizer.json`);
     const tokenizer = await readFile(tokenizerPath);

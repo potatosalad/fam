@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createSemanticScorer, embeddingModel, type Embedder} from '../src/shared/command-embeddings.js';
-import {bm25Index, fuseScores} from '../src/shared/search-ranking.js';
+import {bm25Index, fuseScores, searchExcerpt} from '../src/shared/search-ranking.js';
 import {searchCommands, type SemanticScorer} from '../src/shared/command-search.js';
 import {humanOutput} from '../src/shared/command-output.js';
 import {commandById, providerNames} from '../src/shared/command-registry.js';
@@ -23,11 +23,19 @@ test('BM25 uses rare terms and length normalization; hybrid weighting compares b
   assert.deepEqual(fuseScores([4, 2]).map(item => item.score), [1, 0.5]);
 });
 
+test('bounded reranking excerpts retain matching terms near the end of long guide passages', () => {
+  const text = `${'Introductory material. '.repeat(90)}Search by a spouse name with SpouseName. ${'More details. '.repeat(10)}`;
+  const excerpt = searchExcerpt(text, 'search spouse name');
+  assert.match(excerpt, /Search by a spouse name with SpouseName/);
+  assert.ok(excerpt.split(/\s+/).length <= 64);
+  assert.equal(searchExcerpt('Short guide.', 'unrelated'), 'Short guide.');
+});
+
 test('embedding cache reuses documents, prefixes only queries, and coalesces simultaneous indexing', async () => {
   const calls: string[][] = [];
   let loads = 0, writes = 0, saved: unknown;
   const embed: Embedder = async texts => {calls.push(texts); return texts.map(text => vector(text === 'Second command' ? 1 : 0));};
-  const deps = {load: async () => {loads++; return embed;}, read: async () => saved, write: async (value: unknown) => {writes++; saved = value;}};
+  const deps = {load: async () => {loads++; return embed;}, read: async () => saved, write: async (value: unknown) => {writes++; saved = structuredClone(value);}};
   const score = createSemanticScorer(deps);
   assert.deepEqual(await Promise.all([score(documents, 'first'), score(documents, 'second')]), [[1, 0], [1, 0]]);
   assert.equal(loads, 1); assert.equal(writes, 1);
@@ -36,23 +44,65 @@ test('embedding cache reuses documents, prefixes only queries, and coalesces sim
   await createSemanticScorer(deps)(documents, 'restart');
   assert.equal(writes, 1, 'A new process can reuse persisted vectors.');
   await score([{id: 'one', text: 'Updated description'}, documents[1]], 'updated');
-  assert.equal(writes, 2, 'Changed command text invalidates vectors.');
+  assert.equal(writes, 2);
+  assert.equal(calls.flat().filter(text => text === 'Second command').length, 1, 'Editing one entry retains every unchanged vector.');
   await score([{id: 'renamed', text: 'Updated description'}, documents[1]], 'renamed');
-  assert.equal(writes, 3, 'Changed identity invalidates vectors.');
+  assert.equal(writes, 2, 'Renaming an entry with identical text requires no inference.');
+  assert.deepEqual(await score(documents.toReversed(), 'reordered'), [0, 1]);
+  assert.equal(writes, 2, 'Ordering and switching corpora reuse existing vectors.');
 });
 
-test('stale, malformed, reordered, and nonfinite vectors rebuild instead of contaminating scores', async () => {
-  let saved: any, writes = 0;
-  const deps = {load: async () => async (texts: string[]) => texts.map(() => vector(0)), read: async () => saved,
-    write: async (value: unknown) => {saved = value; writes++;}};
+test('model changes invalidate the cache; damaged entries rebuild individually without contaminating scores', async () => {
+  let saved: any;
+  const indexed: string[] = [];
+  const deps = {load: async () => async (texts: string[]) => {indexed.push(...texts.filter(text => !text.startsWith(embeddingModel.queryPrefix))); return texts.map(() => vector(0));}, read: async () => saved,
+    write: async (value: unknown) => {saved = structuredClone(value);}};
   await createSemanticScorer(deps)(documents, 'query');
-  for (const damage of [() => {saved.fingerprint = 'old-model';}, () => {saved.vectors[0] = [1];},
-    () => {saved.vectors[0][0] = NaN;}, () => {saved.vectors[0] = Array(384).fill(0);}, () => {saved = null;}]) {
+  for (const damage of [() => {saved.entries[0][1] = [1];}, () => {saved.entries[0][1][0] = NaN;},
+    () => {saved.entries[0][1] = Array(384).fill(0);}, () => {saved.entries[0] = null;}]) {
+    indexed.length = 0;
     damage();
     assert.deepEqual(await createSemanticScorer(deps)(documents, 'query'), [1, 1]);
+    assert.equal(indexed.length, 1, 'An intact entry survives corruption elsewhere in the cache.');
   }
-  await createSemanticScorer(deps)([documents[1], documents[0]], 'reordered');
-  assert.equal(writes, 7);
+  for (const damage of [() => {saved.model = 'old-model';}, () => {saved = {fingerprint: 'legacy-index', vectors: [vector(0), vector(0)]};}, () => {saved = null;}]) {
+    indexed.length = 0;
+    damage();
+    assert.deepEqual(await createSemanticScorer(deps)(documents, 'query'), [1, 1]);
+    assert.equal(indexed.length, 2);
+  }
+});
+
+test('overlapping corpora share vectors and indexing checkpoints survive failed batches and restarts', async () => {
+  let saved: unknown, batches = 0, fail = true;
+  const indexed: string[] = [];
+  const deps = {read: async () => saved, write: async (value: unknown) => {saved = structuredClone(value);}, load: async (): Promise<Embedder> => async texts => {
+    if (!texts[0].startsWith(embeddingModel.queryPrefix)) {
+      if (++batches === 5 && fail) throw new Error('Interrupted inference');
+      indexed.push(...texts);
+    }
+    return texts.map(() => vector(0));
+  }};
+  const corpus = Array.from({length: 80}, (_, i) => ({id: String(i), text: `Entry ${i}`}));
+  await assert.rejects(createSemanticScorer(deps)(corpus, 'query'), /Interrupted/);
+  assert.equal(indexed.length, 64);
+  fail = false;
+  const score = createSemanticScorer(deps);
+  await Promise.all([score(corpus, 'restart'), score([...corpus.slice(40), {id: 'extra', text: 'Additional entry'}], 'overlap')]);
+  assert.equal(indexed.length, 81, 'A restart and overlapping search each embed only missing text.');
+  assert.equal(new Set(indexed).size, indexed.length);
+  await createSemanticScorer(deps)(corpus, 'another restart');
+  assert.equal(indexed.length, 81);
+});
+
+test('independent searches merge persisted vectors instead of replacing each other\'s corpus', async () => {
+  const load = async (): Promise<Embedder> => async texts => texts.map(() => vector(0));
+  await Promise.all(documents.map(document => createSemanticScorer({load})([document], 'concurrent query')));
+  const restart = createSemanticScorer({load: async () => async texts => {
+    assert.ok(texts.every(text => text.startsWith(embeddingModel.queryPrefix)), 'Both searches\' vectors survive the concurrent writes.');
+    return texts.map(() => vector(0));
+  }});
+  assert.deepEqual(await restart(documents, 'restart'), [1, 1]);
 });
 
 test('unreadable and unwritable caches still allow in-memory inference; model failure is retryable', async () => {
@@ -69,7 +119,7 @@ test('unreadable and unwritable caches still allow in-memory inference; model fa
 
 test('semantic matches with no shared words rank first, filtering and pagination preserve scores and invocations', async () => {
   const semantic: SemanticScorer = async entries => entries.map(entry => entry.id === 'familysearch.image download' ? 1 : 0.1);
-  const all = await searchEmbeddings('a completely different request', {limit: 100}, semantic);
+  const all = await searchEmbeddings('zxqv', {limit: 100}, semantic);
   assert.equal(all.results[0].command, 'familysearch.image download');
   assert.equal(all.results[0].lexicalScore, 0);
   assert.equal(all.results[0].score, 0.8);

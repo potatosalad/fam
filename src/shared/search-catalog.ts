@@ -17,27 +17,31 @@ let cached: ReturnType<typeof loadCatalog> | undefined;
 async function loadCatalog() {
   const guides = (await documentationCatalog()).documents;
   const passages = documentationPassages({schemaVersion: 1, documents: guides});
-  return {guides, commands: commandDocuments, passages, documents: [...commandDocuments, ...passages],
+  return {guides, commands: commandDocuments, passages,
     commandLexical: bm25Index(commandDocuments.map(doc => doc.text)), passageLexical: bm25Index(passages.map(doc => doc.text))};
 }
 export const searchCatalog = () => cached ??= loadCatalog().catch(error => {cached = undefined; throw error;});
 
-/** Both searches share one vector corpus/cache; their BM25 length normalization stays separate. */
-export async function scoreCatalog(query: string, options: {provider?: string; lexical?: boolean; progress?: SearchProgress}, scoreSemantic: SemanticScorer = semanticScores) {
+/** Index only the requested kind/provider; BM25 keeps stable corpus-wide normalization. */
+export async function scoreCatalog(query: string, options: {target?: 'commands' | 'documentation'; provider?: string; doc?: string; lexical?: boolean; progress?: SearchProgress}, scoreSemantic: SemanticScorer = semanticScores) {
   const catalog = await searchCatalog(), warnings: string[] = [];
   let semantic: number[] | undefined;
-  const matches = !options.provider || catalog.commands.some(doc => doc.command.provider === options.provider)
-    || catalog.passages.some(doc => doc.provider === options.provider);
-  if (!options.lexical && searchTokens(query).length && matches) {
+  const documentation = options.target === 'documentation';
+  const selected = documentation
+    ? catalog.passages.map((document, i) => ({document, i})).filter(({document}) => (!options.provider || document.provider === options.provider) && (!options.doc || document.doc === options.doc))
+    : catalog.commands.map((document, i) => ({document, i})).filter(({document}) => !options.provider || document.command.provider === options.provider);
+  if (!options.lexical && searchTokens(query).length && selected.length) {
     try {
-      semantic = await scoreSemantic(catalog.documents, query, options.progress);
-      if (semantic.length !== catalog.documents.length || semantic.some(n => !Number.isFinite(n))) throw new Error('Invalid semantic scores.');
+      const scores = await scoreSemantic(selected.map(({document}) => document), query, options.progress);
+      if (scores.length !== selected.length || scores.some(n => !Number.isFinite(n))) throw new Error('Invalid semantic scores.');
+      semantic = Array(documentation ? catalog.passages.length : catalog.commands.length).fill(0) as number[];
+      selected.forEach(({i}, at) => {semantic![i] = scores[at];});
     } catch (error) {
       semantic = undefined;
       warnings.push(`Semantic search unavailable; showing BM25 results. ${error instanceof Error ? error.message : 'Could not load the local model.'} Retry to initialize the model, or use --lexical.`);
     }
   }
   return {catalog, warnings, semantic,
-    commandScores: fuseScores(catalog.commandLexical(query), semantic?.slice(0, catalog.commands.length)),
-    passageScores: fuseScores(catalog.passageLexical(query), semantic?.slice(catalog.commands.length))};
+    commandScores: fuseScores(catalog.commandLexical(query), documentation ? undefined : semantic),
+    passageScores: fuseScores(catalog.passageLexical(query), documentation ? semantic : undefined)};
 }

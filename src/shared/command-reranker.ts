@@ -56,12 +56,14 @@ export function createReranker(load = loadReranker): Reranker {
   return async (documents, query, progress) => {
     if (!documents.length) return [];
     model ??= load(progress).catch(error => {model = undefined; throw error;});
-    const {encode, score} = await model, queryTokens = encode(query), values: number[] = [];
-    // Batch inference bounds memory; preserve input order, including negative logits.
-    for (let i = 0; i < documents.length; i += 8) {
-      const batch = documents.slice(i, i + 8), scores = await score(batch.map(doc => rerankerPair(queryTokens, encode(doc.text))));
+    const {encode, score} = await model, queryTokens = encode(query), values: number[] = Array(documents.length);
+    const pairs = documents.map((doc, index) => ({index, pair: rerankerPair(queryTokens, encode(doc.text))}))
+      .sort((a, b) => a.pair.ids.length - b.pair.ids.length);
+    // Group similar lengths so a long guide does not pad every short command to its length.
+    for (let i = 0; i < pairs.length; i += 8) {
+      const batch = pairs.slice(i, i + 8), scores = await score(batch.map(({pair}) => pair));
       if (scores.length !== batch.length || scores.some(n => !Number.isFinite(n))) throw new Error('The reranker returned invalid scores.');
-      values.push(...scores);
+      batch.forEach(({index}, at) => {values[index] = scores[at];});
     }
     return values;
   };
