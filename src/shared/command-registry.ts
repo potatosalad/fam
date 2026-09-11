@@ -603,6 +603,10 @@ add('cli', 'update', 'update run', 'Update fam from its Git upstream or npm late
   flags: {'dry-run': {description: 'Inspect the installation and show update commands without pulling or installing.'}},
   examples: ['fam cli.update', 'fam cli.update run --dry-run'],
 });
+for (const action of ['enable', 'disable']) add('cli', `update-${action}`, `update ${action}`,
+  `${action === 'enable' ? 'Enable' : 'Disable'} silent daily automatic updates for this installation.`, [], '',
+  {risk: {level: 'local', description: 'Saves the automatic update preference for the running installation.'},
+    examples: [`fam cli.update ${action}`]});
 add('cli', 'completion-script', 'completion script', 'Print bash or zsh completion code for use with eval.', [], 'shell format',
   {...cliRisk, flags: {shell: {required: true, choices: ['bash', 'zsh']}, format: {default: 'text', choices: ['json', 'text']}}});
 add('cli', 'completion-install', 'completion install', 'Install or update a guarded completion hook in your shell startup files.', [], 'shell',

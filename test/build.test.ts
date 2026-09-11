@@ -31,6 +31,7 @@ test('build publication pins lazy imports, retains a working CLI, and packages o
   await mkdir(join(root, 'bin'));
   await copyFile(new URL('../bin/fam.mjs', import.meta.url), join(root, 'bin/fam.mjs'));
   await copyFile(new URL('../bin/build-state.mjs', import.meta.url), join(root, 'bin/build-state.mjs'));
+  await copyFile(new URL('../bin/update-state.mjs', import.meta.url), join(root, 'bin/update-state.mjs'));
   await writeFile(join(root, 'package.json'), JSON.stringify({name: 'fam-build-fixture', version: '1.0.0', type: 'module', files: ['bin/', 'dist/']}));
   const first = await mkdtemp(join(root, '.fam-build-'));
   await writeFile(join(first, 'cli.js'), "console.log('ready'); await new Promise(r => process.stdin.once('data', r)); console.log((await import('./late.js')).value); process.stdin.destroy();");
@@ -74,7 +75,7 @@ test('multiple readers and killed processes keep builds until the last reader ex
   const root = await mkdtemp(join(tmpdir(), 'fam-build-readers-'));
   t.after(() => rm(root, {recursive: true, force: true}));
   await mkdir(join(root, 'bin'));
-  for (const file of ['fam.mjs', 'build-state.mjs']) await copyFile(new URL(`../bin/${file}`, import.meta.url), join(root, 'bin', file));
+  for (const file of ['fam.mjs', 'build-state.mjs', 'update-state.mjs']) await copyFile(new URL(`../bin/${file}`, import.meta.url), join(root, 'bin', file));
   await writeFile(join(root, 'package.json'), '{"type":"module"}');
   const first = await mkdtemp(join(root, '.fam-build-'));
   await writeFile(join(first, 'cli.js'), "console.log('ready'); setInterval(() => {}, 1000);");

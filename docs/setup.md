@@ -25,6 +25,21 @@ On Windows, use an absolute Windows path for the prefix. npm puts the `.cmd` lau
 
 ### Updates
 
+Automatic updates are enabled by default. The installed `fam` launcher starts a silent background check after your command exits, at most once every 24 hours per installation. Git checkouts follow their configured upstream branch, including new commits with no package-version change. npm installations follow the registry's `latest` release and install only a newer version. Nothing is printed and no confirmation is requested. The updated runtime is used by subsequent commands.
+
+```sh
+fam cli.update disable
+fam cli.update enable
+```
+
+These commands save the preference for the running installation, across profiles and rebuilds. Existing installations gain the same enabled default after their next manual `fam cli.update`; an explicit opt-out is preserved by manual and automatic updates. Set `FAM_AUTO_UPDATE=0` to suppress automatic checks temporarily, including in CI. This does not prevent a manual update.
+
+Checks use the same update lock as manual updates. Active launcher commands defer the check until a later invocation; commands started during installation wait until it finishes before loading the runtime. A busy installation is not counted as checked. Once a check starts, its timestamp is saved before any network request, so concurrent invocations, offline failures, and failed installs cannot trigger repeated checks that day. Network checks have a 20-second timeout, and each installation step has a five-minute timeout. Dirty, detached, untracked, ahead, or diverged Git checkouts are left alone. An interrupted checkout install is retried on the next daily attempt, even if Git already advanced.
+
+Completion, explicit update controls, `--offline`, and `--dry-run` do not schedule automatic checks. Source execution with `npm run fam -- ...` does not schedule them either. Unwritable installations continue to run without automatic updates. The preference and daily timestamp are local files in `.fam-update/` at the checkout root, or beside an npm package outside its replaceable directory. They are not included in packages or Git history. There is no resident service or scheduled job; fam checks only when used.
+
+To update immediately or inspect an installation:
+
 ```sh
 fam cli.update
 fam cli.update run --dry-run
@@ -41,11 +56,11 @@ fam --version --json
 - **Global npm package:** installs `@potatosalad/fam@latest` in the package's existing prefix, including a nondefault prefix.
 - **Local npm dependency:** installs the latest release in its owning project, updating that project's manifest and lockfile. Indirect dependencies and unrecognized layouts need to be updated through their owning installer.
 
-Update progress goes to stderr, leaving stdout available for the usual result or JSON envelope. Concurrent updates to an installation are serialized. A failed install is reported; it does not roll back the Git pull or npm's dependency changes. Resolve the reported problem and rerun the update.
+Manual update progress goes to stderr, leaving stdout available for the usual result or JSON envelope. Concurrent updates to an installation are serialized; manual updates ask you to retry if other launcher commands are active. A failed manual install is reported; it does not roll back the Git pull or npm's dependency changes. Resolve the reported problem and rerun the update.
 
 Every successful checkout build, including `npm ci` and `npm run build`, removes unused `.fam-build-*` folders. The current build stays, and running CLI commands register their build until they exit. A terminated command's stale record is reclaimed once its process is gone. A later installation removes its now-unused build. Builds with uncertain ownership, unreadable usage records, or processes on another host stay. Older launchers without tracking defer cleanup while they are running. If process inspection is unavailable, cleanup retains snapshots. Use the installed `fam` launcher for tracked execution.
 
-Snapshot retention protects checkout CLI modules. npm package replacement and dependency reinstallation follow npm's normal behavior; they do not snapshot `node_modules` or guarantee that other running commands can load replaced dependencies. Library consumers should restart after updating.
+Snapshot retention protects checkout CLI modules, and the update lock protects active commands using the installed launcher from dependency replacement. Source execution, older launchers, library consumers, and external npm/build processes do not participate in that lock. npm installation failures can still leave dependency changes; rerun `fam cli.update` (or `npm ci` in a checkout that cannot start). Library consumers should restart after updating.
 
 ## Shell completion
 

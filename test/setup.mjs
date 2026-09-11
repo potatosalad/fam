@@ -6,6 +6,7 @@ import { join } from 'node:path';
 const directory = mkdtempSync(join(tmpdir(), 'fam-test-'));
 process.env.FAM_CONFIG_DIR = directory;
 process.env.FAM_TRANSPORT = 'http'; // Offline tests never launch a real browser.
+process.env.FAM_AUTO_UPDATE = '0'; // Tests must never update the real checkout.
 delete process.env.FAM_HISTORY;
 delete process.env.FAMILYSEARCH_CONFIG_DIR;
 delete process.env.FAM_CREDENTIALS_COMMAND;

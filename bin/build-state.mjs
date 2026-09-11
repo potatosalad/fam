@@ -11,7 +11,7 @@ const execute = promisify(execFile);
 export const buildName = /^\.fam-build-[A-Za-z0-9]+$/;
 const owner = () => ({pid: process.pid, host: hostname()});
 
-function alive(record) {
+export function alive(record) {
   // Unreadable records, other hosts, permission errors and reused PIDs all retain
   // the build. Only positive evidence of a dead process permits deletion.
   if (record?.host !== hostname() || !Number.isSafeInteger(record.pid) || record.pid <= 0) return true;
@@ -52,8 +52,8 @@ export async function pinBuild(root) {
   }
 }
 
-export async function withProcessLock(root, name, action) {
-  const lock = join(root, name), deadline = Date.now() + 60_000;
+export async function withProcessLock(root, name, action, timeout = 60_000, quiet = false) {
+  const lock = join(root, name), deadline = Date.now() + timeout;
   for (;;) {
     try {await mkdir(lock); break;}
     catch (error) {if (error.code !== 'EEXIST') throw error;}
@@ -79,7 +79,7 @@ export async function withProcessLock(root, name, action) {
     return await action();
   } finally {
     try {await rm(lock, {recursive: true, force: true});}
-    catch (error) {process.stderr.write(`fam: could not release ${name}: ${error.message}\n`);}
+    catch (error) {if (!quiet) process.stderr.write(`fam: could not release ${name}: ${error.message}\n`);}
   }
 }
 

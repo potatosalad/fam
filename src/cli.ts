@@ -58,6 +58,9 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
     case 'providers': return namespaceNames.map(provider => ({provider, ...providerInfo[provider]}));
     case 'resolve': return contextCommands(String(v.context), v.provider as string | undefined);
     case 'version': return (await import('./shared/cli-version.js')).cliVersion();
+    case 'update-enable':
+    case 'update-disable':
+      return (await import('./shared/cli-update.js')).setAutoUpdate(command.binding.command[0] === 'update-enable');
     case 'update': {
       // npm may replace dependencies and dist while the updater is running.
       // Load the finalizer before installation so completion needs no new imports.

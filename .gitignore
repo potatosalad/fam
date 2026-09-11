@@ -28,3 +28,4 @@ docs/**/*spot-check*.json
 .fam-build-*
 .fam-build.json*
 .fam-update.lock*
+.fam-update/
