@@ -70,6 +70,7 @@ export async function build(root) {
     await markBuilding(directory);
     await run(root, ['node_modules/typescript/bin/tsc', '--outDir', directory, '--noEmitOnError']);
     await run(root, ['scripts/build-info.mjs', directory]);
+    await run(root, ['scripts/build-docs.mjs', directory]);
     await run(root, ['scripts/generate-completions.mjs', directory]);
     await publishBuild(root, directory);
     published = true;

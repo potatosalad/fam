@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {createSemanticScorer, embeddingModel} from '../src/shared/command-embeddings.js';
 import {searchCommands} from '../src/shared/command-search.js';
+import {searchDocumentation} from '../src/shared/documentation-search.js';
 
 const searchEmbeddings: typeof searchCommands = (query, options, ...scorers) => searchCommands(query, {...options, rerank: false}, ...scorers);
 
@@ -26,15 +27,20 @@ const cases = [
   ['save a full resolution scan of a historical document', 'familysearch', 'familysearch.image download'],
   ['let me log on', 'myheritage', 'myheritage.session login'],
   ['where is someone buried', 'findagrave', 'findagrave.memorial search'],
+  ['filter indexed records using a spouse name', 'americanancestors', 'americanancestors.record search'],
+  ['search collection-specific fields and generation numbers', 'americanancestors', 'americanancestors.record search'],
 ];
 
-test('real Arctic embeddings: cold setup, intent ranking, offline restart and cache recovery', {timeout: 180_000}, async t => {
+test('real Arctic embeddings: cold setup, intent ranking, offline restart and cache recovery', {timeout: 420_000}, async t => {
   const progress: string[] = [], started = performance.now();
   const cold = await searchEmbeddings(cases[0][0], {provider: cases[0][1], progress: message => progress.push(message)});
   assert.equal(cold.engine, 'local-bm25-embeddings', cold.warnings?.join('\n'));
   assert.ok(progress.some(message => message.startsWith('Downloading')));
   assert.ok(progress.some(message => message.startsWith('Indexing')));
   t.diagnostic(`Cold model download + full catalog: ${((performance.now() - started) / 1000).toFixed(2)}s`);
+  const guide = await searchDocumentation('search records using a spouse name', {provider: 'americanancestors', limit: 5});
+  assert.equal(guide.engine, 'local-bm25-embeddings-reranked', guide.warnings?.join('\n'));
+  assert.ok(guide.results.slice(0, 3).some(item => item.section === 'family-members-and-collection-specific-fields'), guide.results.map(item => item.section).join(', '));
   const indexPath = join(CREDENTIAL_DIR, 'cache/command-search/index.json');
   assert.equal((await stat(indexPath)).mode & 0o777, 0o600);
   let first = 0, topThree = 0;
@@ -51,6 +57,8 @@ test('real Arctic embeddings: cold setup, intent ranking, offline restart and ca
       if (rank < 3) topThree++;
       if (query === 'let me log on') assert.equal(result.results[0].lexicalScore, 0, 'This match must come from semantic retrieval alone.');
     }
+    const offlineGuide = await searchDocumentation('search records using a spouse name', {provider: 'americanancestors', limit: 5});
+    assert.deepEqual(offlineGuide.results, guide.results);
     t.diagnostic(`${first}/${cases.length} expected commands ranked first; ${topThree}/${cases.length} in the top three; all in the default ten results.`);
     const warmStart = performance.now(), warmProgress: string[] = [];
     const warm = await searchEmbeddings(cases[0][0], {provider: cases[0][1], progress: message => warmProgress.push(message)}, createSemanticScorer());

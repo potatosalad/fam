@@ -43,11 +43,11 @@ If installation fails or your shell can't find the commands, see [installation h
 | `storied` | [Family trees, stories, media, hints, and historical records](docs/storied/README.md) |
 | `wayback` | [Find archived web pages and read captures from a chosen date](docs/wayback/README.md) |
 
-`fam --help` lists every provider. Run `fam familysearch` (or another provider name) to browse its commands and find its installed guide.
+`fam --help` lists every provider. Run `fam familysearch` (or another provider name) to browse its commands. The `Documentation:` line gives the command to read its full guide.
 
 ## Find and run commands
 
-Search for what you want to do in plain language. Search runs locally without an API key; it downloads about 48 MB of models on first use, then works offline. Use `--lexical` to search without downloading models. See [search options](docs/cli.md#local-discovery) for ranking, filters, and caching.
+Search for what you want to do in plain language. Search uses command descriptions and relevant guide sections. It runs locally without an API key, downloads about 48 MB of models on first use, then works offline. Use `--lexical` to search without downloading models. See [search options](docs/cli.md#local-discovery) for ranking, filters, and caching.
 
 ```sh
 fam cli.command search --query "download an original image"
@@ -60,6 +60,19 @@ fam ancestry.api.gql query --operation GetTreeList --variables '{"limit":20}'
 Commands use `fam PROVIDER.OBJECT ACTION --flags`. Output is readable text by default. Add `--json` for structured output or `--out FILE` to save results. See the [command guide](docs/cli.md) and [migration mapping](docs/cli-migration.md).
 
 Explore a provider with `fam familysearch`, or its actions with `fam familysearch.person --help`. Command help shows flags and examples; misspelled commands suggest available choices.
+
+## Read and search guides
+
+The full guides are included with the installed CLI:
+
+```sh
+fam cli.doc read --provider americanancestors
+fam cli.doc list --provider americanancestors
+fam cli.doc search --query "collection-specific fields"
+fam cli.doc read --doc setup
+```
+
+Use `fam cli.doc list --doc americanancestors` to see its section IDs, then add `--section ID` to read one section and its subsections. Reading works offline and requires no account. Search results include the command to read each matching section; command-search results also link to guides when they supply a relevant match. Use `--format markdown` to read the original Markdown, or `--json` for structured output. See [documentation commands](docs/cli.md#documentation) for details.
 
 ## Set up the browser
 

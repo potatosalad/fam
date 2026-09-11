@@ -82,12 +82,14 @@ export function createSemanticScorer(dependencies: {
         try {saved = await (dependencies.read ?? (() => readPrivateJson(vectorFile)))() as typeof saved;}
         catch { /* Missing or damaged caches are regenerated from the current public catalog. */ }
         if (saved?.fingerprint === key && validVectors(saved.vectors, documents.length)) return saved.vectors;
-        progress?.(`Indexing ${documents.length} commands and operations for local search…`);
+        progress?.(`Indexing ${documents.length} commands, operations, and documentation passages for local search…`);
         const values: number[][] = [];
         for (let i = 0; i < documents.length; i += 16) {
           const batch = documents.slice(i, i + 16), encoded = await embed(batch.map(document => document.text));
           if (!validVectors(encoded, batch.length)) throw new Error('The search model returned invalid document embeddings.');
           values.push(...encoded);
+          if (values.length % 128 === 0 || values.length === documents.length)
+            progress?.(`Indexed ${values.length} of ${documents.length} search entries…`);
         }
         try {await (dependencies.write ?? (value => writePrivateJson(vectorFile, value)))({fingerprint: key, vectors: values});}
         catch {progress?.('Could not save the search index; this search can still use the in-memory embeddings.');}

@@ -30,9 +30,9 @@ These commands run the shared fam source in this checkout. They do not call a gl
 npm run check
 ```
 
-This runs TypeScript checks, generated-file checks, mocked tests, and a build. Tests use temporary configuration directories and remove inherited login variables. CI runs them on Linux and macOS with Node 22 and 24.
+This runs TypeScript checks, generated-file checks, mocked tests, a build, and a packaged-documentation smoke test. The packaging check removes the extracted source files and original docs, then verifies reading, search, and completion from `dist/`. Tests use temporary configuration directories and remove inherited login variables. CI runs them on Linux and macOS with Node 22 and 24.
 
-`npm run test:search` is an opt-in real-model retrieval check. It downloads public Arctic model files into a disposable profile, checks 16 natural-language intents, then disables network access to verify cached restarts, vector-cache recovery, and explicit BM25 fallback for damaged model files. It never contacts genealogy providers. Regular `npm test` uses injected synthetic embeddings and lexical CLI calls, so CI needs no model download.
+`npm run test:search` is an opt-in real-model retrieval check. It downloads public Arctic and MiniLM model files into disposable profiles, checks 18 natural-language command intents and documentation ranking, then disables network access to verify cached restarts, vector-cache recovery, and explicit BM25 fallback for damaged model files. It never contacts genealogy providers. The complete documentation corpus is indexed twice to test recovery, so this check can take several minutes. Regular `npm test` uses injected synthetic embeddings and lexical CLI calls, so CI needs no model download.
 
 `npm run test:browser` additionally exercises HAR capture in headless Chromium. Install its binary with `npx playwright install chromium`, or set `FAM_TEST_BROWSER_CHANNEL=chrome` to use installed Chrome. These tests intercept every browser request and mock the importer's HTTP transport; they use synthetic logins, HTTP-only cookies, form tokens, and both Findmypast regions. They require no live accounts and use disposable profiles. Run them when changing browser capture or HAR import.
 
@@ -74,6 +74,12 @@ npm run generate:catalogs
 The first command generates FamilySearch code and reference docs. The second generates Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, and American Ancestors catalogs. Both use checked-in JSON and need no APK or decompiler. `npm run check:catalogs` detects stale provider catalogs; do not edit generated TypeScript directly.
 
 The extraction scripts need the APK and disassembly files described in the provider protocol notes. `check:ancestry`, `check:myheritage`, `check:findmypast`, and `check:findagrave` compare against those local artifacts, so they are separate from the usual checks. Extraction steps are in the [Findmypast](findmypast/protocol.md#reproduce-the-catalog) and [Find a Grave](findagrave/protocol.md#reproduce-the-catalog) protocol notes.
+
+## Bundled documentation
+
+`npm run build` runs `scripts/build-docs.mjs` after compilation and before publishing the build. It copies the root README and regular Markdown files under `docs/` into the build's `docs/` directory and creates `docs/catalog.json` with document metadata, full Markdown, and heading ranges. Symlinked files and directories are excluded. Both `dist/` and versioned build snapshots contain the same guides. The executable uses its own catalog; it does not depend on a source checkout or the caller's working directory.
+
+Edit the original Markdown, then rebuild. Source runs through `npm run fam -- ...` read those Markdown files directly. `src/shared/documentation.ts` provides reading, section navigation, and passage construction; the command registry provides the command identities that guide sections may reference. Command and documentation searches share a vector corpus whose fingerprint includes the passage text. Generated copies and catalogs are build output and should not be hand-edited or committed.
 
 ## Packaging
 

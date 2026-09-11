@@ -1,23 +1,16 @@
 import {commands, providerNames, type Command, type Provider} from './command-registry.js';
-import {discoverOperations, type operationSummary} from '../familysearch/discovery.js';
+import type {operationSummary} from '../familysearch/discovery.js';
 import {replaySnapshot} from '../wayback/url.js';
 
-import {bm25Index, fuseScores, searchTokens, searchWeights} from './search-ranking.js';
-import {embeddingModel, semanticScores, type SearchDocument, type SearchProgress} from './command-embeddings.js';
+import {searchTokens, searchWeights} from './search-ranking.js';
+import {embeddingModel, semanticScores, type SearchProgress} from './command-embeddings.js';
+import {scoreCatalog, type SemanticScorer} from './search-catalog.js';
+import type {DocPassage} from './documentation.js';
+export type {SemanticScorer} from './search-catalog.js';
 import {rerankerModel, rerankScores, type Reranker} from './command-reranker.js';
 
 type Operation = ReturnType<typeof operationSummary>;
-const documents: {command: Command; operation?: Operation}[] = commands.map(command => ({command}));
-const familysearchCall = commands.find(command => command.id === 'familysearch.api call')!;
-documents.push(...discoverOperations().map(operation => ({command: familysearchCall, operation})));
 const ignoredFlags = new Set(['help', 'json', 'dry-run']);
-const index = documents.map(({command, operation}) => {
-  // The same identity + description document for every entry. Long option lists must
-  // not penalize commands with many flags or dilute their semantic representation.
-  const id = operation ? `${command.id} --operation ${operation.name}` : command.id;
-  return {command, operation, id, text: `${id}. ${operation?.description ?? command.description}`};
-});
-const lexicalScores = bm25Index(index.map(entry => entry.text));
 
 export interface Context {input: string; provider?: Provider; flags: Record<string, string>; object?: string; note?: string}
 /** Recognize known URL shapes without fetching anything. */
@@ -97,37 +90,40 @@ function operationCandidate(command: Command, operation: Operation) {
     requiredInput: operation.requiredInput, limitations: operation.limitations};
 }
 export interface SearchOptions {provider?: string; context?: string; limit?: number; offset?: number; lexical?: boolean; rerank?: boolean; progress?: SearchProgress}
-export type SemanticScorer = (documents: SearchDocument[], query: string, progress?: SearchProgress) => Promise<number[]>;
 export async function searchCommands(query: string, options: SearchOptions = {}, scoreSemantic: SemanticScorer = semanticScores, scoreRerank: Reranker = rerankScores) {
   const contextText = options.context ?? query.match(/https:\/\/[^\s<>"']+/)?.[0];
   const context = contextText ? resolveContext(contextText, options.provider) : undefined;
   const queryText = query.replace(/https:\/\/\S+/g, ' ').trim(), words = searchTokens(queryText);
   const explicitProvider = options.provider ?? [...providerNames, 'cli'].find(provider => words.includes(provider)) ?? context?.provider;
-  const selected = index.map((entry, i) => ({entry, i})).filter(({entry}) => !explicitProvider || entry.command.provider === explicitProvider);
   // A URL alone can still discover commands for its recognized object.
   const intent = words.length ? queryText : context?.object || '';
-  const warnings: string[] = [];
-  let semantic: number[] | undefined;
-  if (!options.lexical && intent && selected.length) {
-    try {
-      // Index the complete catalog once; filtering and paging never rebuild it or distort normalization.
-      semantic = await scoreSemantic(index, intent, options.progress);
-      if (semantic.length !== index.length || semantic.some(n => !Number.isFinite(n))) throw new Error('Invalid semantic scores.');
-    } catch (error) {
-      semantic = undefined;
-      warnings.push(`Semantic search unavailable; showing BM25 results. ${error instanceof Error ? error.message : 'Could not load the local model.'} Retry to initialize the model, or use --lexical.`);
+  const {catalog, warnings, semantic, commandScores, passageScores} = await scoreCatalog(intent, {...options, provider: explicitProvider}, scoreSemantic);
+  const selected = catalog.commands.map((entry, i) => ({entry, i})).filter(({entry}) => !explicitProvider || entry.command.provider === explicitProvider);
+  const evidence = new Map<string, {passage: DocPassage; score: number; rawScore: number}>();
+  for (const [i, passage] of catalog.passages.entries()) {
+    if (explicitProvider && passage.provider !== explicitProvider && passage.provider !== 'cli') continue;
+    const score = passageScores[i].score * 0.9;
+    for (const command of passage.commands) {
+      if (score > (evidence.get(command)?.score ?? 0)) evidence.set(command, {passage, score, rawScore: passageScores[i].score});
     }
   }
-  const scores = fuseScores(lexicalScores(intent), semantic);
-  let ranked = (intent ? selected : []).map(({entry, i}) => ({entry, ...scores[i], retrievalScore: scores[i].score, rerankScore: null as number | null}))
-    .filter(result => result.score > 0).sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id, 'en'));
+  let ranked = (intent ? selected : []).map(({entry, i}) => {
+    // A passage can surface only the registered actions explicitly mentioned in its section.
+    // Direct command matches retain their score; guide evidence is a discounted alternative.
+    const found = entry.operation ? undefined : evidence.get(entry.id);
+    const guide = found && found.rawScore >= commandScores[i].score ? found : undefined;
+    const score = Math.max(guide?.score ?? 0, commandScores[i].score);
+    const documentation = guide ? {doc: guide.passage.doc, section: guide.passage.section, title: guide.passage.title,
+      heading: guide.passage.heading, source: guide.passage.source, read: guide.passage.read, excerpt: guide.passage.excerpt, score: guide.score} : undefined;
+    return {entry, ...commandScores[i], score, documentation, retrievalScore: score, rerankScore: null as number | null};
+  }).filter(result => result.score > 0).sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id, 'en'));
   const retrievedTotal = ranked.length;
   let reranked = false;
   if (options.rerank !== false && semantic && ranked.length) {
     try {
       // A fixed shortlist before pagination keeps ordering independent of page size.
       // Only reranker logits order this set; never mix them with retrieval scores.
-      const shortlist = ranked.slice(0, 100), logits = await scoreRerank(shortlist.map(row => row.entry), intent, options.progress);
+      const shortlist = ranked.slice(0, 100), logits = await scoreRerank(shortlist.map(row => ({id: row.entry.id, text: row.entry.text + (row.documentation ? `\n\n${row.documentation.heading}\n${row.documentation.excerpt}` : '')})), intent, options.progress);
       if (logits.length !== shortlist.length || logits.some(n => !Number.isFinite(n))) throw new Error('Invalid reranker scores.');
       ranked = shortlist.map((row, i) => ({...row, score: logits[i], rerankScore: logits[i]}))
         .sort((a, b) => b.score - a.score || a.entry.id.localeCompare(b.entry.id, 'en'));
@@ -143,8 +139,9 @@ export async function searchCommands(query: string, options: SearchOptions = {},
     ...(reranked ? {reranker: {...rerankerModel, candidateLimit: 100}, retrievedTotal} : {}),
     ...(warnings.length ? {warnings} : {}), ...(context ? {context} : {}), total: ranked.length, offset, limit,
     hasMore: offset + limit < ranked.length, nextOffset: offset + limit < ranked.length ? offset + limit : null,
-    results: ranked.slice(offset, offset + limit).map(({entry, score, lexicalScore, semanticScore, retrievalScore, rerankScore}) => ({
+    results: ranked.slice(offset, offset + limit).map(({entry, score, lexicalScore, semanticScore, retrievalScore, rerankScore, documentation}) => ({
       ...(entry.operation ? operationCandidate(entry.command, entry.operation) : candidate(entry.command, context)),
+      ...(documentation ? {documentation} : {}),
       type: entry.operation ? 'operation' as const : 'action' as const, score: round(score), lexicalScore: round(lexicalScore),
       semanticScore: semanticScore === null ? null : round(semanticScore),
       ...(rerankScore === null ? {} : {retrievalScore: round(retrievalScore), rerankScore: round(rerankScore)}),

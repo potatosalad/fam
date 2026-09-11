@@ -26,6 +26,20 @@ const providers = {
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {
   const {command, values: v} = invocation;
+  if (command.object === 'doc') {
+    const docs = await import('./shared/documentation.js');
+    const selected = {provider: v.provider as string | undefined, doc: v.doc as string | undefined, section: v.section as string | undefined};
+    try {
+      if (command.action === 'list') return await docs.listDocumentation(selected);
+      if (command.action === 'read') return await docs.readDocumentation(selected);
+      return await (await import('./shared/documentation-search.js')).searchDocumentation(String(v.query), {...selected,
+        limit: v.limit as number | undefined, offset: v.offset as number | undefined, lexical: v.lexical === true, rerank: v['no-rerank'] !== true,
+        progress: wantsJson(v) ? undefined : message => process.stderr.write(`${message}\n`)});
+    } catch (error) {
+      if (error instanceof docs.DocumentationError) throw new UsageError(error.message, error.suggestion);
+      throw error;
+    }
+  }
   if (command.object === 'history' || command.object === 'history.failures')
     return (await import('./shared/history-query.js')).queryHistory(command.action, v, history.id, {failures: command.object === 'history.failures'});
   if (command.object === 'browser') return (await import('./shared/browser-cli.js')).browserCommand(command.action, v);
@@ -77,7 +91,9 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
     }
     case 'completion-query': {
       const {complete, completionCatalog} = await import('./shared/completion.js');
-      const result = complete(completionCatalog(), Array.isArray(v.word) ? v.word : v.word === undefined ? [] : [String(v.word)]);
+      const words = Array.isArray(v.word) ? v.word : v.word === undefined ? [] : [String(v.word)];
+      const documentation = words[0] === 'cli.doc' ? await (await import('./shared/documentation.js')).documentationCatalog() : undefined;
+      const result = complete(completionCatalog(documentation), words);
       return {...result, text: `${[result.kind, result.prefix, ...result.candidates].join('\n')}\n`};
     }
   }

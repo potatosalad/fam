@@ -28,7 +28,7 @@ fam ancestry.api --help
 fam ancestry.api.gql
 ```
 
-Provider help lists every registered object type, documentation, and suggested next commands. Object help lists available actions and nested object types. Provider and command listings put FamilySearch first, then sort alphabetically; objects and actions are alphabetical within each provider. Search results remain ordered by relevance. Append `--json` to either for structured help. Namespace help uses the usual success envelope with `command: null` and the inspected namespace in `data`.
+Provider help lists every registered object type, the `fam cli.doc read --provider PROVIDER` command for its full guide, and suggested next commands. Object help lists available actions and nested object types. Provider and command listings put FamilySearch first, then sort alphabetically; objects and actions are alphabetical within each provider. Search results remain ordered by relevance. Append `--json` to either for structured help. Namespace help uses the usual success envelope with `command: null` and the inspected namespace in `data`; `documentation` contains the runnable guide command.
 
 `fam cli.command describe --command "ancestry.person get"` prints a compact, indented description with provider, object, action, operation type, effects, typed options, requirements, and examples. `--json` returns the complete registry schema. Confirmation requirements are `none`; fam does not add confirmation prompts.
 
@@ -44,9 +44,11 @@ fam cli.command search --query "merge duplicate people" --provider familysearch 
 fam cli.command search --query "show the CLI calls that failed recently" --limit 5 --json
 ```
 
-BM25 uses k1=1.2 and b=0.75, normalized by the highest lexical score in the full catalog for the query. Semantic scores are cosine similarity between normalized CLS embeddings, clamped to [0, 1]. Retrieval relevance is `0.20 * lexicalScore + 0.80 * semanticScore`; scores are relevance signals, not probabilities. JSON reports the engine, model revision, weights, and component scores. Provider filtering and pagination preserve scores. Semantic matches can rank even when they share no lexical tokens with the query.
+BM25 uses k1=1.2 and b=0.75, normalized by the highest lexical score in the relevant corpus for the query. Command descriptions and documentation passages have separate BM25 corpora, so long guides do not affect short command descriptions' length normalization. Semantic scores are cosine similarity between normalized CLS embeddings, clamped to [0, 1]. Each corpus combines `0.20 * lexicalScore + 0.80 * semanticScore`; scores are relevance signals, not probabilities. Provider filtering and pagination preserve scores. Semantic matches can rank even when they share no lexical tokens with the query.
 
-Search then automatically applies a second ranking stage with [MiniLM L6](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2). It reads each query and command description together and orders the top **100** BM25 + Arctic candidates by relevance. Use `--no-rerank` to skip this stage for comparison or lower latency. It runs locally with the same inference runtime and automatically downloads about 24 MB of additional pinned, quantized model/tokenizer files on first use. Subsequent searches work offline.
+Command search indexes registered names and descriptions, implemented FamilySearch operation names and descriptions, and the installed Markdown guides. Guide passages are grouped by heading and split into overlapping chunks of at most 200 words. A passage can help discover the registered commands explicitly mentioned in its section. The command's retrieval score is the larger of its own score and 90% of its best supporting passage's score. JSON retains the direct command's `lexicalScore` and `semanticScore`; `documentation` identifies supporting guide text, its discounted score, and the command to read it. Human output shows that guide command. Search returns registered actions or operations, never executable instructions invented from prose.
+
+Search then automatically applies a second ranking stage with [MiniLM L6](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2). It reads each query and command description, including a supporting guide passage when present, and orders the top **100** BM25 + Arctic candidates by relevance. Use `--no-rerank` to skip this stage for comparison or lower latency. It runs locally with the same inference runtime and automatically downloads about 24 MB of additional pinned, quantized model/tokenizer files on first use. Subsequent searches work offline.
 
 ```sh
 fam cli.command search --query "search for Abraham Lincoln from 1809"
@@ -69,6 +71,42 @@ fam cli.context resolve --context 'https://www.findagrave.com/memorial/12345/exa
 ```
 
 Recognized URL shapes prefill provider IDs or URLs without network requests. Unknown shapes and bare ambiguous IDs remain unresolved. This is a deliberately small resolver; it does not inspect browser state or recent command history.
+
+## Documentation
+
+Read the full installed guide directly from provider help's `Documentation:` command:
+
+```sh
+fam cli.doc read --provider americanancestors
+fam cli.doc read --provider familysearch
+fam cli.doc read --provider cli
+fam cli.doc read
+```
+
+With no selector, `read` opens the main README. A provider selects its README; `cli` selects this command guide. `--doc ID` selects a specific document, such as `setup`, `browser`, `americanancestors/protocol`, or `familysearch/document-research`. These are installed catalog IDs, not arbitrary filesystem paths. List documents and their section IDs with:
+
+```sh
+fam cli.doc list
+fam cli.doc list --provider americanancestors
+fam cli.doc list --doc americanancestors
+fam cli.doc read --doc americanancestors --section family-members-and-collection-specific-fields
+```
+
+A section includes its subsections. `--section` accepts the listed ID or a unique exact heading, with case-insensitive heading matching. Repeated headings have distinct IDs. Shell completion supplies document IDs and section IDs for the selected document or provider.
+
+Text output retains examples and converts links to other installed Markdown guides into runnable `fam cli.doc read` commands. `--format markdown` returns the original Markdown, while `--json` returns document metadata, sections, Markdown, and readable text. Use `--out FILE` with any format. Reading and listing require no account, browser, model, or network connection.
+
+```sh
+fam cli.doc read --provider americanancestors --format markdown --out americanancestors.md
+fam cli.doc read --doc setup --json
+fam cli.doc search --query "collection-specific fields"
+fam cli.doc search --provider americanancestors --query "search by spouse" --lexical
+fam cli.doc search --doc browser --query "remote server" --limit 5
+```
+
+Documentation search returns matching sections with excerpts, provider and source information, and commands to read them. Long sections can have several indexed passages; only the best matching passage is shown for each section. `--provider` and `--doc` restrict results, `--limit` and `--offset` paginate them, and `--json` returns structured results. Like command search, it uses local BM25 and Arctic embeddings, then MiniLM reranking of up to 100 section matches. `--lexical` skips model loading/downloads; `--no-rerank` skips MiniLM. Model failures report the fallback. Command and documentation searches share their model files and one embedding cache.
+
+The main README and all Markdown guides under `docs/` are bundled with each build, including npm installations. Installed commands use their build's documentation snapshot. Edits to a guide enter the next build and invalidate cached embeddings when the indexed text changes; there is no separate maintained documentation copy.
 
 ## Results and failures
 

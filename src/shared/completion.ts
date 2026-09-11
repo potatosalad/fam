@@ -3,8 +3,9 @@ import {operationNames} from '../familysearch/discovery.js';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import type {DocumentationCatalog} from './documentation.js';
 
-interface Option { value: boolean; file?: boolean; choices?: string[] }
+interface Option { value: boolean; file?: boolean; choices?: string[]; sections?: Record<string, string[]> }
 export interface CompletionNode {
   commands: Record<string, CompletionNode>;
   options: Record<string, Option>;
@@ -27,16 +28,19 @@ export function complete(catalog: CompletionNode, input: string[]): Completion {
   let target = catalog;
   let options = { ...target.options };
   let pending: Option | undefined;
+  let pendingName: string | undefined;
+  const supplied: Record<string, string> = {};
   let positional = 0;
   let endedOptions = false;
   for (const word of words) {
-    if (pending) { pending = undefined; continue; }
+    if (pending) { if (pendingName) supplied[pendingName] = word; pending = undefined; pendingName = undefined; continue; }
     if (!endedOptions && word === '--') { endedOptions = true; continue; }
     if (!endedOptions && word.startsWith('-')) {
       const [flag] = word.split('=', 1);
       const option = own(options, flag);
       if (!option) return none();
-      if (option.value && !word.includes('=')) pending = option;
+      if (option.value && !word.includes('=')) {pending = option; pendingName = flag;}
+      else if (option.value) supplied[flag] = word.slice(word.indexOf('=') + 1);
       continue;
     }
     const child = positional === 0 ? own(target.commands, word) : undefined;
@@ -51,6 +55,7 @@ export function complete(catalog: CompletionNode, input: string[]): Completion {
     kind: 'words', prefix, candidates: [...new Set(values)].filter(value => value.startsWith(prefix)).sort(compareCliNames).map(value => leading + value),
   });
   const valueCompletion = (option: Option, prefix: string, leading = ''): Completion => {
+    if (option.sections) return matches(option.sections[supplied['--doc'] ?? supplied['--provider'] ?? 'readme'] ?? [], prefix, leading);
     if (option.choices) return matches(option.choices, prefix, leading);
     return option.file ? { kind: 'files', prefix, candidates: [] } : none();
   };
@@ -76,7 +81,7 @@ export function complete(catalog: CompletionNode, input: string[]): Completion {
   return none();
 }
 
-export function completionCatalog(): CompletionNode {
+export function completionCatalog(documentation?: DocumentationCatalog): CompletionNode {
   const node = (): CompletionNode => ({commands: {}, options: {}, arguments: []});
   const root = node();
   root.options['--help'] = {value: false}; root.options['-h'] = {value: false};
@@ -96,6 +101,12 @@ export function completionCatalog(): CompletionNode {
   }
   if (root.commands['cli.browser']) root.commands.browser = root.commands['cli.browser'];
   if (root.commands['cli.browser.transport']) root.commands['browser.transport'] = root.commands['cli.browser.transport'];
+  if (documentation) {
+    for (const action of Object.values(root.commands['cli.doc'].commands)) {
+      if (action.options['--doc']) action.options['--doc'].choices = documentation.documents.map(doc => doc.id);
+      if (action.options['--section']) action.options['--section'].sections = Object.fromEntries(documentation.documents.map(doc => [doc.id, doc.sections.map(section => section.id)]));
+    }
+  }
   root.commands.doctor = root.commands['cli.health'].commands.check;
   return root;
 }

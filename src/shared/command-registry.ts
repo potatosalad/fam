@@ -1,7 +1,7 @@
 /** The public CLI contract. Provider bindings are implementation details, not CLI aliases. */
 /** Provider namespaces and commands: FamilySearch first, then alphabetical. */
 export function compareCliNames(a: string, b: string): number {
-  const familysearch = (name: string) => name.split(/[. ]/, 1)[0] === 'familysearch';
+  const familysearch = (name: string) => /^familysearch(?:[. /]|$)/.test(name);
   return Number(familysearch(b)) - Number(familysearch(a)) || (a < b ? -1 : a > b ? 1 : 0);
 }
 export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'geneanet', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
@@ -38,6 +38,7 @@ export const objectDescriptions: Record<string, string> = {
   completion: 'Shell completion scripts and setup.', context: 'Resolve provider URLs into command parameters.',
   contributor: 'Contributor profiles and contributions.', credential: 'Saved login credentials and synchronization.',
   document: 'Source documents and document pages.', family: 'Family groups and relationships.', feed: 'Activity feeds.',
+  doc: 'Read and search installed CLI and provider guides.',
   film: 'Digitized films and their images.', fulltext: 'Full-text historical record research.', group: 'Groups and membership.',
   health: 'Provider authentication and access checks.', hint: 'Suggested records and research hints.',
   history: 'Recent CLI calls, diagnostics, and failure trends from the active profile.',
@@ -562,6 +563,23 @@ add('cli', 'search', 'command search', 'Find commands by intent with 20% BM25 an
     examples: ['fam cli.command search --query "save a full resolution scan of a historical document"',
       'fam cli.command search --query "merge duplicate people" --provider familysearch --format tree']});
 add('cli', 'describe', 'command describe', 'Read the complete registry entry: syntax, typed flags, examples, output schema, and risk.', [], 'command', {...cliRisk, flags: {command: {required: true, description: 'Command identity, for example familysearch.image download.'}}});
+const docFlags: Record<string, Partial<Flag>> = {
+  provider: {choices: namespaceNames, description: 'Provider guide, or cli for shared documentation.'},
+  doc: {description: 'Document ID from cli.doc list, for example americanancestors or familysearch/document-research.'},
+  section: {description: 'Section ID or exact heading from cli.doc list --doc ID; includes its subsections.'},
+  format: {default: 'text', choices: ['text', 'json'], description: 'Readable text or structured JSON.'},
+};
+add('cli', 'docs-list', 'doc list', 'List installed guides, or the sections in a selected document.', [], 'provider doc format',
+  {...cliRisk, flags: docFlags, examples: ['fam cli.doc list', 'fam cli.doc list --provider americanancestors', 'fam cli.doc list --doc americanancestors']});
+add('cli', 'docs-read', 'doc read', 'Read a full guide or section. Defaults to the main README, or the selected provider guide.', [], 'provider doc section format',
+  {...cliRisk, flags: {...docFlags, format: {...docFlags.format, choices: ['text', 'markdown', 'json']}},
+    examples: ['fam cli.doc read --provider americanancestors', 'fam cli.doc read --doc setup', 'fam cli.doc read --doc americanancestors --section family-members-and-collection-specific-fields']});
+add('cli', 'docs-search', 'doc search', 'Find relevant sections in installed guides using local keyword and semantic search.', [], 'query provider doc limit offset lexical no-rerank format',
+  {...cliRisk, flags: {...docFlags, query: {required: true, description: 'What you want to learn from the guides.'},
+    limit: {default: 10, maximum: 100, description: 'Number of matching sections to show.'}, offset: {description: 'Zero-based offset into matching sections.'},
+    lexical: {type: 'boolean', description: 'Search with BM25 only; no model downloads or loading.'},
+    'no-rerank': {type: 'boolean', description: 'Skip MiniLM reranking and use BM25 + Arctic scores.'}},
+    examples: ['fam cli.doc search --query "collection-specific fields"', 'fam cli.doc search --provider americanancestors --query "search by spouse" --lexical']});
 add('cli', 'list', 'command list', 'List every registered command, optionally restricted to a provider.', [], 'provider', {...cliRisk, flags: {provider: {choices: [...providerNames, 'cli']}}});
 add('cli', 'providers', 'provider list', 'List available providers and what each one supports.', [], '', cliRisk);
 add('cli', 'resolve', 'context resolve', 'Resolve known provider URLs and IDs locally into candidate commands and prefilled flags.', [], 'context provider', {...cliRisk, flags: {context: {required: true}, provider: {choices: [...providerNames]}}});

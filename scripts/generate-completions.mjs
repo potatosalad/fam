@@ -5,6 +5,7 @@ const directory = process.argv[2] ? pathToFileURL(`${process.argv[2]}/`) : new U
 const {completionCatalog} = await import(new URL('shared/completion.js', directory));
 const {commands} = await import(new URL('shared/command-registry.js', directory));
 const {describe} = await import(new URL('shared/command-runtime.js', directory));
+const {documentationCatalog} = await import(new URL('shared/documentation.js', directory));
 await mkdir(new URL('shared/', directory), {recursive: true});
-await writeFile(new URL('shared/completion-data.json', directory), JSON.stringify(completionCatalog()) + '\n');
+await writeFile(new URL('shared/completion-data.json', directory), JSON.stringify(completionCatalog(await documentationCatalog())) + '\n');
 await writeFile(new URL('shared/commands.json', directory), JSON.stringify(commands.map(describe), null, 2) + '\n');

@@ -10,7 +10,8 @@ export function searchTable(results: Result[], width: number, scores = false): s
   const row = (values: string[]) => values.map((value, i) => columns[i] ? value.padEnd(columns[i]) : value).join('  ');
   return [row(['command', 'type', ...(scores ? ['score'] : []), 'description', 'top_args']),
     row([...columns.map(n => '-'.repeat(n)), '--------']),
-    ...results.map((item, i) => row([names[i], item.type, ...(scores ? [item.score.toFixed(6)] : []), clipped(item.description, descriptionWidth), item.topArgs.join(', ')]))].join('\n');
+    ...results.map((item, i) => row([names[i], item.type, ...(scores ? [item.score.toFixed(6)] : []), clipped(item.description, descriptionWidth), item.topArgs.join(', ')])),
+    ...results.filter(item => item.documentation).flatMap(item => ['', `Guide for ${item.command}: ${item.documentation!.read}`])].join('\n');
 }
 
 export function searchTree(results: Result[], scores = false): string {
@@ -30,6 +31,7 @@ export function searchTree(results: Result[], scores = false): string {
         const action = item.command.split(' ')[1] + ('operation' in item ? ` --operation ${item.operation}` : '');
         return [`${indent}${last ? '└──' : '├──'} ${action}  ${item.description}${scores ? `  (score: ${item.score.toFixed(6)})` : ''}`,
           `${childIndent}top args: ${item.topArgs.join(', ') || '(none)'}`,
+          ...(item.documentation ? [`${childIndent}Guide: ${item.documentation.read}`] : []),
           ...('operation' in item ? [`${childIndent}Inspect: ${item.describe}`] : [])];
       })];
     }),

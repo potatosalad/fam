@@ -27,7 +27,7 @@ export function namespaceInfo(name: string) {
   if (!pool.length) return undefined;
   return {kind: isProvider ? 'provider' as const : 'object' as const, name, provider,
     description: isProvider ? providerInfo[provider].description : objectSummary(name).description,
-    documentation: provider === 'cli' ? 'docs/cli.md' : `docs/${provider}/README.md`,
+    documentation: `fam cli.doc read --provider ${provider}`,
     usage: isProvider ? `fam ${provider}.<object> <action> [options]` : `fam ${name} <action> [options]`,
     objects: objects(provider).filter(item => isProvider || item.name.startsWith(`${name}.`)),
     actions: isProvider ? [] : pool.filter(c => identity(c) === name).map(commandSummary),

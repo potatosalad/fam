@@ -4,7 +4,7 @@ import {operationDescription, operationList} from '../familysearch/discovery-out
 import {commandById, providerInfo, providerNames, syntax, type Command, type Flag} from './command-registry.js';
 import type {Values} from './command-runtime.js';
 import type {NamespaceInfo, LookupFailure, CommandSummary} from './command-navigation.js';
-import {fileURLToPath} from 'node:url';
+import {documentationOutput} from './documentation-output.js';
 import {historyOutput} from './history-output.js';
 import {formatCliVersion, type CliVersion} from './cli-version.js';
 import type {HistoryView} from './history-query.js';
@@ -83,7 +83,7 @@ function commandPreviews(commands: CommandSummary[]): string {
 export function namespaceHelp(namespace: NamespaceInfo, width = 100): string {
   const title = `${namespace.name} - ${namespace.kind === 'provider' ? providerInfo[namespace.provider].name : namespace.description}`;
   return [title, '='.repeat(title.length), '', namespace.description, '',
-    `Documentation: ${fileURLToPath(new URL(`../../${namespace.documentation}`, import.meta.url))}`, '', `Usage: ${namespace.usage}`,
+    `Documentation: ${namespace.documentation}`, '', `Usage: ${namespace.usage}`,
     ...(namespace.objects.length ? ['', section(`Available object types (${namespace.objects.length})`),
       rows(namespace.objects.map(item => [item.name, item.description]), width)] : []),
     ...(namespace.actions.length ? ['', section(`Available actions (${namespace.actions.length})`),
@@ -153,13 +153,14 @@ function commandList(data: {command: string; description: string}[], width: numb
   const sections = [...groups].map(([provider, items]) => `${providerInfo[provider]?.name ?? provider} (${items.length})\n${rows(items.map(item => [item.command, item.description]), width)}`);
   return `${data.length} commands\n\n${sections.join('\n\n')}\n\nRun fam <provider>.<object> <action> --help for flags and examples.\n`;
 }
-interface Candidate {command: string; operation?: string; score?: number; description: string; invocation: string; missingFlags: string[]; examples: string[]; describe?: string; limitations?: string[]; risk: {level: string; description: string}}
+interface Candidate {command: string; operation?: string; score?: number; description: string; invocation: string; missingFlags: string[]; examples: string[]; describe?: string; limitations?: string[]; documentation?: {read: string}; risk: {level: string; description: string}}
 function candidates(results: Candidate[], width: number, scores = false): string {
   return results.map((result, i) => [`${i + 1}. ${result.command}${result.operation ? ` — ${result.operation}` : ''}${scores && result.score !== undefined ? `  (score: ${result.score.toFixed(6)})` : ''}`,
     ...wrap(result.description, width - 3).map(line => `   ${line}`), '', `   ${result.invocation}`,
     ...(result.missingFlags.length ? [`   Needs: ${result.missingFlags.map(name => `--${name}`).join(', ')}`] : []),
     ...(result.examples[0] && result.examples[0] !== result.invocation ? [`   Example: ${result.examples[0]}`] : []),
     ...(result.operation && result.describe ? [`   Inspect: ${result.describe}`] : []),
+    ...(result.documentation ? [`   Guide: ${result.documentation.read}`] : []),
     ...(result.limitations ?? []).map(note => `   Limit: ${note}`),
     ...(result.risk.level === 'operation-dependent' || result.risk.level === 'write' ? [`   Effects: ${result.risk.description}`] : []),
   ].join('\n')).join('\n\n');
@@ -172,6 +173,7 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
   }
   if (command.id === 'cli.history archive') return historyOutput(data as HistoryView, width);
   if (values['dry-run'] && object(data) && command.id !== 'cli.update run') return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
+  if (command.provider === 'cli' && command.object === 'doc') return documentationOutput(command.action, data, values, width);
   if (command.id === 'familysearch.api list') return operationList(data as Parameters<typeof operationList>[0]);
   if (command.id === 'familysearch.api describe' && !values.example) return operationDescription(data as Parameters<typeof operationDescription>[0]);
   if (command.provider === 'cli' && ['history', 'history.failures'].includes(command.object)) return historyOutput(data as HistoryView, width);
