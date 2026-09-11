@@ -6,11 +6,12 @@ import {parseJson, stringifyJson} from '../shared/json.js';
 export const WEB = 'https://www.fold3.com';
 export const IMG = 'https://img.fold3.com';
 export class Fold3Error extends Error {
-  constructor(readonly code: 'http' | 'session-rejected' | 'api-changed' | 'access-denied' | 'verification-required' | 'not-found', readonly status?: number) {
+  constructor(readonly code: 'http' | 'session-rejected' | 'api-changed' | 'access-denied' | 'verification-required' | 'not-found' | 'ocr-unavailable', readonly status?: number) {
     super(code === 'session-rejected' ? 'Fold3 sign-in is required. Run fam fold3.session login.'
       : code === 'access-denied' ? 'Fold3 did not grant this account access to the requested content. Check its Fold3 subscription and record permissions.'
       : code === 'verification-required' ? 'Fold3 requires browser verification. Run fam fold3.session login, or retry the read with --transport browser.'
       : code === 'not-found' ? 'The Fold3 record was not found.'
+      : code === 'ocr-unavailable' ? 'Fold3 did not supply OCR for this scan.'
       : code === 'api-changed' ? 'Fold3 returned an unexpected response format.' : `Fold3 HTTP ${status}; the request was not retried.`);
     this.name = 'Fold3Error';
   }

@@ -20,7 +20,7 @@ export function publicData(value: any): any {
   }
   return value;
 }
-export const routes: Record<string,string>={IMAGE:'image',INDEX_RECORD:'record',STORY_PAGE:'memorial',MILITARY_UNIT:'unit',PUBLICATION:'publication',TITLE_COLLECTION:'collection',BATTLE:'battle',SUBJECT:'subject',REGIMENT:'regiment',COMPANY:'company'};
+export const routes: Record<string,string>={IMAGE:'image',SUB_IMAGE:'sub-image',INDEX_RECORD:'record',STORY_PAGE:'memorial',MILITARY_UNIT:'unit',PUBLICATION:'publication',TITLE_COLLECTION:'collection',BATTLE:'battle',SUBJECT:'subject',REGIMENT:'regiment',COMPANY:'company'};
 export function sourceUrl(type:string,identity:unknown):string|null {const path=routes[type];return path&&['string','number','bigint'].includes(typeof identity)?`${WEB}/${path}/${encodeURIComponent(String(identity))}`:null;}
 export function metadata(values: any) {return Array.isArray(values)?values.map(v=>({name:v.name??v.n,label:v.label??v.l,value:v.value??v.v})):[];}
 export function publication(value: unknown) {

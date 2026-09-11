@@ -1,5 +1,5 @@
 import {parseArgs} from 'node:util';
-import {mkdir,writeFile,rename,rm} from 'node:fs/promises';
+import {mkdir,writeFile,rename,rm,stat} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {CREDENTIAL_DIR} from '../shared/storage.js';
@@ -12,9 +12,10 @@ import {loadSession,loginBrowser,loginNative,sessionStatus} from './auth.js';
 import {downloadImage,saveDownload} from './download.js';
 import {exportFile} from './file-export.js';
 import type {ConnectionOptions} from './research.js';
-const strings=['keyword','name','type','publication-id','place','conflict','service-number','year','birth-year','death-year','limit','offset','sort','out','prefix','direction','max-pages'];
+import {searchTranscript} from './transcript.js';
+const strings=['keyword','name','type','publication-id','place','conflict','service-number','year','birth-year','death-year','limit','offset','sort','out','prefix','direction','max-pages','from','to','birth-from','birth-to','death-from','death-to','exclude-name','match','unit-id','regiment-id','commanders-of','input','x','y','width','height'];
 export async function runProvider(argv:string[]){
-  const {values,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(name=>[name,{type:'string' as const}])),...Object.fromEntries(['filter','field','facet','path'].map(name=>[name,{type:'string' as const,multiple:true}])),...Object.fromEntries(['native','stdin','interactive','no-autofill','resume'].map(name=>[name,{type:'boolean' as const}]))}});
+  const {values,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(name=>[name,{type:'string' as const}])),...Object.fromEntries(['filter','field','facet','path','exclude-filter','exclude-field'].map(name=>[name,{type:'string' as const,multiple:true}])),...Object.fromEntries(['native','stdin','interactive','no-autofill','resume'].map(name=>[name,{type:'boolean' as const}]))}});
   const v=values as Record<string,any>,options=Object.fromEntries(Object.entries(v).filter(([key])=>!['out','native','stdin','interactive','no-autofill'].includes(key)).map(([key,value])=>[key.replace(/-([a-z])/g,(_m,c)=>c.toUpperCase()),['limit','offset','year','birth-year','death-year'].includes(key)?Number(value):value])) as SearchOptions;
   let result:unknown;
   if(command==='credentials'){await configureCredentials('fold3',{stdin:v.stdin});result={saved:true};}
@@ -22,6 +23,11 @@ export async function runProvider(argv:string[]){
   else if(command==='status')result={...sessionStatus(await loadSession()),credentialDirectory:CREDENTIAL_DIR};
   else if(command==='ops')result=Object.entries(operations).map(([name,op])=>({name,...op})).filter(op=>!arg||JSON.stringify(op).toLowerCase().includes(arg.toLowerCase()));
   else if(command==='schema'){if(!Object.hasOwn(operations,arg))throw new Error('Unknown Fold3 read operation.');result={name:arg,...operations[arg as Operation]};}
+  else if(command==='file-ocr-search'&&v.input){
+    if(arg)throw new Error('Choose either --image-id for live OCR or --input for saved OCR.');
+    if((await stat(v.input)).size>32*1024*1024)throw new Error('Saved transcript exceeds 32 MiB.');
+    result=searchTranscript(parseJson(await readCommandFile(v.input,'utf8')),v.keyword,options.limit,options.offset);
+  }
   else{
     const client=await Fold3Client.open();
     if(command==='search')result=await client.search(options);else if(command==='facets')result=await client.facets(options);
@@ -30,6 +36,11 @@ export async function runProvider(argv:string[]){
     else if(command==='publication-browse')result=await client.browse(arg,{path:v.path,prefix:v.prefix,limit:options.limit,offset:options.offset});
     else if(command==='file')result=await client.file(arg);
     else if(command==='file-images')result=await client.fileImages(arg,options.limit,options.offset);
+    else if(command==='file-ocr')result=await client.fileOcr(arg,v['max-pages']===undefined?undefined:Number(v['max-pages']));
+    else if(command==='file-ocr-search'){if(!arg)throw new Error('Supply --image-id or --input for file OCR search.');result=await client.searchFileOcr(arg,v.keyword,v['max-pages']===undefined?undefined:Number(v['max-pages']),options.limit,options.offset);}
+    else if(command==='entry')result=await client.entry(arg);
+    else if(command==='entries')result=await client.entries(arg,{limit:options.limit,offset:options.offset,...Object.fromEntries(['x','y','width','height'].filter(k=>v[k]!==undefined).map(k=>[k,Number(v[k])]))});
+    else if(command==='contributions')result=await client.contributions(arg);
     else if(command==='connections')result=await client.connections(arg,{type:v.type,direction:v.direction,limit:options.limit,offset:options.offset} as ConnectionOptions);
     else if(command==='file-download')return exportFile(client,arg,v.out,{maxPages:v['max-pages']===undefined?undefined:Number(v['max-pages']),resume:v.resume});
     else if(command==='image')result=await client.image(arg);

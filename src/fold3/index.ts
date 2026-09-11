@@ -4,3 +4,5 @@ export {loginBrowser,loginNative,loadSession,sessionStatus,type Fold3Session} fr
 export {downloadImage,saveDownload} from './download.js';
 export {connectionTypes,type BrowseOptions,type ConnectionOptions,type FileInfo,type FileImage} from './research.js';
 export {exportFile,type FileExportOptions} from './file-export.js';
+export {searchTranscript,validateTranscript,type FileTranscript,type TranscriptPage} from './transcript.js';
+export {type EntryOptions} from './entries.js';

@@ -45,6 +45,23 @@ Search is one page per request. Pass `nextOffset` with unchanged filters. `incom
 
 Sort with `RELEVANCE`, `ALPHABETICAL`, `LAST_MODIFIED`, `CHRONOLOGICAL_ASC`, or `CHRONOLOGICAL_DESC`.
 
+### Narrow similar names and military connections
+
+```sh
+fam fold3.record search --name 'Abraham Lincoln' --birth-from 1880 --birth-to 1890 --type record
+fam fold3.record search --name 'Abraham Lincoln' --exclude-filter general.title.id=830 --type record
+fam fold3.record search --name 'Abraham Lincoln' --match expanded --type record
+fam fold3.record search --unit-id 138483 --type all
+fam fold3.record search --regiment-id 138483 --type all
+fam fold3.record search --commanders-of 138483 --type memorial
+```
+
+Date ranges use paired `--from`/`--to`, `--birth-from`/`--birth-to`, or `--death-from`/`--death-to`. Values may be `YYYY` or `YYYY-MM-DD`; year bounds expand to January 1 and December 31. Ranges are inclusive and cannot be combined with the corresponding single-year flag. Calendar dates and range order are validated before a request.
+
+Use repeatable `--exclude-filter NAME=VALUE`, `--exclude-field NAME=VALUE`, or `--exclude-name TEXT`. Included and excluded facets remain separate; excluding a value never adds it to the included alternatives. `--match strict` is the default website matching mode. `--match expanded` requests the website's less-relevant results, which may omit some criteria; inspect each result. These modes do not promise literal names, phonetic matching, or exhaustive name variants.
+
+`--unit-id` searches objects linked from a military unit. `--regiment-id` applies Fold3's regiment connection filter, which can return child units with `--type all`. `--commanders-of` takes a **unit ID** and applies its indexed commander connection filter. These follow the provider's indexed links; they do not independently establish an ancestor's military service. Combine them with names, dates, and source inspection as appropriate.
+
 ## Browse a collection without a name index
 
 ```sh
@@ -75,6 +92,34 @@ An image anywhere in the file identifies its website scan cluster. `file get` re
 To continue an interrupted export, pass the same anchor image ID, directory, and adequate page bound with `--resume`. The exporter re-enumerates the file and checks the manifest's identity and page order, then verifies the size and SHA-256 of every existing image against its sidecar and recorded checksum. Completed pairs are reused; remaining pages are downloaded. Corrupt, missing, or half-written pairs cause a stop and remain unchanged. A completed image/sidecar pair can be recovered when a crash occurred before its manifest update. Concurrent exporters are excluded by `.fam-fold3.lock`; if the process was killed, remove that lock only after confirming no exporter is still running.
 
 A complete export means every page in Fold3's current cluster. It does not establish that the archival file itself is complete. Files can be grouped differently by collection, and the website JPG export may downsample. PDF assembly and bulk publication downloading are outside this workflow.
+
+## Search a file's OCR
+
+```sh
+fam fold3.file.ocr get --image-id 295842756 --max-pages 20 --out diary-ocr.json
+fam fold3.file.ocr search --input diary-ocr.json --keyword AIRCRAFT --limit 20
+fam fold3.file.ocr search --image-id 295842756 --max-pages 20 --keyword AIRCRAFT --limit 20
+```
+
+`file.ocr get` enumerates the file and returns a reusable JSON transcript with ordered page titles, image IDs, source URLs, and OCR text. Every page has an `available`, `unavailable`, or `access-denied` status. `complete` is true only when every enumerated page has OCR. Missing OCR is retained explicitly; authentication, verification, rate-limit, and unexpected API failures stop the operation. The default bound is 100 pages, configurable through `--max-pages` up to 10,000, with a separate 16 MiB text bound. This reads Fold3's existing OCR; it does not generate handwriting transcription or OCR for missing pages.
+
+`file.ocr search` performs a literal, case-insensitive search and returns page citations, text snippets, character offsets, and `nextOffset`. Supply either a live `--image-id` or a saved `--input` transcript. Saved transcript searches run locally without opening a session or making provider requests. Save the transcript using `--out` as shown; this writes the transcript itself rather than the CLI's `--json` response envelope. Repeat the same keyword and transcript with `--offset` to continue, up to 10,000 matches. Live searches fetch OCR again, so use a saved transcript for repeated research.
+
+Results report pages without OCR and `incomplete`; no match in the available text cannot establish that a name is absent from the original file. OCR can split words or misread names. Inspect the cited scan when evaluating a match.
+
+## Read individual entries and contributions
+
+```sh
+fam fold3.image.entry list --image-id 100005464 --limit 20
+fam fold3.entry get --entry-id 100005474
+fam fold3.image.contribution list --image-id 4346701
+```
+
+Some scans contain separately indexed entries, such as people on a census page. Entry listing returns their exact IDs, provider ordinals, titles, and decoded source-image rectangles. `entry get` includes the parent scan, indexed metadata, available permissions, and annotations or corrections associated with the entry. A `/sub-image/ID` URL resolves to `fold3.entry get` through `fam cli.context resolve`.
+
+The index reader uses bounded viewports when the provider limits their area and deduplicates entries that overlap them. Pagination is local over the retrieved region; pass `nextOffset` with the same image and viewport. `complete` describes coverage of the advertised image index, not whether every person on the scan was indexed. To restrict the region, provide all four of `--x`, `--y`, `--width`, and `--height` in original scan pixels. At most 64 viewports and 10,000 unique entries are read per call; choose a smaller region if necessary.
+
+`image.contribution list` reads annotations, corrections, comments, and other available contributions. Output preserves contribution IDs, types, contributor IDs where supplied, modification times, and decoded annotation rectangles. Corrections retain their field and proposed value. These contributions remain separate from the indexed fields and original scan; they are research leads, not automatically accepted facts. All contribution commands are reads.
 
 ## Follow linked evidence
 

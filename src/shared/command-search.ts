@@ -85,8 +85,8 @@ export function resolveContext(input: string, provider?: string): Context {
     const id = url.searchParams.get('id');
     if (id) return {...result, object: 'record', flags: {'record-id': id}};
   } else if (detected === 'fold3' && ['www.fold3.com','fold3.com'].includes(host) && !url.port) {
-    const match=path.match(/^\/(image|document|record|memorial|unit|publication)\/([1-9]\d*)(?:\/[^/]*)?\/?$/);
-    if(match){const object=match[1]==='document'?'image':match[1];return {...result,object,flags:{[`${object}-id`]:match[2]}};}
+    const match=path.match(/^\/(image|document|record|memorial|unit|publication|sub-image)\/([1-9]\d*)(?:\/[^/]*)?\/?$/);
+    if(match){const object=match[1]==='document'?'image':match[1]==='sub-image'?'entry':match[1];return {...result,object,flags:{[`${object}-id`]:match[2]}};}
   } else if (detected === 'newspapers' && ['www.newspapers.com','newspapers.com'].includes(host) && !url.port) {
     const clipping=path.match(/^\/(?:clip|clipping)\/([1-9]\d{0,19})(?:\/[^/]*)?\/?$/);
     if(clipping)return {...result,object:'clipping',flags:{'clipping-id':clipping[1]}};

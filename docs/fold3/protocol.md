@@ -62,6 +62,18 @@ File exports first enumerate the complete bounded cluster, then obtain fresh aut
 
 Each returned content object has a compact reference `id`, title `t`, metadata `md`, and connection `c`. Connection fields include `id` (connection ID), `p` (principle/source reference, using the provider's spelling), `t` (target reference), `md` (optional metadata), and `c` (creation time). The reader validates that each connection has the requested directional anchor and normalizes references to type, exact ID, and source URL when known. Public output excludes authorization fields and account context. Website connections may represent contextual links or contributions; they must not be automatically interpreted as biological relationships.
 
+## Additional evidence reads
+
+Date ranges use `TERM` filter values formatted `YYYY-MM-DD - YYYY-MM-DD`. Included and excluded filters/fielded keywords have distinct `exclude` booleans. The website's ordinary `strictMode` is `ALL`; its less-relevant-results control uses `FALSE`. These are query matching modes, not a promise of literal name matching. Military scopes use `forwardConnection`, `regimentConnections`, and `commanderConnections` with compact references `{ct:"MILITARY_UNIT",id:unitId}`. The commander filter takes a unit reference, not a commander's memorial ID. Live checks confirmed positive unit, regiment, and commander results, date-range matches, and exclusion of a selected publication.
+
+File transcripts compose the verified file enumeration and OCR text reads. Empty OCR text and absent OCR routes become explicit unavailable-page statuses, while authentication and transport failures propagate. Local transcript search validates the ordered inventory, derives citations from image IDs, and uses escaped literal case-insensitive matching. It reports incomplete OCR coverage independently from file enumeration.
+
+`GET /fold31-image-data/sub-image/index/IMAGE/{imageId}/{x}/{y}/{width}/{height}/{includeNonSpatial}` returns `spatial` and/or `nonSpatial` entry arrays with `i` (entry ID), `o` (ordinal), `t` (title), and `r` (rectangle). Image metadata's `d.si` supplies `c` (count), `t` (index type), `m` (spatial type), and `v` (maximum viewport area when applicable). The reader deduplicates tiled results and reports whether the whole advertised index was covered. Native reads were verified against census image indexes with 30 and 50 entries.
+
+`GET /fold31-image-data/sub-image/document/SUB_IMAGE/{id}?flag=ALL_CONTRIBUTIONS&flag=PERMISSIONS` returns an entry wrapper. Its `d` has parent image `i`, title `t`, ordinal `o`, rectangle `r`, and indexed metadata `m`. The same flags on `/image/document/IMAGE/{id}` retrieve scan contributions. Each `de` element has metadata `w` and data `d`; its type is `w.id.ct`. Annotations include `v` (value), `t` (annotation type), and optional rectangle `r`. Corrections have `f` (field) and `v` (value). The CLI retains contribution provenance and never executes write routes.
+
+Rectangles are padded or unpadded base64. The first byte's low two bits encode quarter-turn rotation; four following unsigned integers use big-endian groups of seven bits, with the high bit marking continuation. Malformed encodings are rejected rather than replaced with invented zero coordinates. Live entry and scan-annotation reads verified decoding of this format.
+
 ## Images and research provenance
 
 Image responses wrap `w` (document metadata), `d` (image details), `de` (contributions), and `r` (runtime properties). `r.p.allowed` and `r.p.denied` establish current permissions. The download token is `r.o.token`; URLs carrying it never appear in normal output or citation sidecars.
