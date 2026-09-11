@@ -2,6 +2,7 @@ import {NewspapersHttp, NewspapersError, WEB} from './http.js';
 import {account, pageMetadata, publicValue} from './parse.js';
 import {loadSession, loginNewspapers, saveSession, type NewspapersSession} from './auth.js';
 import {directOnly} from '../shared/browser-config.js';
+import {downloadPage} from './download.js';
 export function id(value: unknown): string {
   if (typeof value !== 'string' || !/^[1-9]\d{0,19}$/.test(value)) throw new Error('Newspapers IDs must be positive decimal strings.');
   return value;
@@ -88,6 +89,7 @@ export class NewspapersClient {
     pageMetadata(result, pageId);return result;
   }
   page(pageId: string) {id(pageId);return this.run(async () => pageMetadata(await this.authorize(pageId), pageId));}
+  download(pageId: string) {id(pageId);return this.run(async () => downloadPage(this.http,pageId,await this.authorize(pageId)));}
   hits(pageId: string, keyword: string) {id(pageId);text(keyword);return this.run(async () => {const result=await this.json('/api/search/hits',{images:pageId,terms:keyword.trim().replace(/\s+/g,'|')});if (!Array.isArray(result)) throw new NewspapersError('api-changed');return {pageId,keyword,hits:publicValue(result[0] ?? [])};});}
   clippings(pageId: string, offset = 0, limit = 25) {id(pageId);integer(offset,0,1_000_000);integer(limit);return this.run(async () => {
     const result=await this.json('/api/clipping/page',{page_id:pageId,start:String(offset),count:String(limit)});

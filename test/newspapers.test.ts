@@ -8,6 +8,11 @@ import {setBrowserOverrides} from '../src/shared/browser-config.js';
 import {waitForLogin} from '../src/shared/browser-login.js';
 import {resolveContext} from '../src/shared/command-search.js';
 import {commands,commandById} from '../src/shared/command-registry.js';
+import sharp from 'sharp';
+import {mkdtemp,readFile,writeFile,stat,readdir,rm} from 'node:fs/promises';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {downloadDimensions,saveDownload} from '../src/newspapers/download.js';
 const script = (chunks: string[]) => chunks.map(chunk=>`<script>self.__next_f.push(${JSON.stringify([1,chunk])})</script>`).join('');
 const signedIn = {id:123,username:'reader',email:'reader@example.test',isAuthenticated:true,isSubscriber:false};
 const accountHtml = script(['0:'+JSON.stringify(signedIn)+'\n']);
@@ -83,8 +88,63 @@ test('login fills but never submits while Turnstile is pending',async()=>{
 });
 test('CLI exposes documented reads and resolves exact page IDs',()=>{
  assert.ok(commandById.has('newspapers.newspaper search'));
+ assert.equal(commandById.get('newspapers.page download')?.flags.find(f=>f.name==='out')?.required,true);
  const list=commands.filter(c=>c.provider==='newspapers');assert.ok(list.some(c=>c.id==='newspapers.session login'));assert.ok(!list.some(c=>c.object==='api.gql'));
  assert.deepEqual(resolveContext(WEB+'/image/9007199254740997/').flags,{'page-id':'9007199254740997'});
  assert.deepEqual(resolveContext('https://evil.newspapers.com/image/123/').flags,{});
  assert.deepEqual(resolveContext(WEB+':8443/image/123/').flags,{});
+});
+
+const downloadAuthorization={image:{imageId:123,publicationId:9,publicationTitle:'Synthetic Gazette',title:'Page 1',date:'1900-01-01',canView:true,width:32,height:48},iat:'synthetic-private-authorization',rights:{Download:{allowed:true,fcfToken:'synthetic-private-token'}}};
+function downloadClient(authorization: any, image: Buffer, contentType='image/jpeg', requests: URL[] = []) {
+ return new NewspapersClient(new NewspapersHttp(undefined,async value=>{
+  const url=new URL(value);requests.push(url);
+  if(url.pathname==='/api/client/image/authorize/')return Response.json(authorization);
+  if(url.pathname==='/account/')return new Response(accountHtml);
+  assert.equal(url.origin,IMG);assert.equal(url.pathname,'/img/img');
+  assert.equal(url.searchParams.get('a'),'download');assert.equal(url.searchParams.get('iat'),downloadAuthorization.iat);
+  assert.equal(url.searchParams.get('user'),'123');assert.equal(url.searchParams.get('id'),'123');
+  assert.equal(url.searchParams.get('brightness'),'0');assert.equal(url.searchParams.get('width'),'32');
+  return new Response(new Uint8Array(image),{headers:{'content-type':contentType}});
+ }));
+}
+test('whole-page download checks current rights before reading the account or requesting an image',async()=>{
+ for(const authorization of [
+  {...downloadAuthorization,rights:{Download:{allowed:false}}},
+  {...downloadAuthorization,rights:{}},
+  {...downloadAuthorization,image:{...downloadAuthorization.image,canView:false}},
+ ]){
+  const calls:URL[]=[];await assert.rejects(downloadClient(authorization,Buffer.alloc(0),'image/jpeg',calls).download('123'),{code:'access-denied'});
+  assert.equal(calls.length,1);
+ }
+});
+test('JPG export follows viewer sizing without enlarging small pages',()=>{
+ assert.deepEqual(downloadDimensions(1000,2000),{width:1000,height:2000});
+ assert.deepEqual(downloadDimensions(4000,4000),{width:3200,height:3200});
+ assert.deepEqual(downloadDimensions(6000,8000),{width:3000,height:4000});
+ assert.deepEqual(downloadDimensions(20000,20000),{width:8000,height:8000});
+ for(const width of [0,-1,1.1,NaN,Infinity,100001])assert.throws(()=>downloadDimensions(width,100),{code:'api-changed'});
+});
+test('download preserves JPEG bytes, validates all pixels, and withholds signed image URLs',async()=>{
+ const jpg=await sharp({create:{width:32,height:48,channels:3,background:'white'}}).jpeg().toBuffer();
+ const result=await downloadClient(downloadAuthorization,jpg).download('123');
+ assert.deepEqual(result.bytes,jpg);assert.equal(result.metadata.width,32);assert.equal(result.metadata.originalHeight,48);
+ const metadata=JSON.stringify(result.metadata);assert.ok(!metadata.includes('synthetic-private'));assert.ok(!metadata.includes('img/img'));assert.match(result.metadata.sha256,/^[a-f0-9]{64}$/);
+ const png=await sharp(jpg).png().toBuffer();
+ const thumbnail=await sharp(jpg).resize(16,24).jpeg().toBuffer();
+ for(const [bytes,type] of [[jpg,'text/html'],[Buffer.from('<html>synthetic-private</html>'),'image/jpeg'],[png,'image/jpeg'],[thumbnail,'image/jpeg'],[jpg.subarray(0,jpg.length-20),'image/jpeg']] as const){
+  await assert.rejects(downloadClient(downloadAuthorization,bytes,type).download('123'),{code:'api-changed'});
+ }
+ const dir=await mkdtemp(join(tmpdir(),'fam-newspapers-download-'));
+ try{
+  const file=join(dir,'scan.jpg');const output=await saveDownload(file,result);
+  assert.equal(output.saved,file);assert.deepEqual(await readFile(file),jpg);
+  assert.deepEqual(JSON.parse(await readFile(output.sidecar,'utf8')),result.metadata);
+  for(const path of [file,output.sidecar])assert.equal((await stat(path)).mode&0o777,0o600);
+  await assert.rejects(saveDownload(file,result),{code:'EEXIST'});assert.deepEqual(await readFile(file),jpg);
+  const conflict=join(dir,'conflict.jpg');await writeFile(conflict+'.json','preserve');
+  await assert.rejects(saveDownload(conflict,result),{code:'EEXIST'});
+  assert.equal(await readFile(conflict+'.json','utf8'),'preserve');await assert.rejects(stat(conflict),{code:'ENOENT'});
+  assert.deepEqual((await readdir(dir)).sort(),['conflict.jpg.json','scan.jpg','scan.jpg.json']);
+ }finally{await rm(dir,{recursive:true,force:true});}
 });

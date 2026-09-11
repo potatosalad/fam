@@ -1,6 +1,6 @@
 # Newspapers.com
 
-`fam newspapers` searches newspaper pages, browses publications and issues, reads page metadata and access rights, and retrieves public clippings, article categories, word coordinates, and page and selection OCR. It uses the Newspapers website's observed read APIs. These are not a supported public API and can change.
+`fam newspapers` searches newspaper pages, browses publications and issues, downloads whole-page JPG scans, reads page metadata and access rights, and retrieves public clippings, article categories, word coordinates, and page and selection OCR. It uses the Newspapers website's observed read APIs. These are not a supported public API and can change.
 
 ## Sign in
 
@@ -38,6 +38,23 @@ Search returns `nextCursor`. Pass it verbatim as `--cursor` with the same filter
 
 `page get` includes citation fields, dimensions, `canView`, and the account's action permissions. Search success, sign-in, and subscription access are separate facts. Access to one scan does not establish access to every newspaper. Image authorization tokens are kept internal.
 
+## Download a page
+
+```sh
+fam newspapers.page download --page-id 80868055 --out salt-lake-herald-1900-10-07-p17.jpg
+# Force either transport when needed:
+fam newspapers.page download --page-id 80868055 --out page-http.jpg --transport http
+fam newspapers.page download --page-id 80868055 --out page-browser.jpg --transport browser
+```
+
+Use the page ID from a search result's `page.id` or the number in a viewer URL such as `https://www.newspapers.com/image/80868055/`. On macOS, `open salt-lake-herald-1900-10-07-p17.jpg` opens the saved scan.
+
+The command saves the same whole-page JPG representation as the website's **Save as JPG** action, with default brightness and contrast. Larger scans are downsampled using the viewer's sizing rules; this is not an archival-original download. The `.jpg.json` sidecar records the citation, viewer URL, original and downloaded dimensions, timestamp, byte count, and SHA-256 checksum. Authorization tokens and signed download URLs stay internal. The image is fully decoded and checked before either file is saved, both files use private permissions, and existing image or sidecar files are never overwritten. `--json` changes the command's status output, while `--out` still receives the JPEG.
+
+Every download obtains fresh page authorization and requires both viewing and download permission. Native HTTP and CloakBrowser use the same command and saved session. PDF export and clipping downloads are not implemented.
+
+## OCR and API catalog
+
 ```sh
 fam newspapers.page.ocr get --page-id 80868055
 fam newspapers.page.ocr get --page-id 80868055 --x 0 --y 0 --width 1000 --height 1000
@@ -50,15 +67,17 @@ OCR reads the whole page by default. Supply a clipping ID or a rectangle (and op
 
 All commands support `--json` and `--out FILE`. `fam cli.context resolve --context https://www.newspapers.com/image/80868055/` resolves a viewer URL into its page ID. Use `fam cli.health check --provider newspapers --no-fix` for an account probe without password repair.
 
-Full scan/PDF downloads, clipping creation, billing, account changes, and subscription purchase are not implemented. The current read catalog does not bypass subscription or download permissions. Public previews and scan viewing remain available through the returned source URL.
+Clipping creation, billing, account changes, and subscription purchase are not implemented. The current read catalog does not bypass subscription or download permissions. Public previews and scan viewing remain available through the returned source URL.
 
 ## TypeScript
 
 ```ts
-import {NewspapersClient} from '@potatosalad/fam/newspapers';
+import {NewspapersClient, saveDownload} from '@potatosalad/fam/newspapers';
 const newspapers = await NewspapersClient.open();
 const results = await newspapers.search({keyword: 'Lincoln', limit: 10});
 const page = await newspapers.page('80868055');
+const scan = await newspapers.download('80868055'); // {bytes: Buffer, metadata}
+await saveDownload('page.jpg', scan); // also writes page.jpg.json; refuses overwrites
 ```
 
-`NewspapersHttp` exposes native/browser GET transport with origin checks, bounded redirects, cookie handling, byte preservation, and bounded response size. `NewspapersClient.call` accepts only the documented read operations and input keys. See [protocol observations](protocol.md).
+`NewspapersHttp` exposes native/browser GET transport with origin checks, bounded redirects, cookie handling, byte preservation, and bounded response size. `NewspapersClient.call` accepts only the documented JSON read operations and input keys; binary downloads use `download` directly. See [protocol observations](protocol.md).

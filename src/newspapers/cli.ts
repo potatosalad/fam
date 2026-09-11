@@ -9,6 +9,7 @@ import {configureCredentials} from '../shared/credentials.js';
 import {parseJson,stringifyJson} from '../shared/json.js';
 import {NewspapersClient, operations, type Operation} from './client.js';
 import {loadSession, loginNewspapers, sessionStatus} from './auth.js';
+import {saveDownload} from './download.js';
 const strings=['keyword','publication-id','country','region','city','from','to','sort','limit','cursor','offset','article-id','clipping-id','x','y','width','height','out'] as const;
 export async function runProvider(argv: string[]) {
   const {values:parsed,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(k=>[k,{type:'string' as const}])),stdin:{type:'boolean'},interactive:{type:'boolean'},'no-autofill':{type:'boolean'}}});
@@ -30,6 +31,10 @@ export async function runProvider(argv: string[]) {
     else if(command==='publication')result=await client.publication(arg);
     else if(command==='issue')result=await client.issue(arg,extra);
     else if(command==='page')result=await client.page(arg);
+    else if(command==='download'){
+      if(typeof v.out!=='string' || !v.out.trim())throw new Error('Supply --out FILE.jpg for the page download.');
+      return saveDownload(v.out,await client.download(arg));
+    }
     else if(command==='hits')result=await client.hits(arg,v.keyword as string);
     else if(command==='clippings')result=await client.clippings(arg,number('offset'),number('limit'));
     else if(command==='articles')result=await client.articles(arg);

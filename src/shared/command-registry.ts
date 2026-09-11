@@ -225,6 +225,7 @@ add('newspapers','browse','publication browse','Browse newspaper places and titl
 add('newspapers','publication','publication get','Resolve a newspaper title and browse path.', ['publication-id']);
 add('newspapers','issue','publication.issue get','List editions and pages for one publication date.', ['publication-id','date']);
 add('newspapers','page','page get','Read page metadata, citation fields, and current account access rights.', ['page-id']);
+add('newspapers','download','page download','Save a whole-page JPG export and citation sidecar using current download permission. Existing files are not overwritten.', ['page-id'], '', {flags:{out:{required:true,description:'Destination JPG file; also writes FILE.jpg.json with citation, dimensions, and checksum.'}}});
 add('newspapers','hits','page.hits get','Locate keyword matches in scan coordinates.', ['page-id'], 'keyword', {flags:{keyword:{required:true}}});
 add('newspapers','clippings','page.clipping list','List public clippings on a newspaper page.', ['page-id'], 'offset limit', {pagination:'Use nextOffset to continue; one page per request.'});
 add('newspapers','articles','page.article list','Read structured article categories for an accessible page.', ['page-id']);
