@@ -202,6 +202,10 @@ fam validates the account through the selected browser and retains the login. Us
 
 See the [Findmypast guide](docs/findmypast/README.md) for native login, record and newspaper searches, and image downloads.
 
+### Fold3
+
+Set both `FOLD3_USERNAME` and `FOLD3_PASSWORD`, then run `fam fold3.session login` to sign in through the configured browser. With these variables set, you can skip `fam fold3.credential set`. See the [Fold3 guide](docs/fold3/README.md) for authentication and research commands.
+
 ### Geneanet
 
 ```sh
@@ -320,6 +324,7 @@ For scripts, set both environment variables for the service:
 | Ancestry | `ANCESTRY_USERNAME` | `ANCESTRY_PASSWORD` |
 | Find a Grave | `FINDAGRAVE_USERNAME` | `FINDAGRAVE_PASSWORD` |
 | Findmypast | `FINDMYPAST_USERNAME` | `FINDMYPAST_PASSWORD` |
+| Fold3 | `FOLD3_USERNAME` | `FOLD3_PASSWORD` |
 | Geneanet | `GENEANET_USERNAME` | `GENEANET_PASSWORD` |
 | MyHeritage | `MYHERITAGE_USERNAME` | `MYHERITAGE_PASSWORD` |
 | NewspaperArchive | `STORIED_USERNAME` | `STORIED_PASSWORD` |
