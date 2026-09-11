@@ -198,7 +198,7 @@ export async function startBrowser(config?: BrowserConfig): Promise<unknown> {
     let runtime = '4';
     if (browserEngine(config) === 'cloakbrowser') {
       const hash = createHash('sha256');
-      for (const name of ['Dockerfile', 'package.json', 'package-lock.json', 'launch.py', 'server.mjs', 'main.mjs']) hash.update(await readFile(join(browserDirectory, 'cloakbrowser', name)));
+      for (const name of ['Dockerfile', 'package.json', 'package-lock.json', 'launch.py', 'server.mjs', 'humanize.mjs', 'main.mjs']) hash.update(await readFile(join(browserDirectory, 'cloakbrowser', name)));
       hash.update(await readFile(join(pluginDirectory, 'index.js'))); runtime = `cloakbrowser-${hash.digest('hex').slice(0, 16)}`;
     }
     if (exists && inspected.Config.Labels?.['fam.runtime'] !== runtime) {

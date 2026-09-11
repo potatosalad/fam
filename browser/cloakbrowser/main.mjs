@@ -5,6 +5,7 @@ import {createService} from './server.mjs';
 
 process.umask(0o077);
 const result = await promisify(execFile)('python', [fileURLToPath(new URL('./launch.py', import.meta.url))], {timeout: 60000});
+if (result.stderr) process.stderr.write(result.stderr);
 const launch = JSON.parse(result.stdout.trim().split('\n').at(-1));
 const service = await createService({apiKey: process.env.FAM_BROWSER_API_KEY,
   profileDir: process.env.FAM_BROWSER_PROFILE_DIR ?? '/data/profiles', launch,

@@ -8,6 +8,7 @@ import {mkdir, readFile, writeFile, rename, rm, readdir} from 'node:fs/promises'
 import {join} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {register} from '../camofox-plugin/index.js';
+import {humanizeBrowser} from './humanize.mjs';
 
 const validOwner = id => typeof id === 'string' && /^fam-[A-Za-z0-9._-]{1,128}$/.test(id);
 const ownerHash = id => createHash('sha256').update(id).digest('hex').slice(0, 32);
@@ -107,6 +108,10 @@ export async function createService({apiKey, profileDir, launch, launchContext, 
         await delay(200);
       }
       if (!browser) throw new Error('Chromium did not become ready.');
+      // Patching the Python launcher does not affect this independent CDP client.
+      if (launch.humanize) {
+        await humanizeBrowser(browser);
+      }
       // Private browsing is opt-in for general web browsing only. MyHeritage
       // and all other providers use the ordinary on-disk Chromium profile.
       const context = id.endsWith('-web-private') ? await browser.newContext({viewport: null, storageState: state}) : browser.contexts()[0];
