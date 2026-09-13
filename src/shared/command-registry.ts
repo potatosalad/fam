@@ -4,8 +4,8 @@ export function compareCliNames(a: string, b: string): number {
   const familysearch = (name: string) => /^familysearch(?:[. /]|$)/.test(name);
   return Number(familysearch(b)) - Number(familysearch(a)) || (a < b ? -1 : a > b ? 1 : 0);
 }
-export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'fold3', 'geneanet', 'internetarchive', 'myheritage', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
-export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'|'internetarchive'> => name !== 'cyndislist' && name !== 'wayback' && name !== 'internetarchive');
+export const providerNames = ['familysearch', 'americanancestors', 'ancestry', 'cyndislist', 'findagrave', 'findmypast', 'fold3', 'geneanet', 'internetarchive', 'myheritage', 'nara', 'newspaperarchive', 'newspapers', 'storied', 'wayback'] as const;
+export const authenticatedProviderNames = providerNames.filter((name): name is Exclude<typeof providerNames[number], 'cyndislist'|'wayback'|'internetarchive'|'nara'> => name !== 'cyndislist' && name !== 'wayback' && name !== 'internetarchive' && name !== 'nara');
 export const providerInfo: Record<string, {name: string; description: string}> = {
   familysearch: {name: 'FamilySearch', description: 'Trees, records, images, and full-text research.'},
   americanancestors: {name: 'American Ancestors', description: 'Genealogy databases, records, citations, and scans.'},
@@ -17,6 +17,7 @@ export const providerInfo: Record<string, {name: string; description: string}> =
   geneanet: {name: 'Geneanet', description: 'Archives, trees, portraits, registers, and books.'},
   internetarchive: {name: 'Internet Archive', description: 'Books, OCR text, collections, and public files.'},
   myheritage: {name: 'MyHeritage', description: 'Family sites, trees, records, matches, and documents.'},
+  nara: {name: 'National Archives Catalog', description: 'Archival records, scans, and transcriptions.'},
   newspaperarchive: {name: 'NewspaperArchive', description: 'Newspaper search, publications, locations, and OCR.'},
   fold3: {name: 'Fold3', description: 'Military records, memorials, publications, and scans.'},
   newspapers: {name: 'Newspapers.com', description: 'Newspaper search, publications, clippings, and OCR.'},
@@ -27,6 +28,7 @@ export const namespaceNames = Object.keys(providerInfo).sort(compareCliNames);
 export type Provider = typeof providerNames[number];
 /** Shared object descriptions used by provider help and command correction. */
 export const objectDescriptions: Record<string, string> = {
+  object: 'Digital archival objects, original files, and public transcriptions.',
   unit: 'Military units, service histories, and related records.',
   catalog: 'Historical record and publication catalogs.',
   'image.hits': 'Keyword match coordinates within scans.',
@@ -398,6 +400,30 @@ add('internetarchive', 'research-cache', 'research cache', 'Cache public page OC
 add('internetarchive', 'research-search', 'research search', 'Search selected cached books offline for names, phrases, or explicitly marked approximate OCR matches.', [], 'book query fuzzy offset limit', {flags: archiveResearchFlags,
   pagination: 'One hit per query per reader page; nextOffset continues stable cache contents. status:partial and errors/missingOcrPages disclose coverage gaps.',
   examples: ['fam internetarchive.research search --book historyofnewyork00irvi --query Knickerbocker --query Knickerbacker --fuzzy']});
+
+const naraFlags: Extras['flags'] = {
+  naid: {description: 'National Archives Identifier (NAID), or a Catalog /id/NAID URL. Select objects explicitly with --page.'},
+  query: {description: 'Catalog keyword query; quoted phrases and Boolean expressions are passed unchanged.'},
+  page: {type: 'integer', minimum: 1, maximum: 1000000, default: 1},
+  limit: {type: 'integer', choices: ['20', '50', '75', '100'], default: 20, description: 'Catalog results per page: 20, 50, 75, or 100.'},
+  sort: {choices: ['relevant', 'title:asc', 'title:desc', 'naId:asc', 'naId:desc'], default: 'relevant'},
+  'available-online': {type: 'boolean', description: 'Filter results to records available to access online.'},
+  timeout: {type: 'integer', minimum: 1, maximum: 300, default: 60, description: 'Maximum seconds to wait for Catalog rendering or an original download.'},
+  out: {binding: false},
+};
+add('nara', 'search', 'record search', 'Search the public National Archives Catalog through the browser, without an account or API key.', ['query'], 'page limit available-online sort timeout', {flags: naraFlags,
+  pagination: 'One Catalog page per call. Repeat the query and filters with nextPage. Server timeout warnings and partial results remain visible; totals can change.',
+  examples: ['fam nara.record search --query naturalization --available-online', `fam nara.record search --query '"71st Infantry Division"' --page 2 --json`]});
+add('nara', 'record', 'record get', 'Read rendered archival description text, hierarchy, related record links, and object count.', ['naid'], 'timeout', {flags: naraFlags,
+  examples: ['fam nara.record get --naid 152951241 --json']});
+add('nara', 'objects', 'object list', 'List rendered digital-object thumbnails and page links for one Catalog record; report whether the listing is complete.', ['naid'], 'timeout', {flags: naraFlags});
+add('nara', 'object', 'object get', 'Select one digital object by its one-based page and read its original download link.', ['naid'], 'page timeout', {flags: naraFlags});
+add('nara', 'transcription', 'object transcription', 'Read an existing public citizen transcription for one digital object without signing in.', ['naid'], 'page timeout', {flags: naraFlags,
+  examples: ['fam nara.object transcription --naid 152951241 --page 2']});
+add('nara', 'download', 'object download', 'Download one public original object and save its SHA-256 checksum and Catalog provenance.', ['naid'], 'page max-bytes timeout', {flags: {...naraFlags,
+  'max-bytes': {type: 'integer', minimum: 1, maximum: 536870912, default: 67108864, description: 'Maximum original-file bytes; partial files are removed on failure.'},
+  out: {required: true, binding: 'out', file: true}}, risk: {level: 'local', description: 'Reads public Catalog content and creates a new file and provenance sidecar; never overwrites existing files.'},
+  examples: ['fam nara.object download --naid 152951241 --page 2 --out map.jpg']});
 
 const waybackFlags: Extras['flags'] = {
   url: {description: 'Original HTTP(S) URL or a full web.archive.org snapshot URL.'},

@@ -221,9 +221,9 @@ export async function runDoctor(services: Provider[], live = true, progress?: (l
     };
     let report: ProviderReport;
     try {
-      if (service === 'cyndislist' || service === 'wayback' || service === 'internetarchive') {
+      if (service === 'cyndislist' || service === 'wayback' || service === 'internetarchive' || service === 'nara') {
         update(live ? 'Checking public access' : 'Inspecting local configuration');
-        report = await (service === 'internetarchive' ? await import('../internetarchive/doctor.js') : service === 'cyndislist' ? await import('../cyndislist/doctor.js') : await import('../wayback/doctor.js')).diagnose(live, options);
+        report = await (service === 'nara' ? await import('../nara/doctor.js') : service === 'internetarchive' ? await import('../internetarchive/doctor.js') : service === 'cyndislist' ? await import('../cyndislist/doctor.js') : await import('../wayback/doctor.js')).diagnose(live, options);
       } else {
         const {doctorProvider} = await doctorProviders[service]();
         const attempts = repairs.get(doctorProvider.sessionFile) ?? {};
@@ -283,6 +283,7 @@ export function doctorSummary(provider: ProviderReport): {label: string; detail:
   const [label, detail] = issue?.code === 'login-blocked' ? ['BLOCKED', issue.message.replace(/^Password sign-in is blocked /, '').replace(/\.$/, '')]
     : issue ? details[issue.code] ?? [issue.status === 'warning' ? 'WARN' : 'ERROR', issue.message]
     : provider.provider === 'cyndislist' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Directory access verified' : 'No account required; not checked online']
+    : provider.provider === 'nara' ? [passed ? 'OK' : 'PUBLIC', passed ? 'Catalog record verified' : 'No account required; browser reads']
     : ['wayback', 'internetarchive'].includes(provider.provider) ? [passed ? 'OK' : 'PUBLIC', passed ? 'Archive index verified' : 'No account required; not checked online']
     : passed ? ['OK', provider.checks.some(c => c.code === 'session-login') ? 'Signed in again and verified'
       : provider.checks.some(c => c.code === 'session-refreshed') ? 'Session refreshed and verified' : browser ? 'Browser session verified' : 'Session verified']

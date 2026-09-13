@@ -27,6 +27,18 @@ export function resolveContext(input: string, provider?: string): Context {
   if (host === 'web.archive.org' && !url.port) {
     try {if (replaySnapshot(url.href) && !provider) return {...result, provider:'wayback', object:'page', flags:{url:url.href}};} catch {}
   }
+  if (host === 'catalog.archives.gov' && !url.port) {
+    if (provider && provider !== 'nara') return {...result, note: 'URL belongs to nara, conflicting with the explicit provider. No flags were inferred.'};
+    result.provider = 'nara';
+    const id = path.match(/^\/id\/([1-9]\d{0,19})\/?$/)?.[1];
+    if (id) {
+      const page = url.searchParams.get('objectPage');
+      if (page && /^[1-9]\d{0,5}$/.test(page)) return {...result, object: 'object', flags: {naid: id, page}};
+      return {...result, object: 'record', flags: {naid: id}, ...(url.searchParams.has('objectId') ? {note: 'Object IDs are not page numbers; select the object with --page.'} : {})};
+    }
+    if (path === '/search' && url.searchParams.get('q')) return {...result, object: 'record', note: 'Search URL recognized; copy any desired filters explicitly.', flags: {query: url.searchParams.get('q')!}};
+    return {...result, note: 'Catalog URL recognized; use a record NAID or a keyword query.'};
+  }
   if (host === 'archive.org' && !url.port) {
     if (provider && provider !== 'internetarchive') return {...result, note: 'URL belongs to internetarchive, conflicting with the explicit provider. No flags were inferred.'};
     result.provider = 'internetarchive';

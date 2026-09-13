@@ -24,6 +24,7 @@ const providers = {
   fold3: () => import('./fold3/cli.js'),
   cyndislist: () => import('./cyndislist/cli.js'),
   internetarchive: () => import('./internetarchive/cli.js'),
+  nara: () => import('./nara/cli.js'),
   wayback: () => import('./wayback/cli.js'),
 };
 async function cliCommand(invocation: Invocation): Promise<unknown> {
@@ -168,7 +169,7 @@ async function main() {
   const rendered = () => wantsJson(values) ? `${stringifyJson(envelope, 2)}\n` : fetchOutput
     ? fetchOutput.renderBrowserFetch(data as import('./shared/browser-fetch.js').BrowserFetchResult, (values.format ?? 'text') as import('./shared/browser-fetch.js').FetchFormat)
     : humanOutput(command, data, values, process.stdout.columns ?? 100);
-  if (!values['dry-run'] && (command.provider === 'cli' || command.provider === 'wayback' || command.provider === 'internetarchive' && command.flags.find(f => f.name === 'out')?.binding === false || command.binding.command[0] === 'sync') && values.out) {
+  if (!values['dry-run'] && (command.provider === 'cli' || command.provider === 'wayback' || ['internetarchive', 'nara'].includes(command.provider) && command.flags.find(f => f.name === 'out')?.binding === false || command.binding.command[0] === 'sync') && values.out) {
     const path = String(values.out), temporary = `${path}.${randomUUID()}.tmp`;
     await mkdir(dirname(path), {recursive: true, mode: 0o700});
     try {await writeFile(temporary, rendered(), {mode: 0o600, flag: 'wx'}); await rename(temporary, path);}

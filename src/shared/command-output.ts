@@ -1,3 +1,4 @@
+import {humanNara} from '../nara/output.js';
 import {humanCyndisList} from '../cyndislist/output.js';
 import {humanInternetArchive} from '../internetarchive/output.js';
 import {humanWayback} from '../wayback/output.js';
@@ -220,6 +221,7 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     const result = data as {shell: string; files: string[]; next: string};
     return `Enabled ${result.shell} completion in:\n${result.files.map(file => `  ${file}`).join('\n')}\n\nOpen a new shell, or run:\n  ${result.next}\n`;
   }
+  if (command.provider === 'nara' && !values['dry-run']) return humanNara(data);
   if (command.provider === 'cyndislist' && !values['dry-run']) return humanCyndisList(data);
   if (command.provider === 'internetarchive' && !values['dry-run']) return humanInternetArchive(data);
   if (command.provider === 'wayback' && !values['dry-run']) return humanWayback(data);

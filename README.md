@@ -42,6 +42,7 @@ If installation fails or your shell can't find the commands, see [installation h
 | `geneanet` | [Archival records, trees, portraits, registers, and books](docs/geneanet/README.md) |
 | `internetarchive` | [Books, OCR search, page evidence, citations, collections, and public downloads](docs/internetarchive/README.md) |
 | `myheritage` | [Family sites, trees, historical records, matches, and documents](docs/myheritage/README.md) |
+| `nara` | [National Archives Catalog records, public digital objects, transcriptions, and downloads](docs/nara/README.md) |
 | `newspaperarchive` | [Newspaper search, publications, locations, and page OCR](docs/newspaperarchive/README.md) |
 | `newspapers` | [Newspaper search, publications, clippings, and page OCR](docs/newspapers/README.md) |
 | `storied` | [Family trees, stories, media, hints, and historical records](docs/storied/README.md) |

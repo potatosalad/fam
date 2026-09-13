@@ -127,6 +127,10 @@
     "./fold3": {
       "types": "./dist/fold3/index.d.ts",
       "import": "./dist/fold3/index.js"
+    },
+    "./nara": {
+      "types": "./dist/nara/index.d.ts",
+      "import": "./dist/nara/index.js"
     }
   },
   "files": [
