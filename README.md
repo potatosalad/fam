@@ -1,12 +1,12 @@
 # fam
 
-One command-line tool for genealogy research across FamilySearch and other providers. Browse family trees, search historical records and newspapers, find memorials, and download original documents or archived web pages.
+`fam` is a command-line tool for genealogy research. Search historical records, browse family trees, and download document scans across FamilySearch and 14 other providers. It also searches Internet Archive books and retrieves archived web pages.
 
-These are unofficial clients. They use mobile and website APIs that can change without notice. Access depends on your account and subscriptions.
+The provider clients are unofficial. They use website and mobile APIs that can change without notice. Your account and subscriptions determine which records you can access.
 
 ## Install
 
-Requires Node.js 22.16 or newer, npm, and Git.
+You need Node.js 22.16 or newer, npm, and Git.
 
 ```sh
 git clone https://github.com/potatosalad/fam.git
@@ -16,127 +16,84 @@ npm install --global .
 fam cli.completion install
 ```
 
-This installs one executable, `fam`, from the checkout. Keep the directory in place. Automatic updates are enabled by default: fam quietly checks for updates after a command exits, at most once every 24 hours. Use `fam cli.update disable` to opt out, or `fam cli.update enable` to turn them back on. Run `fam update` from any directory to update immediately, or `fam update --dry-run` to preview the update. Bare `fam cli.update` and `fam update --help` show the available update actions. See [update details](docs/setup.md#updates).
+Keep the checkout in place. The installed `fam` command runs from it. Open a new bash or zsh shell to use TAB completion for commands, flags, and file paths.
 
-Run `fam doctor` to check provider access and try to renew expired sessions or sign in when needed. Use `fam doctor --help` for options or see [health checks](#check-provider-access).
+Automatic updates are on by default. After a command exits, fam checks for updates in the background at most once every 24 hours. Run `fam cli.update disable` to turn them off, or `fam cli.update run` to update now. `fam cli.version get` shows the installed version and location.
 
-Run `fam --version` to check the installed version and location.
+See [setup](docs/setup.md) for PATH problems, update behavior, and migration from an older installation.
 
-`fam cli.completion install` enables TAB completion for bash or zsh. Open a new shell afterward; for the current shell, run `eval "$(fam --completions zsh)"` (use `bash` in bash). It completes providers, commands, options, and file paths. Try `fam myheritage.record search <TAB>` to discover search flags without typing `--` first. See [completion setup](docs/setup.md#shell-completion) for details.
+## Try a search
 
-Upgrading an older installation? See [migration from familysearch](docs/setup.md#migration-from-familysearch) to remove the old executables and retain saved sessions.
-
-If installation fails or your shell can't find the commands, see [installation help](docs/setup.md#installation).
-
-## Providers
-
-| Provider | Research features and guide |
-| --- | --- |
-| `familysearch` | [Family trees, historical records, original images, and full-text search](docs/familysearch/README.md) |
-| `americanancestors` | [Genealogy databases, records, citations, scans, and exports](docs/americanancestors/README.md) |
-| `ancestry` | [Family trees, historical records, hints, and media](docs/ancestry/README.md) |
-| `cyndislist` | [Genealogy resources by place and topic, plus site search](docs/cyndislist/README.md) |
-| `findagrave` | [Memorials, cemeteries, relatives, biographies, and photos](docs/findagrave/README.md) |
-| `findmypast` | [Family trees, historical records, newspapers, and images](docs/findmypast/README.md) |
-| `fold3` | [Military records, publications, memorials, OCR, and images](docs/fold3/README.md) |
-| `geneanet` | [Archival records, trees, portraits, registers, and books](docs/geneanet/README.md) |
-| `internetarchive` | [Books, OCR search, page evidence, citations, collections, and public downloads](docs/internetarchive/README.md) |
-| `myheritage` | [Family sites, trees, historical records, matches, and documents](docs/myheritage/README.md) |
-| `nara` | [National Archives Catalog records, public digital objects, transcriptions, and downloads](docs/nara/README.md) |
-| `newspaperarchive` | [Newspaper search, publications, locations, and page OCR](docs/newspaperarchive/README.md) |
-| `newspapers` | [Newspaper search, publications, clippings, and page OCR](docs/newspapers/README.md) |
-| `storied` | [Family trees, stories, media, hints, and historical records](docs/storied/README.md) |
-| `wayback` | [Find archived web pages and read captures from a chosen date](docs/wayback/README.md) |
-
-`fam --help` lists every provider. Run `fam familysearch` (or another provider name) to browse its commands. The `Documentation:` line gives the command to read its full guide.
-
-## Find and run commands
-
-Search for what you want to do in plain language. Search uses command descriptions and relevant guide sections. It runs locally without an API key, downloads about 95 MB of models on first use, then works offline. Use `--lexical` to search without downloading models. See [search options](docs/cli.md#local-discovery) for ranking, filters, and caching.
-
-```sh
-fam cli.command search --query "download an original image"
-fam cli.command search --query "merge duplicate people" --format tree
-fam cli.command describe --command "familysearch.image download"
-fam ancestry.person get --tree-id TREE --person-id PERSON
-fam ancestry.api.gql query --operation GetTreeList --variables '{"limit":20}'
-```
-
-Commands use `fam PROVIDER.OBJECT ACTION --flags`. Output is readable text by default. Add `--json` for structured output or `--out FILE` to save results. See the [command guide](docs/cli.md) and [migration mapping](docs/cli-migration.md).
-
-Explore a provider with `fam familysearch`, or its actions with `fam familysearch.person --help`. Command help shows flags and examples; misspelled commands suggest available choices.
-
-## Read and search guides
-
-The full guides are included with the installed CLI:
-
-```sh
-fam cli.doc read --provider americanancestors
-fam cli.doc list --provider americanancestors
-fam cli.doc search --query "collection-specific fields"
-fam cli.doc read --doc setup
-```
-
-Use `fam cli.doc list --doc americanancestors` to see its section IDs, then add `--section ID` to read one section and its subsections. Reading works offline and requires no account. Search results include the command to read each matching section; command-search results also link to guides when they supply a relevant match. Use `--format markdown` to read the original Markdown, or `--json` for structured output. See [documentation commands](docs/cli.md#documentation) for details.
-
-## Set up the browser
-
-```sh
-fam cli.browser setup --local
-```
-
-This starts persistent CloakBrowser in Docker with a passwordless localhost viewer. Switch engines with `fam cli.browser use --engine camofox` or `--engine cloakbrowser`; engine changes clear browser sessions at that location. On macOS, fam offers to install OrbStack when needed. For an existing server, use `fam cli.browser setup --remote URL --vnc-url VIEWER_URL`. Switch with `fam cli.browser use --mode local` or `fam cli.browser use --mode remote`; each retains its logins. See [browser setup](docs/browser.md) for remote API keys, custom viewer URLs, start/stop, and timeouts.
-
-Inspect which HTTP/browser transport will start each provider request with `fam cli.browser.transport list --transport auto`. Decisions are per provider and website origin; see [transport inspection](docs/browser.md#automatic-http-recovery) for exact-origin checks.
-
-Browser sign-ins reuse cookies and try configured credentials when needed. fam opens or prints the viewer URL for MFA or CAPTCHA and waits for completion. Provider clients with browser transport automatically recover evidenced Cloudflare challenges through the browser and remember the website until `fam cli.browser.transport reset`. Internet Archive public API commands use HTTP directly. Use `fam cli.browser reset --provider myheritage` to clear that provider's browser site data, or `fam cli.browser reset --all` to reset all fam-managed browser sessions. See [reset scope and backups](docs/browser.md#reset-browser-sessions).
-
-Fetch any HTTP(S) URL through the browser, including pages that require JavaScript verification:
-
-```sh
-fam cli.browser fetch --url https://example.org/page --format markdown
-fam cli.browser fetch --url https://example.org/page --private --format markdown
-fam cli.browser fetch --url https://example.org/page --open=always
-fam cli.browser fetch --url https://example.org/page --format html --out page.html
-fam cli.browser fetch --url https://example.org/file.pdf --format raw --out file.pdf
-fam cli.browser fetch --url https://example.org/page --json
-```
-
-Text is the default. HTML captures the rendered document; raw preserves the response body bytes exposed by the browser. Headers, cookie imports, request methods/bodies, content selectors, and persistent sessions are described in [URL fetching](docs/browser.md#fetch-any-url).
-
-For a missing or blocked live page, try the Internet Archive's newest available copy:
-
-```sh
-fam wayback.page fetch --url https://example.org/page --format markdown
-fam wayback.snapshot find --url https://example.org/page
-fam wayback.snapshot list --url https://example.org/page --from 2010 --to 2020
-```
-
-Add `--date 2015-01-01` to fetch the closest capture to that date. See the [Wayback guide](docs/wayback/README.md) for formats, capture provenance, and browser fallback.
-
-## Search Internet Archive books and text
-
-Public research needs no credentials or browser setup:
+Search the Internet Archive catalog without an account or browser setup:
 
 ```sh
 fam internetarchive.item search --query 'collection:genealogy AND mediatype:texts'
-fam internetarchive.fulltext search --query '"John Smith" AND "Lancaster"' --limit 10
-fam internetarchive.item get --identifier historyofnewyork00irvi --json
-fam internetarchive.book search --identifier historyofnewyork00irvi --query Knickerbocker
-fam internetarchive.evidence export --identifier historyofnewyork00irvi --leaf 23 --out evidence-page-23
-fam internetarchive.research cache --book historyofnewyork00irvi
-fam internetarchive.research search --book historyofnewyork00irvi --query Knickerbocker
 ```
 
-Catalog search matches item metadata; full-text search matches indexed OCR and returns snippets. Search hits can include restricted books whose files require account access. See the [Internet Archive guide](docs/internetarchive/README.md) for authentication limits, API endpoints, page/leaf mapping, citation and evidence export, cached surname searches, and verified downloads.
+To search the text inside books, use full-text search:
 
-## Set up credentials
+```sh
+fam internetarchive.fulltext search --query '"John Smith" AND "Lancaster"' --limit 10
+```
 
-Set up the services you use. `fam PROVIDER.credential set` saves login details from environment variables or a configured helper; otherwise, it prompts for your username and hides the password as you type. `fam PROVIDER.session login` signs in. Browser-session imports do not require saving a password.
+Catalog search matches book metadata. Full-text search matches indexed text from scanned pages and returns snippets. Some matching books have restricted downloads. The [Internet Archive guide](docs/internetarchive/README.md) covers searching within a book, page citations, and downloads.
 
-To use a credential helper for all providers, configure `credentialsCommand` once in `~/.config/fam/config.json`. See [persistent credential-helper setup](docs/setup.md#external-credential-helpers). With a helper configured, password-based sign-in can use `fam PROVIDER.session login` directly.
+## Providers
 
-Cyndi’s List, the Wayback Machine, and the Internet Archive public provider do not require provider credentials.
+Follow a provider link for its commands and access requirements.
+
+| Provider | What you can research |
+| --- | --- |
+| [`familysearch`](docs/familysearch/README.md) | Family trees, historical records, original images, and full-text search |
+| [`americanancestors`](docs/americanancestors/README.md) | Genealogy databases, records, citations, and scans |
+| [`ancestry`](docs/ancestry/README.md) | Family trees, historical records, hints, and media |
+| [`cyndislist`](docs/cyndislist/README.md) | Genealogy resources by place and topic |
+| [`findagrave`](docs/findagrave/README.md) | Memorials, cemeteries, biographies, relatives, and photos |
+| [`findmypast`](docs/findmypast/README.md) | Family trees, historical records, newspapers, and images |
+| [`fold3`](docs/fold3/README.md) | Military records, publications, memorials, and images |
+| [`geneanet`](docs/geneanet/README.md) | Archival records, trees, portraits, registers, and books |
+| [`internetarchive`](docs/internetarchive/README.md) | Books, scanned text, collections, citations, and public downloads |
+| [`myheritage`](docs/myheritage/README.md) | Family sites, trees, historical records, matches, and documents |
+| [`nara`](docs/nara/README.md) | National Archives Catalog records, digital objects, and transcriptions |
+| [`newspaperarchive`](docs/newspaperarchive/README.md) | Newspapers, publications, locations, and page text |
+| [`newspapers`](docs/newspapers/README.md) | Newspapers, publications, clippings, and page text |
+| [`storied`](docs/storied/README.md) | Family trees, stories, media, hints, and historical records |
+| [`wayback`](docs/wayback/README.md) | Archived web pages and captures from a chosen date |
+
+## Find a command
+
+Commands use `fam PROVIDER.OBJECT ACTION --flags`:
+
+```sh
+fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809
+```
+
+Use help to browse commands, or search for a task in your own words:
+
+```sh
+fam --help
+fam familysearch.person --help
+fam cli.command search --query "download an original image"
+fam cli.command describe --command "familysearch.image download"
+```
+
+Command search runs on your machine without an API key. It downloads about 95 MB of models on first use, then works offline. Add `--lexical` to skip the models and search by words alone. Search lists commands; it does not run them.
+
+The guides also ship with the CLI:
+
+```sh
+fam cli.doc read --provider familysearch
+fam cli.doc read --doc setup
+fam cli.doc search --query "collection-specific fields"
+```
+
+Reading guides works offline and needs no account. See the [command guide](docs/cli.md) for search options, output formats, and scripting.
+
+## Sign in
+
+Set up only the providers you use. Most account-based providers use `credential set` to save login details and `session login` to sign in. Without configured credentials, `credential set` prompts for a username and hides the password as you type.
+
+You can also supply credentials through environment variables or a [credential helper](docs/setup.md#external-credential-helpers). With either configured, you can usually run `session login` without saving a password first. Browser-session imports do not require a saved password.
 
 ### FamilySearch
 
@@ -148,211 +105,90 @@ fam familysearch.session login
 fam familysearch.account get
 ```
 
-`familysearch.account get` returns your account details, including your tree person ID. If sign-in requires a password reset or additional verification, complete it on the website before retrying.
+The account command returns your tree person ID. If sign-in requires a password reset or additional verification, complete it on the website before retrying.
 
-### American Ancestors
+### Browser sign-in
 
-Use your American Ancestors website username and password:
-
-```sh
-fam americanancestors.credential set
-fam americanancestors.session login
-fam americanancestors.session verify
-```
-
-Browser setup is not required. With a configured credential helper or environment credentials, skip `credential set`. Access to some collections requires membership. See the [American Ancestors guide](docs/americanancestors/README.md) for records, scans, volume browsing, and exports.
-
-### Ancestry
+Providers such as Findmypast and MyHeritage sign in through a persistent browser. Set it up once:
 
 ```sh
-fam ancestry.credential set
-fam ancestry.session login
-```
-
-If Ancestry asks for email verification, request a code and enter the one you receive:
-
-```sh
-fam ancestry.session login --send-code
-fam ancestry.session login --code 123456
-```
-
-Then run `fam ancestry.tree list` to list your trees.
-
-### Find a Grave
-
-Use your Find a Grave email address when prompted for a username:
-
-```sh
-fam findagrave.credential set
-fam findagrave.session login
-fam findagrave.account get
-```
-
-Run `fam findagrave.session verify` to check a saved session, or `session login` to sign in again when it expires. Public searches also work with `--anonymous`, without credentials.
-
-See the [Find a Grave guide](docs/findagrave/README.md) for memorials, cemeteries, biography search, and photo downloads.
-
-### Findmypast
-
-Sign in through the configured browser:
-
-```sh
-fam findmypast.session login
-fam findmypast.account get
-```
-
-fam validates the account through the selected browser and retains the login. Use `fam findmypast.session login --region co.uk` for the UK website, or `--interactive` to autofill credentials and submit the form yourself. Add `--no-autofill` to leave login fields untouched. See [browser setup](docs/browser.md).
-
-See the [Findmypast guide](docs/findmypast/README.md) for native login, record and newspaper searches, and image downloads.
-
-### Fold3
-
-Set both `FOLD3_USERNAME` and `FOLD3_PASSWORD`, then run `fam fold3.session login` to sign in through the configured browser. With these variables set, you can skip `fam fold3.credential set`. See the [Fold3 guide](docs/fold3/README.md) for authentication and research commands.
-
-### Geneanet
-
-```sh
-fam geneanet.credential set
-fam geneanet.session login
-fam geneanet.session verify
-fam geneanet.record search --last-name Lincoln --first-name Abraham
-fam geneanet.photo search --last-name Lincoln --first-name Abraham
-```
-
-The [Geneanet guide](docs/geneanet/README.md) covers archival transcriptions, collections, portraits, register images, and library PDF pages, including browser-challenge and subscription limits.
-
-### MyHeritage
-
-Save credentials for browser autofill, then sign in through the configured browser. If the browser is already signed in or you use a configured credential helper, skip `credential set`:
-
-```sh
+fam cli.browser setup --local
 fam myheritage.credential set
 fam myheritage.session login
-fam myheritage.account get
 ```
 
-fam saves the browser login for future commands. Open the viewer URL if verification is required. See the [MyHeritage guide](docs/myheritage/README.md) for tree browsing, historical records, and account limitations.
+Local setup runs CloakBrowser in Docker. On macOS, fam offers to install OrbStack if needed. If sign-in needs MFA or a CAPTCHA, fam opens or prints a viewer URL and waits for you to complete it. The browser retains your login for later commands.
 
-### NewspaperArchive
+The [browser guide](docs/browser.md) covers remote servers, browser engines, and session resets. See your provider's guide for its sign-in requirements. NewspaperArchive shares Storied's credentials and session.
 
-NewspaperArchive shares [Storied’s credentials and session](#storied). Sign in once with `fam storied.session login`, then run `fam newspaperarchive.newspaper search --last-name Lincoln --limit 10`. See the [NewspaperArchive guide](docs/newspaperarchive/README.md) for dates, locations, publications, and OCR.
-
-### Newspapers.com
-
-Save credentials for browser sign-in, or use your configured credential helper:
-
-```sh
-fam newspapers.credential set
-fam newspapers.session login
-fam newspapers.session verify
-```
-
-Complete any verification in the browser viewer. See the [Newspapers.com guide](docs/newspapers/README.md) for account setup, newspaper search, clippings, and OCR.
-
-### Storied
-
-Run `fam storied.session login` with configured credentials, then `fam storied.session verify`. Use `fam storied.session login --interactive` for social login or account verification. See the [Storied guide](docs/storied/README.md) for browser setup, trees, pedigrees, stories, media, historical search, and its API catalog.
-
-NewspaperArchive shares this sign-in.
+Cyndi's List, Internet Archive public research, NARA, and Wayback need no provider credentials. NARA still requires browser setup.
 
 ## Research examples
+
+After signing in to FamilySearch, read a person, follow their ancestors, or download an original scan:
 
 ```sh
 fam familysearch.person get --person-id PERSON_ID
 fam familysearch.person ancestry --person-id PERSON_ID --depth 3
 fam familysearch.image download --ark IMAGE_ARK --original --out scan.jpg
-
-fam americanancestors.collection list --filter Massachusetts
-fam americanancestors.record search --last-name Adams --collection "Massachusetts: Vital Records, 1620-1850"
-fam americanancestors.record export --last-name Adams --details --limit 10 --out research.json
-
-fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809
-
-fam findagrave.memorial search --anonymous --first-name Abraham --last-name Lincoln --birth-year 1809
-
-fam findmypast.record search --first-name Ada --last-name Lovelace --birth-year 1815
-fam findmypast.newspaper search --name "Ada Lovelace" --country England
-
-fam myheritage.record search --first-name Abraham --last-name Lincoln --birth-year 1809
-fam myheritage.collection search --name census
 ```
 
-Replace `PERSON_ID` and `IMAGE_ARK` with IDs from the service. Run `fam --help`, `fam cli.command list --provider PROVIDER`, or append `--help` to a command. Commands print readable text by default, including when piped. Add `--json` for machine-readable results and errors; use `--out FILE` to save results or downloads. Keep personal data outside Git.
+Replace `PERSON_ID` and `IMAGE_ARK` with identifiers from FamilySearch.
 
-The `call` and `gql` commands can execute writes and deletions. Check the operation's schema before running it.
+Search public memorials without signing in:
+
+```sh
+fam findagrave.memorial search --anonymous --first-name Abraham --last-name Lincoln --birth-year 1809
+```
+
+Retrieve a web page from the Wayback Machine near a chosen date:
+
+```sh
+fam wayback.page fetch --url https://example.org/page --date 2015-01-01 --format markdown
+```
+
+Commands print readable text, including when piped. Add `--json` for structured results and errors, or `--out FILE` to save results and downloads. Providers have different pagination rules; check the returned continuation information before treating a result as complete.
+
+Some commands can change or delete provider data. fam executes them without a confirmation prompt. Inspect an API operation with `fam PROVIDER.api describe --operation NAME` before using it. See [command effects](docs/cli.md#effects) for details.
 
 ## Check provider access
 
-Check your setup and diagnose provider failures:
-
 ```sh
-fam cli.health check
-fam doctor                             # Alias for fam cli.health check --live
-fam doctor --no-pretty                  # Plain report without animation or colors
-fam doctor --no-fix                     # Check online without session repairs or saves
-fam cli.health check --live --force     # Rerun live checks and replace cached results
-fam cli.health check --verbose
+fam cli.health check --provider ancestry
+fam cli.health check --provider ancestry --no-fix
 fam cli.health check --offline
-fam cli.health check --provider ancestry --provider findmypast --json
 ```
 
-Health checks verify access and try to renew expired sessions or sign in when needed. Each individual live check caches its result for one hour plus or minus 15 minutes of random jitter; local checks run every time. Use `--force` to bypass and replace live results, `--no-fix` to check without session changes, `--offline` to inspect local setup, or `--verbose` for details and cache timestamps. Terminal output shows each provider’s progress; use `--no-pretty` for a plain report. See [health checks and recovery](docs/doctor.md) for coverage and exit codes.
+Online checks try to renew expired sessions or sign in when needed. Use `--no-fix` to check without changing sessions, or `--offline` to inspect local setup. Live results are cached for roughly an hour; add `--force` to check again. Omit `--provider` to check every provider. See [health checks](docs/doctor.md) for coverage and exit codes.
 
-## Review command history
+## Local data and history
 
-Review past commands, investigate failures, and inspect activity over time:
+fam stores configuration, credentials, and sessions in `~/.config/fam` on macOS and Linux, or `%APPDATA%\fam` on Windows. On macOS and Linux, `XDG_CONFIG_HOME` overrides `~/.config`. Set `FAM_CONFIG_DIR` to an absolute path for a separate profile.
+
+Passwords and tokens are stored in plaintext. fam restricts file permissions on macOS and Linux; Windows uses your user profile's permissions. See [storage and profiles](docs/setup.md#storage-and-profiles).
+
+Command history records arguments, diagnostics, and consumed file or stdin inputs without redaction. Keep the profile and personal research files out of Git. Set `FAM_HISTORY=0` to disable recording for a process.
 
 ```sh
 fam cli.history list
 fam cli.history.failures list --since 7d
-fam cli.history get --id <ID_FROM_LIST>
 fam cli.history stats --since 7d
-fam cli.history archive --failures --provider ancestry --code AUTH_RETRY
 ```
 
-History records complete commands, arguments, diagnostics, and consumed inputs without redaction in the active profile. Use `--limit 0` for all matches, filters such as `--provider` and `--since` to narrow results, and `get --id` for full diagnostics. Archiving hides entries while retaining their evidence; use `--include-archived` to view them. See [command history](docs/cli.md#command-history) for filtering, statistics, storage, and disabling recording.
-
-## Configuration
-
-Credentials and sessions live in `~/.config/fam` on macOS and Linux, or `%APPDATA%\fam` on Windows. On macOS and Linux, `XDG_CONFIG_HOME` overrides `~/.config`. Each service keeps its own files. Run `fam PROVIDER.session get` to see its storage directory and session status.
-
-Passwords and tokens are plaintext files. The CLI restricts file permissions on macOS and Linux; Windows uses your user profile's permissions.
-
-For scripts, set both environment variables for the service:
-
-| Service | Username | Password |
-| --- | --- | --- |
-| FamilySearch | `FAMILYSEARCH_USERNAME` | `FAMILYSEARCH_PASSWORD` |
-| American Ancestors | `AMERICANANCESTORS_USERNAME` | `AMERICANANCESTORS_PASSWORD` |
-| Ancestry | `ANCESTRY_USERNAME` | `ANCESTRY_PASSWORD` |
-| Find a Grave | `FINDAGRAVE_USERNAME` | `FINDAGRAVE_PASSWORD` |
-| Findmypast | `FINDMYPAST_USERNAME` | `FINDMYPAST_PASSWORD` |
-| Fold3 | `FOLD3_USERNAME` | `FOLD3_PASSWORD` |
-| Geneanet | `GENEANET_USERNAME` | `GENEANET_PASSWORD` |
-| MyHeritage | `MYHERITAGE_USERNAME` | `MYHERITAGE_PASSWORD` |
-| NewspaperArchive | `STORIED_USERNAME` | `STORIED_PASSWORD` |
-| Newspapers.com | `NEWSPAPERS_USERNAME` | `NEWSPAPERS_PASSWORD` |
-| Storied | `STORIED_USERNAME` | `STORIED_PASSWORD` |
-
-Environment credentials take precedence over a configured credential helper, then saved passwords. Existing sessions remain active until a new login is needed or you run `fam PROVIDER.session login`. The CLI does not load `.env` files.
-
-To use a password manager or another external source, configure `credentialsCommand` in the profile's `config.json`, or set `FAM_CREDENTIALS_COMMAND` to a JSON array of executable and arguments. The helper receives the provider name and returns a JSON object with `username` and `password`. See the [credential helper contract](docs/setup.md#external-credential-helpers).
-
-See [setup details](docs/setup.md) for separate profiles, JSON credential input, and resetting a session.
+See [command history](docs/cli.md#command-history) to inspect individual calls, filter results, or archive reviewed entries. Archiving hides entries from normal views and retains the recorded data.
 
 ## Development
 
-From the checkout, run:
+From the checkout, run the CLI through npm or check the project:
 
 ```sh
+npm run fam -- familysearch.person --help
 npm run check
 ```
 
-The checks need Python 3 as well as Node.js. They run type checks, code generation checks, mocked tests, and a build. They do not use your service accounts.
+The checks require Python 3 as well as Node.js. They run type checks, generated-file checks, mocked tests, a build, and packaged-documentation checks. They do not use your service accounts.
 
-See [development notes](docs/development.md) for running from source, regenerating contracts, and live verification.
-
-The provider guides link to API contracts and protocol evidence; see [contract conventions](docs/development.md#provider-api-contracts) and the [FamilySearch TypeScript API](docs/familysearch/typescript.md).
+See [development](docs/development.md) for the source layout and code generation, or [TypeScript library setup](docs/setup.md#typescript-library-use) to use the clients in another project.
 
 ## Uninstall
 
@@ -360,4 +196,4 @@ The provider guides link to API contracts and protocol evidence; see [contract c
 npm uninstall --global @potatosalad/fam
 ```
 
-This removes the `fam` executable. Your credentials and saved research remain on disk.
+This removes the `fam` executable. Your profile and saved research stay on disk. To remove shell completion, follow the [completion instructions](docs/setup.md#shell-completion).
