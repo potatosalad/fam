@@ -267,6 +267,11 @@ test('SemVer comparison follows prerelease precedence and rejects malformed vers
   const order = ['1.0.0-alpha', '1.0.0-alpha.1', '1.0.0-alpha.beta', '1.0.0-beta', '1.0.0-beta.2', '1.0.0-beta.11', '1.0.0-rc.1', '1.0.0', '1.0.1', '1.1.0', '2.0.0'];
   for (let i = 0; i < order.length; i++) for (let j = 0; j < order.length; j++) assert.equal(newerVersion(order[i], order[j]), i > j);
   assert.equal(newerVersion('1.0.0+build.2', '1.0.0+build.1'), false);
+  const dated = ['0.3.2', '2026.915.0', '2026.915.1', '2026.916.0', '2026.1001.0', '2027.101.0'];
+  for (let i = 1; i < dated.length; i++) {
+    assert.equal(newerVersion(dated[i], dated[i - 1]), true);
+    assert.equal(newerVersion(dated[i - 1], dated[i]), false);
+  }
   for (const value of ['latest', '1.2', '01.2.3', '1.2.3-01', '1.2.3; echo bad']) assert.throws(() => newerVersion(value, '1.0.0'));
 });
 

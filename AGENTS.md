@@ -1,5 +1,6 @@
 # Maintenance
 
+- Bump package/lock versions with every change: `YYYY.MDD.N` (UTC date; daily N starts at 0).
 - Agents must include `--reasoning "<brief purpose>"` at the very end of every `fam` invocation (including help, discovery, history, and dry runs), after all other arguments. Explain the immediate purpose and intended use of the result. The flag is accepted anywhere and may be repeated; history preserves every value in order. See `docs/cli.md#agent-command-reasoning`.
 - GPG-sign every commit with `git commit -S`. Verify signatures before pushing.
 - This is the single maintained fam runtime. Keep machine-specific helpers and private research in the separate integration repository; do not create another CLI implementation.

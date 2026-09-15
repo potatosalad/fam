@@ -2,6 +2,10 @@
 
 Use Node.js 22.16 or newer, npm, and Python 3. Run `npm ci` to install dependencies and build the commands.
 
+## Versioning
+
+Use `YYYY.MDD.N`: the UTC year, month × 100 + day (no leading zero), and a daily revision starting at 0. For example, September 15, 2026 starts at `2026.915.0`, the next change is `2026.915.1`, and the next day starts at `2026.916.0`. Bump with each change using `npm version VERSION --no-git-tag-version`, which updates both package files; include them in the signed commit. Builds retain that version. This three-part form works with npm and the existing updater without custom version handling.
+
 ## Source layout
 
 `src/cli.ts` contains the `fam` dispatcher; shared command definitions and help live under `src/shared/`. Each service owns its client, authentication, CLI, and any generated contracts under `src/<provider>/`. The [provider index](../README.md#providers) links every maintained guide.
