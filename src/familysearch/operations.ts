@@ -1,6 +1,7 @@
 import {InputError} from '../shared/input-error.js';
 import { contracts } from './generated/schema.js';
 import { discovery } from './generated/discovery.js';
+import {normalizeOperationInput} from './input-normalization.js';
 import type { WireType, WireParameter, OperationContract } from './contract-types.js';
 import type { GenealogyApi, OperationName } from './generated/operations.js';
 import type { ApiRequest, Query } from './transport-types.js';
@@ -172,10 +173,10 @@ export function decodeOperationResponse(name: OperationName, data: unknown): unk
   return decode(data, contract.response);
 }
 
-export function prepareOperation(name: OperationName, supplied: unknown): { path: string; options: ApiRequest } {
+export function prepareOperation(name: OperationName, supplied: unknown): { input: Record<string, unknown>; path: string; options: ApiRequest } {
   const contract = operationContract(name);
   const parameters = operationInputParameters(contract);
-  const input = supplied === undefined ? {} : supplied;
+  const input = normalizeOperationInput(contract, supplied === undefined ? {} : supplied);
   if (!object(input)) fail('input', 'object');
   const allowed = new Set(['query', 'headers', ...parameters.filter(p => p.kind === 'path' || p.kind === 'body').map(p => p.name)]);
   for (const key of Object.keys(input).filter(k => !allowed.has(k))) {
@@ -221,7 +222,7 @@ export function prepareOperation(name: OperationName, supplied: unknown): { path
     if (typeof body !== 'string') fail('body', 'story text');
     raw = true;
   }
-  return { path, options: { method: contract.method, query, headers, body, encoding: raw ? 'raw' : 'json',
+  return { input, path, options: { method: contract.method, query, headers, body, encoding: raw ? 'raw' : 'json',
     ...((name === 'search.results' || name === 'search.categories') ? {retryable: true} : {}),
     response: contract.response.kind === 'void' ? 'void' : contract.response.kind === 'binary' ? 'binary' : 'json' } };
 }

@@ -6,7 +6,7 @@ import {stringifyJson} from '../shared/json.js';
 import {Fold3Client} from './client.js';
 import {Fold3Error,IMG} from './http.js';
 import {id,imageDetails} from './parse.js';
-export async function downloadImage(client:Fold3Client,value:string){
+export async function downloadImage(client:Fold3Client,value:string,options:{allowReduced?:boolean}={}){
   const identity=id(value),authorization=await client.imageAuthorization(identity),details=imageDetails(authorization,identity);
   if(!details.permissions.allowed.includes('VIEW')||!details.permissions.allowed.includes('DOWNLOAD'))throw new Fold3Error('access-denied');
   const publication=details.publicationId?await client.publication(details.publicationId):undefined;
@@ -17,8 +17,13 @@ export async function downloadImage(client:Fold3Client,value:string){
   if(!/^(image\/jpeg|application\/octet-stream)(?:;|$)/i.test(response.contentType))throw new Fold3Error('api-changed');
   let dimensions;
   try{const scan=sharp(response.bytes,{failOn:'warning',limitInputPixels:100_000_000});dimensions=await scan.metadata();if(dimensions.format!=='jpeg'||!dimensions.width||!dimensions.height)throw new Error();await scan.stats();}catch{throw new Fold3Error('api-changed');}
-  return {bytes:response.bytes,metadata:{...details,sourceWidth:details.width,sourceHeight:details.height,width:dimensions.width,height:dimensions.height,format:'jpeg',bytes:response.bytes.length,
-    sha256:createHash('sha256').update(response.bytes).digest('hex'),downloadedAt:new Date().toISOString(),representation:'Fold3 whole-image Save as JPG export.',
+  if (!Number.isSafeInteger(details.width) || !Number.isSafeInteger(details.height) || details.width < 1 || details.height < 1) throw new Fold3Error('api-changed');
+  const fullSize = dimensions.width === details.width && dimensions.height === details.height;
+  if (!fullSize && !options.allowReduced) throw new Fold3Error('reduced-resolution');
+  if (dimensions.width > details.width || dimensions.height > details.height) throw new Fold3Error('api-changed');
+  return {bytes:response.bytes,metadata:{...details,sourceWidth:details.width,sourceHeight:details.height,width:dimensions.width,height:dimensions.height,fullSize,format:'jpeg',bytes:response.bytes.length,
+    sha256:createHash('sha256').update(response.bytes).digest('hex'),downloadedAt:new Date().toISOString(),representation:fullSize?'Fold3 full-size JPG export.':'Fold3 reduced-resolution JPG export.',
+    ...(!fullSize ? {warning:'The provider returned a reduced-resolution image; this is not the full-size scan.'} : {}),
     citation:{provider:'Fold3',sourceUrl:details.sourceUrl,title:details.title,publicationId:details.publicationId,publication,metadata:details.metadata}}};
 }
 export async function saveDownload(path:string,result:Awaited<ReturnType<typeof downloadImage>>){

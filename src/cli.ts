@@ -112,9 +112,11 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
 }
 let invocation: Invocation | undefined;
 let jsonErrors = false;
+let errorsToStdout = false;
 async function main() {
   const args = [...reasoningArgs.args];
   jsonErrors = args.includes('--json') || args.includes('--format=json') || args.some((arg, i) => arg === '--format' && args[i + 1] === 'json');
+  errorsToStdout = args.includes('--errors=stdout') || args.some((arg, i) => arg === '--errors' && args[i + 1] === 'stdout');
   if (reasoningArgs.error) throw reasoningArgs.error;
   if (!args.length || args.length === 1 && ['--help', '-h'].includes(args[0])) {process.stdout.write(help()); return;}
   if (args[0] === '--version') args.splice(0, 1, 'cli.version', 'get');
@@ -161,14 +163,14 @@ async function main() {
   if (values['dry-run'] && !historyArchive && command.id !== 'cli.update run') {
     const validation = command.id === 'familysearch.api call'
       ? await (await import('./familysearch/api-input.js')).prepareApiInput(String(values.operation), values.input as string | undefined,
-        values.query === undefined ? [] : Array.isArray(values.query) ? values.query : [String(values.query)]) : undefined;
+        values.query === undefined ? [] : Array.isArray(values.query) ? values.query : [String(values.query)], {deceased: values.deceased === true}) : undefined;
     const search = ['familysearch.record search', 'familysearch.record collections'].includes(command.id)
       ? (await import('./familysearch/record-search.js')).prepareRecordSearch(invocation.args.slice(2).filter((arg, i, args) => arg !== '--out' && args[i - 1] !== '--out')) : undefined;
     const upload = command.id === 'familysearch.memory upload'
       ? await (await import('./familysearch/memory-cli.js')).prepareMemoryUpload(invocation.args.slice(1).filter((arg, i, args) => arg !== '--out' && args[i - 1] !== '--out')) : undefined;
     data = {dryRun: true, invocation: syntax(command), flags: Object.fromEntries(Object.entries(values).map(([name, value]) =>
       [name, command.flags.find(flag => flag.name === name)?.sensitive ? '[REDACTED]' : value])), risk: command.risk,
-      ...(validation ? {validation: {operation: values.operation, method: validation.options.method, path: validation.path, input: validation.input}} : {}),
+      ...(validation ? {validation: {operation: values.operation, method: validation.options.method, path: validation.path, input: validation.input, ...(validation.creation ? {creation: validation.creation} : {})}} : {}),
       ...(search ? {validation: {operation: command.action === 'search' ? 'search.results' : 'search.categories', input: command.action === 'search' ? search : {body: search.body}}} : {}),
       ...(upload ? {validation: {operation: 'memories.upload', upload: upload.upload}} : {}),
       note: `${validation || search || upload ? 'CLI flags and operation input validated locally; server rules and permissions are not checked.' : 'CLI flags validated only.'} No provider requests, credential lookup, output file writes, or operation simulation. Command history is recorded unless FAM_HISTORY=0.`};
@@ -213,7 +215,7 @@ main().finally(async () => {
   const suggestion = usage && error.suggestedInvocation ? error.suggestedInvocation
     : invocation?.command.id === 'familysearch.api call' ? `fam familysearch.api describe --operation ${JSON.stringify(invocation.values.operation)}`
     : invocation ? `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}` : undefined;
-  if (jsonErrors) process.stderr.write(`${stringifyJson({schemaVersion: 1, ok: false, command: invocation?.command.id ?? null,
+  if (jsonErrors) (errorsToStdout ? process.stdout : process.stderr).write(`${stringifyJson({schemaVersion: 1, ok: false, command: invocation?.command.id ?? null,
     error: {code: usage ? error.code : error?.code ?? 'EXECUTION_FAILED', message,
       ...(typeof error?.status === 'number' ? {status:error.status} : {}),
       ...guidance,

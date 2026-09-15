@@ -83,7 +83,7 @@ export function describeOperation(name: string) {
     inputSchema: input.finish(input.objectSchema(properties, required)),
     outputSchema: output.finish(output.schema(contract.response)),
     example: structuredClone(discovery.operations[name].example ?? operationExample(name)),
-    inputNotes: 'Path parameters and body are top-level JSON properties; query and headers are nested. Every operation accepts headers.X-Reason as plain text; fam URL-encodes it once. This does not replace body reason fields or verify that the server records the header. --query key=value binds scalar query parameters. Examples contain placeholders, not verified data. Optional wire fields may still be required by the server.',
+    inputNotes: 'Exact numeric IDs and search year.value inputs normalize to strings; other fields retain their documented types. Path parameters and body are top-level JSON properties; query and headers are nested. Every operation accepts headers.X-Reason as plain text; fam URL-encodes it once. This does not replace body reason fields or verify that the server records the header. --query key=value binds scalar query parameters. Examples contain placeholders, not verified data. Optional wire fields may still be required by the server.',
     responseNotes: 'Response schemas are advisory; additional server fields are retained. This catalog describes implemented contracts, not live verification of every operation.',
   };
 }

@@ -9,9 +9,10 @@ export const recordSearchFlags = ['first-name', 'last-name', 'father-first-name'
 
 export function prepareRecordSearch(args: string[]) {
   const {values} = parseArgs({args, allowPositionals: false, options: {
-    ...Object.fromEntries(recordSearchFlags.map(key => [key, {type: 'string' as const}])), exact: {type: 'boolean'},
+    ...Object.fromEntries(recordSearchFlags.map(key => [key, {type: 'string' as const}])), exact: {type: 'boolean'}, sort: {type: 'string'},
   }});
   const v = values as Record<string, string | boolean | undefined>;
+  if (v.sort !== undefined && !['count-desc','count-asc','title'].includes(String(v.sort))) throw new InputError('--sort requires count-desc, count-asc, or title.');
   const integer = (key: string, fallback: number | undefined, min: number, max: number): number | undefined => {
     if (v[key] === undefined) return fallback;
     const n = Number(v[key]);
@@ -72,7 +73,10 @@ export async function runRecordSearch(args: string[], action: 'search' | 'collec
   if (action === 'search') return recordSearchPage(await client.operation('search.results', input), input);
   const data = await client.operation('search.categories', {body: input.body});
   if (!Array.isArray(data?.categoryFilters)) throw new Error('FamilySearch returned an unexpected collection catalog.');
-  return {items: data.categoryFilters.flatMap(category => (category.collectionFilters ?? []).flatMap(group =>
+  const items = data.categoryFilters.flatMap(category => (category.collectionFilters ?? []).flatMap(group =>
     (group.subCollections ?? []).map(collection => ({collectionId: collection.collectionId, collectionType: group.collectionType,
-      title: collection.displayName, count: collection.count ?? null, category: group.displayName})))), criteria: input.body};
+      title: collection.displayName, count: collection.count ?? null, category: group.displayName}))));
+  const index=args.indexOf('--sort'), sort=index < 0 ? 'count-desc' : args[index+1];
+  items.sort((a,b) => sort === 'title' ? (a.title ?? '').localeCompare(b.title ?? '') : (a.count == null ? (b.count == null ? 0 : 1) : b.count == null ? -1 : sort === 'count-asc' ? a.count-b.count : b.count-a.count) || (a.title ?? '').localeCompare(b.title ?? ''));
+  return {items, sort, criteria: input.body};
 }

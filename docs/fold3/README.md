@@ -168,3 +168,9 @@ fam fold3.record search --name 'Abraham Lincoln' --transport browser
 The operation catalog exposes curated reads using the same input fields as the TypeScript client, in camelCase. It does not accept arbitrary URLs, methods, credentials, or raw backend flags. Use `--json` for structured output, or `--out FILE.json` to save research responses privately.
 
 `auto` starts with native HTTP and uses the configured browser when it encounters an evidenced website challenge. Reads do not initiate password login. Explicit `--transport http` never opens a browser; explicit `browser` uses browser requests. The website's same-origin proxy API is the verified integration surface. Availability and fields may change without notice.
+
+## Image IDs, entry IDs, and export size
+
+`file get`, `file.image list`, `file download`, `image get`, and `image download` accept either `--image-id` or `--entry-id`. A SUB_IMAGE hit is an indexed entry: pass its ID with `--entry-id` to resolve the parent scan before finding the file or downloading. Numeric image and entry namespaces can overlap; a bare `--image-id` is always interpreted as an image. A full Fold3 `/image/ID` or `/sub-image/ID` URL is also accepted with `--image-id` and preserves its object type.
+
+Image exports are checked against the source dimensions. Reduced-size exports fail without saving a file by default. `image download --allow-reduced` explicitly permits an authorized smaller JPG; the sidecar reports `fullSize: false`, a warning, and both source and actual dimensions. Denied permissions, HTTP failures, invalid images, and corrupt downloads still fail. File exports require full-size images.

@@ -40,6 +40,12 @@ fam familysearch.api call --operation persons.addFact --input fact.json --json
 
 Edit the input before executing it. `--input` accepts a file, an inline JSON object, or `-` for stdin. Dry-run reads that input and validates its fields, types, paths, and query/header nesting without loading credentials or contacting FamilySearch. Its `data.validation.input` shows the prepared input. Validation does not establish server permissions or verify genealogical conclusions. Command history records consumed input unless disabled with `FAM_HISTORY=0`.
 
+Numeric IDs and record-search `year.value` inputs are converted to strings when the wire schema requires strings. Exact JSON integers are preserved, including values larger than JavaScript's safe integer range. Existing strings retain leading zeros. Names, free text, and other fields keep their documented types. Dry-run shows the normalized input.
+
+For `persons.create`, dry-run also reports `data.validation.creation.status` and warns when no Death fact is supplied: an old birth date alone does not declare a person deceased. Add `--deceased` to that API call to insert a dateless Death conclusion if absent, based on evidence of death. Existing Death facts are preserved. The option works identically in dry-run and execution and is rejected on other operations.
+
+`familysearch.record collections` sorts by descending match count by default. Use `--sort count-asc` or `--sort title` to change the order; missing counts sort last.
+
 The examples for creating people, facts, names, notes, relationships, and source attachments contain editable payloads. A create-person example includes a Death fact explicitly; set living/deceased status from evidence. Names use `value.nameForms`; place IDs are strings from `authorities.places`. Use actual conclusion IDs from the person, fresh note UUIDs, and the [reason fields below](#change-reasons). `sources.attach` takes a source description ID and tag objects such as `{"resource":"http://gedcomx.org/Name"}`.
 
 ### Change reasons

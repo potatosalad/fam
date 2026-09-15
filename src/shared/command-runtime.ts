@@ -80,7 +80,7 @@ export function parseInvocation(args: string[]): Invocation {
 export function describe(command: Command) {
   const {binding: _binding, ...schema} = command;
   return {...schema, syntax: syntax(command), flags: schema.flags.map(({binding: _flagBinding, ...flag}) => flag),
-    output: {description: 'Readable text by default. --json emits structured results on stdout and structured failures on stderr. Provider response schemas are advisory.',
+    output: {description: 'Readable text by default. --json emits structured results on stdout and structured failures on stderr (--errors stdout selects stdout). Provider response schemas are advisory.',
       envelope: {schemaVersion: 1, ok: true, command: command.id, data: 'Provider result or file receipt', pagination: 'Included for documented paginated commands'},
       exitCodes: {'0': 'Success', '1': 'Execution failure or health issues', '2': 'Invalid command or flags'}}};
 }

@@ -144,6 +144,8 @@ Provider data is preserved, including exact large integer values. The response s
 
 By default, failures print a readable error and suggested invocation to stderr. With `--json`, failures write a JSON envelope with `ok: false` and `error.code` / `error.message` to stderr. Invalid syntax includes `error.suggestedInvocation`; execution failures include a command inspection invocation. Exit codes are 0 for success, 1 for execution failure or health issues, and 2 for invalid command/flags. Health findings remain in the JSON report even when the exit code is 1.
 
+Use `--json --errors stdout` to receive both success and failure envelopes on stdout, including argument-validation errors. Diagnostic and retry messages remain on stderr. Exit codes retain their meaning; parse the envelope even when the process exits nonzero. `--errors stderr` retains the default.
+
 `--out FILE` preserves existing private file and download behavior and prints a file receipt in the selected output format. Provider JSON files contain the provider data; CLI metadata exports use readable text by default or the CLI envelope with `--json`. Downloads retain source/checksum sidecars where already supported. Binary results require an output file.
 
 Provider pagination defaults and continuation fields are preserved. Paginated commands include a note describing their existing scope; no extra global result cap is applied. Ancestry's person-list shortcut still returns its first connection. FamilySearch's existing `--all`, `--limit`, and continuation options remain available. An absent next-page field is not a claim that all records have been retrieved.

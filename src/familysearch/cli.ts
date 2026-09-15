@@ -39,7 +39,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   if (!supported.has(command)) throw new InputError(`Unknown command. Use "fam cli.command list --provider familysearch".`);
   let call: {name: OperationName; input: Awaited<ReturnType<typeof prepareApiInput>>['input']} | undefined;
   if (command === 'call') {
-    const {positionals, values} = parseArgs({args: args.slice(1), allowPositionals: true, options: {input: {type: 'string'}, query: {type: 'string', multiple: true}}});
+    const {positionals, values} = parseArgs({args: args.slice(1), allowPositionals: true, options: {input: {type: 'string'}, query: {type: 'string', multiple: true}, deceased: {type: 'boolean'}}});
     const [name, file] = positionals;
     required(name);
     if (positionals.length > 2 || file && values.input) throw new InputError('Use one input file: --input FILE|-.');

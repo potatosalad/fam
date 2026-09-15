@@ -1,6 +1,6 @@
 {
   "name": "@potatosalad/fam",
-  "version": "2026.915.1",
+  "version": "2026.915.2",
   "type": "module",
   "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, Newspapers.com, American Ancestors, and Fold3; genealogy resource browsing with Cyndi\u2019s List",
   "scripts": {

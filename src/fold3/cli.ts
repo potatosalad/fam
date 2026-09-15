@@ -13,10 +13,13 @@ import {downloadImage,saveDownload} from './download.js';
 import {exportFile} from './file-export.js';
 import type {ConnectionOptions} from './research.js';
 import {searchTranscript} from './transcript.js';
-const strings=['keyword','name','type','publication-id','place','conflict','service-number','year','birth-year','death-year','limit','offset','sort','out','prefix','direction','max-pages','from','to','birth-from','birth-to','death-from','death-to','exclude-name','match','unit-id','regiment-id','commanders-of','input','x','y','width','height'];
+import {imageReference, resolveImageReference} from './image-reference.js';
+const strings=['entry-id','keyword','name','type','publication-id','place','conflict','service-number','year','birth-year','death-year','limit','offset','sort','out','prefix','direction','max-pages','from','to','birth-from','birth-to','death-from','death-to','exclude-name','match','unit-id','regiment-id','commanders-of','input','x','y','width','height'];
 export async function runProvider(argv:string[]){
-  const {values,positionals:[command,arg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(name=>[name,{type:'string' as const}])),...Object.fromEntries(['filter','field','facet','path','exclude-filter','exclude-field'].map(name=>[name,{type:'string' as const,multiple:true}])),...Object.fromEntries(['native','stdin','interactive','no-autofill','resume'].map(name=>[name,{type:'boolean' as const}]))}});
+  const {values,positionals:[command,initialArg,extra]}=parseArgs({args:argv,allowPositionals:true,options:{...Object.fromEntries(strings.map(name=>[name,{type:'string' as const}])),...Object.fromEntries(['filter','field','facet','path','exclude-filter','exclude-field'].map(name=>[name,{type:'string' as const,multiple:true}])),...Object.fromEntries(['native','stdin','interactive','no-autofill','resume','allow-reduced'].map(name=>[name,{type:'boolean' as const}]))}});
   const v=values as Record<string,any>,options=Object.fromEntries(Object.entries(v).filter(([key])=>!['out','native','stdin','interactive','no-autofill'].includes(key)).map(([key,value])=>[key.replace(/-([a-z])/g,(_m,c)=>c.toUpperCase()),['limit','offset','year','birth-year','death-year'].includes(key)?Number(value):value])) as SearchOptions;
+  let arg=initialArg;
+  const reference=['file','file-images','file-download','image','download'].includes(command) ? imageReference(arg,v['entry-id']) : undefined;
   let result:unknown;
   if(command==='credentials'){await configureCredentials('fold3',{stdin:v.stdin});result={saved:true};}
   else if(command==='auth')result=sessionStatus(await(v.native?loginNative():loginBrowser({interactive:v.interactive,autofill:!v['no-autofill']})));
@@ -30,6 +33,7 @@ export async function runProvider(argv:string[]){
   }
   else{
     const client=await Fold3Client.open();
+    if (reference) arg=await resolveImageReference(client,reference);
     if(command==='search')result=await client.search(options);else if(command==='facets')result=await client.facets(options);
     else if(command==='publications')result=await client.publications(v.keyword,options.limit,options.offset);
     else if(command==='publication')result=await client.publication(arg);
@@ -48,7 +52,7 @@ export async function runProvider(argv:string[]){
     else if(command==='filmstrip')result=await client.filmstrip(arg,options.limit);
     else if(command==='ocr')result=await client.ocr(arg);
     else if(command==='ocr-hits')result=await client.ocrHits(arg,v.keyword);
-    else if(command==='download'){if(typeof v.out!=='string'||!v.out.trim())throw new Error('Supply --out FILE.jpg.');return saveDownload(v.out,await downloadImage(client,arg));}
+    else if(command==='download'){if(typeof v.out!=='string'||!v.out.trim())throw new Error('Supply --out FILE.jpg.');return saveDownload(v.out,await downloadImage(client,arg,{allowReduced:v['allow-reduced']}));}
     else if(command==='me')result=await client.me();else if(command==='verify')result=await client.verify();else if(command==='refresh')result=await client.refresh();
     else if(command==='call'){const text=extra===undefined?'{}':extra==='-'?await readCommandStdin():extra.trimStart().startsWith('{')?extra:await readCommandFile(extra,'utf8');let input:any;try{input=parseJson(text);}catch{throw new Error('Input must be valid JSON.');}result=await client.call(arg,input);}
     else throw new Error('Unknown Fold3 command. Run fam fold3 --help.');
