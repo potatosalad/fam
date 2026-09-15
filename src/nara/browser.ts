@@ -5,7 +5,7 @@ import {catalogUrl, NaraError} from './url.js';
 
 export interface Link {title: string; url: string}
 export interface Snapshot {
-  url: string; title: string; text: string; alerts: string[]; challenge: boolean;
+  url: string; title: string; text: string; alerts: string[]; notices?: string[]; challenge: boolean;
   search: {present: boolean; summary: string; page: string; pages: string; limit: string; sort: string; online: boolean;
     results: {title: string; url: string; level: string; description: string; text: string; thumbnailUrl: string | null}[]};
   record: {title: string; level: string; header: string; text: string; breadcrumbs: Link[]; links: Link[]};
@@ -36,9 +36,12 @@ export const SNAPSHOT = String.raw`(() => {
   // Single-file records have no thumbnail strip or pagination input.
   if (!items.length && total === '1' && downloadUrl) items.push({page: '1', label: 'Digital object 1', thumbnailUrl: null});
   const transcriptionLabel = one('#transcription-tab')?.getAttribute('aria-label') || '';
+  const alerts = all('.usa-alert');
+  const informational = el => el.classList.contains('usa-alert--info') || el.classList.contains('usa-alert--success');
   return {
     url: location.href, title: document.title, text: body.slice(0, 2000000),
-    alerts: all('.usa-alert').map(text).filter(Boolean),
+    alerts: alerts.filter(el => !informational(el)).map(text).filter(Boolean),
+    notices: alerts.filter(informational).map(text).filter(Boolean),
     challenge: /^(Just a moment|Access denied|Attention Required)/i.test(document.title) ||
       !!one('form#challenge-form, #cf-challenge-running, iframe[src*="challenges.cloudflare.com"]'),
     search: {

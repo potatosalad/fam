@@ -40,17 +40,19 @@ export function recordDetails(html: string, sourceUrl: string) {
 export function imageDetails(html: string, sourceUrl: string) {
   const $ = load(html);
   // Extract only the source and partner flag; never evaluate scripts or expose their access tokens.
-  const match = html.match(/initImage\(\s*'([^'\r\n]+)'\s*,\s*jQuery\.parseJSON\('(true|false)'\)/);
+  const match = html.match(/initImage\(\s*'([^'\r\n]*)'\s*,\s*jQuery\.parseJSON\('(true|false)'\)/);
   if (!match) {
     if (/please\s+log in|become a member|access this database/i.test(plain(html))) throw new AmericanAncestorsError('access-denied');
     throw new AmericanAncestorsError('api-changed');
   }
-  let imageSource = match[1], partner = match[2] === 'true';
-  if (partner) {
+  let imageSource: string | null = match[1] || null;
+  const partner = match[2] === 'true';
+  if (!imageSource && (!$('#hdnCollectionID').val() || !$('#hdnVolumeid').val())) throw new AmericanAncestorsError('api-changed');
+  if (imageSource && partner) {
     const url = new URL(imageSource);
     if (!['https://familysearch.org','https://www.familysearch.org'].includes(url.origin) || !/^\/ark:\/61903\/3:1:[A-Za-z0-9-]+$/.test(url.pathname)) throw new AmericanAncestorsError('api-changed');
     imageSource = `${url.origin}${url.pathname}`;
-  } else {
+  } else if (imageSource) {
     const url = checkUrl(imageSource, true);
     if (!/^\/[a-f0-9-]+\.xml$/i.test(url.pathname) || url.search) throw new AmericanAncestorsError('api-changed');
     imageSource = url.href;
@@ -69,8 +71,10 @@ export function imageDetails(html: string, sourceUrl: string) {
     return url.href;
   };
   return {sourceUrl: canonical.href, pageName, previousUrl:neighbor('Prev'), nextUrl:neighbor('Next'), kind: partner ? 'familysearch' as const : 'deepzoom' as const, imageSource,
-    downloadAvailable: !partner && $('#download').length > 0 && !$('#download').hasClass('disabled'),
+    available: imageSource !== null, ...(imageSource === null ? {unavailableReason:'image-unavailable' as const} : {}),
+    downloadAvailable: imageSource !== null && !partner && $('#download').length > 0 && !$('#download').hasClass('disabled'),
     citation: clean($('#divClipboardURLTranscript').text()), collectionId: String($('#hdnCollectionID').val() ?? ''), volumeId: String($('#hdnVolumeid').val() ?? ''),
     previousPageName: String($('#hdnPrevPageName').val() ?? '') || null, nextPageName: String($('#hdnNextPageName').val() ?? '') || null,
-    note: partner ? 'Partner-hosted scan. Use the FamilySearch source URL and its own access rules; no partner tokens are exported.' : 'Provider Deep Zoom image; downloads reconstruct the published tiles as PNG.'};
+    note: imageSource === null ? 'The provider returned page metadata without an image link. No scan is available from this response.'
+      : partner ? 'Partner-hosted scan. Use the FamilySearch source URL and its own access rules; no partner tokens are exported.' : 'Provider Deep Zoom image; downloads reconstruct the published tiles as PNG.'};
 }

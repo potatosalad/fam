@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import { contracts } from './generated/schema.js';
 import type { WireType, OperationContract } from './contract-types.js';
 import type { GenealogyApi, OperationName } from './generated/operations.js';
@@ -9,10 +10,11 @@ function object(value: unknown): value is Record<string, unknown> {
 }
 function fail(path: string, expected: string): never {
   // Include schema locations, never the user's supplied value.
-  throw new Error(`Invalid ${path}: expected ${expected}.`);
+  throw new InputError(`Invalid ${path}: expected ${expected}.`);
 }
 
 export function validateWire(value: unknown, type: WireType, path = 'body', allowUnknown = false, depth = 0): void {
+  function fail(path: string, expected: string): never {throw new (allowUnknown ? Error : InputError)(`Invalid ${path}: expected ${expected}.`);}
   if (depth > 64) fail(path, 'an acyclic value no more than 64 levels deep');
   const next = (v: unknown, t: WireType, p: string) => validateWire(v, t, p, allowUnknown, depth + 1);
   switch (type.kind) {
@@ -57,7 +59,7 @@ export function validateWire(value: unknown, type: WireType, path = 'body', allo
 }
 
 export function operationContract(name: string): OperationContract {
-  if (!Object.hasOwn(contracts.operations, name)) throw new Error('Unknown genealogy operation. Use the operations catalog.');
+  if (!Object.hasOwn(contracts.operations, name)) throw new InputError('Unknown genealogy operation. Use the operations catalog.');
   // Return a copy so caller edits cannot change credential-bearing request routes.
   return structuredClone(contracts.operations[name]);
 }
@@ -104,23 +106,23 @@ export function operationQueryInput(name: string, supplied: unknown, flags: stri
   const query: Record<string, unknown> = { ...(input.query as Record<string, unknown> ?? {}) };
   for (const flag of flags) {
     const split = flag.indexOf('=');
-    if (split < 1) throw new Error('--query requires parameter=value.');
+    if (split < 1) throw new InputError('--query requires parameter=value.');
     const key = flag.slice(0, split), text = flag.slice(split + 1);
     const parameter = operationContract(name).parameters.find(p => p.kind === 'query' && p.name === key);
-    if (!parameter) throw new Error(`Unknown query parameter. Use "fam familysearch.api describe --operation ${name}".`);
-    if (Object.hasOwn(query, key)) throw new Error(`Query parameter ${key} was supplied more than once.`);
+    if (!parameter) throw new InputError(`Unknown query parameter. Use "fam familysearch.api describe --operation ${name}".`);
+    if (Object.hasOwn(query, key)) throw new InputError(`Query parameter ${key} was supplied more than once.`);
     let value: unknown = text;
     if (parameter.type.kind === 'boolean') {
-      if (!['true','false'].includes(text)) throw new Error(`Query parameter ${key} requires true or false.`);
+      if (!['true','false'].includes(text)) throw new InputError(`Query parameter ${key} requires true or false.`);
       value = text === 'true';
     } else if (parameter.type.kind === 'integer') {
-      if (!/^-?\d+$/.test(text)) throw new Error(`Query parameter ${key} requires an integer.`);
+      if (!/^-?\d+$/.test(text)) throw new InputError(`Query parameter ${key} requires an integer.`);
       value = BigInt(text);
       if (Number.isSafeInteger(Number(value))) value = Number(value);
     } else if (parameter.type.kind === 'number') {
-      if (!text.trim()) throw new Error(`Query parameter ${key} requires a number.`);
+      if (!text.trim()) throw new InputError(`Query parameter ${key} requires a number.`);
       value = Number(text);
-    } else if (parameter.type.kind !== 'string') throw new Error(`Query parameter ${key} requires JSON input; use --input FILE.`);
+    } else if (parameter.type.kind !== 'string') throw new InputError(`Query parameter ${key} requires JSON input; use --input FILE.`);
     validateWire(value, parameter.type, `query.${key}`);
     query[key] = value;
   }
@@ -164,7 +166,7 @@ export function prepareOperation(name: OperationName, supplied: unknown): { path
   const allowed = new Set(['query', 'headers', ...contract.parameters.filter(p => p.kind === 'path' || p.kind === 'body').map(p => p.name)]);
   for (const key of Object.keys(input).filter(k => !allowed.has(k))) {
     const parameter = contract.parameters.find(p => p.name === key && (p.kind === 'query' || p.kind === 'header'));
-    if (parameter) throw new Error(`Invalid input: ${parameter.name} belongs under ${parameter.kind === 'query' ? 'query' : 'headers'}. Use "fam familysearch.api describe --operation ${name} --example" for the correct nesting.`);
+    if (parameter) throw new InputError(`Invalid input: ${parameter.name} belongs under ${parameter.kind === 'query' ? 'query' : 'headers'}. Use "fam familysearch.api describe --operation ${name} --example" for the correct nesting.`);
     fail('input', 'documented input properties');
   }
   for (const kind of ['query', 'headers']) {

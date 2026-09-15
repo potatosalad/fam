@@ -28,7 +28,7 @@ export class FindmypastHttpError extends Error {
 export class FindmypastHttp {
   readonly jar: CookieJar;
   private readonly transport = new Impit({browser: 'chrome', timeout: 30_000});
-  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1] & {retryable?: boolean}) {
     return fetchWithBrowser('findmypast', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
   }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) { this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar(); }
@@ -46,7 +46,7 @@ export class FindmypastHttp {
     if (options.body !== undefined && !raw) headers.set('Content-Type', 'application/json');
     let response;
     try {
-      response = await this.fetch(target, {method: options.method ?? 'GET', redirect: 'manual',
+      response = await this.fetch(target, {method: options.method ?? 'GET', retryable:options.retryable, redirect: 'manual',
         headers: Object.fromEntries(headers), ...(options.body === undefined ? {} : {
           body: raw ? options.body as UploadBody : stringifyJson(options.body),
         })});

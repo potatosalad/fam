@@ -1,10 +1,10 @@
+import {InputError} from './input-error.js';
 import {parseArgs} from 'node:util';
 import {commandById, syntax, type Command} from './command-registry.js';
 import {commandHelp, overview} from './command-output.js';
 import {namespaceInfo, lookupFailure, type LookupFailure} from './command-navigation.js';
 
-export class UsageError extends Error {
-  readonly code = 'INVALID_ARGUMENT';
+export class UsageError extends InputError {
   constructor(message: string, readonly suggestedInvocation?: string, readonly navigation?: LookupFailure) {super(message);}
 }
 export function unknownCommand(name: string, action?: string): UsageError {

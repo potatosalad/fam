@@ -60,3 +60,5 @@ When a key is available, add an explicit API transport within `nara`, backed by 
 The implementation was first checked against the anonymous Catalog on September 13, 2026, using public record 152951241 and a quoted military-unit search. Synthetic tests cover exact IDs, origin restrictions, pagination/filter mismatches, partial searches, object selection, browser cleanup, download bounds, provenance, and no-overwrite behavior. Live checks are opt-in and do not run in CI.
 
 This is an unofficial browser adapter. Website changes may require selector updates. Advanced search facets, bulk exports, hierarchy traversal, and the official API are not yet exposed. Search results and record metadata are research leads; follow the returned Catalog links to review the original material.
+
+Informational and success banners appear in `notices` and readable `Notice:` lines. They do not mark an otherwise successful retrieval as a history failure. Actual warnings and incomplete-result reporting remain in `warnings`.

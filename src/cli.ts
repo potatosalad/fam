@@ -1,3 +1,6 @@
+import {setReadRetryPolicy} from './shared/read-retry.js';
+import {InputError} from './shared/input-error.js';
+import {badRequestHelp} from './shared/command-error-help.js';
 import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
 import {dirname, basename} from 'node:path';
 import {randomUUID} from 'node:crypto';
@@ -136,6 +139,7 @@ async function main() {
   }
   invocation = parseInvocation(args);
   const {command, values} = invocation;
+  setReadRetryPolicy({failFast:values['fail-fast'] === true, progress:message => process.stderr.write(`${message}\n`)});
   history.command(command.id, command.provider, command.risk.level !== 'local' || command.object === 'health');
   if (values.help) {
     if (command.provider === 'familysearch' && command.object === 'api' && ['call', 'describe'].includes(command.action) && values.operation) {
@@ -186,20 +190,23 @@ async function main() {
 main().finally(async () => {
   const {closeBrowserTransportTabs} = await import('./shared/browser-transport.js');
   await closeBrowserTransportTabs();
-}).catch(error => {
+}).catch(async error => {
   history.fail(error);
-  const usage = error instanceof UsageError;
+  const usage = error instanceof InputError || error?.code === 'INVALID_ARGUMENT';
+  const guidance = invocation && error?.status === 400 ? await badRequestHelp(invocation) : undefined;
   const message = (error as NodeJS.ErrnoException)?.code === 'EEXIST' ? 'Output or provenance file already exists; choose a new --out path.'
     : error instanceof Error ? error.message : 'fam command failed.';
   const suggestion = usage && error.suggestedInvocation ? error.suggestedInvocation
     : invocation ? `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}` : undefined;
   if (jsonErrors) process.stderr.write(`${stringifyJson({schemaVersion: 1, ok: false, command: invocation?.command.id ?? null,
     error: {code: usage ? error.code : error?.code ?? 'EXECUTION_FAILED', message,
+      ...(typeof error?.status === 'number' ? {status:error.status} : {}),
+      ...guidance,
       ...(error?.vncUrl ? {vncUrl: error.vncUrl} : {}),
       ...(usage && error.navigation ? {available: error.navigation.available, suggestions: error.navigation.suggestions, help: error.navigation.help} : {}),
       ...(usage && error.suggestedInvocation ? {suggestedInvocation: error.suggestedInvocation}
         : invocation ? {inspect: `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}`} : {})}}, 2)}\n`);
   else process.stderr.write(usage && error.navigation ? commandError(error.navigation, process.stderr.columns ?? 100)
-    : `Error: ${message}\n${suggestion ? `\nTry: ${suggestion}\n` : ''}`);
+    : `Error: ${message}\n${suggestion ? `\nTry: ${suggestion}\n` : ''}${guidance ? `\nExamples (replace placeholders):\n${guidance.examples.map(example => `  ${example}`).join('\n')}\n${guidance.inputExample ? `${stringifyJson(guidance.inputExample, 2)}\n` : ''}${guidance.hints.join('\n')}\n` : ''}`);
   process.exitCode = usage ? 2 : 1;
 }).finally(() => history.settled());

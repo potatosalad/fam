@@ -29,7 +29,7 @@ export function checkOrigin(url: URL): void {
 export class HttpSession {
   readonly jar: CookieJar;
   private readonly transport: Impit;
-  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1], sessionCookies: string[] = []) {
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1] & {retryable?: boolean}, sessionCookies: string[] = []) {
     return fetchWithBrowser('familysearch', url, init ?? {}, () => this.transport.fetch(url, init), this.jar, sessionCookies);
   }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
@@ -37,7 +37,7 @@ export class HttpSession {
     this.transport = new Impit({ browser: 'chrome', timeout: 30_000 });
   }
 
-  async request(url: string | URL, init: { method?: HttpMethod; headers?: Record<string, string>; body?: UploadBody } = {}): Promise<Response> {
+  async request(url: string | URL, init: { method?: HttpMethod; headers?: Record<string, string>; body?: UploadBody; retryable?: boolean } = {}): Promise<Response> {
     const target = new URL(url);
     checkOrigin(target);
     const headers: Record<string, string> = { 'Accept-Language': 'en-US', ...init.headers };
@@ -55,7 +55,7 @@ export class HttpSession {
     if (cookie) headers.Cookie = cookie;
     let response: Response;
     try { response = await this.fetch(target, { ...init, headers, redirect: 'manual' }, sessionCookies); }
-    catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Network request failed for ${target.origin}${target.pathname}.`); }
+    catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Network request failed for ${target.origin}${target.pathname}.`, {cause:error}); }
     for (const value of response.headers.getSetCookie()) await this.jar.setCookie(value, target.href);
     return response;
   }
@@ -92,7 +92,7 @@ export class HttpSession {
     // The transport supplies the boundary for FormData. Never replace it with a bare media type.
     if (raw && options.body instanceof FormData && headers.has('content-type')) throw new Error('FormData must supply its own Content-Type boundary.');
     const init = {
-      method: options.method ?? 'GET', headers: Object.fromEntries(headers),
+      method: options.method ?? 'GET', retryable:options.retryable, headers: Object.fromEntries(headers),
       ...(options.body === undefined ? {} : { body: raw ? options.body as UploadBody : stringifyJson(options.body) }),
     };
     let response = await this.request(target, init);

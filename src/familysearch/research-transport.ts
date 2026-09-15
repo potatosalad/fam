@@ -1,4 +1,5 @@
-import {reportDiagnostic} from '../shared/diagnostics.js';
+import {retryRead, transientConnectionError} from '../shared/read-retry.js';
+export {retryDelay} from '../shared/read-retry.js';
 import {fetchWithBrowser} from '../shared/browser-transport.js';
 import {BrowserError} from '../shared/browser-config.js';
 import { Impit } from 'impit';
@@ -58,14 +59,6 @@ export interface ReadOptions {
   image?: boolean;
 }
 
-export function retryDelay(value: string | null, attempt: number, now = Date.now()): number {
-  const seconds = value !== null && /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) : NaN;
-  const requested = Number.isFinite(seconds) ? seconds * 1000 : value ? Date.parse(value) - now : NaN;
-  // If the server asks for a longer delay, surface the error instead of retrying early.
-  if (Number.isFinite(requested)) return Math.max(0, requested);
-  return Math.min(8000, 500 * 2 ** attempt) + Math.floor(Math.random() * 250);
-}
-
 export class ResearchTransport {
   private readonly assets = new Impit({ browser: 'chrome', timeout: 45_000 });
   constructor(private readonly authorize: ResearchAuthorization,
@@ -79,34 +72,24 @@ export class ResearchTransport {
       let current = initial;
       let external = false;
       for (let redirect = 0; redirect < 6; redirect++) {
-        let response: Response | undefined;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            // No shared cookie jar, bearer header, Referer, or session body on storage requests.
-            response = external
-              ? await fetchWithBrowser('familysearch', current, {headers: {Accept: options.accept ?? 'image/*'}}, () => this.assets.fetch(current, {redirect: 'manual', headers: {Accept: options.accept ?? 'image/*'}}))
+        let response: Response;
+        try {
+          response = await retryRead('familysearch', async () => {
+            // The outer read owns retries; inner transports must not multiply attempts.
+            return external
+              ? fetchWithBrowser('familysearch', current, {retryable:false, headers:{Accept:options.accept ?? 'image/*'}}, () => this.assets.fetch(current, {redirect:'manual', headers:{Accept:options.accept ?? 'image/*'}}))
               : current.origin === TRANSCRIPT_ORIGIN
-              ? await fetchWithBrowser('familysearch', current, {headers: {...credentials, Accept: options.accept ?? 'application/json'}}, () => this.assets.fetch(current, {redirect: 'manual', headers: {...credentials, Accept: options.accept ?? 'application/json'}}))
-              : await http.request(current, {
-                method: options.body ? 'POST' : 'GET',
-                headers: { ...credentials, ...options.headers, Accept: options.accept ?? 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
-                ...(options.body ? { body: stringifyJson(options.body) } : {}),
+              ? fetchWithBrowser('familysearch', current, {retryable:false, headers:{...credentials, Accept:options.accept ?? 'application/json'}}, () => this.assets.fetch(current, {redirect:'manual', headers:{...credentials, Accept:options.accept ?? 'application/json'}}))
+              : http.request(current, {
+                retryable:false, method:options.body ? 'POST' : 'GET',
+                headers:{...credentials, ...options.headers, Accept:options.accept ?? 'application/json', ...(options.body ? {'Content-Type':'application/json'} : {})},
+                ...(options.body ? {body:stringifyJson(options.body)} : {}),
               });
-          } catch (error) {
-            if (error instanceof BrowserError) throw error;
-            if (attempt === 2) throw new ResearchError('temporary-failure', 'Document service connection failed after three attempts.');
-            reportDiagnostic('HTTP_RETRY', 'Document service connection failed; retrying a read.');
-            await this.sleep(retryDelay(null, attempt));
-            continue;
-          }
-          if (![429, 502, 503, 504].includes(response.status)) break;
-          const delay = retryDelay(response.headers.get('retry-after'), attempt);
-          if (attempt === 2 || delay > 30_000) break;
-          reportDiagnostic('HTTP_RETRY', 'Document service returned a temporary HTTP failure; retrying a read.', {status: response.status});
-          await response.body?.cancel();
-          await this.sleep(delay);
+          }, {sleep:this.sleep});
+        } catch (error) {
+          if (error instanceof BrowserError || !transientConnectionError(error)) throw error;
+          throw new ResearchError('temporary-failure', 'Document service connection failed.');
         }
-        if (!response) throw new ResearchError('temporary-failure', 'No document response received.');
         if ([301, 302, 303, 307, 308].includes(response.status)) {
           const location = response.headers.get('location');
           await response.body?.cancel();

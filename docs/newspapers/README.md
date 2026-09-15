@@ -69,7 +69,7 @@ fam newspapers.clipping download --clipping-id 205745656 --out clipping.jpg
 
 Clipping search defaults to public clippings. `--user USERNAME_OR_ID` searches that creator's public clippings; `--mine` uses the verified signed-in account and includes its public and private clippings. They cannot be combined. Other filters are `--tag`, `--publication-id`, dates, and `--region "Chicago, Illinois"`; clipping regions use place names. Sort values are `modified-desc`, `modified-asc`, `date-desc`, `date-asc`, and `score`. Continue with `nextCursor` as `--cursor`; a null cursor means the end.
 
-Clipping details include the saved title, notes, tags, rectangles, and any available OCR. Downloads retain these details in the private citation sidecar. A clipping URL such as `https://www.newspapers.com/clipping/205745656/` supplies the clipping ID. Clipping details can encounter Cloudflare over native HTTP; automatic transport can use CloakBrowser, and `--transport browser` selects it explicitly. Rate limits are reported without an automatic retry loop.
+Clipping details include the saved title, notes, tags, rectangles, and any available OCR. Downloads retain these details in the private citation sidecar. A clipping URL such as `https://www.newspapers.com/clipping/205745656/` supplies the clipping ID. Clipping details can encounter Cloudflare over native HTTP; automatic transport can use CloakBrowser, and `--transport browser` selects it explicitly. Transient reads use the [bounded retry policy](../cli.md#transient-failures-and-input-errors); `--fail-fast` disables retries.
 
 ## Download a page
 
@@ -117,3 +117,5 @@ await saveDownload('page.jpg', scan); // also writes page.jpg.json; refuses over
 The SDK also provides `article(pageId, articleId, type?)`, `downloadArticle(pageId, articleId, type?)`, `searchClippings(options)`, `clipping(clippingId)`, and `downloadClipping(clippingId)`. All three download methods return `{bytes, metadata}` for `saveDownload`.
 
 `NewspapersHttp` exposes native/browser GET transport with origin checks, bounded redirects, cookie handling, byte preservation, and bounded response size. `NewspapersClient.call` accepts only the documented JSON read operations and input keys; binary downloads use the dedicated methods directly. See [protocol observations](protocol.md).
+
+JPEG downloads preserve the server bytes and report the image's actual dimensions. Requested viewer dimensions are sizing hints; a different returned size does not invalidate a decodable JPEG. Full decoding still detects damaged or truncated images.

@@ -1,3 +1,6 @@
+import {runInNewContext} from 'node:vm';
+import {SNAPSHOT} from '../src/nara/browser.js';
+import {inspectResult} from '../src/shared/diagnostics.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp, readFile, readdir, rm, stat, writeFile} from 'node:fs/promises';
@@ -156,4 +159,21 @@ test('NARA discovery has six public commands, typed flags, URL resolution, and o
   const report = await runDoctor(['nara'], false);
   assert.equal(report.providers[0].checks[0].code, 'public-access');
   assert.ok(report.providers[0].checks.some(c => c.code === 'live-not-requested'));
+});
+
+
+test('informational Catalog notices remain visible without marking successful retrievals as failures', async()=>{
+  const alerts=[['usa-alert--info','Plan your research visit.'],['usa-alert--success','Update complete.']];
+  const document={title:'Catalog',body:{innerText:'Example'},querySelector:()=>null,
+    querySelectorAll:(selector:string)=>selector==='.usa-alert'?alerts.map(([className,innerText])=>({innerText,classList:{contains:(name:string)=>name===className}})):[]};
+  const captured=runInNewContext(SNAPSHOT,{document,location:{href:recordUrl(id)}});
+  assert.deepEqual(Array.from(captured.alerts),[]);
+  assert.deepEqual(Array.from(captured.notices),['Plan your research visit.','Update complete.']);
+  const s=snapshot();s.notices=Array.from(captured.notices);
+  const result=await new NaraClient({read:async()=>s}).record(id), failures:unknown[]=[];
+  inspectResult(result,d=>failures.push(d));assert.deepEqual(failures,[]);
+  assert.match(humanOutput(commandById.get('nara.record get')!,result,{},100),/Notice: Plan your research visit/);
+  alerts.push(['usa-alert--warning','Some results could not be loaded.']);
+  const warning=runInNewContext(SNAPSHOT,{document,location:{href:recordUrl(id)}});
+  assert.deepEqual(Array.from(warning.alerts),['Some results could not be loaded.']);
 });

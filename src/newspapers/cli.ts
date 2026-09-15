@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import {parseArgs} from 'node:util';
 import {mkdir,writeFile,rename,rm} from 'node:fs/promises';
 import {dirname} from 'node:path';
@@ -22,7 +23,7 @@ export async function runProvider(argv: string[]) {
   else if(command==='auth')result=sessionStatus(await loginNewspapers({interactive:v.interactive as boolean,autofill:!v['no-autofill']}));
   else if(command==='status')result={...sessionStatus(await loadSession()),credentialDirectory:CREDENTIAL_DIR};
   else if(command==='ops')result=Object.entries(operations).map(([name,op])=>({name,...op})).filter(op=>!arg||JSON.stringify(op).toLowerCase().includes(arg.toLowerCase()));
-  else if(command==='schema'){if(!Object.hasOwn(operations,arg))throw new Error('Unknown Newspapers operation.');result={name:arg,...operations[arg as Operation]};}
+  else if(command==='schema'){if(!Object.hasOwn(operations,arg))throw new InputError('Unknown Newspapers operation.');result={name:arg,...operations[arg as Operation]};}
   else{
     const client=await NewspapersClient.open();
     if(command==='me')result=await client.me();else if(command==='verify')result=await client.verify();else if(command==='refresh')result=await client.refresh();
@@ -36,7 +37,7 @@ export async function runProvider(argv: string[]) {
     else if(command==='issue')result=await client.issue(arg,extra);
     else if(command==='page')result=await client.page(arg);
     else if(['download','article-download','clipping-download'].includes(command)){
-      if(typeof v.out!=='string' || !v.out.trim())throw new Error('Supply --out FILE.jpg for the download.');
+      if(typeof v.out!=='string' || !v.out.trim())throw new InputError('Supply --out FILE.jpg for the download.');
       return saveDownload(v.out,await(command==='article-download'?client.downloadArticle(arg,extra,v.type as ArticleType|undefined):command==='clipping-download'?client.downloadClipping(arg):client.download(arg)));
     }
     else if(command==='hits')result=await client.hits(arg,v.keyword as string);
@@ -45,8 +46,8 @@ export async function runProvider(argv: string[]) {
     else if(command==='ocr')result=await client.ocr(arg,options);
     else if(command==='call'){
       const text=extra===undefined?'{}':extra==='-'?await readCommandStdin():extra.trimStart().startsWith('{')?extra:await readCommandFile(extra,'utf8');
-      let input:any;try{input=parseJson(text);}catch{throw new Error('Input must be valid JSON.');}result=await client.call(arg,input);
-    }else throw new Error('Unknown Newspapers command. Run fam newspapers --help.');
+      let input:any;try{input=parseJson(text);}catch{throw new InputError('Input must be valid JSON.');}result=await client.call(arg,input);
+    }else throw new InputError('Unknown Newspapers command. Run fam newspapers --help.');
   }
   if (typeof v.out==='string') {
     inspectResult(result);await mkdir(dirname(v.out),{recursive:true,mode:0o700});const temporary=v.out+'.'+randomUUID()+'.tmp';

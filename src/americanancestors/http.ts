@@ -22,7 +22,7 @@ export class AmericanAncestorsError extends Error {
       : code === 'verification-required' ? 'American Ancestors requires browser verification. Complete verification on the website; login was not retried.'
       : code === 'api-changed' ? 'American Ancestors response format changed or the requested capability is unavailable.'
       : code === 'access-denied' ? 'American Ancestors did not grant access to this record or image. Check membership access on its source page.'
-      : `American Ancestors HTTP ${status}. The request was not retried.`);
+      : `American Ancestors HTTP ${status}.`);
     this.name = 'AmericanAncestorsError';
   }
 }

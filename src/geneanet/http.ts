@@ -20,7 +20,7 @@ export class GeneanetError extends Error {
     super(code === 'verification-required' ? 'Geneanet requires browser verification for this request. Open the page on the website; the request was not retried.'
       : code === 'session-rejected' ? 'Geneanet did not return the expected signed-in account. Run fam geneanet.session login.'
       : code === 'api-changed' ? 'Geneanet response format changed or this capability is unavailable.'
-      : `Geneanet HTTP ${status}; check access rights or subscription on the website. The request was not retried.`);
+      : `Geneanet HTTP ${status}; check access rights or subscription on the website.`);
     this.name = 'GeneanetError';
   }
 }

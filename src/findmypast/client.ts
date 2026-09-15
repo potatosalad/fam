@@ -1,3 +1,4 @@
+import {parse, getOperationAST} from 'graphql';
 import {loadProviderSession} from '../shared/browser-config.js';
 import {CookieJar} from 'tough-cookie';
 import { readPrivateJson } from '../shared/storage.js';
@@ -100,7 +101,7 @@ export class FindmypastClient {
   }
   async query<T = unknown>(document: string, variables: Record<string, unknown> = {}, name?: string): Promise<T> {
     const operationName = validateDocument(document, variables, name);
-    const {data} = await this.request<{data?: T; errors?: unknown[]}>(GRAPHQL, {method: 'POST',
+    const {data} = await this.request<{data?: T; errors?: unknown[]}>(GRAPHQL, {method: 'POST', retryable:getOperationAST(parse(document), operationName)?.operation === 'query',
       headers: {'apollographql-client-name': 'fmp-mobile-app-android', 'apollographql-client-version': '2.59.0'},
       body: {operationName, query: document, variables}});
     if (data.errors?.length) throw new FindmypastGraphQLError({...data, errors: data.errors});

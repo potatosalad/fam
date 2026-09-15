@@ -10,7 +10,7 @@ export class NewspapersError extends Error {
       : code === 'access-denied' ? 'Newspapers did not grant this account access to the requested content.'
       : code === 'not-found' ? 'The requested Newspapers record was not found.'
       : code === 'verification-required' ? 'Newspapers requires browser verification. Use --transport browser and complete verification in the viewer.'
-      : code === 'api-changed' ? 'Newspapers returned an unexpected response format.' : `Newspapers HTTP ${status}; the request was not retried.`);
+      : code === 'api-changed' ? 'Newspapers returned an unexpected response format.' : `Newspapers HTTP ${status}.`);
     this.name = 'NewspapersError';
   }
 }

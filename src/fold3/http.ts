@@ -12,7 +12,7 @@ export class Fold3Error extends Error {
       : code === 'verification-required' ? 'Fold3 requires browser verification. Run fam fold3.session login, or retry the read with --transport browser.'
       : code === 'not-found' ? 'The Fold3 record was not found.'
       : code === 'ocr-unavailable' ? 'Fold3 did not supply OCR for this scan.'
-      : code === 'api-changed' ? 'Fold3 returned an unexpected response format.' : `Fold3 HTTP ${status}; the request was not retried.`);
+      : code === 'api-changed' ? 'Fold3 returned an unexpected response format.' : `Fold3 HTTP ${status}.`);
     this.name = 'Fold3Error';
   }
 }
@@ -44,7 +44,7 @@ export class Fold3Http {
       let response: Response;
       try {
         if (options.native) {const raw = await this.transport(url.href, init);response = new Response([204,205,304].includes(raw.status) ? null : raw.body ?? await raw.arrayBuffer(),{status:raw.status,headers:raw.headers});}
-        else response = await fetchWithBrowser('fold3',url,init,()=>this.transport(url.href,init),this.jar);
+        else response = await fetchWithBrowser('fold3',url,{...init,retryable:method === 'GET' || url.pathname !== '/node/auth/user'},()=>this.transport(url.href,init),this.jar);
       } catch(error) {if(error instanceof BrowserError) throw error;throw new Error('Fold3 network request failed.');}
       for (const c of response.headers.getSetCookie()) await this.jar.setCookie(c,url.href,{ignoreError:true});
       if ([301,302,303,307,308].includes(response.status)) {

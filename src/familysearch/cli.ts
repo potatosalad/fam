@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { FamilySearchClient } from './client.js';
@@ -6,7 +7,7 @@ import { CREDENTIAL_DIR } from '../shared/storage.js';
 import { operationContract, operationQueryInput } from './operations.js';
 import { writeFile, chmod } from 'node:fs/promises';
 import type { OperationName, OperationInput } from './generated/operations.js';
-import { parseJson, stringifyJson } from '../shared/json.js';
+import { parseJson as parseInputValue, stringifyJson } from '../shared/json.js';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { runResearchCli } from './research-cli.js';
@@ -19,28 +20,28 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   let output: string | undefined;
   if (outputIndex !== -1) {
     output = args[outputIndex + 1];
-    if (!output || output.startsWith('--')) throw new Error('--out requires a file path.');
+    if (!output || output.startsWith('--')) throw new InputError('--out requires a file path.');
     args.splice(outputIndex, 2);
   }
   const [command, id, depth] = args;
   if (command === 'credentials') {
-    if (args.length > 2 || id && id !== '--stdin') throw new Error('Use fam familysearch.credential set [--stdin].');
+    if (args.length > 2 || id && id !== '--stdin') throw new InputError('Use fam familysearch.credential set [--stdin].');
     await configureCredentials('familysearch', { stdin: id === '--stdin' });
     const data = { saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam familysearch.session login' };
     if (output) {await writeFile(resolve(output), stringifyJson(data, 2) + '\n', {mode: 0o600}); await chmod(resolve(output), 0o600); return {saved: resolve(output)};}
     return data;
   }
-  if (args.includes('--stdin')) throw new Error('--stdin belongs to fam familysearch.credential set.');
+  if (args.includes('--stdin')) throw new InputError('--stdin belongs to fam familysearch.credential set.');
   const research = await runResearchCli(args, output);
   if (research) return research.data;
   const supported = new Set(['auth','status','credentials','refresh','verify','whoami','metadata','person','ancestry','mobile-person','mobile-pedigree','tree-status','get','ops','schema','call']);
-  if (!supported.has(command)) throw new Error(`Unknown command. Use "fam cli.command list --provider familysearch".`);
+  if (!supported.has(command)) throw new InputError(`Unknown command. Use "fam cli.command list --provider familysearch".`);
   const client = ['ops', 'schema'].includes(command) ? undefined! : await FamilySearchClient.open();
   let result: unknown;
   switch (command) {
     case 'ops': result = discoverOperations(id); break;
     case 'schema': {
-      if (args.length > 3 || depth && depth !== '--example') throw new Error('Use fam familysearch.api describe --operation OPERATION [--example].');
+      if (args.length > 3 || depth && depth !== '--example') throw new InputError('Use fam familysearch.api describe --operation OPERATION [--example].');
       const description = describeOperation(required(id));
       result = depth === '--example' ? description.example : description; break;
     }
@@ -48,7 +49,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
       const { positionals, values } = parseArgs({ args: args.slice(1), allowPositionals: true, options: { input: { type: 'string' }, query: { type: 'string', multiple: true } } });
       const [name, file] = positionals;
       required(name);
-      if (positionals.length > 2 || file && values.input) throw new Error('Use one input file: a positional FILE or --input FILE|-.');
+      if (positionals.length > 2 || file && values.input) throw new InputError('Use one input file: a positional FILE or --input FILE|-.');
       operationContract(name);
       const source = values.input ?? file;
       const base = source ? parseJson(source === '-' ? await readStdin() : await readFile(resolve(source), 'utf8')) : {};
@@ -86,11 +87,13 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     await chmod(resolve(output), 0o600);
     return {saved: resolve(output), ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};
   }
-  if (result instanceof Uint8Array) throw new Error('Binary responses require --out FILE.');
+  if (result instanceof Uint8Array) throw new InputError('Binary responses require --out FILE.');
   return result ?? null;
 }
 function required(value?: string): string {
-  if (!value) throw new Error('This command requires an ID or API path.');
+  if (!value) throw new InputError('This command requires an ID or API path.');
   return value;
 }
 const readStdin = () => readCommandStdin(16 * 1024 * 1024, 'JSON input exceeded 16 MiB.');
+
+function parseJson(text: string): unknown {try {return parseInputValue(text);} catch {throw new InputError('Input must be valid JSON.');}}

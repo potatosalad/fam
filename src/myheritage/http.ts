@@ -33,7 +33,7 @@ export function checkMyHeritageChallenge(text: string): void {
 export class MyHeritageHttp {
   readonly jar: CookieJar;
   private readonly transport = new Impit({ browser: 'chrome', timeout: 30_000 });
-  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1]) {
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1] & {retryable?: boolean}) {
     return fetchWithBrowser('myheritage', url, init ?? {}, () => this.transport.fetch(url, init), this.jar);
   }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
@@ -54,7 +54,7 @@ export class MyHeritageHttp {
     let response;
     try {
       response = await this.fetch(target, {
-        method: options.method ?? 'GET', redirect: 'manual', headers: Object.fromEntries(headers),
+        method: options.method ?? 'GET', retryable:options.retryable, redirect: 'manual', headers: Object.fromEntries(headers),
         ...(options.body === undefined ? {} : { body: raw ? options.body as UploadBody : stringifyJson(options.body) }),
       });
     } catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`MyHeritage network request failed for ${target.origin}${target.pathname}.`); }

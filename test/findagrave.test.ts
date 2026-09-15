@@ -224,7 +224,7 @@ test('Find a Grave image transport strips credentials and rejects redirects and 
     const headers=new Headers(options.headers);
     for(const key of ['authorization','cookie','fgm','fgmSeed','ak'])assert.equal(headers.has(key),false);
     assert.equal(headers.get('user-agent'),'Mozilla/5.0');assert.equal(headers.get('referer'),'https://www.findagrave.com/memorial/311');
-    return new Response(status===200?new Uint8Array([1,2,3]):'private error response',{status,headers:{location:'https://foreign.example/'}});
+    return new Response(status===200?new Uint8Array([1,2,3]):'private error response',{status,headers:{location:'https://foreign.example/','retry-after':'0'}});
   });
   const http=new FindagraveHttp();
   http.jar.setCookieSync('session=synthetic; Domain=.findagrave.com; Secure','https://www.findagrave.com');
@@ -236,7 +236,7 @@ test('Find a Grave image transport strips credentials and rejects redirects and 
     status=code;
     await assert.rejects(http.exchange(`${IMAGES}/photos/example.jpg`,options),e=>e instanceof FindagraveHttpError&&e.status===code&&!e.message.includes('private'));
   }
-  assert.equal(calls,4);
+  assert.equal(calls,6); // Success, redirect, denial, and three rate-limited read attempts.
 });
 test('Find a Grave photo downloads reject an unrelated photo or foreign image URL',async()=>{
   let transfers=0;

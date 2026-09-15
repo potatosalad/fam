@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { configureCredentials } from '../shared/credentials.js';
@@ -18,8 +19,8 @@ async function jsonInput(value?: string): Promise<Record<string, unknown>> {
   if (value === '-') text = await readCommandStdin();
   else text = value.trimStart().startsWith('{') ? value : await readFile(value, 'utf8');
   let parsed: unknown;
-  try { parsed = parseJson(text); } catch { throw new Error('Input must be valid JSON.'); }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Input must be a JSON object.');
+  try { parsed = parseJson(text); } catch { throw new InputError('Input must be valid JSON.'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new InputError('Input must be a JSON object.');
   return parsed as Record<string, unknown>;
 }
 export async function runProvider(argv: string[]): Promise<unknown> {
@@ -36,14 +37,14 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     'death-year': {type: 'string'}, 'death-place': {type: 'string'}, filter: {type: 'string', multiple: true},
   }});
   const [command = 'help', first, second] = positionals;
-  if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam ancestry.credential set.');
+  if (values.stdin && command !== 'credentials') throw new InputError('--stdin belongs to fam ancestry.credential set.');
   const arity: Record<string, number> = {status: 0, credentials: 0, auth: 0, refresh: 0, trees: 0, search: 0, ops: 1, schema: 1,
     tree: 1, persons: 1, person: 2, relatives: 2, research: 2, story: 2, hints: 2, media: 2, citations: 1, sources: 1,
     record: 2, places: 1, gql: 2, call: 2, get: 1};
-  if (arity[command] !== undefined && positionals.length - 1 > arity[command]!) throw new Error(`Too many arguments for ancestry ${command}.`);
-  if (command !== 'auth' && (values.code || values['send-code'])) throw new Error('Verification options belong to fam ancestry.session login.');
-  const need = (value: string | undefined, label: string): string => { if (!value) throw new Error(`Missing ${label}. See fam cli.command list --provider ancestry.`); return value; };
-  const integer = (value: string | undefined, fallback: number): number => { const n = value === undefined ? fallback : Number(value); if (!Number.isSafeInteger(n) || n < 1) throw new Error('Expected a positive integer.'); return n; };
+  if (arity[command] !== undefined && positionals.length - 1 > arity[command]!) throw new InputError(`Too many arguments for ancestry ${command}.`);
+  if (command !== 'auth' && (values.code || values['send-code'])) throw new InputError('Verification options belong to fam ancestry.session login.');
+  const need = (value: string | undefined, label: string): string => { if (!value) throw new InputError(`Missing ${label}. See fam cli.command list --provider ancestry.`); return value; };
+  const integer = (value: string | undefined, fallback: number): number => { const n = value === undefined ? fallback : Number(value); if (!Number.isSafeInteger(n) || n < 1) throw new InputError('Expected a positive integer.'); return n; };
   const limit = integer(values.limit, 20), page = integer(values.page, 1);
   let result: unknown;
   if (command === 'status') {
@@ -53,7 +54,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
       verificationPending: Boolean(await readPrivateJson('ancestry/pending-auth.json'))};
   } else if (command === 'credentials') { await configureCredentials('ancestry', {stdin: values.stdin}); result = {saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam ancestry.session login'}; }
   else if (command === 'auth') {
-    if (values['send-code'] && values.code) throw new Error('Use --send-code or --code, one at a time.');
+    if (values['send-code'] && values.code) throw new InputError('Use --send-code or --code, one at a time.');
     if (values['send-code']) result = await sendAncestryCode();
     else { const session = values.code ? await verifyAncestryCode(values.code) : await authenticateAncestry(); result = new AncestryClient(session).status(); }
   } else if (command === 'ops') {
@@ -68,7 +69,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     result = contracts.graphql.some(op => op.name === name || op.id === name) ? graphqlOperation(name) : restOperation(name);
   } else {
     const known = ['refresh', 'trees', 'tree', 'persons', 'person', 'relatives', 'research', 'story', 'hints', 'media', 'citations', 'sources', 'record', 'search', 'places', 'gql', 'call', 'get'];
-    if (!known.includes(command)) throw new Error(`Unknown command ${command}. See fam cli.command list --provider ancestry.`);
+    if (!known.includes(command)) throw new InputError(`Unknown command ${command}. See fam cli.command list --provider ancestry.`);
     if (!['refresh', 'trees', 'search'].includes(command)) need(first, command === 'call' || command === 'gql' ? 'operation' : 'argument');
     if (['person', 'relatives', 'research', 'story', 'hints', 'media'].includes(command)) need(second, 'person ID');
     if (command === 'record') need(second, 'record ID');

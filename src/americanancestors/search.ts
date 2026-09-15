@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import {AmericanAncestorsError} from './http.js';
 export const relationships = ['Any','Father','Mother','Spouse'] as const;
 export interface FamilyMember {relationship: typeof relationships[number]; firstName?: string; lastName?: string}
@@ -19,34 +20,34 @@ export function searchFields(value: unknown): SearchField[] {
   return result;
 }
 export function validateSearch(o: SearchOptions) {
-  if (!o || typeof o !== 'object' || Array.isArray(o)) throw new Error('Search options must be an object.');
+  if (!o || typeof o !== 'object' || Array.isArray(o)) throw new InputError('Search options must be an object.');
   const strings = ['firstName','lastName','keywords','location','fromYear','toYear','collection','category','project','recordType','volumeId','pageName'];
   const booleans = ['exact','soundex','free','images'];
   for (const [k,v] of Object.entries(o)) {
     if (v === undefined) continue;
-    if (strings.includes(k)) {if (typeof v !== 'string' || v.length > 2000 || /[\0\r\n]/.test(v)) throw new Error(`Invalid ${k} search criterion.`);}
-    else if (booleans.includes(k)) {if (typeof v !== 'boolean') throw new Error(`Invalid ${k} search criterion.`);}
-    else if (!['page','family','fields'].includes(k)) throw new Error('Unsupported American Ancestors search criterion.');
+    if (strings.includes(k)) {if (typeof v !== 'string' || v.length > 2000 || /[\0\r\n]/.test(v)) throw new InputError(`Invalid ${k} search criterion.`);}
+    else if (booleans.includes(k)) {if (typeof v !== 'boolean') throw new InputError(`Invalid ${k} search criterion.`);}
+    else if (!['page','family','fields'].includes(k)) throw new InputError('Unsupported American Ancestors search criterion.');
   }
-  if (![o.firstName,o.lastName,o.keywords,o.collection].some(v => v?.trim())) throw new Error('Supply a first name, last name, keywords, or collection title.');
-  if (!Number.isSafeInteger(o.page ?? 1) || (o.page ?? 1) < 1 || (o.page ?? 1) > 1_000_000) throw new Error('Page must be an integer between 1 and 1000000.');
-  if (o.exact && o.soundex) throw new Error('Choose either exact or soundex matching.');
-  for (const y of [o.fromYear,o.toYear]) if (y !== undefined && !/^\d{4}$/.test(y)) throw new Error('Years must have four digits.');
-  if (o.fromYear && o.toYear && o.fromYear > o.toYear) throw new Error('From year must be on or before to year.');
-  if ((o.volumeId || o.pageName) && !o.collection) throw new Error('Volume and page filters require a collection title.');
-  if (o.volumeId && !/^\d+$/.test(o.volumeId)) throw new Error('Volume ID must be a decimal string.');
+  if (![o.firstName,o.lastName,o.keywords,o.collection].some(v => v?.trim())) throw new InputError('Supply a first name, last name, keywords, or collection title.');
+  if (!Number.isSafeInteger(o.page ?? 1) || (o.page ?? 1) < 1 || (o.page ?? 1) > 1_000_000) throw new InputError('Page must be an integer between 1 and 1000000.');
+  if (o.exact && o.soundex) throw new InputError('Choose either exact or soundex matching.');
+  for (const y of [o.fromYear,o.toYear]) if (y !== undefined && !/^\d{4}$/.test(y)) throw new InputError('Years must have four digits.');
+  if (o.fromYear && o.toYear && o.fromYear > o.toYear) throw new InputError('From year must be on or before to year.');
+  if ((o.volumeId || o.pageName) && !o.collection) throw new InputError('Volume and page filters require a collection title.');
+  if (o.volumeId && !/^\d+$/.test(o.volumeId)) throw new InputError('Volume ID must be a decimal string.');
   if (o.family !== undefined) {
-    if (!Array.isArray(o.family) || o.family.length > 3) throw new Error('Specify at most three family members.');
+    if (!Array.isArray(o.family) || o.family.length > 3) throw new InputError('Specify at most three family members.');
     for (const member of o.family) {
-      if (!member || typeof member !== 'object' || Array.isArray(member) || Object.keys(member).some(k=>!['relationship','firstName','lastName'].includes(k)) || !relationships.includes(member.relationship)) throw new Error('Family relationship must be Any, Father, Mother, or Spouse.');
-      for (const value of [member.firstName,member.lastName]) if (value !== undefined && (typeof value !== 'string' || value.length > 200 || /[\0\r\n]/.test(value))) throw new Error('Invalid family member name.');
-      if (!member.firstName?.trim() && !member.lastName?.trim()) throw new Error('Each family member requires a first or last name.');
+      if (!member || typeof member !== 'object' || Array.isArray(member) || Object.keys(member).some(k=>!['relationship','firstName','lastName'].includes(k)) || !relationships.includes(member.relationship)) throw new InputError('Family relationship must be Any, Father, Mother, or Spouse.');
+      for (const value of [member.firstName,member.lastName]) if (value !== undefined && (typeof value !== 'string' || value.length > 200 || /[\0\r\n]/.test(value))) throw new InputError('Invalid family member name.');
+      if (!member.firstName?.trim() && !member.lastName?.trim()) throw new InputError('Each family member requires a first or last name.');
     }
   }
   if (o.fields !== undefined) {
-    if (!o.fields || typeof o.fields !== 'object' || Array.isArray(o.fields) || Object.keys(o.fields).length > 20) throw new Error('Fields must be an object with at most 20 criteria.');
-    if (Object.keys(o.fields).length && !o.collection?.trim()) throw new Error('Collection-specific fields require an exact collection title.');
-    for (const [k,v] of Object.entries(o.fields)) if (!k.trim() || !['string','boolean'].includes(typeof v) || typeof v === 'string' && (!v.trim() || v.length > 2000 || /[\0\r\n]/.test(v))) throw new Error('Each field needs a name or ID and a nonempty string or boolean value.');
+    if (!o.fields || typeof o.fields !== 'object' || Array.isArray(o.fields) || Object.keys(o.fields).length > 20) throw new InputError('Fields must be an object with at most 20 criteria.');
+    if (Object.keys(o.fields).length && !o.collection?.trim()) throw new InputError('Collection-specific fields require an exact collection title.');
+    for (const [k,v] of Object.entries(o.fields)) if (!k.trim() || !['string','boolean'].includes(typeof v) || typeof v === 'string' && (!v.trim() || v.length > 2000 || /[\0\r\n]/.test(v))) throw new InputError('Each field needs a name or ID and a nonempty string or boolean value.');
   }
 }
 export function searchQuery(o: SearchOptions = {}, schema?: SearchField[]) {
@@ -57,12 +58,12 @@ export function searchQuery(o: SearchOptions = {}, schema?: SearchField[]) {
   (o.family ?? []).forEach((f,i)=>{q.set(`fam${i+1}type`,f.relationship);if(f.firstName?.trim())q.set(`fam${i+1}first`,f.firstName.trim());if(f.lastName?.trim())q.set(`fam${i+1}last`,f.lastName.trim());});
   const seen = new Set<string>();
   Object.entries(o.fields ?? {}).forEach(([key,value],i)=>{
-    if (!schema) throw new Error('Collection field metadata is required to build this query; use client.search().');
+    if (!schema) throw new InputError('Collection field metadata is required to build this query; use client.search().');
     const matches = schema.filter(f=>f.id===key || f.name.toLowerCase()===key.trim().toLowerCase());
-    if (matches.length !== 1) throw new Error(`Unknown or ambiguous collection field: ${key}. Inspect fam americanancestors.collection get.`);
-    const f=matches[0];if(seen.has(f.id))throw new Error('The same collection field was supplied more than once.');seen.add(f.id);
-    if (f.type==='boolean' && value!==true && value!=='true') throw new Error('Boolean collection fields accept true only; omit the field to disable that restriction.');
-    if (f.type==='string' && typeof value!=='string') throw new Error(`Collection field ${f.name} requires text.`);
+    if (matches.length !== 1) throw new InputError(`Unknown or ambiguous collection field: ${key}. Inspect fam americanancestors.collection get.`);
+    const f=matches[0];if(seen.has(f.id))throw new InputError('The same collection field was supplied more than once.');seen.add(f.id);
+    if (f.type==='boolean' && value!==true && value!=='true') throw new InputError('Boolean collection fields accept true only; omit the field to disable that restriction.');
+    if (f.type==='string' && typeof value!=='string') throw new InputError(`Collection field ${f.name} requires text.`);
     q.set(`[${i}].AttType`,f.kind);q.set(`[${i}].Id`,f.id);q.set(`[${i}].Name`,f.name);q.set(`[${i}].Value`,String(value));
   });
   return q;

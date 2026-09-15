@@ -5,6 +5,8 @@ export type Query = Record<string, QueryValue>;
 export type UploadBody = FormData | Blob | Uint8Array | string;
 export type ResponseMode = 'json' | 'void' | 'text' | 'binary';
 export interface ApiRequest {
+  /** Explicitly known read-only POSTs may use transient retries; writes must not. */
+  retryable?: boolean;
   method?: HttpMethod;
   query?: Query;
   headers?: Record<string, string>;

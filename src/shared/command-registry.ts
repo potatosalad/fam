@@ -172,6 +172,7 @@ const options: Record<string, Partial<Flag>> = {
   code: {sensitive: true}, 'verification-code': {sensitive: true},
   latitude: {type: 'number', minimum: -90, maximum: 90}, longitude: {type: 'number', minimum: -180, maximum: 180},
   distance: {type: 'integer', minimum: 1},
+  'fail-fast': {type:'boolean', binding:false, description:'Disable transient read retries; authentication and verification recovery are unchanged.'},
   'dry-run': {binding: false}, json: {binding: false}, help: {binding: false},
 };
 function flag(name: string, override: Partial<Flag> = {}): Flag {
@@ -188,7 +189,7 @@ function add(provider: Command['provider'], legacy: string, objectAction: string
   const positionals = positional.map(name => name.replace(/^\?/, ''));
   const flagList = [...(!['cli', 'internetarchive'].includes(provider) ? [flag('transport', {choices: ['auto','http','browser'], binding: false, description: 'Override automatic HTTP/browser transport for this command.'}), flag('browser-timeout', {type: 'integer', minimum: 0, maximum: 3600, binding: false, description: 'Override the wait for browser verification, in seconds.'})] : []), ...positional.map(name => flag(name.replace(/^\?/, ''), {required: !name.startsWith('?')})),
     ...names.split(' ').filter(Boolean).map(name => flag(name)),
-    ...['out', 'json', 'dry-run', 'help'].filter(name => !names.split(' ').includes(name) && !positionals.includes(name)).map(name => flag(name))];
+    ...['out', 'json', 'dry-run', 'fail-fast', 'help'].filter(name => !names.split(' ').includes(name) && !positionals.includes(name)).map(name => flag(name))];
   for (const f of flagList) Object.assign(f, extra.flags?.[f.name]);
   const cmd: Command = {id: `${provider}.${object} ${action}`, provider, object, action, description,
     flags: flagList, examples: [], schemaMode: 'advisory', confirmationRequirement: 'none',

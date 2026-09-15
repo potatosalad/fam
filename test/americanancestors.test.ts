@@ -1,3 +1,4 @@
+import {downloadImage} from '../src/americanancestors/download.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {AmericanAncestorsHttp,checkUrl,WEB,APP,ACCOUNT,type Transport} from '../src/americanancestors/http.js';
@@ -101,4 +102,19 @@ test('scan download validates octet-stream pixels, removes tile overlap and refu
   const dir=await mkdtemp(join(tmpdir(),'fam-aa-image-')),path=join(dir,'scan.png');
   try {await saveDownload(path,result);assert.equal((await stat(path)).mode&0o777,0o600);assert.match(await readFile(path+'.json','utf8'),/Example citation/);await assert.rejects(saveDownload(path,result));assert.deepEqual(await readFile(path),result.bytes);}
   finally {await rm(dir,{recursive:true,force:true});}
+});
+
+
+test('recognized pages without a scan retain citation and navigation instead of reporting schema changes', async()=>{
+  const html=`<script>initImage('', jQuery.parseJSON('true'), 'private-token')</script>
+    <input id="hdnCollectionID" value="27"><input id="hdnVolumeid" value="12"><input id="pages" value="4">
+    <input id="hdnNextPageName" value="5"><div id="divClipboardURLTranscript">Example citation</div>`;
+  const page=imageDetails(html,WEB+'/databases/example/image/?volumeId=12&pageName=4');
+  assert.equal(page.available,false);assert.equal(page.imageSource,null);assert.equal(page.unavailableReason,'image-unavailable');
+  assert.equal(page.collectionId,'27');assert.equal(page.volumeId,'12');assert.equal(page.pageName,'4');
+  assert.equal(page.citation,'Example citation');assert.match(page.nextUrl!,/pageName=5/);assert.equal(page.downloadAvailable,false);
+  assert.ok(!JSON.stringify(page).includes('private-token'));
+  const client=new AmericanAncestorsClient();client.image=async()=>page;
+  await assert.rejects(downloadImage(client,page.sourceUrl),{code:'IMAGE_UNAVAILABLE'});
+  assert.throws(()=>imageDetails("<script>initImage('', jQuery.parseJSON('true'))</script>",WEB),{code:'api-changed'});
 });

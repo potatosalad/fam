@@ -1,11 +1,11 @@
 import {readFile} from 'node:fs/promises';
-import {setTimeout as delay} from 'node:timers/promises';
+import {retryRead} from '../shared/read-retry.js';
 import {parseJson} from '../shared/json.js';
 
 export const ARCHIVE = 'https://archive.org';
 export const FULLTEXT = 'https://be-api.us.archive.org/ia-pub-fts-api';
 export class InternetArchiveError extends Error {
-  constructor(message: string, readonly code = 'INTERNETARCHIVE_ERROR') {super(message);}
+  constructor(message: string, readonly code = 'INTERNETARCHIVE_ERROR', readonly status?: number) {super(message);}
 }
 export function integer(value: number, name: string, min: number, max: number): number {
   if (!Number.isSafeInteger(value) || value < min || value > max) throw new InternetArchiveError(`${name} must be an integer from ${min} to ${max}.`, 'INVALID_ARGUMENT');
@@ -61,12 +61,12 @@ export class ArchiveHttp {
     const signal = AbortSignal.timeout(this.timeout);
     const headers = {'User-Agent': await this.userAgent(), Accept: options.download ? '*/*' : 'application/json',
       ...(options.body !== undefined ? {'Content-Type': 'application/json'} : {})};
-    let redirects = 0, retries = 0;
+    let redirects = 0;
     while (true) {
       let response: Response;
       try {
-        response = await this.fetcher(url, {method: options.body === undefined ? 'GET' : 'POST', headers,
-          body: options.body === undefined ? undefined : JSON.stringify(options.body), redirect: 'manual', credentials: 'omit', signal});
+        response = await retryRead('internetarchive', () => this.fetcher(url, {method: options.body === undefined ? 'GET' : 'POST', headers,
+          body: options.body === undefined ? undefined : JSON.stringify(options.body), redirect: 'manual', credentials: 'omit', signal}), {signal, enabled:options.body === undefined || url.href === FULLTEXT});
       } catch {
         throw new InternetArchiveError(signal.aborted ? 'Internet Archive request timed out; retry or increase --timeout.' : 'Internet Archive network request failed.', 'NETWORK_ERROR');
       }
@@ -80,17 +80,12 @@ export class ArchiveHttp {
       if ([429,502,503,504].includes(response.status)) {
         await response.body?.cancel();
         const after = response.headers.get('retry-after');
-        const seconds = after === null ? 2 ** retries : /^\d+$/.test(after) ? Number(after) : Math.max(0, (Date.parse(after) - Date.now()) / 1000);
-        if (retries++ < 2 && Number.isFinite(seconds) && seconds <= 10) {
-          try {await delay(seconds * 1000, undefined, {signal});} catch {throw new InternetArchiveError('Internet Archive request timed out during retry.', 'NETWORK_ERROR');}
-          continue;
-        }
         throw new InternetArchiveError(`Internet Archive returned HTTP ${response.status}; retry later${after ? ` (Retry-After: ${after})` : ''}.`, response.status === 429 ? 'RATE_LIMITED' : 'SERVICE_UNAVAILABLE');
       }
       if (!response.ok) {
         await response.body?.cancel();
         if ([401,403].includes(response.status)) throw new InternetArchiveError('Internet Archive denied anonymous access. Restricted files may require account permissions or borrowing; this provider uses public access only.', 'ACCESS_DENIED');
-        throw new InternetArchiveError(`Internet Archive returned HTTP ${response.status}.`, response.status === 404 ? 'NOT_FOUND' : 'HTTP_ERROR');
+        throw new InternetArchiveError(`Internet Archive returned HTTP ${response.status}.`, response.status === 404 ? 'NOT_FOUND' : 'HTTP_ERROR', response.status);
       }
       return response;
     }

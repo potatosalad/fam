@@ -88,7 +88,7 @@ For account metadata, POST `/service/mobile/api/v1/login?includeScopes=true` wit
 
 Despite the `password` label, this **metadata request contains no username or password**. The API uses the bearer session. The response contains `user`, `access_token`, scope/capability fields, and account feature flags. `loginMetadata()` removes tokens from its return value. APK evidence: `vag`, `MetadataOnlyLoginRequest`, and calls in `a8d`.
 
-Automatic renewal reacts to HTTP 401, then retries the rejected request once. Refresh HTTP 400/401 triggers a fresh username/password flow. Rate limits, network failures, and permission errors propagate. Writes are not retried after ambiguous network or server failures. Cross-process refresh coordination and interactive MFA are not implemented. Completing sign-in from a brand-new session, refreshing, and reading with the renewed session were tested; waiting for actual server-side token expiry was not.
+Automatic renewal reacts to HTTP 401, then retries the rejected request once. Refresh HTTP 400/401 triggers a fresh username/password flow. Read requests use the [bounded transient retry policy](../cli.md#transient-failures-and-input-errors); permission errors propagate. `--fail-fast` disables transient retries. Writes are not retried after ambiguous network or server failures. Cross-process refresh coordination and interactive MFA are not implemented. Completing sign-in from a brand-new session, refreshing, and reading with the renewed session were tested; waiting for actual server-side token expiry was not.
 
 ## Verified read endpoints
 

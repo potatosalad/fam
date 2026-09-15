@@ -59,14 +59,14 @@ export class AncestryClient {
   async graphql<T = unknown, N extends GraphQLName = GraphQLName>(name: N, variables: Variables<N>): Promise<T> {
     const operation = graphqlOperation(name);
     validateVariables(operation, variables as Record<string, unknown>);
-    const {data} = await this.request<GraphQLResult<T>>('/graphql/federation', {method: 'POST', body: {operationName: operation.name, query: operation.document, variables}});
+    const {data} = await this.request<GraphQLResult<T>>('/graphql/federation', {method: 'POST', retryable:operation.kind === 'query', body: {operationName: operation.name, query: operation.document, variables}});
     if (data.errors?.length) throw new AncestryGraphQLError(operation.name, data);
     if (data.data == null) throw new Error(`Ancestry GraphQL ${operation.name} returned no data.`);
     return data.data;
   }
   async call<T = unknown>(name: string, args: RestArguments = {}): Promise<T> {
     const request = prepareRest(name, args, this.session.tokens.user_id);
-    return (await this.request<T>(request.url, request.options)).data;
+    return (await this.request<T>(request.url, {...request.options, ...(['search.records','records.get'].includes(name) ? {retryable:true} : {})})).data;
   }
   trees(limit = 20, nextPageCursor?: string) { return this.graphql<TreeList, 'GetTreeList'>('GetTreeList', {limit, nextPageCursor}); }
   tree(treeId: string) { return this.graphql('GetTree', {treeId}); }

@@ -4,10 +4,11 @@ import {BrowserError, directOnly, endpointId, rememberBrowser, useBrowser} from 
 import {configuredBrowser, updateCookieJar, jarCookies, type BrowserTab} from './browser-runtime.js';
 import {isChallenge, isChallengeResponse as challenged} from './browser-challenge.js';
 import {reportDiagnostic} from './diagnostics.js';
+import {retryRead} from './read-retry.js';
 export {isChallenge} from './browser-challenge.js';
 
 export type HttpResponse = Pick<Response, 'status' | 'headers' | 'arrayBuffer'> & {body?: ReadableStream<Uint8Array> | null};
-export type HttpInit = {method?: string; headers?: HeadersInit; body?: unknown; redirect?: string; signal?: AbortSignal | null};
+export type HttpInit = {method?: string; headers?: HeadersInit; body?: unknown; redirect?: string; signal?: AbortSignal | null; retryable?: boolean};
 async function normalize(response: HttpResponse): Promise<Response> {
   if (response instanceof Response) return response;
   if (response.body) return new Response([204,205,304].includes(response.status) ? null : response.body as BodyInit, {status: response.status, headers: response.headers});
@@ -103,15 +104,16 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
     throw error;
   }
 }
-/** Recover only evidenced challenge responses. Network failures, ordinary 403s,
- * rate limits and provider errors retain their original behavior. */
+/** Preserve challenge recovery and apply bounded transient recovery to reads. */
 export async function fetchWithBrowser(provider: string, url: string | URL, init: HttpInit, direct: () => Promise<HttpResponse>, jar?: CookieJar, sessionCookies: string[] = []): Promise<Response> {
   const target = new URL(url);
-  if (await useBrowser(provider, target.origin)) return browserRequest(provider, target, init, jar, sessionCookies);
-  const response = await normalize(await direct());
-  if (await directOnly() || !await challenged(response)) return response;
-  void response.body?.cancel().catch(() => {});
-  reportDiagnostic('BROWSER_FALLBACK', 'Website verification required automatic browser transport.');
-  process.stderr.write(`${provider}: website verification required; continuing in the browser…\n`);
-  return browserRequest(provider, target, init, jar, sessionCookies);
+  return retryRead(provider, async () => {
+    if (await useBrowser(provider, target.origin)) return browserRequest(provider, target, init, jar, sessionCookies);
+    const response = await normalize(await direct());
+    if (await directOnly() || !await challenged(response)) return response;
+    void response.body?.cancel().catch(() => {});
+    reportDiagnostic('BROWSER_FALLBACK', 'Website verification required automatic browser transport.');
+    process.stderr.write(`${provider}: website verification required; continuing in the browser…\n`);
+    return browserRequest(provider, target, init, jar, sessionCookies);
+  }, {enabled: init.retryable ?? ['GET','HEAD'].includes((init.method ?? 'GET').toUpperCase()), signal: init.signal});
 }

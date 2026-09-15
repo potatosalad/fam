@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import {NewspapersHttp, NewspapersError, WEB} from './http.js';
 import {account, pageMetadata, publicValue} from './parse.js';
 import {loadSession, loginNewspapers, saveSession, type NewspapersSession} from './auth.js';
@@ -5,43 +6,43 @@ import {directOnly} from '../shared/browser-config.js';
 import {downloadPage} from './download.js';
 import {articleId, articleTypes, recordType, selectArticle, clippingRecord, type ArticleType, type RecordType} from './records.js';
 export function id(value: unknown): string {
-  if (typeof value !== 'string' || !/^[1-9]\d{0,19}$/.test(value)) throw new Error('Newspapers IDs must be positive decimal strings.');
+  if (typeof value !== 'string' || !/^[1-9]\d{0,19}$/.test(value)) throw new InputError('Newspapers IDs must be positive decimal strings.');
   return value;
 }
 export function integer(value: number, min = 1, max = 100) {
-  if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`Expected an integer between ${min} and ${max}.`);
+  if (!Number.isSafeInteger(value) || value < min || value > max) throw new InputError(`Expected an integer between ${min} and ${max}.`);
   return value;
 }
 export function date(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)) || new Date(value).toISOString().slice(0,10) !== value) throw new Error('Use a real calendar date in YYYY-MM-DD form.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)) || new Date(value).toISOString().slice(0,10) !== value) throw new InputError('Use a real calendar date in YYYY-MM-DD form.');
   return value;
 }
-function text(value: string, max = 2000) {if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f]/.test(value)) throw new Error(`Expected nonempty text of at most ${max} characters.`); return value.trim();}
+function text(value: string, max = 2000) {if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f]/.test(value)) throw new InputError(`Expected nonempty text of at most ${max} characters.`); return value.trim();}
 export interface SearchOptions {type?:RecordType; keyword?:string; publicationId?:string; country?:string; region?:string; city?:string; from?:string; to?:string; sort?:'score'|'date-asc'|'date-desc'; limit?:number; cursor?:string}
 export function searchQuery(options: SearchOptions = {}) {
   const query: Record<string,string> = {product:'1','entity-types':recordType(options.type ?? 'page'),count:String(integer(options.limit ?? 20)),start:options.cursor === undefined ? '*' : text(options.cursor,4096)};
-  if (!options.keyword?.trim() && !options.publicationId) throw new Error('Supply --keyword or --publication-id.');
+  if (!options.keyword?.trim() && !options.publicationId) throw new InputError('Supply --keyword or --publication-id.');
   if (options.keyword !== undefined) query.keyword = text(options.keyword);
   if (options.publicationId !== undefined) query['publication-ids'] = id(options.publicationId);
   for (const key of ['country','region','city'] as const) if (options[key] !== undefined) query[key] = text(options[key],200).toLowerCase();
-  if (query.country && !/^[a-z]{2}$/.test(query.country)) throw new Error('--country needs a two-letter country code, such as us.');
-  if (query.region && !/^[a-z]{2}-[a-z0-9]{1,3}$/.test(query.region)) throw new Error('--region needs a country-region code, such as us-ut.');
-  if (query.city && !query.country && !query.region) throw new Error('--city requires --country or --region.');
-  if (!!options.from !== !!options.to) throw new Error('Use --from and --to together.');
-  if (options.from && options.to) {query['date-start']=date(options.from);query['date-end']=date(options.to);if (options.from > options.to) throw new Error('--from must be on or before --to.');}
-  if (options.sort !== undefined) {if (!['score','date-asc','date-desc'].includes(options.sort)) throw new Error('Sort must be score, date-asc, or date-desc.');query.sort=options.sort==='score'?'score-desc':`paper-${options.sort}`;}
+  if (query.country && !/^[a-z]{2}$/.test(query.country)) throw new InputError('--country needs a two-letter country code, such as us.');
+  if (query.region && !/^[a-z]{2}-[a-z0-9]{1,3}$/.test(query.region)) throw new InputError('--region needs a country-region code, such as us-ut.');
+  if (query.city && !query.country && !query.region) throw new InputError('--city requires --country or --region.');
+  if (!!options.from !== !!options.to) throw new InputError('Use --from and --to together.');
+  if (options.from && options.to) {query['date-start']=date(options.from);query['date-end']=date(options.to);if (options.from > options.to) throw new InputError('--from must be on or before --to.');}
+  if (options.sort !== undefined) {if (!['score','date-asc','date-desc'].includes(options.sort)) throw new InputError('Sort must be score, date-asc, or date-desc.');query.sort=options.sort==='score'?'score-desc':`paper-${options.sort}`;}
   return query;
 }
 export interface ClippingSearchOptions {keyword?:string;user?:string;mine?:boolean;tag?:string;region?:string;publicationId?:string;from?:string;to?:string;sort?:'modified-desc'|'modified-asc'|'date-desc'|'date-asc'|'score';limit?:number;cursor?:string}
 export function clippingQuery(options:ClippingSearchOptions={}) {
-  if(options.mine!==undefined&&typeof options.mine!=='boolean')throw new Error('mine must be a boolean.');
-  if(options.mine&&options.user!==undefined)throw new Error('Choose --mine or --user.');
+  if(options.mine!==undefined&&typeof options.mine!=='boolean')throw new InputError('mine must be a boolean.');
+  if(options.mine&&options.user!==undefined)throw new InputError('Choose --mine or --user.');
   const query:Record<string,string>={product_id:'1',visibility:options.mine?'all':'public',count:String(integer(options.limit??24)),cursor_mark:options.cursor===undefined?'*':text(options.cursor,4096)};
   for(const key of ['keyword','user','tag','region'] as const)if(options[key]!==undefined)query[key]=text(options[key]!,key==='keyword'?2000:200);
   if(options.publicationId!==undefined)query.title=id(options.publicationId);
-  if(!!options.from!==!!options.to)throw new Error('Use --from and --to together.');
-  if(options.from&&options.to){query.date_start=date(options.from);query.date_end=date(options.to);if(options.from>options.to)throw new Error('--from must be on or before --to.');}
-  if(options.sort!==undefined){if(!['modified-desc','modified-asc','date-desc','date-asc','score'].includes(options.sort))throw new Error('Unknown clipping sort.');query.sort=options.sort==='score'?'score-desc':options.sort.startsWith('date-')?`paper-${options.sort}`:options.sort;}
+  if(!!options.from!==!!options.to)throw new InputError('Use --from and --to together.');
+  if(options.from&&options.to){query.date_start=date(options.from);query.date_end=date(options.to);if(options.from>options.to)throw new InputError('--from must be on or before --to.');}
+  if(options.sort!==undefined){if(!['modified-desc','modified-asc','date-desc','date-asc','score'].includes(options.sort))throw new InputError('Unknown clipping sort.');query.sort=options.sort==='score'?'score-desc':options.sort.startsWith('date-')?`paper-${options.sort}`:options.sort;}
   return query;
 }
 export const operations = {

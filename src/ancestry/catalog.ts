@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import { contracts } from './generated/contracts.js';
 import { GATEWAY, checkAncestryUrl } from './http.js';
 import type { ApiRequest, HttpMethod, Query } from '../familysearch/transport-types.js';
@@ -32,22 +33,22 @@ export type Variables<N extends GraphQLName, V extends {name: string; type: stri
   {[P in V as P['required'] extends false ? P['name'] : never]?: Scalar<P['type']> | null};
 export function graphqlOperation(name: string): GraphQLOperation {
   const operation = contracts.graphql.find(op => op.name === name || op.id === name);
-  if (!operation) throw new Error(`Unknown GraphQL operation: ${name}. Use fam ancestry.api list.`);
+  if (!operation) throw new InputError(`Unknown GraphQL operation: ${name}. Use fam ancestry.api list.`);
   return operation;
 }
 export function validateVariables(operation: GraphQLOperation, variables: Record<string, unknown>): void {
   for (const variable of operation.variables) {
-    if (variable.required && variables[variable.name] == null) throw new Error(`${operation.name} requires ${variable.name}: ${variable.type}.`);
+    if (variable.required && variables[variable.name] == null) throw new InputError(`${operation.name} requires ${variable.name}: ${variable.type}.`);
   }
   for (const name of Object.keys(variables)) {
-    if (!operation.variables.some(v => v.name === name)) throw new Error(`Unknown variable ${name} for ${operation.name}.`);
+    if (!operation.variables.some(v => v.name === name)) throw new InputError(`Unknown variable ${name} for ${operation.name}.`);
   }
 }
 export function restOperation(name: string) {
   const alias = aliases[name as RestAlias];
   const id = alias ? alias.startsWith('rest.') ? alias : `rest.com.ancestry.service.apis.${alias}` : name;
   const operation = contracts.rest.find(op => op.id === id);
-  if (!operation) throw new Error(`Unknown REST operation: ${name}. Use fam ancestry.api list.`);
+  if (!operation) throw new InputError(`Unknown REST operation: ${name}. Use fam ancestry.api list.`);
   return operation;
 }
 export interface RestArguments {
@@ -64,11 +65,11 @@ export function prepareRest(name: string, args: RestArguments = {}, userId?: str
   // These genealogy interfaces are constructed with the live gateway Retrofit provider.
   const gateway = /^com\/ancestry\/service\/apis\/(TreeIOApi|TimelineApi|Pm3CacheApi|RecordApi|CollectionApi|AncestryApi)$/.test(operation.owner)
     || ['zk0/m0', 'zk0/z'].includes(operation.owner);
-  if (!args.base && !gateway) throw new Error('This declaration has no confirmed base mapping; supply base explicitly after checking its APK call site.');
+  if (!args.base && !gateway) throw new InputError('This declaration has no confirmed base mapping; supply base explicitly after checking its APK call site.');
   const base = args.base ?? GATEWAY;
   const path = operation.path.replace(/\{([^}]+)\}/g, (_, key: string) => {
     const value = args.path?.[key] ?? (/^userid$/i.test(key) ? userId : undefined);
-    if (value == null || String(value) === '' || ['.', '..'].includes(String(value))) throw new Error(`Missing or invalid path parameter ${key}.`);
+    if (value == null || String(value) === '' || ['.', '..'].includes(String(value))) throw new InputError(`Missing or invalid path parameter ${key}.`);
     return encodeURIComponent(String(value));
   });
   const url = new URL(`${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`);
@@ -76,9 +77,9 @@ export function prepareRest(name: string, args: RestArguments = {}, userId?: str
   const headers: Record<string, string> = {...operation.headers, ...args.headers};
   let body = args.body;
   let encoding: ApiRequest['encoding'] = 'json';
-  if (operation.parameters.some(p => p.kind === 'Body' || p.kind === 'FieldMap') && body === undefined) throw new Error(`${name} requires body; inspect fam ancestry.api describe --operation ${name}.`);
+  if (operation.parameters.some(p => p.kind === 'Body' || p.kind === 'FieldMap') && body === undefined) throw new InputError(`${name} requires body; inspect fam ancestry.api describe --operation ${name}.`);
   if (operation.encoding === 'form') {
-    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Form body must be an object.');
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new InputError('Form body must be an object.');
     body = new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)])).toString();
     headers['Content-Type'] = 'application/x-www-form-urlencoded'; encoding = 'raw';
   }

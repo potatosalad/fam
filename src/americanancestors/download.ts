@@ -17,6 +17,7 @@ export function deepZoom(xml: string) {
 }
 export async function downloadImage(client: AmericanAncestorsClient, source: string) {
   const image = await client.image(source);
+  if (!image.imageSource) throw Object.assign(new Error('American Ancestors did not provide an image for this page. Use fam americanancestors.image get for its page metadata.'), {code:'IMAGE_UNAVAILABLE'});
   if (image.kind === 'familysearch') throw new Error('This scan is hosted by FamilySearch. Use fam americanancestors.image get for its ARK, then fam familysearch.image download with your FamilySearch session.');
   if (!image.downloadAvailable) throw new AmericanAncestorsError('access-denied');
   const manifest = checkUrl(image.imageSource,true), xml = await client.http.text(manifest,{media:true}), info = deepZoom(xml.text);

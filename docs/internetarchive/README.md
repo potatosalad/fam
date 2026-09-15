@@ -192,7 +192,7 @@ The [metadata read API](https://archive.org/developers/md-read.html) can report 
 
 Requests identify `fam/VERSION` and use HTTPS. Add `--user-agent-suffix 'YourTool/1.0 (MODEL)'` when running an automated agent, as requested by Archive.org's [automated-access guidance](https://archive.org/developers/bots.html). API calls use HTTP directly, with no browser fallback. Download redirects are limited to Archive.org and recognized Archive.org storage nodes; authentication pages and other origins are refused.
 
-The per-request timeout is 60 seconds by default, configurable with `--timeout` from 1 to 3600. HTTP 429/502/503/504 receive at most two retries. fam honors `Retry-After` values up to ten seconds within that timeout; longer waits fail with guidance to retry later. Page/search calls do not automatically follow result pages; an explicit research-cache batch processes its selected books sequentially. Space out repeated requests and save results instead of repeatedly fetching the same material.
+The per-request timeout is 60 seconds by default, configurable with `--timeout` from 1 to 3600. Temporary connection failures and HTTP 429/502/503/504 receive at most two retries, with stderr progress. fam honors `Retry-After` within a cumulative 30-second backoff budget and the existing request timeout; longer waits fail with guidance to retry later. `--fail-fast` disables transient retries. Page/search calls do not automatically follow result pages; an explicit research-cache batch processes its selected books sequentially. Space out repeated requests and save results instead of repeatedly fetching the same material.
 
 ```sh
 fam cli.health check --provider internetarchive --offline

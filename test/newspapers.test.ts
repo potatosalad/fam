@@ -227,7 +227,11 @@ test('download preserves JPEG bytes, validates all pixels, and withholds signed 
  const metadata=JSON.stringify(result.metadata);assert.ok(!metadata.includes('synthetic-private'));assert.ok(!metadata.includes('img/img'));assert.match(result.metadata.sha256,/^[a-f0-9]{64}$/);
  const png=await sharp(jpg).png().toBuffer();
  const thumbnail=await sharp(jpg).resize(16,24).jpeg().toBuffer();
- for(const [bytes,type] of [[jpg,'text/html'],[Buffer.from('<html>synthetic-private</html>'),'image/jpeg'],[png,'image/jpeg'],[thumbnail,'image/jpeg'],[jpg.subarray(0,jpg.length-20),'image/jpeg']] as const){
+ for (const bytes of [thumbnail, await sharp(jpg).resize(31,48).jpeg().toBuffer()]) {
+  const actual=await sharp(bytes).metadata(), accepted=await downloadClient(downloadAuthorization,bytes).download('123');
+  assert.deepEqual(accepted.bytes,bytes);assert.equal(accepted.metadata.width,actual.width);assert.equal(accepted.metadata.height,actual.height);
+ }
+ for(const [bytes,type] of [[jpg,'text/html'],[Buffer.from('<html>synthetic-private</html>'),'image/jpeg'],[png,'image/jpeg'],[jpg.subarray(0,jpg.length-20),'image/jpeg']] as const){
   await assert.rejects(downloadClient(downloadAuthorization,bytes,type).download('123'),{code:'api-changed'});
  }
  const dir=await mkdtemp(join(tmpdir(),'fam-newspapers-download-'));

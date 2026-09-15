@@ -306,3 +306,35 @@ test('lexical retrieval returns known commands and prefilled context without inv
   assert.deepEqual(resolveContext('https://www.familysearch.org.evil.example/ark:/61903/3:1:TEST').flags, {});
   assert.deepEqual(await searchCommands('download original image', {lexical: true}), await searchCommands('download original image', {lexical: true}));
 });
+
+test('negative record IDs survive both parsers unchanged, including the spaced flag spelling',async()=>{
+  const {AncestryClient}=await import('../src/ancestry/client.js');
+  const original=AncestryClient.open, seen:string[][]=[];
+  AncestryClient.open=async()=>({record:async(collectionId:string,recordId:string)=>{seen.push([collectionId,recordId]);return {recordId};}} as unknown as AncestryClient);
+  try {
+    for(const flags of [['--record-id','-9007199254740993123'],['--record-id=-9007199254740993123']]) {
+      const result=await providerInvoke('ancestry.record','get','--collection-id','123',...flags);
+      assert.deepEqual(result,{recordId:'-9007199254740993123'});
+    }
+    assert.deepEqual(seen,[['123','-9007199254740993123'],['123','-9007199254740993123']]);
+  }finally{AncestryClient.open=original;}
+});
+test('known provider input errors use INVALID_ARGUMENT and exit 2 without adding remote validation',async()=>{
+  for(const args of [
+    ['newspapers.page','get','--page-id','invalid'],
+    ['americanancestors.record','search','--last-name','Example','--from-year','123'],
+  ]){
+    const result=await invoke(...args,'--json').catch(error=>error);
+    assert.equal(result.code,2);assert.equal(result.stdout,'');assert.equal(JSON.parse(result.stderr).error.code,'INVALID_ARGUMENT');
+  }
+  const {prepareOperation,validateOperationResponse}=await import('../src/familysearch/operations.js');
+  assert.throws(()=>prepareOperation('search.results',{searchType:'TREE'}),{code:'INVALID_ARGUMENT'});
+  assert.throws(()=>validateOperationResponse('persons.get',false),error=>(error as {code?:string}).code!=='INVALID_ARGUMENT');
+});
+test('HTTP 400 guidance is local and specific to the command and operation',async()=>{
+  const {badRequestHelp}=await import('../src/shared/command-error-help.js');
+  const ancestry=await badRequestHelp(parseInvocation(['ancestry.record','search','--filter','custom']));
+  assert.match(ancestry.examples.join('\n'),/1\|Category\|SET=HistoricalRecords/);
+  const familysearch=await badRequestHelp(parseInvocation(['familysearch.api','call','--operation','search.results']));
+  assert.ok(familysearch.inputExample);assert.match(familysearch.examples[0],/search.results --example/);
+});

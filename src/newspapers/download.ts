@@ -42,15 +42,17 @@ export async function downloadPage(http: NewspapersHttp, pageId: string, authori
   url.search=new URLSearchParams(query).toString();
   const response = await http.get(url,{Accept:'image/jpeg'});
   if (!/^(?:image\/jpeg|(?:application|binary)\/octet-stream)(?:;|$)/i.test(response.contentType)) throw new NewspapersError('api-changed');
+  let actualDimensions: {width: number; height: number};
   try {
     const image = sharp(response.bytes,{failOn:'warning',limitInputPixels:65_000_000});
     const metadata = await image.metadata();
-    if (metadata.format !== 'jpeg' || metadata.width !== dimensions.width || metadata.height !== dimensions.height) throw new Error('Unexpected scan dimensions or format.');
+    if (metadata.format !== 'jpeg') throw new Error('Expected a JPEG scan.');
+    actualDimensions = {width:metadata.width, height:metadata.height};
     // Decode all pixels so an HTTP 200 or valid header cannot disguise a truncated scan.
     await image.stats();
   } catch {throw new NewspapersError('api-changed');}
   const selected=selection?.kind==='article'?selection.article:selection?.kind==='clipping'?selection.clipping:undefined;
-  return {bytes:response.bytes,metadata:{pageId,sourceUrl:selected?.sourceUrl??citation.sourceUrl,citation,format:'jpeg',...dimensions,
+  return {bytes:response.bytes,metadata:{pageId,sourceUrl:selected?.sourceUrl??citation.sourceUrl,citation,format:'jpeg',...actualDimensions,
     originalWidth:authorization.image.width as number,originalHeight:authorization.image.height as number,
     ...(selection?{selection:{kind:selection.kind,rectangle:crop,rectangles:checked,record:selected}}:{}),
     representation:selection?'Authorized JPG selection export; dimensions follow the viewer’s sizing calculation. Original dimensions describe the source page.':'Whole-page website Save as JPG export; larger scans are downsampled by the viewer’s size calculation.',

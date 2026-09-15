@@ -17,6 +17,14 @@ fam cli.health check --provider ancestry --offline
 
 `fam doctor` is shorthand for `fam cli.health check --live`, with the same flags, output, and exit codes. Independent provider checks run concurrently. Each individual live check reuses its result for 45–75 minutes, with random jitter chosen when saved; local checks always run. Use `--force` to rerun live checks immediately and replace their cache entries. When a live check runs, each authenticated provider checks access, tries refresh if supported, then tries normal login, stopping on success. Use `--no-fix` to check without repairs or session saves. Interactive color terminals show animated provider rows; use `--no-pretty` for plain output. Pipes, JSON, files, CI, and `NO_COLOR` disable the display automatically. See [health checks](doctor.md) for details and offline inspection.
 
+## Transient failures and input errors
+
+Provider HTTP reads retry temporary connection failures and HTTP 429/502/503/504 with at most **three total attempts**. This includes known read-only POST searches and viewer requests. Retries use short randomized backoff and honor `Retry-After`, with at most 30 seconds of cumulative waiting between attempts per request. A longer requested delay is reported without retrying early. Existing request deadlines still apply; request execution time is separate from the backoff budget. Browser page navigation and interrupted response-body streams are not replayed by this policy.
+
+Each retry prints the provider, reason, delay, and upcoming attempt number to **stderr**. Stdout remains available for the result. Add `--fail-fast` to disable all transient retries, including existing FamilySearch document and Internet Archive retries. Authentication renewal, verification recovery, and ordinary redirects keep their existing behavior. Writes are never automatically replayed after ambiguous connection or service failures. Separate fam processes are not coordinated or throttled together.
+
+Negative numeric IDs are preserved as strings: both `--record-id -123` and `--record-id=-123` work. Unknown commands still show suggestions. Provider-specific values and filters remain unchanged; there is no additional semantic prevalidation. Known local input errors use `INVALID_ARGUMENT` and exit 2. Remote HTTP 400 responses retain their failure, include the HTTP status in JSON errors, and show relevant local examples (including an operation input example where available). Showing examples makes no provider requests.
+
 ## Local discovery
 
 Provider and object prefixes show local help without signing in or making provider requests:

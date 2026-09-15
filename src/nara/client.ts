@@ -23,7 +23,7 @@ function thumbnail(value: string | null): string | null {
   try {const url = catalogUrl(value); return /^\/(?:iiif\/|media)/.test(url.pathname) ? url.href : null;} catch {return null;}
 }
 function provenance(state: Snapshot) {
-  return {source: 'catalog-browser' as const, url: state.url, retrievedAt: new Date().toISOString(), warnings: [...state.alerts]};
+  return {source: 'catalog-browser' as const, url: state.url, retrievedAt: new Date().toISOString(), warnings: [...state.alerts], notices: [...state.notices ?? []]};
 }
 export interface ClientOptions {read?: ReadPage; timeout?: number; fetch?: typeof fetch}
 /** Read-only Catalog website provider. Official API-key access is a future transport. */

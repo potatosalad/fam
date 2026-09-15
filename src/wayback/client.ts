@@ -1,3 +1,4 @@
+import {retryRead} from '../shared/read-retry.js';
 import {Impit} from 'impit';
 import {browserConfig, transportPreference, useBrowser, rememberBrowser, BrowserError} from '../shared/browser-config.js';
 import {isChallenge} from '../shared/browser-challenge.js';
@@ -25,7 +26,7 @@ export class WaybackClient {
     for (let hop = 0; hop < 10; hop++) {
       let wire: Wire | undefined;
       if (!browser) {
-        const response = await http.fetch(url, {method: 'GET', redirect: 'manual', headers: {Accept: '*/*'}});
+        const response = await retryRead('wayback', () => http.fetch(url, {method: 'GET', redirect: 'manual', headers: {Accept: '*/*'}}));
         if (Number(response.headers.get('content-length')) > 48 * 1024 * 1024) throw new Error('Wayback response exceeds 48 MiB.');
         const bytes = Buffer.from(await response.arrayBuffer());
         if (bytes.length > 48 * 1024 * 1024) throw new Error('Wayback response exceeds 48 MiB.');
@@ -47,7 +48,7 @@ export class WaybackClient {
         continue;
       }
       if (response.status === 429) throw Object.assign(new Error(`Internet Archive is rate limiting requests.${headers.get('retry-after') ? ` Retry after ${headers.get('retry-after')}.` : ' Try again later.'}`), {code:'WAYBACK_RATE_LIMITED'});
-      if (response.status < 200 || response.status >= 300) throw Object.assign(new Error(`Internet Archive returned HTTP ${response.status} for ${url}.`), {code:'WAYBACK_HTTP_ERROR'});
+      if (response.status < 200 || response.status >= 300) throw Object.assign(new Error(`Internet Archive returned HTTP ${response.status} for ${url}.`), {code:'WAYBACK_HTTP_ERROR', status:response.status});
       if (isChallenge(headers, Buffer.from(response.bodyBase64,'base64').toString('utf8')))
         throw new BrowserError('Internet Archive requires browser verification. Retry with --transport browser.', 'BROWSER_INTERACTION_REQUIRED');
       if (browser) await rememberBrowser('wayback', new URL(response.url).origin);

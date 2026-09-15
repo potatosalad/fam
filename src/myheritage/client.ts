@@ -2,7 +2,7 @@ import {loadProviderSession} from '../shared/browser-config.js';
 import {MyHeritageDocuments} from './documents.js';
 import {MyHeritageResearch, type RecordSearchOptions, type CatalogOptions} from './research.js';
 import {MyHeritageBrowser} from './browser.js';
-import {parse} from 'graphql';
+import {parse, getOperationAST} from 'graphql';
 import {CookieJar} from 'tough-cookie';
 import { readPrivateJson } from '../shared/storage.js';
 import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
@@ -93,10 +93,10 @@ export class MyHeritageClient {
     return this.query<T>(operation.document, variables, operation.route!, operation.name);
   }
   async query<T = unknown>(document: string, variables: Record<string, unknown> = {}, route = '/', operationName?: string): Promise<T> {
-    parse(document);
+    const operation = getOperationAST(parse(document), operationName);
     const url = new URL(route, `${GRAPHQL}/`);
     if (url.origin !== GRAPHQL) throw new Error('GraphQL route must remain on the MyHeritage GraphQL origin.');
-    const result = (await this.request<GraphQLResult<T>>(url.href, {method: 'POST', body: {query: document, variables, ...(operationName ? {operationName} : {})}})).data;
+    const result = (await this.request<GraphQLResult<T>>(url.href, {method: 'POST', retryable:operation?.operation === 'query', body: {query: document, variables, ...(operationName ? {operationName} : {})}})).data;
     if (result.errors?.length) throw new MyHeritageGraphQLError(operationName ?? 'custom', result);
     if (result.data == null) throw new Error('MyHeritage GraphQL returned no data.');
     return result.data;

@@ -49,8 +49,8 @@ test('native requests enforce origins, cookie scope, redirect limits and non-rep
 });
 test('empty account, challenges, API failures and rate limits never trigger password retries',async()=>{
  for(const [status,text,code] of [[200,'','session-rejected'],[401,'private','session-rejected'],[403,'private','access-denied'],[403,'<title>Just a moment...</title><script src="/cdn-cgi/challenge-platform/x"></script>','verification-required'],[429,'private','http']] as const){
-  let attempts=0;const c=new Fold3Client(new Fold3Http(undefined,async()=>{attempts++;return new Response(text,{status});}));
-  await assert.rejects(c.me(),e=>e instanceof Fold3Error&&e.code===code&&!e.message.includes('private'));assert.equal(attempts,1);
+  let attempts=0;const c=new Fold3Client(new Fold3Http(undefined,async(_url,init)=>{assert.equal(init.method,'GET');attempts++;return new Response(text,{status,headers:{'retry-after':'0'}});}));
+  await assert.rejects(c.me(),e=>e instanceof Fold3Error&&e.code===code&&!e.message.includes('private'));assert.equal(attempts,status===429?3:1);
  }
 });
 test('a challenged native login submits once and leaves the saved session unchanged',async()=>{

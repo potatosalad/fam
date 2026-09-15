@@ -21,5 +21,6 @@ export function humanNara(data: any): string {
     }
   }
   for (const warning of data.warnings ?? []) lines.push(`Warning: ${warning}`);
+  for (const notice of data.notices ?? []) lines.push(`Notice: ${notice}`);
   return lines.join('\n') + '\n';
 }
