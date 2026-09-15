@@ -3,6 +3,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends x11vnc novnc we
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/fam-browser
 COPY cloakbrowser/package*.json ./
+COPY cloakbrowser/LICENSE.md ./LICENSE.md
 RUN npm ci --omit=dev --ignore-scripts
 COPY camofox-plugin/index.js ./camofox-plugin/index.js
 COPY cloakbrowser/launch.py cloakbrowser/server.mjs cloakbrowser/humanize.mjs cloakbrowser/main.mjs ./cloakbrowser/

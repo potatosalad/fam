@@ -197,3 +197,7 @@ npm uninstall --global @potatosalad/fam
 ```
 
 This removes the `fam` executable. Your profile and saved research stay on disk. To remove shell completion, follow the [completion instructions](docs/setup.md#shell-completion).
+
+## License
+
+fam is licensed under the [MIT License](LICENSE.md).

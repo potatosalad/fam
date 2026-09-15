@@ -2,6 +2,7 @@
   "name": "fam-cloakbrowser-service",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "dependencies": {
     "cloakbrowser": "0.5.10",
     "express": "5.2.1",

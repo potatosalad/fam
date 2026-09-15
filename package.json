@@ -57,7 +57,7 @@
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/potatosalad/fam.git"
