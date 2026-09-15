@@ -110,6 +110,82 @@ function syntheticClient() {
   return { client, internal, session, persisted };
 }
 
+test('person reads follow replacement IDs, retain cookies, and expose requested and resolved IDs', async t => {
+  const calls: string[] = [];
+  const {client} = syntheticClient();
+  t.mock.method(Impit.prototype, 'fetch', async (url: URL, init: any) => {
+    calls.push(String(url));
+    assert.equal(init.redirect, 'manual');
+    assert.equal(init.headers.authorization, 'Bearer old');
+    assert.equal(init.headers.accept, 'application/x-gedcomx-v1+json');
+    if (calls.length === 1) return new Response('Moved', {status: 301, headers: {
+      location: '/platform/tree/persons/BBBB-222', 'set-cookie': 'redirect=synthetic; Secure; Path=/'}});
+    assert.match(init.headers.Cookie, /redirect=synthetic/);
+    if (calls.length === 2) return new Response(null, {status: 308, headers: {location: 'CCCC-333'}});
+    return new Response(JSON.stringify({persons: [{id: 'CCCC-333'}]}));
+  });
+  assert.deepEqual(await client.person('aaaa-111'), {persons: [{id: 'CCCC-333'}], requestedPersonId: 'AAAA-111', resolvedPersonId: 'CCCC-333'});
+  assert.deepEqual(calls.map(url => new URL(url).pathname), ['/platform/tree/persons/AAAA-111', '/platform/tree/persons/BBBB-222', '/platform/tree/persons/CCCC-333']);
+});
+
+test('person redirects reject unsafe destinations, loops, missing locations, and excessive hops', async t => {
+  for (const location of [undefined, 'https://evil.test/platform/tree/persons/BBBB-222',
+    'https://ident.familysearch.org/platform/tree/persons/BBBB-222', '/platform/users/current',
+    'http://www.familysearch.org/platform/tree/persons/BBBB-222',
+    'https://user:private@www.familysearch.org/platform/tree/persons/BBBB-222',
+    '/platform/tree/persons/BBBB-222?access_token=private', '/platform/tree/persons/BBBB-222#private',
+    '/platform/tree/persons/AAAA-111', 'https://[invalid']) {
+    let calls = 0;
+    const mock = t.mock.method(Impit.prototype, 'fetch', async () => {
+      calls++;
+      return new Response('private response body', {status: 301, headers: location ? {location} : {}});
+    });
+    await assert.rejects(syntheticClient().client.person('AAAA-111'), (error: any) => {
+      assert.match(error.message, /person redirect/i);
+      assert.doesNotMatch(error.message, /private/);
+      return true;
+    });
+    assert.equal(calls, 1);
+    mock.mock.restore();
+  }
+  let calls = 0;
+  t.mock.method(Impit.prototype, 'fetch', async () => new Response(null, {status: 302,
+    headers: {location: `/platform/tree/persons/BBBB-${String(++calls).padStart(3, '0')}`}}));
+  await assert.rejects(syntheticClient().client.person('AAAA-111'), /five redirects/);
+  assert.equal(calls, 6);
+});
+
+test('writes and unrelated API reads never acquire person redirect behavior', async t => {
+  let calls = 0;
+  t.mock.method(Impit.prototype, 'fetch', async () => {
+    calls++;
+    return new Response(null, {status: 301, headers: {location: '/platform/tree/persons/BBBB-222'}});
+  });
+  const http = new HttpSession();
+  for (const [path, method] of [['/platform/users/current', 'GET'], ['/platform/tree/persons/AAAA-111', 'POST'],
+    ['/platform/tree/persons/AAAA-111', 'PUT'], ['/platform/tree/persons/AAAA-111', 'DELETE']] as const) {
+    await assert.rejects(http.exchange(`https://www.familysearch.org${path}`, {method}), {status: 301});
+  }
+  assert.equal(calls, 4);
+});
+
+test('a replacement person can renew authentication once without replaying writes', async t => {
+  const {client, internal} = syntheticClient();
+  let refreshes = 0;
+  internal.renew = async () => {refreshes++; internal.session.tokens.access_token = 'new';};
+  const calls: string[] = [];
+  t.mock.method(Impit.prototype, 'fetch', async (url: URL, init: any) => {
+    const path = new URL(url).pathname;
+    calls.push(`${path}:${init.headers.authorization}`);
+    if (path.endsWith('AAAA-111')) return new Response(null, {status: 301, headers: {location: '/platform/tree/persons/BBBB-222'}});
+    return init.headers.authorization === 'Bearer old' ? new Response(null, {status: 401}) : new Response(JSON.stringify({persons: [{id: 'BBBB-222'}]}));
+  });
+  const result = await client.person('AAAA-111');
+  assert.equal(result.resolvedPersonId, 'BBBB-222');
+  assert.equal(refreshes, 1);
+  assert.equal(calls.length, 4);
+});
+
 test('401 renews once, saves rotated credentials, and retries with the new token', async () => {
   const { client, internal, persisted } = syntheticClient();
   const events: string[] = [];

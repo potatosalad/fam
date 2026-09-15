@@ -9,6 +9,7 @@ export const FS_ORIGIN = 'https://www.familysearch.org';
 export const IDENT_ORIGIN = 'https://ident.familysearch.org';
 export const CHURCH_ORIGIN = 'https://id.churchofjesuschrist.org';
 const ALLOWED_ORIGINS = new Set([FS_ORIGIN, IDENT_ORIGIN, CHURCH_ORIGIN]);
+const personPath = /^\/platform\/tree\/persons\/[A-Z0-9]{4}-[A-Z0-9]{3,4}$/i;
 export const MOBILE_USER_AGENT = 'FS-Android-Tree/5.4.4 (Linux; Android 16)';
 
 export class HttpError extends Error {
@@ -82,23 +83,43 @@ export class HttpSession {
   }
 
   async exchange<T>(url: string | URL, options: ApiRequest = {}): Promise<ApiResponse<T>> {
-    const target = new URL(url);
+    const requested = new URL(url);
+    let target = requested;
     const raw = options.encoding === 'raw';
     const headers = new Headers(options.headers);
     if (!headers.has('accept')) headers.set('accept', 'application/json');
     if (options.body !== undefined && !raw && !headers.has('content-type')) headers.set('content-type', 'application/json');
     // The transport supplies the boundary for FormData. Never replace it with a bare media type.
     if (raw && options.body instanceof FormData && headers.has('content-type')) throw new Error('FormData must supply its own Content-Type boundary.');
-    const response = await this.request(target, {
+    const init = {
       method: options.method ?? 'GET', headers: Object.fromEntries(headers),
       ...(options.body === undefined ? {} : { body: raw ? options.body as UploadBody : stringifyJson(options.body) }),
-    });
+    };
+    let response = await this.request(target, init);
+    const seen = new Set([target.href]);
+    if (init.method === 'GET' && options.body === undefined && target.origin === FS_ORIGIN && personPath.test(target.pathname)) {
+      while ([301,302,303,307,308].includes(response.status)) {
+        const location = response.headers.get('location');
+        await response.text();
+        if (!location) throw new Error('FamilySearch person redirect is missing a Location header.');
+        let next: URL;
+        try {next = new URL(location, target);} catch {throw new Error('FamilySearch person redirect has an invalid destination.');}
+        if (next.origin !== FS_ORIGIN || next.username || next.password || !personPath.test(next.pathname) || next.search || next.hash)
+          throw new Error('FamilySearch person redirect must stay on a person API path without credentials, query, or fragment.');
+        if (seen.has(next.href)) throw new Error('FamilySearch person redirect loop detected.');
+        if (seen.size > 5) throw new Error('FamilySearch person read exceeded five redirects.');
+        seen.add(next.href);
+        target = next;
+        response = await this.request(target, init);
+      }
+    }
     if (!response.ok) {
       await response.text();
       throw new HttpError(response.status, `${target.origin}${target.pathname}`, response.headers.get('retry-after') ?? undefined);
     }
     const safeHeaders = Object.fromEntries([...response.headers].filter(([name]) => !['set-cookie', 'authorization'].includes(name.toLowerCase())));
-    const result = (data: unknown): ApiResponse<T> => ({ data: data as T, status: response.status, headers: safeHeaders });
+    const result = (data: unknown): ApiResponse<T> => ({ data: data as T, status: response.status, headers: safeHeaders,
+      ...(seen.size > 1 ? {redirect: {requestedUrl: `${requested.origin}${requested.pathname}`, resolvedUrl: `${target.origin}${target.pathname}`}} : {}) });
     if (options.response === 'void' || [204, 205].includes(response.status)) { await response.text(); return result(undefined); }
     if (options.response === 'binary') return result(new Uint8Array(await response.arrayBuffer()));
     const text = await response.text();

@@ -199,8 +199,10 @@ export class FamilySearchClient {
     if (!result.users?.[0]) throw new Error('Current-user response did not include a user.');
     return result.users[0];
   }
-  person(id: string): Promise<GedcomX> {
-    return this.get(`/platform/tree/persons/${personId(id)}`, {}, 'application/x-gedcomx-v1+json');
+  async person(id: string): Promise<GedcomX> {
+    const requestedPersonId = personId(id);
+    const result = await this.requestDetailed<GedcomX>(`/platform/tree/persons/${requestedPersonId}`, {headers: {Accept: 'application/x-gedcomx-v1+json'}});
+    return result.redirect ? {...result.data, requestedPersonId, resolvedPersonId: new URL(result.redirect.resolvedUrl).pathname.split('/').pop()} : result.data;
   }
   ancestry(id: string, depth = 2): Promise<GedcomX> {
     return this.get('/platform/tree/ancestry', { person: personId(id), generations: generations(depth) }, 'application/x-gedcomx-v1+json');

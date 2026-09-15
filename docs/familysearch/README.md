@@ -2,6 +2,8 @@
 
 Use `fam familysearch.OBJECT ACTION --flags` for FamilySearch trees, genealogy operations, images, and historical-record research. Start with the [installation and sign-in guide](../../README.md#familysearch), or run `fam cli.command list --provider familysearch`.
 
+`fam familysearch.person get --person-id <PERSON_ID>` follows up to five redirects to replacement person IDs on the same FamilySearch person API. When a person moves, the result includes `requestedPersonId` and `resolvedPersonId` alongside the GEDCOM X data. Other API routes and writes retain their existing redirect behavior; authentication is never forwarded to a redirect outside the person API.
+
 The CLI describes its genealogy operations locally, without credentials or provider requests. Provider help lists the capability groups; command search includes the individual API operations as well as dedicated commands:
 
 ```sh

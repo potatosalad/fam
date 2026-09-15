@@ -17,4 +17,6 @@ export interface ApiResponse<T> {
   status: number;
   /** Cookies are persisted privately and omitted from returned headers. */
   headers: Readonly<Record<string, string>>;
+  /** Present after a bounded, same-origin person GET redirect. URLs omit queries. */
+  redirect?: {requestedUrl: string; resolvedUrl: string};
 }
