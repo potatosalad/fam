@@ -5,6 +5,8 @@ import {join} from 'node:path';
 import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {browserFetchOptions, browserFetchResult, extractBrowserContent, renderBrowserFetch} from '../src/shared/browser-fetch.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
+import {browserResponseHeaders} from '../src/shared/browser-response.js';
+import {BrowserTab, Camofox} from '../src/shared/browser-runtime.js';
 
 test('generic fetch parses headers, scoped cookies, binary bodies and meaningful modes', async () => {
   const headersFile=join(CREDENTIAL_DIR,'headers.json'),cookiesFile=join(CREDENTIAL_DIR,'cookies.json'),bodyFile=join(CREDENTIAL_DIR,'body.bin');
@@ -57,4 +59,36 @@ test('response conversion preserves raw bytes, HTTP failures, JSON integers and 
   assert.equal((json.json as any).id,9223372036854775807n);
   const latin=browserFetchResult({...options,format:'text'},{...wire,headers:[['content-type','text/plain; charset=iso-8859-1']],bodyBase64:Buffer.from([99,97,102,233]).toString('base64')});
   assert.equal(latin.text,'café');assert.throws(()=>renderBrowserFetch(latin,'html'),/not HTML/);
+});
+
+test('browser response normalization preserves duplicate values and cookie boundaries', async () => {
+  const headers: [string, string][] = [['Content-Type', 'text/plain'], ['Server-Timing', 'first;dur=1\nsecond;dur=2'],
+    ['Set-Cookie', 'one=synthetic; Expires=Wed, 21 Oct 2030 07:28:00 GMT\r\ntwo=synthetic; Path=/'], ['Set-Cookie', 'three=synthetic; Path=/']];
+  const normalized = browserResponseHeaders(headers);
+  const parsed = new Headers(normalized);
+  assert.equal(parsed.get('server-timing'), 'first;dur=1, second;dur=2');
+  assert.deepEqual(parsed.getSetCookie(), ['one=synthetic; Expires=Wed, 21 Oct 2030 07:28:00 GMT', 'two=synthetic; Path=/', 'three=synthetic; Path=/']);
+  const options = await browserFetchOptions({url: 'https://example.test', format: 'text'});
+  const result = browserFetchResult(options, {url: options.url, status: 200, statusText: 'OK', headers, bodyBase64: Buffer.from('Readable page').toString('base64')});
+  assert.equal(result.text, 'Readable page');
+  assert.deepEqual(result.headers, normalized);
+  assert.equal(headers[1][1], 'first;dur=1\nsecond;dur=2');
+  assert.deepEqual(browserResponseHeaders({'Server-Timing': 'one\ntwo'}), [['server-timing', 'one'], ['server-timing', 'two']]);
+  for (const bad of [null, {'x-test': 42}, [['Invalid Name', 'value']], [['x-test', 'mid\0value']], [['x-test', 'mid\rvalue']], [['x-test', 42]]])
+    assert.throws(() => browserResponseHeaders(bad), {code: 'BROWSER_RESPONSE_HEADERS'});
+  await assert.rejects(browserFetchOptions({url: 'https://example.test', header: 'X-Test: one\ntwo'}), {code: 'INVALID_ARGUMENT'});
+});
+
+test('browser API normalizes navigation and request headers before provider consumption', async t => {
+  const wire = {status: 200, headers: [['server-timing', 'one\ntwo'], ['set-cookie', 'a=one\nb=two']], bodyBase64: Buffer.from('content').toString('base64')};
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(wire)));
+  const browser = new Camofox({version: 1, mode: 'remote', remote: {url: 'https://browser.example.test', vncUrl: 'https://browser.example.test/viewer'}, timeout: 1, transport: 'auto', session: 'synthetic', open: false});
+  for (const path of ['/fam/page-result', '/fam/fetch-request', '/fam/request']) {
+    const data = await browser.api(path, {});
+    assert.equal(new Headers(data.headers).get('server-timing'), 'one, two');
+    assert.deepEqual(new Headers(data.headers).getSetCookie(), ['a=one', 'b=two']);
+  }
+  const response = await new BrowserTab(browser, 'familysearch', 'synthetic').request('https://www.familysearch.org/platform/users/current');
+  assert.equal(await response.text(), 'content');
+  assert.deepEqual(response.headers.getSetCookie(), ['a=one', 'b=two']);
 });

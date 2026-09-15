@@ -28,6 +28,7 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
     if(req.url==='/redirect'){res.writeHead(302,{location:`http://localhost:${(web.address() as any).port}/echo`});res.end();return;}
     if(req.url==='/loop'){res.writeHead(302,{location:'/loop'});res.end();return;}
     if(req.url==='/empty'){res.writeHead(204);res.end();return;}
+    if(req.url==='/headers'){res.setHeader('content-type','text/html');res.setHeader('server-timing',['first;dur=1','second;dur=2']);res.setHeader('set-cookie',['first=synthetic; Path=/','second=synthetic; Path=/']);res.end('<html><body>Repeated headers</body></html>');return;}
     if(req.url==='/cached'){res.setHeader('content-type','text/html');res.end('<html><body>Cached page<script src="/cached.js"></script></body></html>');return;}
     if(req.url==='/cached.js'){res.setHeader('content-type','text/javascript');res.setHeader('cache-control','public, max-age=3600');res.end('document.body.dataset.loaded="yes";');return;}
     if(req.url==='/binary'){res.setHeader('content-type','application/octet-stream');res.end(raw);return;}
@@ -73,6 +74,15 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
     await fetchPage('/cached',{'wait-for':'body[data-loaded=yes]'});
     await fetchPage('/cached',{'wait-for':'body[data-loaded=yes]'});
     assert.equal(requests.filter(r=>r.url==='/cached.js').length,1);
+  });
+  await t.test('repeated response headers work in navigation and request modes',async()=>{
+    for(const mode of ['navigate','request']) {
+      const result=await fetchPage('/headers',{mode,format:'json'});
+      assert.match(result.text!,/Repeated headers/);
+      const headers=new Headers(result.headers);
+      assert.match(headers.get('server-timing')!,/first;dur=1/);assert.match(headers.get('server-timing')!,/second;dur=2/);
+      assert.deepEqual(headers.getSetCookie(),['first=synthetic; Path=/','second=synthetic; Path=/']);
+    }
   });
   await t.test('cross-origin request redirects strip all caller headers and preserve metadata',async()=>{
     const result=await fetchPage('/redirect',{mode:'request',format:'json',header:['Authorization: Bearer synthetic','X-Secret: synthetic'],cookie:'scoped=yes'});

@@ -9,6 +9,7 @@ import {isChallenge} from './browser-challenge.js';
 import {readCommandFile} from './command-input.js';
 import {UsageError, type Values} from './command-runtime.js';
 import {parseJson} from './json.js';
+import {browserResponseHeaders} from './browser-response.js';
 
 export type FetchFormat = 'raw' | 'html' | 'text' | 'markdown' | 'json';
 export interface BrowserFetchOptions {
@@ -113,6 +114,7 @@ function decodedBody(response: WireResponse): string {
   try {return new TextDecoder(charset).decode(Buffer.from(response.bodyBase64,'base64'));} catch {return Buffer.from(response.bodyBase64,'base64').toString('utf8');}
 }
 export function browserFetchResult(options: BrowserFetchOptions, response: WireResponse | PageResponse): BrowserFetchResult {
+  response = {...response, headers: browserResponseHeaders(response.headers)};
   const contentType = new Headers(response.headers).get('content-type') ?? '', bytes = Buffer.from(response.bodyBase64,'base64');
   const result: BrowserFetchResult = {requestUrl: options.url, url: response.url, status: response.status, statusText: response.statusText, headers: response.headers, contentType, bytes: bytes.length, mode: options.mode};
   if (options.format === 'raw') return {...result, bodyBase64: response.bodyBase64};

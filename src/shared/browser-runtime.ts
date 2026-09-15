@@ -9,6 +9,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {Cookie, CookieJar} from 'tough-cookie';
 import {providerNames} from './command-registry.js';
 import {CREDENTIAL_DIR} from './storage.js';
+import {browserResponseHeaders} from './browser-response.js';
 import {browserConfig, browserUrl, browserEngine, browserName, saveBrowserConfig, browserUserId, endpointId, BrowserError, type BrowserConfig, type BrowserEndpoint, type BrowserEngine} from './browser-config.js';
 
 const exec = promisify(execFile);
@@ -331,7 +332,10 @@ export class Camofox {
       };
       throw new BrowserError(`${browserName(this.config)} request failed (HTTP ${response.status}).${reason}${detail[code] ? ` ${detail[code]}` : ''}`, 'BROWSER_API_FAILED', this.endpoint.vncUrl);
     }
-    return response.json() as Promise<T>;
+    const data = await response.json();
+    if (['/fam/request', '/fam/fetch-request', '/fam/page-result'].includes(path) && data?.headers !== undefined)
+      data.headers = browserResponseHeaders(data.headers);
+    return data as T;
   }
   async capabilities() {
     try {const result = await this.api('/fam/capabilities'); if (result.version !== 1) throw new Error(); return result;}
