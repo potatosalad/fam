@@ -1,6 +1,6 @@
 import {discovery} from './generated/discovery.js';
 import {contracts} from './generated/schema.js';
-import {operationContract, operationExample} from './operations.js';
+import {operationContract, operationExample, operationInputParameters} from './operations.js';
 import type {WireType} from './contract-types.js';
 
 /** Local catalog metadata only: no client, profile, credentials, or network access. */
@@ -66,22 +66,24 @@ function schemaBuilder(response: boolean) {
 
 export function describeOperation(name: string) {
   const contract = operationContract(name), input = schemaBuilder(false), output = schemaBuilder(true);
+  const parameters = operationInputParameters(contract);
   const properties: Record<string, Schema> = {}, required: string[] = [];
   for (const parameter of contract.parameters.filter(p => ['path', 'body'].includes(p.kind))) {
     properties[parameter.name] = input.schema(parameter.type);
     if (parameter.required) required.push(parameter.name);
   }
   for (const [kind, field] of [['query', 'query'], ['header', 'headers']]) {
-    const parameters = contract.parameters.filter(p => p.kind === kind);
-    if (!parameters.length) continue;
-    properties[field] = input.objectSchema(Object.fromEntries(parameters.map(p => [p.name, input.schema(p.type)])), parameters.filter(p => p.required).map(p => p.name));
-    if (parameters.some(p => p.required)) required.push(field);
+    const members = parameters.filter(p => p.kind === kind);
+    if (!members.length) continue;
+    properties[field] = input.objectSchema(Object.fromEntries(members.map(p => [p.name, {...input.schema(p.type),
+      ...(kind === 'header' && discovery.commonHeaders[p.name] ? {description: discovery.commonHeaders[p.name]} : {})}])), members.filter(p => p.required).map(p => p.name));
+    if (members.some(p => p.required)) required.push(field);
   }
-  return {...contract, ...operationSummary(name),
+  return {...contract, parameters, ...operationSummary(name),
     inputSchema: input.finish(input.objectSchema(properties, required)),
     outputSchema: output.finish(output.schema(contract.response)),
     example: structuredClone(discovery.operations[name].example ?? operationExample(name)),
-    inputNotes: 'Path parameters and body are top-level JSON properties; query and headers are nested. --query key=value binds scalar query parameters. Examples contain placeholders, not verified data. Optional wire fields may still be required by the server.',
+    inputNotes: 'Path parameters and body are top-level JSON properties; query and headers are nested. Every operation accepts headers.X-Reason as plain text; fam URL-encodes it once. This does not replace body reason fields or verify that the server records the header. --query key=value binds scalar query parameters. Examples contain placeholders, not verified data. Optional wire fields may still be required by the server.',
     responseNotes: 'Response schemas are advisory; additional server fields are retained. This catalog describes implemented contracts, not live verification of every operation.',
   };
 }

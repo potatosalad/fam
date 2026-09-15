@@ -64,15 +64,19 @@ test('operation errors identify wrong fields without echoing supplied field valu
     assert.match((e as Error).message, /body.events\[0\].*"type".*eventType/);
     assert.doesNotMatch((e as Error).message, /do-not-echo/); return true;
   });
-  await assert.rejects(prepareApiInput('persons.addFact', JSON.stringify({pid: 'XXXX-XXX', body: {}, headers: {'X-Reason': 'private reason'}})), /X-Reason.*allowed: none/);
+  await assert.rejects(prepareApiInput('persons.addFact', JSON.stringify({pid: 'XXXX-XXX', body: {}, headers: {'X-Misspelled': 'private reason'}})), /X-Misspelled.*allowed: X-Reason/);
   await assert.rejects(prepareApiInput('persons.get', '{"path":{"pid":"XXXX-XXX"}}'), /Path parameters are top-level/);
 });
 
 test('API and record dry runs validate input outside the checkout without session lookup or output files', async () => {
   const input = join(CREDENTIAL_DIR, 'fact-input.json'), output = join(CREDENTIAL_DIR, 'dry-run-never-written.json');
-  await writeFile(input, JSON.stringify({pid: 'XXXX-XXX', body: {conclusionType: 'FACT', value: {type: 'Death'}}}));
+  await writeFile(input, JSON.stringify({pid: 'XXXX-XXX', body: {conclusionType: 'FACT', value: {type: 'Death'}}, headers: {'X-Reason': 'Test evidence'}}));
   const result = JSON.parse((await invoke('familysearch.api','call','--operation','persons.addFact','--input',input,'--out',output,'--dry-run','--json')).stdout);
   assert.equal(result.data.validation.method, 'POST'); assert.equal(result.data.validation.input.body.value.type, 'Death');
+  assert.equal(result.data.validation.input.headers['X-Reason'], 'Test evidence');
+  const relationship = JSON.parse((await invoke('familysearch.api', 'call', '--operation', 'parentChildren.create', '--input',
+    JSON.stringify({body: {childId: 'ABCD-123'}, headers: {'X-Reason': 'Test evidence'}}), '--dry-run', '--json')).stdout);
+  assert.equal(relationship.data.validation.input.headers['X-Reason'], 'Test evidence');
   await assert.rejects(stat(output), {code: 'ENOENT'});
   await writeFile(input, '{"pid":"XXXX-XXX","body":{"wrong":true}}');
   await assert.rejects(invoke('familysearch.api','call','--operation','persons.addFact','--input',input,'--dry-run','--json'), (e: any) => {

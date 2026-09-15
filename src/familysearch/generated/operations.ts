@@ -2,18 +2,26 @@
 
 import type * as M from './models.js';
 import type { UploadBody } from '../transport-types.js';
+/** Common fam input headers from docs/familysearch/discovery.json, supplementing the APK contract. */
+export interface OperationHeaders {
+  /** Optional change reason accepted on every operation. Supply plain text; fam URL-encodes it once. Body reason fields remain independent, and server persistence of this header is not verified for every endpoint. */
+  "X-Reason"?: string;
+}
 export interface OperationTypes {
   /** GET /service/mobile/api/v1/artifact/contributor/{artifactPatronId}?includePathForCloseRelatives=true */
   "memories.contributor": { input: {
     "artifactPatronId": number | bigint;
+    headers?: OperationHeaders;
   }; output: M.ContributorDto; };
   /** POST /service/mobile/api/v1/artifactmanager/artifacts/multipart */
   "memories.upload": { input: {
     "body": UploadBody;
+    headers?: OperationHeaders;
   }; output: M.ArtifactResponseDto; };
   /** DELETE /service/mobile/api/v1/artifactmanager/artifacts/{artifactId} */
   "memories.delete": { input: {
     "artifactId": number | bigint;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/artifactmanager/artifacts/{artifactId} */
   "memories.get": { input: {
@@ -22,11 +30,13 @@ export interface OperationTypes {
       "includeAssociatedArtifacts"?: boolean;
       "includeDatesPlaces"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.ArtifactDto; };
   /** POST /service/mobile/api/v1/artifactmanager/artifacts/{artifactId} */
   "memories.update": { input: {
     "artifactId": number | bigint;
     "body": M.ArtifactDto;
+    headers?: OperationHeaders;
   }; output: M.ArtifactDto; };
   /** DELETE /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/artifacts */
   "memories.unlink": { input: {
@@ -34,6 +44,7 @@ export interface OperationTypes {
     query?: {
       "otherArtifactId"?: number | bigint;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/artifacts */
   "memories.link": { input: {
@@ -42,6 +53,7 @@ export interface OperationTypes {
       "otherArtifactId"?: number | bigint;
       "setAsIcon"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/comments */
   "memories.comments": { input: {
@@ -49,26 +61,31 @@ export interface OperationTypes {
     query?: {
       "includeContactNames"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.CommentListDto; };
   /** POST /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/comments */
   "memories.addComment": { input: {
     "artifactId": number | bigint;
     "body": M.CommentDto;
+    headers?: OperationHeaders;
   }; output: M.CommentDto; };
   /** DELETE /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/comments/{commentId} */
   "memories.deleteComment": { input: {
     "artifactId": number | bigint;
     "commentId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/datesplaces */
   "memories.setDatePlace": { input: {
     "artifactId": number | bigint;
     "body": M.DatePlaceDto;
+    headers?: OperationHeaders;
   }; output: M.DatePlaceDto; };
   /** PUT /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/files */
   "memories.replaceFile": { input: {
     "artifactId": number | bigint;
     "body": string;
+    headers?: OperationHeaders;
   }; output: M.ArtifactResponseDto; };
   /** POST /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/tags */
   "memories.tagPerson": { input: {
@@ -77,15 +94,18 @@ export interface OperationTypes {
     query?: {
       "treePersonId"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.ArtifactTagDto; };
   /** DELETE /service/mobile/api/v1/artifactmanager/artifacts/{artifactId}/tags/{tagId} */
   "memories.untagPerson": { input: {
     "artifactId": number | bigint;
     "tagId": number;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/artifactmanager/patrons/{cisId}/tombstones */
   "memories.trash": { input: {
     "cisId": string;
+    headers?: OperationHeaders;
   }; output: M.TombstoneListDto; };
   /** GET /service/mobile/api/v1/artifactmanager/patrons/{cisUserId}/artifacts */
   "memories.forUser": { input: {
@@ -93,6 +113,7 @@ export interface OperationTypes {
     query?: {
       "maxRecords"?: number;
     };
+    headers?: OperationHeaders;
   }; output: M.ArtifactListDto; };
   /** GET /service/mobile/api/v1/artifactmanager/persons/personsByTreePersonId/{pid}/artifacts */
   "memories.forPerson": { input: {
@@ -103,19 +124,23 @@ export interface OperationTypes {
       "includeAssociatedArtifacts"?: boolean;
       "includeDatesPlaces"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.ArtifactListDto; };
   /** POST /service/mobile/api/v1/artifactmanager/photoTags/{tagId} */
   "memories.updateTag": { input: {
     "tagId": number;
     "body": M.ArtifactTagDto;
+    headers?: OperationHeaders;
   }; output: M.ArtifactTagDto; };
   /** DELETE /service/mobile/api/v1/artifactmanager/tombstones/{tombstoneId} */
   "memories.purge": { input: {
     "tombstoneId": number | bigint;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/artifactmanager/tombstones/{tombstoneId}/restore */
   "memories.restore": { input: {
     "tombstoneId": number | bigint;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/memories/artifacts/{artifactId}/transform */
   "memories.transform": { input: {
@@ -123,38 +148,46 @@ export interface OperationTypes {
     query?: {
       "relativeRotation"?: number;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/memories/memtts/topictags/{artifactId}/topics */
   "memories.topics": { input: {
     "artifactId": number | bigint;
+    headers?: OperationHeaders;
   }; output: M.TopicTagsListDto; };
   /** POST /service/mobile/api/v1/memories/memtts/topictags/{prefix}/getPrefix */
   "memories.suggestTopics": { input: {
     "prefix": string;
+    headers?: OperationHeaders;
   }; output: M.TopicTagsListDto; };
   /** POST /service/mobile/api/v1/memories/memtts/topictags/{topic} */
   "memories.addTopic": { input: {
     "topic": string;
     "body": M.ArtifactIdsDto;
+    headers?: OperationHeaders;
   }; output: M.ArtifactTopicTagResponseDto; };
   /** DELETE /service/mobile/api/v1/memories/memtts/topictags/{topic}/{artifactId} */
   "memories.deleteTopic": { input: {
     "artifactId": number | bigint;
     "topic": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/memories/mgm/groups/artifacts/{artifactId} */
   "memories.groups": { input: {
     "artifactId": number | bigint;
+    headers?: OperationHeaders;
   }; output: M.ArtifactFamilyGroupIdsDto; };
   /** DELETE /service/mobile/api/v1/memories/mgm/groups/{groupId}/artifacts/{artifactId} */
   "memories.removeFromGroup": { input: {
     "groupId": string;
     "artifactId": number | bigint;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/memories/mgm/groups/{groupId}/artifacts/{artifactId} */
   "memories.addToGroup": { input: {
     "groupId": string;
     "artifactId": number | bigint;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/memories/search/artifacts */
   "memories.search": { input: {
@@ -164,6 +197,7 @@ export interface OperationTypes {
       "pageSize"?: number;
       "searchFilter"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.FindArtifactsDto; };
   /** GET /service/mobile/api/v1/memories/topictags/artifacts */
   "memories.byTopic": { input: {
@@ -173,14 +207,17 @@ export interface OperationTypes {
       "pageSize"?: number;
       "searchFilter"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.FindArtifactsDto; };
   /** GET /service/mobile/api/v2/memories/artifacts/{artifactId}/tags */
   "memories.tags": { input: {
     "artifactId": number | bigint;
+    headers?: OperationHeaders;
   }; output: M.ArtifactTagListDto; };
   /** GET /service/mobile/api/v2/memories/patrons/{cisId}/taggedPersons */
   "memories.taggedPersons": { input: {
     "cisId": string;
+    headers?: OperationHeaders;
   }; output: M.ArtifactPersonaListDto; };
   /** GET /service/mobile/api/v1/authorities/dates */
   "authorities.dates": { input: {
@@ -188,10 +225,12 @@ export interface OperationTypes {
       "text"?: string;
       "includeNoneAboveRow"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: Array<M.AuthoritiesDateSuggestionDto>; };
   /** POST /service/mobile/api/v1/authorities/name-forms/compliant */
   "authorities.compliantName": { input: {
     "body": Array<M.NameFormValidationDto>;
+    headers?: OperationHeaders;
   }; output: Array<M.NameFormComplianceDto>; };
   /** GET /service/mobile/api/v1/authorities/places */
   "authorities.places": { input: {
@@ -199,27 +238,33 @@ export interface OperationTypes {
       "name"?: string;
       "includeNoneAboveRow"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: Array<M.AuthoritiesPlaceSuggestionDto>; };
   /** POST /service/mobile/api/v1/authorities/transliteration */
   "authorities.transliterate": { input: {
     "body": M.TransliterationRequestDto;
+    headers?: OperationHeaders;
   }; output: M.TransliterationDto; };
   /** GET /service/mobile/api/v1/places/countries */
   "authorities.countries": { input: {
+    headers?: OperationHeaders;
   }; output: M.CountriesDto; };
   /** GET /service/mobile/api/v1/places/countries/{countryId}/states-provinces */
   "authorities.states": { input: {
     "countryId": number;
+    headers?: OperationHeaders;
   }; output: M.StatesDto; };
   /** GET /service/mobile/api/v1/places/locations */
   "authorities.locations": { input: {
     query?: {
       "placeIds"?: string;
     };
+    headers?: OperationHeaders;
   }; output: Array<M.PlaceLocationDto>; };
   /** GET /service/mobile/api/v1/contributor/{contributorOrCisId}?includePathForCloseRelatives=true */
   "contributors.get": { input: {
     "contributorOrCisId": string;
+    headers?: OperationHeaders;
   }; output: M.ContributorDto; };
   /** GET /service/mobile/api/v1/user-relationship/ft/contributor/relationship */
   "contributors.relationship": { input: {
@@ -227,10 +272,12 @@ export interface OperationTypes {
       "contributorId"?: string;
       "showPortraits"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.RelationshipPathDto; };
   /** GET /service/mobile/api/v1/user/friends/{cisId}/relationship */
   "contributors.friendRelationship": { input: {
     "cisId": string;
+    headers?: OperationHeaders;
   }; output: M.RelationshipPathDto; };
   /** GET /service/mobile/api/v1/user/relationship/relative/{relative_id} */
   "contributors.relativeRelationship": { input: {
@@ -238,67 +285,82 @@ export interface OperationTypes {
     query?: {
       "showApexCoParent"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.RelationshipPathDto; };
   /** POST /service/mobile/api/v1/group-management/groups */
   "groups.create": { input: {
     "body": M.GroupBodyDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/group-management/groups/limits */
   "groups.limits": { input: {
+    headers?: OperationHeaders;
   }; output: M.GroupLimitsDto; };
   /** GET /service/mobile/api/v1/group-management/groups/{groupId} */
   "groups.get": { input: {
     "groupId": string;
+    headers?: OperationHeaders;
   }; output: M.GroupDto; };
   /** POST /service/mobile/api/v1/group-management/groups/{groupId} */
   "groups.update": { input: {
     "groupId": string;
     "body": M.GroupBodyDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** DELETE /service/mobile/api/v1/group-management/groups/{groupId}/image */
   "groups.deleteImage": { input: {
     "groupId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/group-management/groups/{groupId}/image */
   "groups.uploadImage": { input: {
     "groupId": string;
     "body": UploadBody;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/group-management/groups/{groupId}/invites */
   "groups.invite": { input: {
     "groupId": string;
+    headers?: OperationHeaders;
   }; output: M.GroupInviteDto; };
   /** GET /service/mobile/api/v1/group-management/groups/{groupId}/invites/{inviteId} */
   "groups.getInvite": { input: {
     "groupId": string;
     "inviteId": string;
+    headers?: OperationHeaders;
   }; output: M.GroupInviteDetailsDto; };
   /** POST /service/mobile/api/v1/group-management/groups/{groupId}/invites/{inviteId} */
   "groups.respondToInvite": { input: {
     "groupId": string;
     "inviteId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/group-management/groups/{groupId}/members */
   "groups.members": { input: {
     "groupId": string;
+    headers?: OperationHeaders;
   }; output: M.GroupMembersDto; };
   /** DELETE /service/mobile/api/v1/group-management/groups/{groupId}/members/CURRENT */
   "groups.leave": { input: {
     "groupId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** DELETE /service/mobile/api/v1/group-management/groups/{groupId}/members/{memberCisId} */
   "groups.removeMember": { input: {
     "groupId": string;
     "memberCisId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/group-management/groups/{groupId}/members/{memberCisId} */
   "groups.updateMember": { input: {
     "groupId": string;
     "memberCisId": string;
     "body": M.GroupMemberUpdateDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/group-management/users/CURRENT/groups */
   "groups.list": { input: {
+    headers?: OperationHeaders;
   }; output: M.UserGroupSummariesDto; };
   /** GET /service/mobile/api/v1/group-management/users/CURRENT/groups/{groupId} */
   "groups.membership": { input: {
@@ -306,43 +368,53 @@ export interface OperationTypes {
     query?: {
       "includeMemberCount"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.UserGroupSummaryDto; };
   /** GET /service/mobile/api/v1/help/permit/helpees */
   "helpers.helpees": { input: {
+    headers?: OperationHeaders;
   }; output: Array<M.HelpUserDto>; };
   /** DELETE /service/mobile/api/v1/help/permit/helpees/{cisId} */
   "helpers.removeHelpee": { input: {
     "cisId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/help/permit/helpees/{cisId} */
   "helpers.addHelpee": { input: {
     "cisId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/help/permit/offers/helpees */
   "helpers.offers": { input: {
+    headers?: OperationHeaders;
   }; output: Array<M.OfferDto>; };
   /** POST /service/mobile/api/v1/help/permit/offers/helpees */
   "helpers.offer": { input: {
     "body": M.OfferBodyDto;
+    headers?: OperationHeaders;
   }; output: M.OfferDto; };
   /** DELETE /service/mobile/api/v1/help/permit/offers/helpees/{offerId} */
   "helpers.deleteOffer": { input: {
     "offerId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/help/permit/requests */
   "helpers.request": { input: {
     query?: {
       "queueName"?: string;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/help/permit/requests/statistics */
   "helpers.statistics": { input: {
     query?: {
       "queueName"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.HelperConnectQueueInfoDto; };
   /** POST /service/mobile/api/v1/ident/finishedHelping */
   "helpers.finish": { input: {
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/platform/tree/persons/{personId}/matches?collection=https://familysearch.org/platform/collections/records */
   "hints.updateRecordMatch": { input: {
@@ -351,7 +423,7 @@ export interface OperationTypes {
     query?: {
       "status"?: string;
     };
-    headers?: {
+    headers?: OperationHeaders & {
       "Content-Type"?: string;
     };
   }; output: void; };
@@ -359,13 +431,12 @@ export interface OperationTypes {
   "hints.notAMatch": { input: {
     "personId": string;
     "body": M.NotAMatchDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/pop/users/{cisId}/opportunities/summaries */
   "hints.opportunities": { input: {
     "cisId": string;
+    headers?: OperationHeaders;
   }; output: M.DiscoveryHintsListDto; };
   /** GET /service/mobile/api/v1/taz/users/{cisId}/activities */
   "hints.activities": { input: {
@@ -376,6 +447,7 @@ export interface OperationTypes {
       "ancestralGens"?: number;
       "descendantGens"?: number;
     };
+    headers?: OperationHeaders;
   }; output: M.DiscoveryArtifactEventListDto; };
   /** POST /service/mobile/api/v2/tree/person/match-by-example */
   "hints.matchByExample": { input: {
@@ -383,35 +455,40 @@ export interface OperationTypes {
     query?: {
       "unconnected"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.MatchResultsDto; };
   /** GET /service/mobile/api/v2/tree/person/match-by-id/{personId} */
   "hints.matchById": { input: {
     "personId": string;
+    headers?: OperationHeaders;
   }; output: M.SearchPersonDto; };
   /** POST /service/mobile/api/v2/tree/person/{childId}/potential-persons */
   "hints.potentialPersons": { input: {
     "childId": string;
     "body": M.PotentialParentsDataDto;
+    headers?: OperationHeaders;
   }; output: M.PotentialParentsResponseDto; };
   /** GET /service/mobile/api/v2/tree/person/{personId}/match/{duplicateId} */
   "hints.duplicate": { input: {
     "personId": string;
     "duplicateId": string;
+    headers?: OperationHeaders;
   }; output: M.PossibleMatchesDto; };
   /** GET /service/mobile/api/v2/tree/person/{personId}/matches?unmergeableMatches=true */
   "hints.duplicates": { input: {
     "personId": string;
+    headers?: OperationHeaders;
   }; output: M.PossibleMatchesDto; };
   /** GET /service/mobile/api/v2/tree/person/{pid}/record/matches */
   "hints.recordMatches": { input: {
     "pid": string;
+    headers?: OperationHeaders;
   }; output: M.RecordHintsDto | undefined; };
   /** DELETE /service/mobile/api/v1/platform/tree/persons/{personId}/source-references/{sourceReferenceId} */
   "sources.detach": { input: {
     "personId": string;
     "sourceReferenceId": string;
-    headers?: {
-      "X-Reason"?: string;
+    headers?: OperationHeaders & {
       "Content-Type"?: string;
     };
   }; output: void; };
@@ -419,23 +496,27 @@ export interface OperationTypes {
   "sources.updateLinks": { input: {
     "descriptionId": string;
     "body": M.DismissUADto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/source/record/details */
   "sources.recordDetailsV1": { input: {
     query?: {
       "sourceUrl"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.RecordDetailDto; };
   /** POST /service/mobile/api/v1/sourcelinker/attached/person/{personId}/relationships */
   "sources.attachRelationships": { input: {
     "personId": string;
     "body": M.MissingLinkerRelationshipTemplatesDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/person/{personId}/entityref/{entityRefId} */
   "sources.updateEntityReference": { input: {
     "personId": string;
     "entityRefId": string;
     "body": M.SourceEntityRef;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v2/record/details */
   "sources.recordDetails": { input: {
@@ -444,6 +525,7 @@ export interface OperationTypes {
       "hideSectionFields"?: boolean;
       "includeFocusPersonSummary"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.RecordDetailsDto; };
   /** GET /service/mobile/api/v2/record/persona/{personaId}/tree/matches */
   "sources.treeMatches": { input: {
@@ -451,19 +533,23 @@ export interface OperationTypes {
     query?: {
       "includePersona"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.PossibleMatchesDto; };
   /** POST /service/mobile/api/v2/source */
   "sources.create": { input: {
     "body": M.SourceDescriptionDto;
+    headers?: OperationHeaders;
   }; output: M.SourceDescriptionDto; };
   /** PUT /service/mobile/api/v2/source/{sourceId} */
   "sources.update": { input: {
     "sourceId": string;
     "body": M.SourceDescriptionDto;
+    headers?: OperationHeaders;
   }; output: M.SourceDescriptionDto; };
   /** POST /service/mobile/api/v2/sourcelinker/attach */
   "sources.attachRecord": { input: {
     "body": M.SourceLinkerAttachDto;
+    headers?: OperationHeaders;
   }; output: M.JsonValue; };
   /** GET /service/mobile/api/v2/sourcelinker/match */
   "sources.linkerMatch": { input: {
@@ -472,21 +558,25 @@ export interface OperationTypes {
       "personId"?: string;
       "matchOverrides"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.SourceLinkerMatchDto; };
   /** POST /service/mobile/api/v2/tree/person/{pid}/source-reference */
   "sources.attach": { input: {
     "pid": string;
     "body": M.SourceReferenceDto;
+    headers?: OperationHeaders;
   }; output: M.SourceReferenceResponseDto; };
   /** PUT /service/mobile/api/v2/tree/person/{pid}/source-reference/{sourceReferenceId} */
   "sources.updateReference": { input: {
     "pid": string;
     "sourceReferenceId": string;
     "body": M.SourceReferenceDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v2/tree/person/{pid}/sources */
   "sources.forPerson": { input: {
     "pid": string;
+    headers?: OperationHeaders;
   }; output: M.SourcesDto; };
   /** GET /service/mobile/api/v1/guided/tree/persons/{personId}/ancestorCount */
   "pedigree.ancestorCount": { input: {
@@ -494,16 +584,19 @@ export interface OperationTypes {
     query?: {
       "generations"?: number;
     };
+    headers?: OperationHeaders;
   }; output: M.AncestorCountsDto; };
   /** GET /service/mobile/api/v1/platform/tree/users/{userId}/preferred-parent-relationships/{pid} */
   "pedigree.preferredParents": { input: {
     "userId": string;
     "pid": string;
+    headers?: OperationHeaders;
   }; output: M.PreferredRelationshipDto; };
   /** GET /service/mobile/api/v1/platform/tree/users/{userId}/preferred-spouse-relationships/{pid} */
   "pedigree.preferredSpouse": { input: {
     "userId": string;
     "pid": string;
+    headers?: OperationHeaders;
   }; output: M.PreferredRelationshipDto; };
   /** PUT /service/mobile/api/v1/tf/user/preferences/pedigree/{pid} */
   "pedigree.setPreferences": { input: {
@@ -513,6 +606,7 @@ export interface OperationTypes {
       "preferredParentChild"?: string;
       "preferredCoparentParentChild"?: string;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tree-graph/soiTreeDownload */
   "pedigree.downloadTree": { input: {
@@ -522,14 +616,17 @@ export interface OperationTypes {
       "includeCounts"?: boolean;
       "srcBoundary"?: number;
     };
+    headers?: OperationHeaders;
   }; output: M.SoiTreeDto; };
   /** POST /service/mobile/api/v1/tree/builder/one-search */
   "pedigree.builderSearch": { input: {
     "body": M.GuidedTreeBuilderOneSearchInfoDto;
+    headers?: OperationHeaders;
   }; output: M.GuidedTreeBuilderOneSearchResultsDto; };
   /** GET /service/mobile/api/v1/tree/builder/pedigree/persons/{ids} */
   "pedigree.builderPersons": { input: {
     "ids": string;
+    headers?: OperationHeaders;
   }; output: Record<string, M.GuidedTreeBuilderResultsPersonStatusDto>; };
   /** GET /service/mobile/api/v1/tree/builder/pedigree/{personId} */
   "pedigree.builderPedigree": { input: {
@@ -537,27 +634,32 @@ export interface OperationTypes {
     query?: {
       "numGenerations"?: number;
     };
+    headers?: OperationHeaders;
   }; output: M.GuidedTreeBuilderPedigreeDto; };
   /** DELETE /service/mobile/api/v1/tree/builder/pedigree/{personId}/position/{position} */
   "pedigree.builderDelete": { input: {
     "personId": string;
     "position": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/tree/builder/pedigree/{personId}/position/{position} */
   "pedigree.builderAdd": { input: {
     "personId": string;
     "position": string;
     "body": M.GuidedTreeBuilderNewPedigreePositionDto;
+    headers?: OperationHeaders;
   }; output: M.GuidedTreeBuilderPedigreePersonDto; };
   /** PUT /service/mobile/api/v1/tree/builder/pedigree/{personId}/position/{position} */
   "pedigree.builderUpdate": { input: {
     "personId": string;
     "position": string;
     "body": M.GuidedTreeBuilderUpdatePedigreePositionDto;
+    headers?: OperationHeaders;
   }; output: M.GuidedTreeBuilderPedigreePersonDto; };
   /** GET /service/mobile/api/v1/tree/builder/search/persons/{ids} */
   "pedigree.builderSearchPersons": { input: {
     "ids": string;
+    headers?: OperationHeaders;
   }; output: Record<string, M.GuidedTreeBuilderSearchResultsPersonStatusDto>; };
   /** GET /service/mobile/api/v2/pedigree/ancestry/portrait/expand */
   "pedigree.expandPortrait": { input: {
@@ -566,7 +668,7 @@ export interface OperationTypes {
       "parent2Id"?: string;
       "includeGoldenHints"?: boolean;
     };
-    headers?: {
+    headers?: OperationHeaders & {
       "X-FS-Feature-Tag"?: string;
     };
   }; output: M.PedigreeExpansionDto; };
@@ -577,6 +679,7 @@ export interface OperationTypes {
       "numGenerations"?: number;
       "includeGoldenHints"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.PedigreeAncestorDto; };
   /** GET /service/mobile/api/v2/pedigree/ancestry/sibling/expand/descendants/{personId} */
   "pedigree.expandDescendants": { input: {
@@ -584,10 +687,12 @@ export interface OperationTypes {
     query?: {
       "spouseId"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.PedigreeDescendantDto; };
   /** GET /service/mobile/api/v2/pedigree/ancestry/sibling/expand/siblings/{personId} */
   "pedigree.expandSiblings": { input: {
     "personId": string;
+    headers?: OperationHeaders;
   }; output: M.PedigreeSiblingDto; };
   /** GET /service/mobile/api/v2/pedigree/ancestry/{personId}/sibling */
   "pedigree.siblings": { input: {
@@ -596,6 +701,7 @@ export interface OperationTypes {
       "numGenerations"?: number;
       "includeGoldenHints"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.PedigreeRootDto; };
   /** GET /service/mobile/api/v2/pedigree/ancestry/{person_id}/portrait */
   "pedigree.portrait": { input: {
@@ -604,7 +710,7 @@ export interface OperationTypes {
       "numGenerations"?: number;
       "includeGoldenHints"?: boolean;
     };
-    headers?: {
+    headers?: OperationHeaders & {
       "X-FS-Feature-Tag"?: string;
     };
   }; output: M.PedigreeDto; };
@@ -614,6 +720,7 @@ export interface OperationTypes {
     query?: {
       "tid"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.RecentsDto; };
   /** POST /service/mobile/api/v1/platform/users/{cisId}/history */
   "history.add": { input: {
@@ -622,22 +729,26 @@ export interface OperationTypes {
     query?: {
       "tid"?: string;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** DELETE /service/mobile/api/v1/platform/users/{cisId}/history/{personId} */
   "history.remove": { input: {
     "cisId": string;
     "personId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/person/{pid}/changes/{changeId}/restore */
   "history.restoreChange": { input: {
     "pid": string;
     "changeId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/person/{pid}/changes/{changeId}/undomerge */
   "history.undoMerge": { input: {
     "pid": string;
     "changeId": string;
     "body": M.AttributionDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v2/tree/person/{pid}/changes */
   "history.changes": { input: {
@@ -645,20 +756,25 @@ export interface OperationTypes {
     query?: {
       "from"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.ChangeHistoryDto; };
   /** GET /service/mobile/api/v1/search/location-map */
   "search.locationMap": { input: {
+    headers?: OperationHeaders;
   }; output: M.SearchLocationListDto; };
   /** POST /service/mobile/api/v2/one-search/categories */
   "search.categories": { input: {
     "body": M.OneSearchRequestDto;
+    headers?: OperationHeaders;
   }; output: M.OneSearchFiltersDto; };
   /** GET /service/mobile/api/v2/one-search/locations/countries */
   "search.countries": { input: {
+    headers?: OperationHeaders;
   }; output: M.OneSearchCountriesDto; };
   /** GET /service/mobile/api/v2/one-search/locations/subcountries/{countryName} */
   "search.subcountries": { input: {
     "countryName": string;
+    headers?: OperationHeaders;
   }; output: M.OneSearchSubcountriesDto; };
   /** POST /service/mobile/api/v2/one-search/results */
   "search.results": { input: {
@@ -667,6 +783,7 @@ export interface OperationTypes {
       "from"?: number;
       "size"?: number;
     };
+    headers?: OperationHeaders;
   }; output: M.OneSearchResultsDto; };
   /** POST /service/mobile/api/v1/tf/association */
   "associations.create": { input: {
@@ -674,272 +791,259 @@ export interface OperationTypes {
     query?: {
       "returnAssociationData"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.AssociationRelationshipDto; };
   /** DELETE /service/mobile/api/v1/tf/association/{associationId} */
   "associations.delete": { input: {
     "associationId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** DELETE /service/mobile/api/v1/tf/association/{associationId}/conclusion/{conclusionId} */
   "associations.deleteConclusion": { input: {
     "associationId": string;
     "conclusionId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** DELETE /service/mobile/api/v1/tf/association/{associationId}/notes/{noteId} */
   "associations.deleteNote": { input: {
     "associationId": string;
     "noteId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/association/{associationId}/persons/order */
   "associations.reorder": { input: {
     "associationId": string;
     "body": M.AssociationRelationshipSummaryDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/tf/association/{associationRelationshipId}/conclusion/fact */
   "associations.addFact": { input: {
     "associationRelationshipId": string;
     "body": M.FactDto;
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** PUT /service/mobile/api/v1/tf/association/{associationRelationshipId}/conclusion/fact/{conclusionId} */
   "associations.updateFact": { input: {
     "associationRelationshipId": string;
     "conclusionId": string;
     "body": M.FactDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** POST /service/mobile/api/v1/tf/association/{associationRelationshipId}/notes/ */
   "associations.addNote": { input: {
     "associationRelationshipId": string;
     "body": M.NoteDto;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** PUT /service/mobile/api/v1/tf/association/{associationRelationshipId}/notes/{noteId} */
   "associations.updateNote": { input: {
     "associationRelationshipId": string;
     "noteId": string;
     "body": M.NoteDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** GET /service/mobile/api/v1/tf/association/{relationshipId} */
   "associations.get": { input: {
     "relationshipId": string;
+    headers?: OperationHeaders;
   }; output: M.AssociationRelationshipDto; };
   /** GET /service/mobile/api/v1/tf/association/{relationshipId}/notes */
   "associations.notes": { input: {
     "relationshipId": string;
+    headers?: OperationHeaders;
   }; output: M.NoteListDto; };
   /** GET /service/mobile/api/v1/tf/association/{relationshipId}/notes/{noteId} */
   "associations.note": { input: {
     "relationshipId": string;
     "noteId": string;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** GET /service/mobile/api/v1/tf/couple/{id}/notes */
   "couples.notes": { input: {
     "id": string;
+    headers?: OperationHeaders;
   }; output: M.NoteListDto; };
   /** POST /service/mobile/api/v1/tf/couple/{id}/notes */
   "couples.addNote": { input: {
     "id": string;
     "body": M.NoteDto;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** DELETE /service/mobile/api/v1/tf/couple/{id}/notes/{noteId} */
   "couples.deleteNote": { input: {
     "id": string;
     "noteId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/couple/{id}/notes/{noteId} */
   "couples.note": { input: {
     "id": string;
     "noteId": string;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** PUT /service/mobile/api/v1/tf/couple/{id}/notes/{noteId} */
   "couples.updateNote": { input: {
     "id": string;
     "noteId": string;
     "body": M.NoteDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** DELETE /service/mobile/api/v1/tf/couple/{relationshipId} */
   "couples.delete": { input: {
     "relationshipId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/couple/{relationshipId} */
   "couples.get": { input: {
     "relationshipId": string;
+    headers?: OperationHeaders;
   }; output: M.CoupleRelationshipDto; };
   /** POST /service/mobile/api/v1/tf/couple/{relationshipId}/conclusion/fact */
   "couples.addFact": { input: {
     "relationshipId": string;
     "body": M.FactDto;
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** PUT /service/mobile/api/v1/tf/couple/{relationshipId}/conclusion/fact/{conclusionId} */
   "couples.updateFact": { input: {
     "relationshipId": string;
     "conclusionId": string;
     "body": M.FactDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** DELETE /service/mobile/api/v1/tf/couple/{relationshipId}/conclusion/{conclusionId} */
   "couples.deleteConclusion": { input: {
     "relationshipId": string;
     "conclusionId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/couple/{relationshipId}/spouses/order */
   "couples.reorder": { input: {
     "relationshipId": string;
     "body": M.SwitchCoupleOrderDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/tf/parentchild */
   "parentChildren.create": { input: {
     "body": M.AddParentChildRelationshipDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/parentchild/{id}/notes */
   "parentChildren.notes": { input: {
     "id": string;
+    headers?: OperationHeaders;
   }; output: M.NoteListDto; };
   /** POST /service/mobile/api/v1/tf/parentchild/{id}/notes */
   "parentChildren.addNote": { input: {
     "id": string;
     "body": M.NoteDto;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** DELETE /service/mobile/api/v1/tf/parentchild/{id}/notes/{noteId} */
   "parentChildren.deleteNote": { input: {
     "id": string;
     "noteId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/parentchild/{id}/notes/{noteId} */
   "parentChildren.note": { input: {
     "id": string;
     "noteId": string;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** PUT /service/mobile/api/v1/tf/parentchild/{id}/notes/{noteId} */
   "parentChildren.updateNote": { input: {
     "id": string;
     "noteId": string;
     "body": M.NoteDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** DELETE /service/mobile/api/v1/tf/parentchild/{relationshipId} */
   "parentChildren.delete": { input: {
     "relationshipId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/parentchild/{relationshipId} */
   "parentChildren.get": { input: {
     "relationshipId": string;
+    headers?: OperationHeaders;
   }; output: M.ParentChildRelationshipDto; };
   /** POST /service/mobile/api/v1/tf/parentchild/{relationshipId}/conclusion/fact */
   "parentChildren.addFact": { input: {
     "relationshipId": string;
     "body": M.FactDto;
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** PUT /service/mobile/api/v1/tf/parentchild/{relationshipId}/conclusion/fact/{conclusionId} */
   "parentChildren.updateFact": { input: {
     "relationshipId": string;
     "conclusionId": string;
     "body": M.FactDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** DELETE /service/mobile/api/v1/tf/parentchild/{relationshipId}/conclusion/{conclusionId} */
   "parentChildren.deleteConclusion": { input: {
     "relationshipId": string;
     "conclusionId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/parentchild/{relationshipId}/parents/order */
   "parentChildren.reorder": { input: {
     "relationshipId": string;
     "body": M.SwitchParentOrderDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/support/issue/dead-to-living/person/{person_id} */
   "persons.reportDeceasedAsLiving": { input: {
     "person_id": string;
     "body": M.SupportIssueDto;
+    headers?: OperationHeaders;
   }; output: M.SupportAnswerDto; };
   /** DELETE /service/mobile/api/v1/tf/person/{personId} */
   "persons.delete": { input: {
     "personId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/person/{person_id}/delete-constraint */
   "persons.deleteConstraints": { input: {
     "person_id": string;
+    headers?: OperationHeaders;
   }; output: M.DeleteConstraintResponseDto; };
   /** DELETE /service/mobile/api/v1/tf/person/{pid}/conclusion/{conclusionId} */
   "persons.deleteConclusion": { input: {
     "pid": string;
     "conclusionId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/person/{pid}/notes */
   "persons.notes": { input: {
     "pid": string;
+    headers?: OperationHeaders;
   }; output: M.NoteListDto; };
   /** POST /service/mobile/api/v1/tf/person/{pid}/notes */
   "persons.addNote": { input: {
     "pid": string;
     "body": M.NoteDto;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** DELETE /service/mobile/api/v1/tf/person/{pid}/notes/{noteId} */
   "persons.deleteNote": { input: {
     "pid": string;
     "noteId": string;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/person/{pid}/notes/{noteId} */
   "persons.note": { input: {
     "pid": string;
     "noteId": string;
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** PUT /service/mobile/api/v1/tf/person/{pid}/notes/{noteId} */
   "persons.updateNote": { input: {
     "pid": string;
     "noteId": string;
     "body": M.NoteDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.NoteDto; };
   /** POST /service/mobile/api/v1/tf/person/{pid}/relationship */
   "persons.addRelationship": { input: {
@@ -948,38 +1052,39 @@ export interface OperationTypes {
     query?: {
       "addMissingFamilyRelationships"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/person/{pid}/relationship/{associationId} */
   "persons.updateAssociation": { input: {
     "pid": string;
     "associationId": string;
     "body": M.RelationshipPersonDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/person/{pid}/relationship/{relationshipId} */
   "persons.updateRelationship": { input: {
     "pid": string;
     "relationshipId": string;
     "body": M.UpdateRelationshipDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: void; };
   /** PUT /service/mobile/api/v1/tf/person/{survivorId}/merge/{duplicateId} */
   "persons.merge": { input: {
     "survivorId": string;
     "duplicateId": string;
     "body": M.MergeSpecificationDto;
-    headers?: {
+    headers?: OperationHeaders & {
       "Product"?: string;
     };
   }; output: void; };
   /** GET /service/mobile/api/v1/tf/user/CURRENT/stats */
   "persons.stats": { input: {
+    headers?: OperationHeaders;
   }; output: M.UserContributionStatsDto; };
   /** POST /service/mobile/api/v2/tree/person */
   "persons.create": { input: {
     "body": M.AddPersonWithRelationshipsDto;
-    headers?: {
+    headers?: OperationHeaders & {
       "Product"?: string;
     };
   }; output: M.AddedPersonDto; };
@@ -989,77 +1094,81 @@ export interface OperationTypes {
     query?: {
       "oneHops"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.PersonDetailsDto; };
   /** POST /service/mobile/api/v2/tree/person/{pid}/conclusion/fact */
   "persons.addFact": { input: {
     "pid": string;
     "body": M.FactDto;
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** PUT /service/mobile/api/v2/tree/person/{pid}/conclusion/fact/{conclusionId} */
   "persons.updateFact": { input: {
     "pid": string;
     "conclusionId": string;
     "body": M.FactDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** PUT /service/mobile/api/v2/tree/person/{pid}/conclusion/gender/{conclusionId} */
   "persons.updateGender": { input: {
     "pid": string;
     "conclusionId": string;
     "body": M.FactDto;
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** POST /service/mobile/api/v2/tree/person/{pid}/conclusion/name/ */
   "persons.addName": { input: {
     "pid": string;
     "body": M.FactDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** PUT /service/mobile/api/v2/tree/person/{pid}/conclusion/name/{nameId} */
   "persons.updateName": { input: {
     "pid": string;
     "nameId": string;
     "body": M.FactDto;
-    headers?: {
-      "X-Reason"?: string;
-    };
+    headers?: OperationHeaders;
   }; output: M.FactDto; };
   /** GET /service/mobile/api/v2/tree/person/{survivorId}/merge/{duplicateId}/analysis */
   "persons.mergeAnalysis": { input: {
     "survivorId": string;
     "duplicateId": string;
+    headers?: OperationHeaders;
   }; output: M.MergeAnalysisDto; };
   /** GET /service/mobile/api/v2/tree/private-space/persons */
   "persons.privatePersons": { input: {
     query?: {
       "nameFilter"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.PrivatePersonsDto; };
   /** GET /service/mobile/api/v2/tree/user/contributions?pageSize=300&includeOtherRelationships=true */
   "persons.contributions": { input: {
     query?: {
       "nameFilter"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.UserContributionsDto; };
   /** GET /service/mobile/api/v1/tps/persons/{pid}/lastPublicEvent */
   "portraits.lastPublicEvent": { input: {
     "pid": string;
+    headers?: OperationHeaders;
   }; output: M.LastPublicEventDto; };
   /** DELETE /service/mobile/api/v1/tps/persons/{pid}/portrait */
   "portraits.delete": { input: {
     "pid": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/tps/persons/{pid}/portrait */
   "portraits.get": { input: {
     "pid": string;
+    headers?: OperationHeaders;
   }; output: M.PortraitDto; };
   /** POST /service/mobile/api/v1/tps/persons/{pid}/portrait */
   "portraits.set": { input: {
     "pid": string;
     "body": M.SetPortraitDto;
+    headers?: OperationHeaders;
   }; output: M.PortraitDto; };
   /** POST /service/mobile/api/v1/temple/cards/family */
   "ordinances.familyCardsV1": { input: {
@@ -1067,26 +1176,32 @@ export interface OperationTypes {
     query?: {
       "timezoneOffsetMinutes"?: number;
     };
+    headers?: OperationHeaders;
   }; output: M.TempleCardsResponseDtoV1; };
   /** POST /service/mobile/api/v1/transfer-a-name/batches?noEmailSender=MOBILE */
   "ordinances.transfer": { input: {
     "body": M.ReservationTransferRequestDto;
+    headers?: OperationHeaders;
   }; output: M.ReservationTransferResponseDto; };
   /** POST /service/mobile/api/v1/tree/builder/persons/family-ordinance-request */
   "ordinances.builderRequest": { input: {
     "body": M.TreeBuilderReservationDto;
+    headers?: OperationHeaders;
   }; output: M.TempleCardsResponseDto; };
   /** POST /service/mobile/api/v1/tree/builder/persons/share-with-temple */
   "ordinances.builderShare": { input: {
     "body": M.TreeBuilderReservationDto;
+    headers?: OperationHeaders;
   }; output: M.TreeBuilderSharedPersonsDto; };
   /** POST /service/mobile/api/v2/reservations/ordinances-ready */
   "ordinances.ready": { input: {
     "body": M.OrdinancesReadyRequestDto;
+    headers?: OperationHeaders;
   }; output: M.OrdinancesReadyResponseDto; };
   /** DELETE /service/mobile/api/v2/reservations/ordinances-ready/{token} */
   "ordinances.deleteReady": { input: {
     "token": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v2/reservations/ordinances-ready/{token} */
   "ordinances.readyStatus": { input: {
@@ -1096,6 +1211,7 @@ export interface OperationTypes {
       "sex"?: string;
       "stopProcessing"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: M.OrdinancesReadyResponseDto; };
   /** POST /service/mobile/api/v2/reservations/owner/{ownerId}/cards */
   "ordinances.updateCards": { input: {
@@ -1106,6 +1222,7 @@ export interface OperationTypes {
       "reserveOrigin"?: string;
       "groupId"?: string;
     };
+    headers?: OperationHeaders;
   }; output: Uint8Array; };
   /** GET /service/mobile/api/v2/reservations/owner/{ownerId}/cards/completed */
   "ordinances.completedCards": { input: {
@@ -1114,6 +1231,7 @@ export interface OperationTypes {
       "limit"?: number;
       "sortOrder"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.CompletedCardListDto; };
   /** GET /service/mobile/api/v2/reservations/owner/{ownerId}/cards/groups */
   "ordinances.groupCards": { input: {
@@ -1122,6 +1240,7 @@ export interface OperationTypes {
       "limit"?: number;
       "sortOrder"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.CardListDto; };
   /** GET /service/mobile/api/v2/reservations/owner/{ownerId}/cards/personal */
   "ordinances.personalCards": { input: {
@@ -1130,6 +1249,7 @@ export interface OperationTypes {
       "limit"?: number;
       "sortOrder"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.CardListDto; };
   /** GET /service/mobile/api/v2/reservations/owner/{ownerId}/cards/temple */
   "ordinances.templeCards": { input: {
@@ -1138,10 +1258,12 @@ export interface OperationTypes {
       "limit"?: number;
       "sortOrder"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.CardListDto; };
   /** GET /service/mobile/api/v2/reservations/person/{personId}/cards */
   "ordinances.personCards": { input: {
     "personId": string;
+    headers?: OperationHeaders;
   }; output: M.CardListDto; };
   /** GET /service/mobile/api/v2/support/issue/ordinance-permission/exists/{personId} */
   "ordinances.permissionExists": { input: {
@@ -1152,57 +1274,70 @@ export interface OperationTypes {
       "parent1Id"?: string;
       "parent2Id"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.OrdinancePermissionSupportIssueDto; };
   /** POST /service/mobile/api/v2/support/issue/ordinance-permissions */
   "ordinances.requestPermission": { input: {
     "body": M.OrdinancePermissionDto;
+    headers?: OperationHeaders;
   }; output: M.OrdinancePermissionResponseDto; };
   /** GET /service/mobile/api/v2/support/issue/ordinance-permissions/exist/{personId} */
   "ordinances.permissionsExist": { input: {
     "personId": string;
+    headers?: OperationHeaders;
   }; output: M.OrdinancePermissionSupportIssuesDto; };
   /** POST /service/mobile/api/v2/temple/cards/family-ordinance-request */
   "ordinances.familyCards": { input: {
     "body": M.CardListDto;
+    headers?: OperationHeaders;
   }; output: M.TempleCardsResponseDto; };
   /** GET /service/mobile/api/v2/tree/person/{personId}/ordinances */
   "ordinances.forPerson": { input: {
     "personId": string;
+    headers?: OperationHeaders;
   }; output: M.OrdinanceListDto; };
   /** PUT /service/mobile/api/v1/tf/user/CURRENT/tree/{treeId}/person/{mePersonId} */
   "trees.setMePerson": { input: {
     "treeId": string;
     "mePersonId": string;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/user-preferences/users/{cis_user_id}/preferences/match.service */
   "trees.matchPreference": { input: {
     "cis_user_id": string;
+    headers?: OperationHeaders;
   }; output: M.MatchServicePreferenceDto; };
   /** PUT /service/mobile/api/v1/user-preferences/users/{cis_user_id}/preferences/match.service */
   "trees.setMatchPreference": { input: {
     "cis_user_id": string;
     "body": M.MatchServicePreferenceDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/user/tree/status */
   "trees.status": { input: {
+    headers?: OperationHeaders;
   }; output: M.TreeStatusDto; };
   /** POST /service/mobile/api/v1/user/tree/{treeId}/match-me-persons */
   "trees.matchMe": { input: {
     "treeId": string;
+    headers?: OperationHeaders;
   }; output: M.MePersonMatchesDto; };
   /** DELETE /service/mobile/api/v1/watch/followers/CURRENT/watches */
   "following.unfollow": { input: {
     query?: {
       "personId"?: string;
     };
+    headers?: OperationHeaders;
   }; output: void; };
   /** POST /service/mobile/api/v1/watch/followers/CURRENT/watches */
   "following.follow": { input: {
     "body": M.FollowDto;
+    headers?: OperationHeaders;
   }; output: void; };
   /** GET /service/mobile/api/v1/watch/followers/CURRENT/watches/{personId}/status */
   "following.status": { input: {
     "personId": string;
+    headers?: OperationHeaders;
   }; output: M.WatchDto; };
   /** GET /service/mobile/api/v2/tree/person/{pid}/descendant/tasks */
   "tasks.descendants": { input: {
@@ -1212,6 +1347,7 @@ export interface OperationTypes {
       "filter"?: string;
       "includeNeedsPermission"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: Array<M.TaskDto>; };
   /** DELETE /service/mobile/api/v2/tree/person/{pid}/tasks */
   "tasks.dismiss": { input: {
@@ -1219,6 +1355,7 @@ export interface OperationTypes {
     query?: {
       "types"?: string;
     };
+    headers?: OperationHeaders;
   }; output: M.DismissTasksDto; };
   /** GET /service/mobile/api/v2/user/tasks */
   "tasks.list": { input: {
@@ -1226,6 +1363,7 @@ export interface OperationTypes {
       "filter"?: string;
       "includeNeedsPermission"?: boolean;
     };
+    headers?: OperationHeaders;
   }; output: Array<M.TaskDto>; };
 }
 export type OperationName = keyof OperationTypes;

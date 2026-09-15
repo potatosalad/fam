@@ -1,6 +1,7 @@
 import {InputError} from '../shared/input-error.js';
 import { contracts } from './generated/schema.js';
-import type { WireType, OperationContract } from './contract-types.js';
+import { discovery } from './generated/discovery.js';
+import type { WireType, WireParameter, OperationContract } from './contract-types.js';
 import type { GenealogyApi, OperationName } from './generated/operations.js';
 import type { ApiRequest, Query } from './transport-types.js';
 import type { FamilySearchClient } from './client.js';
@@ -69,6 +70,14 @@ export function operationContract(name: string): OperationContract {
 }
 export function listOperations(prefix = ''): OperationContract[] {
   return Object.keys(contracts.operations).filter(name => name.startsWith(prefix)).map(operationContract);
+}
+
+/** Common client headers supplement the recovered APK contract without rewriting its evidence. */
+export function operationInputParameters(contract: OperationContract): WireParameter[] {
+  const additional: WireParameter[] = Object.keys(discovery.commonHeaders)
+    .filter(name => !contract.parameters.some(p => p.kind === 'header' && p.name === name))
+    .map(name => ({kind: 'header', name, type: {kind: 'string'}, required: false, encodedInApk: false}));
+  return [...contract.parameters, ...additional];
 }
 
 /** Illustrative, schema-valid input. Placeholder values still need real IDs/data. */
@@ -165,17 +174,18 @@ export function decodeOperationResponse(name: OperationName, data: unknown): unk
 
 export function prepareOperation(name: OperationName, supplied: unknown): { path: string; options: ApiRequest } {
   const contract = operationContract(name);
+  const parameters = operationInputParameters(contract);
   const input = supplied === undefined ? {} : supplied;
   if (!object(input)) fail('input', 'object');
-  const allowed = new Set(['query', 'headers', ...contract.parameters.filter(p => p.kind === 'path' || p.kind === 'body').map(p => p.name)]);
+  const allowed = new Set(['query', 'headers', ...parameters.filter(p => p.kind === 'path' || p.kind === 'body').map(p => p.name)]);
   for (const key of Object.keys(input).filter(k => !allowed.has(k))) {
-    const parameter = contract.parameters.find(p => p.name === key && (p.kind === 'query' || p.kind === 'header'));
+    const parameter = parameters.find(p => p.name === key && (p.kind === 'query' || p.kind === 'header'));
     if (parameter) throw new InputError(`Invalid input: ${parameter.name} belongs under ${parameter.kind === 'query' ? 'query' : 'headers'}. Use "fam familysearch.api describe --operation ${name} --example" for the correct nesting.`);
     throw new InputError(`Invalid input property ${JSON.stringify(key)}. Allowed: ${[...allowed].join(', ')}. Path parameters are top-level properties. Use "fam familysearch.api describe --operation ${name} --example".`);
   }
   for (const kind of ['query', 'headers']) {
     if (input[kind] !== undefined && !object(input[kind])) fail(kind, 'object');
-    const allowedNames = new Set(contract.parameters.filter(p => p.kind === (kind === 'headers' ? 'header' : 'query')).map(p => p.name));
+    const allowedNames = new Set(parameters.filter(p => p.kind === (kind === 'headers' ? 'header' : 'query')).map(p => p.name));
     if (Object.keys(input[kind] ?? {}).some(k => !allowedNames.has(k))) {
       fail(kind, `documented parameter names (unexpected: ${Object.keys(input[kind] as object).filter(k => !allowedNames.has(k)).map(k => JSON.stringify(k)).join(', ')}; allowed: ${[...allowedNames].join(', ') || 'none'}). Use "fam familysearch.api describe --operation ${name} --example"`);
     }
@@ -186,7 +196,7 @@ export function prepareOperation(name: OperationName, supplied: unknown): { path
   const query: Query = {};
   let body: unknown;
   let raw = false;
-  for (const p of contract.parameters) {
+  for (const p of parameters) {
     const value = p.kind === 'query' ? (input.query as Record<string, unknown> | undefined)?.[p.name]
       : p.kind === 'header' ? (input.headers as Record<string, unknown> | undefined)?.[p.name] : input[p.name];
     if (value === undefined) { if (p.required) fail(p.name, 'required parameter'); continue; }

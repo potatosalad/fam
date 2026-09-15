@@ -9,6 +9,13 @@ async function contracts(client: FamilySearchClient) {
   await client.genealogy.memories.upload({ body: new FormData() });
   await client.genealogy.memories.replaceFile({ artifactId: 123, body: 'A story' });
   await client.genealogy.groups.list();
+  await client.genealogy.groups.list({headers: {'X-Reason': 'Common header'}});
+  await client.genealogy.persons.addFact({pid: person.id, body: {conclusionType: 'FACT', value: {type: 'Birth'}}, headers: {'X-Reason': 'Birth register'}});
+  await client.genealogy.parentChildren.create({body: {childId: person.id}, headers: {'X-Reason': 'Birth register'}});
+  // @ts-expect-error common headers require string values
+  await client.genealogy.parentChildren.create({body: {childId: person.id}, headers: {'X-Reason': 123}});
+  // @ts-expect-error common headers do not permit arbitrary header names
+  await client.genealogy.parentChildren.create({body: {childId: person.id}, headers: {'X-Misspelled': 'Reason'}});
   // @ts-expect-error person IDs are required
   await client.genealogy.persons.get({});
   // @ts-expect-error oneHops is a string selector, not a boolean flag

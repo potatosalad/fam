@@ -32,7 +32,7 @@ function example(type: WireType): any {
   }
 }
 
-test('every selected operation traverses the authenticated transport with the APK verb, route, parameters, and response mode', async () => {
+test('every selected operation preserves APK transport behavior and accepts the common reason header', async () => {
   const endpoints = JSON.parse(readFileSync(new URL('../docs/familysearch/endpoints.json', import.meta.url), 'utf8')).endpoints;
   const selection = JSON.parse(readFileSync(new URL('../docs/familysearch/operation-selection.json', import.meta.url), 'utf8')).operations;
   assert.equal(listOperations().length, selection.filter((s: any) => !s.unsupported).length);
@@ -50,6 +50,7 @@ test('every selected operation traverses the authenticated transport with the AP
         else if (p.kind === 'header') (input.headers ??= {})[p.name] = 'Test reason';
         else input[p.name] = value;
       }
+      (input.headers ??= {})['X-Reason'] = 'Test reason';
       if (op.name === 'memories.replaceFile') input.body = 'A family story.';
       const expected = example(op.response);
       Impit.prototype.fetch = async function (target, init) {
@@ -59,6 +60,7 @@ test('every selected operation traverses the authenticated transport with the AP
         assert.equal(url.origin, 'https://www.familysearch.org', op.name);
         assert.equal(init?.method, evidence.method, op.name);
         assert.equal(requestHeaders.get('authorization'), 'Bearer test-only-access');
+        assert.equal(requestHeaders.get('x-reason'), 'Test+reason', op.name);
         let route = evidence.path;
         for (const p of evidence.parameters.filter((p: any) => p.kind === 'path')) route = route.replaceAll(`{${p.name}}`, encodeURIComponent(input[p.name]));
         const expectedUrl = new URL(route, url.origin);
@@ -83,6 +85,20 @@ test('every selected operation traverses the authenticated transport with the AP
     }
     assert.equal(count, listOperations().length);
   } finally { Impit.prototype.fetch = original; }
+});
+
+test('common reasons are encoded once without replacing body reasons or mutating input', () => {
+  const input = {pid: 'ABCD-123', body: {conclusionType: 'FACT', value: {type: 'Birth'}, attribution: {changeMessage: 'Body evidence'}},
+    headers: {'X-Reason': 'État civil: 同一人 & 100% +'}};
+  const original = structuredClone(input);
+  const add = prepareOperation('persons.addFact', input);
+  assert.equal(add.options.headers?.['X-Reason'], '%C3%89tat+civil%3A+%E5%90%8C%E4%B8%80%E4%BA%BA+%26+100%25+%2B');
+  assert.deepEqual(add.options.body, original.body);
+  assert.deepEqual(input, original);
+  const relationship = prepareOperation('parentChildren.create', {body: {childId: 'ABCD-123'}, headers: {'X-Reason': 'Birth register'}});
+  assert.equal(relationship.options.headers?.['X-Reason'], 'Birth+register');
+  assert.deepEqual(relationship.options.body, {childId: 'ABCD-123'});
+  assert.equal(prepareOperation('parentChildren.create', {body: {childId: 'ABCD-123'}}).options.headers?.['X-Reason'], undefined);
 });
 
 test('concrete genealogy mutations preserve nested payloads, reasons and fixed parameters', () => {
@@ -138,6 +154,9 @@ test('invalid bodies, misspelled parameters, traversal and header injection fail
     ['persons.addFact', { pid: 'ABCD-123', body: { conclusionType: 'Birth' } }],
     ['persons.addNote', { pid: 'ABCD-123', body: { noteId: '', value: { title: 'x', text: 1 }, attribution: {} } }],
     ['persons.delete', { personId: 'ABCD-123', headers: { 'X-Reason': 'value\r\nInjected: yes' } }],
+    ['parentChildren.create', { body: {childId: 'ABCD-123'}, headers: { 'X-Reason': 'value\r\nInjected: yes' } }],
+    ['parentChildren.create', { body: {childId: 'ABCD-123'}, headers: { 'X-Reason': 123 } }],
+    ['parentChildren.create', { body: {childId: 'ABCD-123'}, headers: { Authorization: 'secret' } }],
     ['memories.get', { artifactId: Number.MAX_SAFE_INTEGER + 1 }],
   ] as const) await assert.rejects((fs.operation as any)(name, input), e => e instanceof Error && !e.message.includes('AUTH MUST NOT RUN'));
   await assert.rejects(fs.request('/platform/users/current', { headers: { Authorization: 'secret' } }), /managed/);

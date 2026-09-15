@@ -40,7 +40,25 @@ fam familysearch.api call --operation persons.addFact --input fact.json --json
 
 Edit the input before executing it. `--input` accepts a file, an inline JSON object, or `-` for stdin. Dry-run reads that input and validates its fields, types, paths, and query/header nesting without loading credentials or contacting FamilySearch. Its `data.validation.input` shows the prepared input. Validation does not establish server permissions or verify genealogical conclusions. Command history records consumed input unless disabled with `FAM_HISTORY=0`.
 
-The examples for creating people, facts, names, notes, relationships, and source attachments contain editable payloads. A create-person example includes a Death fact explicitly; set living/deceased status from evidence. Names use `value.nameForms`; place IDs are strings from `authorities.places`. Use actual conclusion IDs from the person, fresh note UUIDs, and operation-specific reason fields. `sources.attach` takes a source description ID and tag objects such as `{"resource":"http://gedcomx.org/Name"}`.
+The examples for creating people, facts, names, notes, relationships, and source attachments contain editable payloads. A create-person example includes a Death fact explicitly; set living/deceased status from evidence. Names use `value.nameForms`; place IDs are strings from `authorities.places`. Use actual conclusion IDs from the person, fresh note UUIDs, and the [reason fields below](#change-reasons). `sources.attach` takes a source description ID and tag objects such as `{"resource":"http://gedcomx.org/Name"}`.
+
+### Change reasons
+
+Every FamilySearch API operation accepts `"headers": {"X-Reason": "Describe the supporting evidence."}`. Supply plain text: fam URL-encodes the header once, including spaces and Unicode. This also works in dry-run and the TypeScript client. Operation help lists it under `inputSchema.properties.headers`. The header remains optional.
+
+The header is forwarded to FamilySearch. Whether an endpoint records it is controlled by the server; support across all endpoints has not been verified. Body reason fields are preserved independently and are not filled or overwritten from the header. Use the documented body field when the operation has one:
+
+| Operation | Reason location |
+| --- | --- |
+| `persons.addFact` | `body.attribution.changeMessage`; `headers.X-Reason` is also accepted. |
+| `parentChildren.create` | `headers.X-Reason` is forwarded. The recovered body schema has no reason field; server persistence of this header is unverified. |
+| `sources.detach`, `persons.deleteConclusion` | `headers.X-Reason`. |
+| `persons.updateFact` | `headers.X-Reason` and `body.attribution.changeMessage` are both supported by the recovered contract. |
+| `persons.create` | `body.changeMessage`; individual conclusions can also contain attribution. |
+| `persons.addRelationship` | `body.attribution.changeMessage`. |
+| `sources.attachRecord` | `body.attachmentReason`. |
+
+For other operations, inspect `fam familysearch.api describe --operation <OPERATION> --json` for nested body fields. The CLI's global `--reasoning` flag records agent intent in local command history; it does not send a FamilySearch change reason.
 
 ## Upload memories
 

@@ -51,6 +51,9 @@ test('every implemented operation has discoverable descriptions, valid examples,
   for (const name of names) {
     const description = describeOperation(name);
     assert.ok(description.description.length > 15, name);
+    assert.equal(description.inputSchema.properties.headers.properties['X-Reason'].type, 'string', name);
+    assert.match(description.inputSchema.properties.headers.properties['X-Reason'].description, /plain text/, name);
+    assert.equal(description.parameters.filter(p => p.kind === 'header' && p.name === 'X-Reason').length, 1, name);
     prepareOperation(name as OperationName, description.example);
     for (const schema of [description.inputSchema, description.outputSchema]) {
       const resolveRefs = (value: unknown) => {
@@ -73,6 +76,7 @@ test('every implemented operation has discoverable descriptions, valid examples,
   const first = describeOperation('persons.get');
   first.inputSchema.properties.pid = {type: 'number'};
   assert.equal(describeOperation('persons.get').inputSchema.properties.pid.type, 'string');
+  assert.equal(describeOperation('groups.list').needsInput, false);
 });
 
 test('provider help, operation help, search, and examples work outside the checkout without credentials', async () => {

@@ -40,7 +40,12 @@ for key, model in c['models'].items():
     model_lines += ['}\n']
 outputs['src/familysearch/generated/models.ts'] = '\n'.join(model_lines)
 
-lines = [header, "import type * as M from './models.js';", "import type { UploadBody } from '../transport-types.js';", 'export interface OperationTypes {']
+lines = [header, "import type * as M from './models.js';", "import type { UploadBody } from '../transport-types.js';",
+         '/** Common fam input headers from docs/familysearch/discovery.json, supplementing the APK contract. */',
+         'export interface OperationHeaders {']
+for name, description in discovery['commonHeaders'].items():
+    lines += [f'  /** {description} */', f'  {json.dumps(name)}?: string;']
+lines += ['}', 'export interface OperationTypes {']
 for op in c['operations']:
     lines += [f'  /** {op["method"]} {op["path"]} */', f'  {json.dumps(op["name"])}: {{ input: {{']
     for p in op['parameters']:
@@ -48,11 +53,14 @@ for op in c['operations']:
             body_type = 'string' if op['name']=='memories.replaceFile' and p['kind']=='body' else ts(p['type'],'M.')
             lines += [f'    {json.dumps(p["name"])}: {body_type};']
     for kind, field in [('query','query'),('header','headers')]:
-        params = [p for p in op['parameters'] if p['kind']==kind]
+        params = [p for p in op['parameters'] if p['kind']==kind and not (kind=='header' and p['name'] in discovery['commonHeaders'])]
         if params:
-            lines += [f'    {field}?: {{']
+            common = 'OperationHeaders & ' if kind=='header' else ''
+            lines += [f'    {field}?: {common}{{']
             for p in params: lines += [f'      {json.dumps(p["name"])}?: {ts(p["type"],"M.")};']
             lines += ['    };']
+        elif kind=='header':
+            lines += ['    headers?: OperationHeaders;']
     lines += [f'  }}; output: {ts(op["response"],"M.")}{" | undefined" if op.get("responseOptional") else ""}; }};']
 lines += ['}', 'export type OperationName = keyof OperationTypes;',
           "export type OperationInput<K extends OperationName> = OperationTypes[K]['input'];",
@@ -70,6 +78,9 @@ doc = ['# Genealogy operation reference', '', 'Generated from APK 5.4.4 contract
        '', 'Path values and `body` are top-level input properties. Optional query/header values go inside `query` / `headers`. Their omission is supported by Retrofit; server requirements may be stricter. All path values are accepted unescaped and encoded once by this client.',
        '', 'A model’s required fields reflect the APK decoder. Optional non-null fields can be absent because the app has a default. Server-side create/update requirements can differ. Unknown response fields are preserved. See [contracts.json](contracts.json) for every nested field, nullability, and source provenance, and [generated types](../../src/familysearch/generated/models.ts) for TypeScript.',
        '', 'Use `client.operationDetailed()` for status, headers, and binary downloads. Response bodies for `void` operations are drained and discarded. `JsonValue` means the APK itself declares an unstructured acknowledgement.', '']
+doc += ['## Common input headers', '', 'These optional headers are accepted on every operation in addition to the APK parameters listed below. They are fam input extensions, not evidence that every server endpoint records them. See [reason fields](README.md#change-reasons) for body fields used by specific writes.', '']
+doc += [f'- `headers.{name}` (string): {description}' for name, description in discovery['commonHeaders'].items()]
+doc += ['']
 for group in sorted({o['name'].split('.')[0] for o in c['operations']}):
     doc += [f'## {group}', '', discovery['groups'][group], '', '| Operation | Description | HTTP path | Inputs | Response |', '| --- | --- | --- | --- | --- |']
     for o in c['operations']:

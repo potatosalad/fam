@@ -8,6 +8,12 @@ A model’s required fields reflect the APK decoder. Optional non-null fields ca
 
 Use `client.operationDetailed()` for status, headers, and binary downloads. Response bodies for `void` operations are drained and discarded. `JsonValue` means the APK itself declares an unstructured acknowledgement.
 
+## Common input headers
+
+These optional headers are accepted on every operation in addition to the APK parameters listed below. They are fam input extensions, not evidence that every server endpoint records them. See [reason fields](README.md#change-reasons) for body fields used by specific writes.
+
+- `headers.X-Reason` (string): Optional change reason accepted on every operation. Supply plain text; fam URL-encodes it once. Body reason fields remain independent, and server persistence of this header is not verified for every endpoint.
+
 ## associations
 
 Other relationships between people, with facts and notes.
