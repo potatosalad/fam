@@ -111,7 +111,7 @@ Example plugin configuration in `/app/camofox.config.json`:
 {"plugins":{"persistence":{"enabled":true},"vnc":{"enabled":true},"fam":{"enabled":true}}}
 ```
 
-Preserve other plugins and settings when adding these entries to an existing installation. Restart Camofox after installing or updating the plugin, including to enable the 15-minute fam tab cleanup. The packaged plugin supports Camofox 1.11.2 and 1.14.0; local setup pins the official 1.14.0 image digest. See [Camofox](https://github.com/jo-inc/camofox-browser) for server configuration.
+Preserve other plugins and settings when adding these entries to an existing installation. Restart Camofox after installing or updating the plugin, including to enable the 15-minute fam tab cleanup. The packaged plugin supports Camofox 1.11.2, 1.14.0, and 1.16.0; local setup pins the official 1.16.0 image digest. See [Camofox](https://github.com/jo-inc/camofox-browser) for server configuration.
 
 ## Everyday commands
 

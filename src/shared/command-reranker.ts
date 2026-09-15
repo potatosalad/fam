@@ -4,7 +4,7 @@ import {createRerankerHead} from './reranker-head.js';
 
 export const rerankerModel = {
   id: 'cross-encoder/ettin-reranker-17m-v1', revision: '9e4aa35321a6dd1a43ca313f500c4b4f7cfb5cc6',
-  dtype: 'fp32', runtime: 'onnxruntime-web@1.29.0', maxTokens: 512,
+  dtype: 'fp32', runtime: 'onnxruntime-web@1.30.0', maxTokens: 512,
 } as const;
 const modelFiles = {
   'tokenizer.json': {bytes: 3583327, sha256: '28c5e078e4c52aa37cf0e6de1a212878f3dbd58dd1c70466298efe0b6b86db35'},

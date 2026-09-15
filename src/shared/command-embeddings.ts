@@ -9,7 +9,7 @@ import {searchModelFile} from './search-model.js';
 // Pin weights and preprocessing together: cached vectors must use the same model as queries.
 export const embeddingModel = {
   id: 'Snowflake/snowflake-arctic-embed-xs', revision: 'd8c86521100d3556476a063fc2342036d45c106f',
-  dtype: 'q8', dimensions: 384, pooling: 'cls', normalize: true, runtime: 'onnxruntime-web@1.29.0',
+  dtype: 'q8', dimensions: 384, pooling: 'cls', normalize: true, runtime: 'onnxruntime-web@1.30.0',
   queryPrefix: 'Represent this sentence for searching relevant passages: ',
 } as const;
 export interface SearchDocument {id: string; text: string}

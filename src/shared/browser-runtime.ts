@@ -12,7 +12,7 @@ import {CREDENTIAL_DIR} from './storage.js';
 import {browserConfig, browserUrl, browserEngine, browserName, saveBrowserConfig, browserUserId, endpointId, BrowserError, type BrowserConfig, type BrowserEndpoint, type BrowserEngine} from './browser-config.js';
 
 const exec = promisify(execFile);
-export const CAMOFOX_IMAGE = 'ghcr.io/jo-inc/camofox-browser:1.14.0@sha256:86c79eed8a6b3a78859f73bc70d6003c5566b85e969354ec454524b28197ffce';
+export const CAMOFOX_IMAGE = 'ghcr.io/jo-inc/camofox-browser:1.16.0@sha256:3cc29763d3c784ae71a7d56853a12c43e100ff2f13da1e2eb88322b08e12d6a0';
 export const pluginDirectory = fileURLToPath(new URL('../../browser/camofox-plugin/', import.meta.url));
 export const browserDirectory = fileURLToPath(new URL('../../browser/', import.meta.url));
 export const CLOAKBROWSER_IMAGE = 'fam-cloakbrowser:0.5.10';
