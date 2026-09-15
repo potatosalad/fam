@@ -5,6 +5,16 @@ export interface RecordSearchOptions {
   /** Native filter expressions; see APK SearchRequestBody. */
   filters?: string[];
 }
+
+/** Collection titles are returned on each card's CollectionMetadata feature. */
+export function enrichSearchCollections(result: any): any {
+  if (!Array.isArray(result?.RecordView?.Records)) return result;
+  return {...result, RecordView: {...result.RecordView, Records: result.RecordView.Records.map((record: any) => {
+    const collection = Array.isArray(record.Features) ? record.Features.find((feature: any) => feature?.FeatureName === 'CollectionMetadata') : undefined;
+    return {...record, collectionId: collection?.CollectionId == null ? null : String(collection.CollectionId),
+      collectionTitle: collection?.Title ?? collection?.OnlineTitle ?? null};
+  })}};
+}
 /** Wire names and polymorphic discriminators come from the APK's Moshi adapters. */
 export function recordSearchBody(options: RecordSearchOptions, userId: string) {
   const limit = options.limit ?? 20;

@@ -5,7 +5,7 @@ import type { ApiRequest, ApiResponse, Query } from '../familysearch/transport-t
 import { AncestryHttp, AncestryHttpError, GATEWAY, checkAncestryUrl } from './http.js';
 import { authenticateAncestry, saveAncestrySession, type AncestrySession } from './auth.js';
 import { graphqlOperation, prepareRest, validateVariables, type GraphQLName, type Variables, type RestArguments } from './catalog.js';
-import { recordSearchBody, type RecordSearchOptions } from './search.js';
+import { recordSearchBody, enrichSearchCollections, type RecordSearchOptions } from './search.js';
 
 export interface GraphQLResult<T = unknown> { data?: T | null; errors?: {message?: string; path?: (string | number)[]; extensions?: Record<string, unknown>}[]; extensions?: Record<string, unknown>; }
 export class AncestryGraphQLError extends Error {
@@ -74,7 +74,7 @@ export class AncestryClient {
   relatives(treeId: string, personId: string, query: Query = {}) { return this.call('persons.relationships', {path: {treeId, personId}, query: {genup: 2, gendown: 1, siblings: true, spouses: true, childLimit: 20, ...query}}); }
   research(treeId: string, personId: string) { return this.call('persons.research', {path: {treeId, personId}}); }
   hints(treeId: string, personId: string, limit = 20) { return this.graphql('GetPersonsHints', {treeId, personIds: [personId], limit}); }
-  search(options: RecordSearchOptions) { return this.call('search.records', {body: recordSearchBody(options, this.session.tokens.user_id!)}); }
+  async search(options: RecordSearchOptions) { return enrichSearchCollections(await this.call('search.records', {body: recordSearchBody(options, this.session.tokens.user_id!)})); }
   record(collectionId: string, recordId: string) {
     return this.call('records.get', {body: {RequestContext: {Data: {CultureId: 'en-US'}},
       Documents: [{CollectionId: collectionId, RecordId: recordId}],

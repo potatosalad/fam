@@ -337,7 +337,10 @@ export const discovery: DiscoveryMetadata = {
     },
     "hints.duplicate": {
       "description": "Inspect a specific possible duplicate person.",
-      "effect": "read"
+      "effect": "read",
+      "limitations": [
+        "Use fam familysearch.hint get for the match plus its not-a-match declaration, or fam familysearch.hint.not-match list for all declarations and reasons."
+      ]
     },
     "hints.duplicates": {
       "description": "Find possible duplicate people to review before merging.",
@@ -396,13 +399,26 @@ export const discovery: DiscoveryMetadata = {
       "description": "Attach an indexed historical record using the source linker.",
       "effect": "write",
       "limitations": [
-        "The recovered response is an unstructured acknowledgement; the CLI cannot describe more specific response fields."
+        "The recovered response is an unstructured acknowledgement; the CLI cannot describe more specific response fields.",
+        "recordFactsToCopy is an array of ConclusionValueDto values, not FactDto wrappers. Use fam familysearch.record.attach plan to select native source-linker facts and save ready-to-call input."
       ],
       "example": {
         "body": {
           "recordUrl": "https://www.familysearch.org/ark:/61903/1:1:EXAMPLE",
           "personId": "XXXX-XXX",
-          "attachmentReason": "Explain how this indexed record identifies the person."
+          "attachmentReason": "Explain how this indexed record identifies the person.",
+          "recordFactsToCopy": [
+            {
+              "type": "http://gedcomx.org/Residence",
+              "date": {
+                "original": "1850"
+              },
+              "place": {
+                "original": "Example place",
+                "id": "340"
+              }
+            }
+          ]
         }
       }
     },
@@ -833,7 +849,10 @@ export const discovery: DiscoveryMetadata = {
     },
     "persons.merge": {
       "description": "Merge two duplicate people into the specified surviving person.",
-      "effect": "write"
+      "effect": "write",
+      "limitations": [
+        "Use fam familysearch.merge plan for a read-only preview and prepared input. Source-copy IDs come from mergeAnalysis.duplicateSources[].entityRefId, not source description IDs. The plan preserves survivor vitals and relationships unless explicitly included."
+      ]
     },
     "persons.stats": {
       "description": "Read your Family Tree contribution statistics.",

@@ -161,6 +161,11 @@ async function main() {
   let data: unknown;
   const historyArchive = command.id === 'cli.history archive';
   if (values['dry-run'] && !historyArchive && command.id !== 'cli.update run') {
+    if (command.provider === 'fold3' && ['file get','file.image list','file download','image get','image download'].includes(`${command.object} ${command.action}`))
+      (await import('./fold3/image-reference.js')).imageReference(values['image-id'] as string|undefined,values['entry-id'] as string|undefined);
+    if (command.id === 'newspapers.newspaper search') (await import('./newspapers/client.js')).searchQuery(Object.fromEntries(Object.entries(values).map(([key,value])=>[key.replace(/-([a-z])/g,(_m,c)=>c.toUpperCase()),value])));
+    if (command.provider === 'familysearch' && (await import('./familysearch/workflow-cli.js')).workflowCommands.includes(invocation.args[0]))
+      (await import('./familysearch/workflow-cli.js')).parseFamilyWorkflow(invocation.args.filter((arg,i,args)=>arg!=='--out'&&args[i-1]!=='--out'));
     const validation = command.id === 'familysearch.api call'
       ? await (await import('./familysearch/api-input.js')).prepareApiInput(String(values.operation), values.input as string | undefined,
         values.query === undefined ? [] : Array.isArray(values.query) ? values.query : [String(values.query)], {deceased: values.deceased === true}) : undefined;

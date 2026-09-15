@@ -33,6 +33,7 @@ export async function runProvider(argv: string[]) {
     else if(command==='article')result=await client.article(arg,extra,v.type as ArticleType|undefined);
     else if(command==='locations')result=await client.locations(arg,number('limit'));
     else if(command==='browse')result=await client.browse(arg);
+    else if(command==='publication-search')result=await client.publicationSearch(v.keyword as string,number('limit'),number('offset'));
     else if(command==='publication')result=await client.publication(arg);
     else if(command==='issue')result=await client.issue(arg,extra);
     else if(command==='page')result=await client.page(arg);

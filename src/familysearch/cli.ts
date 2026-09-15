@@ -12,6 +12,7 @@ import { parseArgs } from 'node:util';
 import { runResearchCli } from './research-cli.js';
 import {describeOperation, discoverOperations} from './discovery.js';
 import {runMemoryUpload} from './memory-cli.js';
+import {runFamilyWorkflow} from './workflow-cli.js';
 
 
 export async function runProvider(argv: string[]): Promise<unknown> {
@@ -33,6 +34,8 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   }
   if (args.includes('--stdin')) throw new InputError('--stdin belongs to fam familysearch.credential set.');
   if (command === 'memory-upload') return runMemoryUpload(args.slice(1), output);
+  const workflow=await runFamilyWorkflow(args,output);
+  if (workflow) return workflow.data;
   const research = await runResearchCli(args, output);
   if (research) return research.data;
   const supported = new Set(['auth','status','credentials','refresh','verify','whoami','metadata','person','ancestry','mobile-person','mobile-pedigree','tree-status','get','ops','schema','call']);

@@ -119,3 +119,12 @@ The SDK also provides `article(pageId, articleId, type?)`, `downloadArticle(page
 `NewspapersHttp` exposes native/browser GET transport with origin checks, bounded redirects, cookie handling, byte preservation, and bounded response size. `NewspapersClient.call` accepts only the documented JSON read operations and input keys; binary downloads use the dedicated methods directly. See [protocol observations](protocol.md).
 
 JPEG downloads preserve the server bytes and report the image's actual dimensions. Requested viewer dimensions are sizing hints; a different returned size does not invalidate a decodable JPEG. Full decoding still detects damaged or truncated images.
+
+## Search publication titles
+
+```sh
+fam newspapers.publication search --keyword "Daily News" --limit 20 --json
+fam newspapers.publication search --keyword "Daily News" --limit 20 --offset 20 --json
+```
+
+This uses the `/api/title/query` endpoint used by the website's [Papers catalog](https://www.newspapers.com/papers/), with `product-id=1`, title keywords, and numeric pagination. Results include `publicationId`, title, URL, location, available years, and page counts when supplied. Use `nextOffset` with the same keyword. `complete` means the returned window reached the advertised total; an unexpectedly empty earlier window does not claim completeness.

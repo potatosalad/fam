@@ -46,6 +46,7 @@ export function clippingQuery(options:ClippingSearchOptions={}) {
   return query;
 }
 export const operations = {
+  publicationSearch: {method:'GET',path:'/api/title/query',input:{keyword:'title keywords',limit:'1–100?',offset:'nonnegative integer?'},description:'Search publication titles using the website Papers catalog.'},
   account: {method:'GET',path:'/account/',input:{},description:'Authenticated account data from serialized website JSON; no billing details or tokens.'},
   search: {method:'GET',path:'/api/search/query',input:{type:'page | obituary | marriage | birth | enslavement | crime?',keyword:'string?',publicationId:'decimal ID?',country:'string?',region:'string?',city:'string?',from:'date?',to:'date?',sort:'score | date-asc | date-desc?',limit:'1–100?',cursor:'opaque nextStart?'},description:'Page or indexed article search with opaque cursor pagination.'},
   article: {method:'GET',path:'/api/article/page/{pageId}/articles',input:{pageId:'decimal ID',articleId:'UUID or decimal ID',type:'obituary | marriage | birth | enslavement | crime?'},description:'Select one indexed article, with extracted people/events, crop coordinates, and citation.'},
@@ -100,6 +101,20 @@ export class NewspapersClient {
     return this.run(async () => publicValue(await this.json(`/api/browse/1/${path.replace(/^\//,'')}`)));
   }
   publication(publicationId: string) {id(publicationId);return this.run(async () => publicValue(await this.json(`/api/browse/get-publication/1/${publicationId}`)));}
+  publicationSearch(keyword: string, limit = 20, offset = 0) {
+    text(keyword,200);integer(limit);integer(offset,0,1_000_000);
+    return this.run(async () => {
+      const result = await this.json('/api/title/query', {'product-id':'1',keyword,start:String(offset),count:String(limit),sort:'title',
+        'include-literal-titles':'all',fields:'id,title,url,location.display,free,extra,product_canonical_start_year,product_canonical_end_year,canonical_page_count,count'});
+      if (!Array.isArray(result?.titles) || !Number.isSafeInteger(result.count) || result.count < 0) throw new NewspapersError('api-changed');
+      const items = result.titles.map((item: any) => {
+        if (item.id == null || typeof item.title !== 'string') throw new NewspapersError('api-changed');
+        return {...publicValue(item),publicationId:id(String(item.id))};
+      });
+      const next = offset + items.length;
+      return {items,total:result.count,offset,limit,nextOffset:items.length && next<result.count ? next : null,complete:next>=result.count};
+    });
+  }
   issue(publicationId: string, issueDate: string) {id(publicationId);date(issueDate);return this.run(async () => publicValue(await this.json(`/api/browse/get-issue/${publicationId}/${issueDate}`)));}
   private async authorize(pageId: string) {
     const result = await this.json('/api/client/image/authorize/',{id:id(pageId),fcfToken:'',pqsid:''});
@@ -172,6 +187,7 @@ export class NewspapersClient {
     switch (name as Operation) {
       case 'account':return this.me();case 'search':return this.search(input);case 'locations':return this.locations(input.prefix,input.limit);case 'browse':return this.browse(input.path);
       case 'article':return this.article(input.pageId,input.articleId,input.type);case 'clipping':return this.clipping(input.clippingId);case 'clippingSearch':return this.searchClippings(input);
+      case 'publicationSearch':return this.publicationSearch(input.keyword,input.limit,input.offset);
       case 'publication':return this.publication(input.publicationId);case 'issue':return this.issue(input.publicationId,input.date);case 'page':return this.page(input.pageId);
       case 'hits':return this.hits(input.pageId,input.keyword);case 'clippings':return this.clippings(input.pageId,input.offset,input.limit);case 'articles':return this.articles(input.pageId);
       case 'ocr':{const {pageId,...options}=input;return this.ocr(pageId,options);}

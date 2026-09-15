@@ -58,7 +58,7 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
       const data = await client.research.imageTranscript(value);
       if (output) { await saveTranscript(data, output); return {data: {saved: resolve(output), metadata: `${resolve(output)}.json`}}; }
       if (format === 'text') {
-        if (!data.available) throw new Error('No machine transcript is available for this image.');
+        if (!data.available) throw new Error(transcriptUnavailable(data));
         return {data};
       }
       result = data; break;
@@ -73,7 +73,10 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
     case 'record details': {
       const url = new URL(value.startsWith('1:1:') ? `https://www.familysearch.org/ark:/61903/${value}` : value);
       if (url.protocol !== 'https:' || !['www.familysearch.org','familysearch.org'].includes(url.host) || url.username || url.password || !/^\/ark:\/61903\/1:1:[A-Z0-9-]+$/i.test(url.pathname)) throw new Error('Expected an indexed-record ARK (1:1:...).');
-      result = await client.genealogy.sources.recordDetails({ query: { recordUrl: url.origin + url.pathname } }); break;
+      const record = await client.genealogy.sources.recordDetails({ query: { recordUrl: url.origin + url.pathname, hideSectionFields:false, includeFocusPersonSummary:true } });
+      const rowCount = (record.sections ?? []).reduce((count, section) => count + (section.rows?.length ?? 0), 0);
+      result = {...record, recordSections: {available:rowCount>0,rowCount,
+        ...(rowCount===0 ? {reason:'not-supplied-by-provider',note:'The provider returned no related-person rows for this persona. This does not establish that the household was empty; consult the image or another indexed persona.'} : {})}}; break;
     }
   }
   let text: string;
@@ -92,7 +95,7 @@ function numberFlag(value?: string): number | undefined {
   return Number(value);
 }
 async function saveTranscript(data: ImageTranscript, output: string): Promise<void> {
-  if (!data.available) throw new Error('No machine transcript is available; no output file was saved.');
+  if (!data.available) throw new Error(`${transcriptUnavailable(data)} No output file was saved.`);
   const file = resolve(output), metadata = `${file}.json`, temporary = `${file}.${randomUUID()}.tmp`;
   try {
     await writeFile(temporary, `${data.text}\n`, { flag: 'wx', mode: 0o600 });
@@ -100,4 +103,10 @@ async function saveTranscript(data: ImageTranscript, output: string): Promise<vo
     await link(`${temporary}.json`, metadata);
     try { await link(temporary, file); } catch (error) { await rm(metadata, { force: true }); throw error; }
   } finally { await rm(temporary, { force: true }); await rm(`${temporary}.json`, { force: true }); }
+}
+
+function transcriptUnavailable(data: ImageTranscript): string {
+  return data.unavailableReason==='indexed-records-only'
+    ? 'No machine transcript is available: the service returned indexed records only. Use familysearch.record get for indexed person data, or download the image.'
+    : 'No machine transcript is available for this image.';
 }

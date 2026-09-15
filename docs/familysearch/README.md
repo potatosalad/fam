@@ -66,6 +66,37 @@ The header is forwarded to FamilySearch. Whether an endpoint records it is contr
 
 For other operations, inspect `fam familysearch.api describe --operation <OPERATION> --json` for nested body fields. The CLI's global `--reasoning` flag records agent intent in local command history; it does not send a FamilySearch change reason.
 
+## Sources, attachment plans, and merge plans
+
+```sh
+fam familysearch.source list --person-id XXXX-XXX --max-pages 10 --json
+fam familysearch.record.attach plan --person-id XXXX-XXX --ark 1:1:EXAMPLE --reason "Evidence connecting this record to the person" --copy-fact Residence --out attach.json --json
+fam familysearch.api call --operation sources.attachRecord --input attach.json --dry-run --json
+fam familysearch.api call --operation sources.attachRecord --input attach.json --json
+fam familysearch.merge plan --survivor-id AAAA-AAA --duplicate-id BBBB-BBB --reason "Evidence identifying the same person" --out merge.json --json
+```
+
+`source list` joins references to source descriptions and exact attachment-history events. Each item includes title, ARK, tags, original `attachedBy`/`attachedAt`, and separate `modifiedBy`/`modifiedAt`. Timestamps are ISO dates when parseable; raw reference and attachment data are retained. Contributor names are cached during the call, and history/contributor lookups are bounded. Missing attribution remains null, with `historyComplete` and warnings explaining the limit; a modification date is never presented as an attachment date.
+
+`record.attach plan` reads native source-linker facts. `--copy-fact` accepts a conclusion ID or type, such as `Residence`; a type selects **all** matching facts, including multiple residences. Repeat the option to select other facts, or omit it to inspect candidates without selecting any. Plans preserve native dates, original places, and IDs. The live linker’s `place.standardPlaceId` is copied into the write model’s `place.id` when absent. Response-only fields such as `primary` are omitted from the write and listed in each selected fact’s `omittedFields`; the original fact remains in `candidates`. `recordFactsToCopy` contains `ConclusionValueDto` values directly, without a `conclusionType`/`value` wrapper. The resulting `sources.attachRecord` request attaches the record and copies the selected facts together.
+
+`merge plan` reads analysis and not-a-match declarations. Its default proposal copies unique non-vital conclusions and duplicate source references, preserves survivor vitals and relationships, and leaves every deletion array empty. Add `--include-vitals` and/or `--include-relationships` to include those categories. The preview shows selected facts/sources, all ten ID arrays, provider warnings, constraints, and `ready`. Source-copy IDs come from `duplicateSources[].entityRefId`, never the source-description `id`. `--include-analysis` includes the full response. A missing ID, provider warning, or not-a-match declaration makes the plan not ready.
+
+Both planning commands are read-only. Run them normally to fetch a preview; `--dry-run` checks their local flags without fetching provider data. `--out` creates a new private file containing **only the prepared API input**, so it can be passed directly to `familysearch.api call`. Review the printed preview before execution and regenerate merge plans immediately before use. A plan is not a transaction lock; the server may change or reject the final write. Execute a reviewed merge input with `fam familysearch.api call --operation persons.merge --input merge.json`.
+
+## Not-a-match declarations
+
+```sh
+fam familysearch.hint.not-match list --person-id XXXX-XXX --json
+fam familysearch.hint get --person-id AAAA-AAA --duplicate-id BBBB-BBB --json
+```
+
+These reads expose declared nonmatches, reasons, contributors, and modification dates. `hint get` combines `hints.duplicate` with the pair's declaration. They use FamilySearch's [documented not-a-match endpoint](https://developers.familysearch.org/main/docs/read-person-not-a-match-declarations); HTTP 204 means no declarations. They do not remove a declaration or perform a merge.
+
+## Missing transcripts and household rows
+
+An image can have indexed records without OCR. JSON transcript output reports `available: false` and `unavailableReason: "indexed-records-only"`; text output explains the absence. This is not a schema failure. `record get` explicitly requests section fields and reports `recordSections.available` and `rowCount`. If the service supplies no rows, it reports `not-supplied-by-provider`; it does not manufacture household members from names on the page or imply the household was empty.
+
 ## Upload memories
 
 ```sh

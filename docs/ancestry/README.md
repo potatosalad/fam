@@ -140,3 +140,5 @@ apksigner verify --verbose --print-certs artifacts/ancestry/base.apk
 ```
 
 The script verifies both SHA-256 hashes before extraction. APK signature verification succeeded and the signer matched the certificate published for Ancestry. JADX processed 30,467 classes and reported 344 method errors; no code from the APK was executed. Smali extraction completed across all five DEX files. APKs, decompiled source, logs, credentials, and personal responses stay local and ignored. Only derived contracts, code, and protocol provenance are committed. Live reports stay in private configuration storage.
+
+Record-search cards expose `collectionId` and `collectionTitle` directly under `RecordView.Records[]`, extracted from the returned `CollectionMetadata` feature. Original provider fields remain intact. Missing metadata produces null values and no extra lookup requests.

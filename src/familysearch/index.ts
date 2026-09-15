@@ -1,4 +1,8 @@
 export { FamilySearchClient } from './client.js';
+export {listPersonSources} from './source-list.js';
+export {planMerge,buildMergePlan} from './merge-plan.js';
+export {planAttachment,buildAttachPlan} from './attach-plan.js';
+export {notMatches,duplicateDetails} from './not-matches.js';
 export { listOperations, operationContract, operationExample, validateOperationResponse } from './operations.js';
 export { ResearchClient, imageArk, dgsNumber } from './research.js';
 export type { ImageInfo, ImageDownload, ImageTranscript, TranscriptRegion, TranscriptLine, TranscriptToken, FilmImage, Waypoint, ResearchPage, PageOptions, FulltextQuery, FulltextHit } from './research.js';

@@ -11,6 +11,8 @@ import {Fold3Client} from '../src/fold3/client.js';
 import {Fold3Http, IMG} from '../src/fold3/http.js';
 import {downloadImage} from '../src/fold3/download.js';
 import {CREDENTIAL_DIR} from '../src/shared/storage.js';
+import {FamilySearchClient} from '../src/familysearch/client.js';
+import {runResearchCli} from '../src/familysearch/research-cli.js';
 
 test('FamilySearch normalizes only exact numeric IDs and search years', async () => {
   const input = {pid: 340, body: {conclusionType:'FACT', value:{type:'Birth',place:{id:9007199254740997n}}}};
@@ -63,4 +65,13 @@ test('JSON failures can use stdout while maintaining nonzero exits and clean env
       assert.equal(error.code,2);assert.equal(JSON.parse(error.stdout).ok,false);assert.equal(error.stderr,'');return true;
     });
   }
+});
+
+test('record reads request section data and report upstream absence without inventing household rows',async t=>{
+  t.mock.method(FamilySearchClient,'open',async()=>({genealogy:{sources:{recordDetails:async(input:any)=>{
+    assert.equal(input.query.hideSectionFields,false);assert.equal(input.query.includeFocusPersonSummary,true);
+    return {title:'Synthetic census',fields:[],sections:[]};
+  }}}}));
+  const result:any=(await runResearchCli(['record','details','1:1:TEST']))?.data;
+  assert.deepEqual(result.sections,[]);assert.equal(result.recordSections.available,false);assert.equal(result.recordSections.reason,'not-supplied-by-provider');
 });
