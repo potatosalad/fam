@@ -93,6 +93,8 @@ Hits expose image ARKs, title, date/place/type, collection context, machine text
 
 No transcript is represented as `available: false` in JSON. Plain-text/file requests then fail explicitly without creating an artifact. Permission failures remain errors. An HTTP 404 from the transcript service is treated as unavailable after the image itself has resolved successfully. A response containing page metadata but no text regions is also unavailable; its metadata must still identify the requested image. Machine text is evidence to review against the image, not a replacement for checking handwriting.
 
+The service can also return indexed records instead of ordered machine text. When their source descriptions identify the requested image, JSON reports `available: false` and `unavailableReason: "indexed-records-only"`. Indexed fields are not converted into an OCR transcript. Use `fam familysearch.record get --ark <INDEXED_RECORD_ARK>` to read an indexed record separately. Unrecognized responses and mismatched image identities remain errors.
+
 ## Easier operation input
 
 ```sh

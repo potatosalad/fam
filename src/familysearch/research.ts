@@ -68,12 +68,14 @@ export interface TranscriptLine { id?: string; rect?: string; tokens: Transcript
 export interface TranscriptRegion { id?: string; type?: string; rect?: string; subPageId?: string; lines: TranscriptLine[] }
 export interface ImageTranscript {
   imageArk: string; available: boolean; machineGenerated: true; text: string;
+  unavailableReason?: 'indexed-records-only';
   dgs?: string; imageNumber?: number; citations: string[]; language?: string;
   recordDate?: string; recordPlace?: string;
   pages: Array<{ id?: string; pageWidth?: number; pageHeight?: number }>;
   regions: TranscriptRegion[]; hasRedactions: boolean; retrievedAt: string; sourceUrl: string;
 }
 interface TranscriptResponse {
+  recordSet?: {records?: Array<{sourceDescriptions?: Array<{about?: string; resourceType?: string}>}>};
   stuff?: { metadata?: { properties?: Array<{ name: string; value: string }> };
     pages?: ImageTranscript['pages']; regions?: Array<Omit<TranscriptRegion, 'lines'> & {
       lines: Array<Omit<TranscriptLine, 'tokens'> & {tokens?: TranscriptToken[]}>
@@ -332,6 +334,17 @@ export class ResearchClient {
 }
 
 export function decodeTranscript(data: TranscriptResponse, base: ImageTranscript): ImageTranscript {
+  // Indexed records describe people and fields, not the image's reading order.
+  // Recognize this response only when every record identifies the requested image.
+  if (data?.stuff === undefined && data?.recordSet !== undefined) {
+    const records = data.recordSet?.records;
+    if (!Array.isArray(records) || !records.length || !records.every(record => record
+      && Array.isArray(record.sourceDescriptions) && record.sourceDescriptions.some(source => source
+        && source.resourceType === 'http://gedcomx.org/DigitalArtifact'
+        && imageArkOrUndefined(source.about) === base.imageArk)))
+      schema('Indexed records did not identify the requested image ARK.');
+    return {...base, unavailableReason: 'indexed-records-only'};
+  }
   if (data?.stuff === null) return base;
   const stuff = data?.stuff;
   if (!stuff || (stuff.regions !== undefined && !Array.isArray(stuff.regions)) || !Array.isArray(stuff.pages) || !Array.isArray(stuff.metadata?.properties)) schema('Transcript service returned an unfamiliar document structure.');

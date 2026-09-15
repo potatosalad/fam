@@ -298,6 +298,31 @@ test('transcripts accept omitted empty content without relaxing identity or malf
   ]) assert.throws(() => decodeTranscript({stuff} as never, base), /schema-change/);
 });
 
+test('indexed records report unavailable machine text only for the requested image', async () => {
+  const base: ImageTranscript = {imageArk: ark, available: false, machineGenerated: true, text: '', citations: [],
+    pages: [], regions: [], hasRedactions: false, retrievedAt: '2026-09-15', sourceUrl: 'https://sg30p0.familysearch.org/'};
+  const source = {resourceType: 'http://gedcomx.org/DigitalArtifact', about: ark};
+  const record = {sourceDescriptions: [source], persons: [{id: 'synthetic', fields: [{value: 'Private indexed field'}]}]};
+  const data = {recordSet: {records: [record]}};
+  assert.deepEqual(decodeTranscript(data, base), {...base, unavailableReason: 'indexed-records-only'});
+  assert.doesNotMatch(JSON.stringify(decodeTranscript(data, base)), /Private indexed field/);
+  await mocked(url => url.pathname.includes('/sls/image/records/') ? json(data) : imageResponses(url, new Uint8Array()), async () => {
+    const result = await client().imageTranscript(ark);
+    assert.equal(result.available, false);
+    assert.equal(result.unavailableReason, 'indexed-records-only');
+    assert.equal(result.text, '');
+    assert.deepEqual(result.citations, ['Test citation']);
+  });
+  for (const records of [null, {}, [], [null], [{}], [{sourceDescriptions: null}],
+    [{sourceDescriptions: [{...source, about: '3:1:OTHER-IMAGE'}]}],
+    [record, {sourceDescriptions: [{...source, about: 'https://evil.test/ark:/61903/3:1:TEST-IMAGE'}]}],
+    [{sourceDescriptions: [{...source, resourceType: 'http://gedcomx.org/Record'}]}]]) {
+    assert.throws(() => decodeTranscript({recordSet: {records}} as never, base), /schema-change/);
+  }
+  // Indexed records must not conceal a malformed machine-transcript response.
+  assert.throws(() => decodeTranscript({...data, stuff: {pages: []}}, base), /schema-change/);
+});
+
 test('pagination rejects an ignored initial offset and malformed resume offsets',async()=>{
   await mocked(url=>{url.searchParams.set('offset','0');return waypointPage(url);},async()=>{
     await assert.rejects(client().browse('1999178',{offset:2,count:2}),e=>e instanceof ResearchError&&e.code==='pagination');
