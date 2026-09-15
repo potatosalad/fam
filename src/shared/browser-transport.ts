@@ -1,10 +1,10 @@
 import {setTimeout as delay} from 'node:timers/promises';
 import type {CookieJar} from 'tough-cookie';
-import {BrowserError, directOnly, endpointId, rememberBrowser, useBrowser} from './browser-config.js';
+import {BrowserError, browserConfig, transportPreference, directOnly, endpointId, rememberBrowser, useBrowser} from './browser-config.js';
 import {configuredBrowser, updateCookieJar, jarCookies, type BrowserTab} from './browser-runtime.js';
 import {isChallenge, isChallengeResponse as challenged} from './browser-challenge.js';
 import {reportDiagnostic} from './diagnostics.js';
-import {retryRead} from './read-retry.js';
+import {retryRead, readRetriesEnabled} from './read-retry.js';
 export {isChallenge} from './browser-challenge.js';
 
 export type HttpResponse = Pick<Response, 'status' | 'headers' | 'arrayBuffer'> & {body?: ReadableStream<Uint8Array> | null};
@@ -104,11 +104,25 @@ export async function browserRequest(provider: string, target: URL, init: HttpIn
     throw error;
   }
 }
-/** Preserve challenge recovery and apply bounded transient recovery to reads. */
-export async function fetchWithBrowser(provider: string, url: string | URL, init: HttpInit, direct: () => Promise<HttpResponse>, jar?: CookieJar, sessionCookies: string[] = []): Promise<Response> {
+/** HTTP challenges use the browser. Explicitly identified reads may recover from
+ * browser infrastructure failures in auto mode; writes and verification never do. */
+export async function fetchWithBrowser(provider: string, url: string | URL, init: HttpInit, direct: () => Promise<HttpResponse>, jar?: CookieJar, sessionCookies: string[] = [], recovery: {readOnly?: boolean} = {}): Promise<Response> {
   const target = new URL(url);
   return retryRead(provider, async () => {
-    if (await useBrowser(provider, target.origin)) return browserRequest(provider, target, init, jar, sessionCookies);
+    if (await useBrowser(provider, target.origin)) {
+      try {return await browserRequest(provider, target, init, jar, sessionCookies);}
+      catch (error) {
+        if (!recovery.readOnly || !readRetriesEnabled() || !(error instanceof BrowserError)
+          || !['BROWSER_API_FAILED','BROWSER_UNAVAILABLE','BROWSER_PLUGIN_REQUIRED','BROWSER_RESPONSE_HEADERS'].includes(error.code)) throw error;
+        if (transportPreference(await browserConfig()).policy !== 'auto')
+          throw new BrowserError(`${error.message} This read can also be tried with --transport http. Inspect the selected route with fam cli.browser.transport get --provider ${provider} --origin ${target.origin}.`, error.code, error.vncUrl);
+        init.signal?.throwIfAborted();
+        reportDiagnostic('HTTP_READ_RECOVERY', 'Remembered browser route failed; retrying this read once over HTTP.', {browserCode: error.code, origin: target.origin});
+        const response = await normalize(await direct());
+        if (response.ok && !await challenged(response)) await rememberBrowser(provider, target.origin, false);
+        return response;
+      }
+    }
     const response = await normalize(await direct());
     if (await directOnly() || !await challenged(response)) return response;
     void response.body?.cancel().catch(() => {});

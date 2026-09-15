@@ -232,7 +232,7 @@ for (const provider of authenticatedProviderNames) {
     ? 'Execute genealogy operations for memories, people, relationships, sources, hints, groups, history, and ordinances. Add --operation NAME --help to inspect inputs, outputs, and effects.'
     : 'Execute a cataloged API operation using its native path, query, headers, and body schema.',
     provider === 'familysearch' ? ['operation'] : ['operation', '?input'], provider === 'familysearch' ? 'input query' : provider === 'ancestry' ? 'query base' : ['myheritage', 'findmypast'].includes(provider) ? 'query' : '',
-    {risk: api, flags: provider === 'familysearch' ? {input: {description: 'JSON input file or - for stdin.'}, query: {multiple: true, description: 'Typed key=value query binding; repeatable.'}} : undefined});
+    {risk: api, flags: provider === 'familysearch' ? {input: {description: 'JSON input file, inline object, or - for stdin.'}, query: {multiple: true, description: 'Typed key=value query binding; repeatable.'}, 'dry-run': {description: 'Validate flags and operation JSON locally, including file/stdin input; no provider request.'}} : undefined});
   if (['familysearch', 'ancestry', 'myheritage', 'findmypast'].includes(provider)) add(provider, 'get', 'api get', 'GET an approved provider API path or URL.', ['path'], provider === 'familysearch' ? '' : 'query', {risk: api});
   if (['myheritage', 'findmypast', 'findagrave', 'storied'].includes(provider)) add(provider, 'models', 'api.model list', 'List and filter recovered provider model fields.', ['?filter'], '', {risk: local});
 }
@@ -280,7 +280,7 @@ add('fold3','ocr-hits','image.hits get','Locate keyword matches in provider scan
 add('fold3','download','image download','Save an authorized whole-image JPG export and citation/checksum sidecar without overwriting files.', ['image-id'], '', {flags:{out:{required:true,description:'Destination JPG file; also writes FILE.jpg.json with source citation and checksum.'}}});
 
 add('newspapers','call','api call','Execute a documented Newspapers read operation. Authorization tokens are managed internally.', ['operation','?input']);
-add('newspapers','search','newspaper search','Search newspaper pages or indexed births, marriages, obituaries, enslavement records, and crime articles.', [], 'type keyword publication-id country region city from to sort limit cursor', {pagination:'One page per request. Pass nextCursor verbatim as --cursor with the same filters and record type.',flags:{type:{choices:['page','obituary','marriage','birth','enslavement','crime'],default:'page'},limit:{type:'integer',minimum:1,maximum:100,default:20},sort:{choices:['score','date-asc','date-desc']}}});
+add('newspapers','search','newspaper search','Search newspaper pages or indexed births, marriages, obituaries, enslavement records, and crime articles.', [], 'type keyword publication-id country region city from to sort limit cursor', {pagination:'One page per request. Pass nextCursor verbatim as --cursor with the same filters and record type.',flags:{type:{choices:['page','obituary','marriage','birth','enslavement','crime'],default:'page'},country:{description:'Two-letter country code, such as us.'},region:{description:'Country-region code, such as us-sc; use location search for place spellings.'},city:{description:'City name from location search; requires country or region. Inspect publication locations in the results.'},limit:{type:'integer',minimum:1,maximum:100,default:20},sort:{choices:['score','date-asc','date-desc']}}});
 add('newspapers','article','article get','Read one indexed article, including extracted people, relationships, crop coordinates, and citation.', ['page-id','article-id'], 'type', {flags:{'article-id':{description:'Exact article ID from a search result (normally a UUID).'},type:{choices:['obituary','marriage','birth','enslavement','crime']}}});
 add('newspapers','article-download','article download','Save an indexed article crop as JPG with its extracted details and citation sidecar.', ['page-id','article-id'], 'type', {flags:{'article-id':{description:'Exact article ID from a search result (normally a UUID).'},type:{choices:['obituary','marriage','birth','enslavement','crime']},out:{required:true,description:'Destination JPG file; also writes a citation and article details sidecar.'}}});
 add('newspapers','clipping-search','clipping search','Search public clippings, a user’s public clippings, or your own saved clippings with --mine.', [], 'keyword user mine tag region publication-id from to sort limit cursor', {pagination:'Pass nextCursor as --cursor with the same filters; an absent cursor means the end.',flags:{mine:{type:'boolean',description:'Search your own public and private clippings; requires a verified account and cannot be combined with --user.'},user:{description:'Clipping creator’s username or decimal ID.'},tag:{description:'Clipping tag to match.'},region:{description:'Place name, such as Chicago, Illinois (clipping search uses place names).'},sort:{choices:['modified-desc','modified-asc','date-desc','date-asc','score']},limit:{type:'integer',minimum:1,maximum:100,default:24}}});
@@ -479,6 +479,29 @@ add('familysearch', 'film image', 'film image', 'Resolve a single numbered image
 add('familysearch', 'fulltext available', 'fulltext available', 'Check whether a digital film has full-text research coverage.', ['dgs']);
 add('familysearch', 'fulltext search', 'fulltext search', 'Search historical full-text document transcriptions by names, keywords, place, and years.', [], `name keywords place years dgs collection record-type ${fsPaging}`, {...fsPageExtra, flags: {...fsPageExtra.flags, 'record-type': {choices: undefined}}});
 add('familysearch', 'record details', 'record get', 'Read details of an indexed historical record ARK (1:1:).', ['ark']);
+const fsRecordNames = 'first-name last-name father-first-name father-last-name mother-first-name mother-last-name spouse-first-name spouse-last-name';
+const fsRecordEvents = ['birth', 'death', 'marriage', 'residence'].flatMap(event => [`${event}-year`, `${event}-year-range`, `${event}-place`]).join(' ');
+const fsRecordFlags: Extras['flags'] = {
+  limit: {default: 20, minimum: 1, maximum: 100}, offset: {default: 0, minimum: 0},
+  'collection-id': {type: 'integer', minimum: 1, description: 'Collection ID from record collections; requires its collection-type.'},
+  'collection-type': {type: 'integer', minimum: 0, description: 'Category type from record collections; 0 is a valid value.'},
+  ...Object.fromEntries(['birth','death','marriage','residence'].flatMap(event => [
+    [`${event}-year`, {minimum: 1, maximum: 9999}],
+    [`${event}-year-range`, {minimum: 0, maximum: 9999, description: 'Years on either side of the event year; default 0. Requires the corresponding year.'}],
+  ])),
+};
+add('familysearch', 'record search', 'record search', 'Search indexed historical records by name, relatives, event dates and places, or collection.', [], `${fsRecordNames} ${fsRecordEvents} exact collection-id collection-type limit offset`, {
+  flags: fsRecordFlags, pagination: 'One page per call. Reuse criteria with nextOffset. Missing totals remain null; continue until complete is true.',
+  examples: ['fam familysearch.record search --first-name Alex --last-name Example --birth-year 1850 --birth-year-range 3 --json', 'fam familysearch.record search --last-name Example --collection-type 0 --collection-id 1234567 --json']});
+add('familysearch', 'record collections', 'record collections', 'Find collection IDs and their required category types for the supplied record-search criteria.', [], `${fsRecordNames} ${fsRecordEvents} exact collection-id collection-type`, {flags: fsRecordFlags,
+  examples: ['fam familysearch.record collections --last-name Example --json']});
+add('familysearch', 'memory-upload', 'memory upload', 'Upload a local photo, document, audio file, or story as a FamilySearch memory.', [], 'file title description visibility media-type max-bytes', {
+  risk: {level: 'write', description: 'Creates a memory in the signed-in account with the explicitly selected visibility.'},
+  flags: {file: {required: true, file: true, description: 'Local regular file to upload.'}, visibility: {required: true, choices: ['private','public'], description: 'Explicit memory visibility.'},
+    'media-type': {description: 'MIME type; inferred for common image, PDF, audio, and text extensions. Server upload restrictions still apply.'},
+    'max-bytes': {type: 'integer', minimum: 1, maximum: 268435456, default: 16777216, description: 'Local upload size cap; default 16 MiB, maximum 256 MiB. This does not override provider limits.'},
+    out: {description: 'Optional new JSON receipt file; refuses existing paths.'}},
+  examples: ['fam familysearch.memory upload --file portrait.jpg --title "Family portrait" --visibility private --json']});
 
 add('ancestry', 'trees', 'tree list', 'List account trees with cursor pagination.', [], 'limit cursor', {pagination: paging});
 add('ancestry', 'tree', 'tree get', 'Read tree metadata and its root person ID.', ['tree-id']);
@@ -490,7 +513,7 @@ for (const [legacy, objectAction, description] of [
 ]) add('ancestry', legacy, objectAction, description, ['tree-id', 'person-id'], legacy === 'hints' ? 'limit' : legacy === 'media' ? 'query limit page' : legacy === 'relatives' ? commonRead : '', {pagination: ['hints', 'media'].includes(legacy) ? paging : undefined});
 for (const noun of ['citations', 'sources']) add('ancestry', noun, `tree ${noun}`, `Read cached tree ${noun}.`, ['tree-id'], 'query limit page', {pagination: paging});
 add('ancestry', 'record', 'record get', 'Read record fields, collection metadata, and rights.', ['collection-id', 'record-id']);
-add('ancestry', 'search', 'record search', 'Search historical genealogy records by name, life dates, and places.', [], `${names} birth-place death-place limit page cursor filter`, {flags: {'first-name': {binding: 'given'}, 'last-name': {binding: 'surname'}, filter: {multiple: true}}, pagination: paging,
+add('ancestry', 'search', 'record search', 'Search historical genealogy records by name, life dates, and places.', [], `${names} birth-place death-place limit page cursor filter`, {flags: {'first-name': {binding: 'given'}, 'last-name': {binding: 'surname'}, filter: {multiple: true, description: 'Native filter expression, for example 1|Category|SET=HistoricalRecords. Plain collectionId=VALUE is unsupported.'}}, pagination: paging,
   examples: ['fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809']});
 add('ancestry', 'places', 'place search', 'Autocomplete place names.', ['prefix'], 'query limit', {pagination: paging});
 
@@ -535,12 +558,12 @@ add('findmypast', 'newspapers', 'newspaper search', 'Search historical newspaper
 add('findmypast', 'newspaper-manifest', 'newspaper manifest', 'Read the newspaper image manifest.', ['newspaper-id']);
 
 add('findagrave', 'search', 'memorial search', 'Search cemetery memorials, grave biographies, dates, names, and relatives.', [], `name ${names} middle-name year-range birth-filter death-filter bio relative include-maiden-name include-nickname similar plot location cemetery exact famous veteran has-gps sort descending input ${page}`,
-  {pagination: paging, flags: {cemetery: {multiple: true}, limit: {maximum: 100}, sort: {choices: ['relevance', 'name', 'birth', 'death', 'cemetery', 'created', 'modified', 'plot']}}});
+  {pagination: paging, flags: {location: {description: 'Location ID from findagrave.location search, such as county_123; place names are not IDs.'}, cemetery: {multiple: true}, limit: {maximum: 100}, sort: {choices: ['relevance', 'name', 'birth', 'death', 'cemetery', 'created', 'modified', 'plot']}}});
 add('findagrave', 'memorial', 'memorial get', 'Read a memorial, dates, biography, burial, photos, and relatives.', ['memorial-id']);
 add('findagrave', 'relatives', 'memorial relatives', 'Read relationships attached to a memorial.', ['memorial-id']);
 add('findagrave', 'photos', 'memorial photos', 'List memorial photographs.', ['memorial-id'], page, {pagination: paging});
 add('findagrave', 'download', 'photo download', 'Download the original memorial photograph with source/checksum metadata.', ['memorial-id', 'photo-id'], '', {flags: {out: {required: true}}});
-add('findagrave', 'cemeteries', 'cemetery search', 'Search cemeteries by name, location, or coordinates.', ['?name'], `location latitude longitude distance input ${page}`, {pagination: paging});
+add('findagrave', 'cemeteries', 'cemetery search', 'Search cemeteries by name, location, or coordinates.', ['?name'], `location latitude longitude distance input ${page}`, {pagination: paging, flags:{location:{description:'Location ID from findagrave.location search, such as county_123; place names are not IDs.'}}});
 add('findagrave', 'cemetery', 'cemetery get', 'Read cemetery details.', ['cemetery-id']);
 add('findagrave', 'locations', 'location search', 'Look up location IDs for memorial and cemetery search.', ['name'], page, {pagination: paging});
 add('findagrave', 'contributor', 'contributor get', 'Read a contributor’s public profile.', ['contributor-id']);

@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 export interface RecordSearchOptions {
   given?: string; surname?: string; birthYear?: number; birthPlace?: string;
   deathYear?: number; deathPlace?: string; limit?: number; page?: number; pagingToken?: string;
@@ -19,6 +20,8 @@ export function recordSearchBody(options: RecordSearchOptions, userId: string) {
       ...(year === undefined ? {} : {Date: {Year: year}}), ...(place ? {Place: {Place: place}} : {})});
   }
   if (!terms.length) throw new Error('Supply at least a name or birth/death detail for record search.');
+  if (options.filters?.some(filter => !/^[^|]+\|[^|]+\|.+/.test(filter)))
+    throw new InputError('--filter requires an Ancestry-native expression, such as "1|Category|SET=HistoricalRecords". Plain collectionId=VALUE filters are not supported. See docs/ancestry/protocol.md.');
   return {QueryTerms: terms, FilterCriteria: options.filters ?? ['1|Category|SET=HistoricalRecords', '1|Category|SET=StoriesPublications', '1|Category|SET=PhotosMaps'], MinimumScore: -1, SearchBlock: 0, CollectionFocus: 'default',
     PagingInfo: {PageNumber: page, RecordsPerPage: limit, PagingToken: options.pagingToken ?? ''},
     RequestContext: {Data: {UserId: userId, CultureId: 'en-US', AncestrySearchClient: 'androidAncestryApp'}},

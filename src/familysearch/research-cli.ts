@@ -6,11 +6,21 @@ import { randomUUID } from 'node:crypto';
 import { FamilySearchClient } from './client.js';
 import { stringifyJson } from '../shared/json.js';
 import type { ImageTranscript, PageOptions, ResearchPage } from './research.js';
+import {runRecordSearch} from './record-search.js';
 
 
 export async function runResearchCli(argv: string[], output?: string): Promise<{data: unknown} | undefined> {
   const [command] = argv;
   if (!['image','collection','film','fulltext','record'].includes(command)) return undefined;
+  if (command === 'record' && ['search', 'collections'].includes(argv[1])) {
+    const result = await runRecordSearch(argv.slice(2), argv[1] as 'search' | 'collections');
+    if (output) {
+      await writeFile(resolve(output), `${stringifyJson(result, 2)}\n`, {mode: 0o600});
+      await chmod(resolve(output), 0o600);
+      return {data: {saved: resolve(output)}};
+    }
+    return {data: result};
+  }
   const { positionals: args, values: flags } = parseArgs({ args: argv.slice(1), allowPositionals: true, options: {
     format: { type: 'string' }, original: { type: 'boolean' }, image: { type: 'string' },
     count: { type: 'string' }, offset: { type: 'string' }, all: { type: 'boolean' }, limit: { type: 'string' }, resume: { type: 'string' },

@@ -56,7 +56,7 @@ function schemaBuilder(response: boolean) {
       case 'json': return {description: 'Unstructured JSON value; no narrower response contract was recovered.'};
       case 'void': return {description: 'No response body.', 'x-no-content': true};
       case 'binary': return {description: 'Binary bytes; CLI output requires --out FILE.', 'x-binary': true};
-      case 'upload': return {description: 'Upload body. Binary bytes and multipart FormData require the TypeScript client; JSON CLI input can only supply text.', 'x-upload': true};
+      case 'upload': return {description: 'Upload body. Generic JSON input can only supply text. Use familysearch.memory upload for local memory files, or TypeScript helpers for multipart FormData.', 'x-upload': true};
       default: return {type: type.kind};
     }
   }

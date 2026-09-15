@@ -3,6 +3,7 @@ import {reportDiagnostic} from './diagnostics.js';
 
 let policy: {failFast?: boolean; progress?: (message: string) => void} = {};
 export function setReadRetryPolicy(value: typeof policy = {}): void {policy = value;}
+export function readRetriesEnabled(): boolean {return policy.failFast !== true;}
 
 export function transientConnectionError(error: unknown, depth = 0): boolean {
   if (!(error instanceof Error) || depth > 5 || error.name === 'AbortError') return false;

@@ -10,6 +10,12 @@ import { aliases, contracts, graphqlOperation, prepareRest, restOperation, valid
 import { recordSearchBody } from '../src/ancestry/search.js';
 import type { ApiRequest } from '../src/familysearch/transport-types.js';
 
+test('search rejects plain key-value filters and preserves native expressions', () => {
+  assert.throws(() => recordSearchBody({surname:'Example',filters:['collectionId=1234']},'synthetic'), /Ancestry-native expression/);
+  const filters=['1|Category|SET=HistoricalRecords'];
+  assert.deepEqual(recordSearchBody({surname:'Example',filters},'synthetic').FilterCriteria,filters);
+});
+
 test('Ancestry pre-auth proof hashes the APK field order and satisfies the modulus', () => {
   const challenge = {algorithm: 'sha256-mod-v1', sessionId: 'test-session', algorithmParameters: {n: 31, r: 7}};
   const proof = JSON.parse(Buffer.from(solvePreAuth(challenge, 'test-identity', 'test-device'), 'base64').toString());

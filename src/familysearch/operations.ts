@@ -12,6 +12,10 @@ function fail(path: string, expected: string): never {
   // Include schema locations, never the user's supplied value.
   throw new InputError(`Invalid ${path}: expected ${expected}.`);
 }
+function documentedKeys(value: Record<string, unknown>, allowed: string[], path: string): void {
+  const unexpected = Object.keys(value).filter(key => !allowed.includes(key));
+  if (unexpected.length) fail(path, `only documented fields (unexpected: ${unexpected.map(key => JSON.stringify(key)).join(', ')}; allowed: ${allowed.join(', ') || 'none'})`);
+}
 
 export function validateWire(value: unknown, type: WireType, path = 'body', allowUnknown = false, depth = 0): void {
   function fail(path: string, expected: string): never {throw new (allowUnknown ? Error : InputError)(`Invalid ${path}: expected ${expected}.`);}
@@ -46,7 +50,7 @@ export function validateWire(value: unknown, type: WireType, path = 'body', allo
         else if (item === null && f.nullable) continue;
         else next(item, f.type, `${path}.${name}`);
       }
-      if (!allowUnknown && Object.keys(value).some(name => !Object.hasOwn(fields, name))) fail(path, 'only documented fields');
+      if (!allowUnknown) documentedKeys(value, Object.keys(fields), path);
       break;
     }
     case 'json':
@@ -167,12 +171,14 @@ export function prepareOperation(name: OperationName, supplied: unknown): { path
   for (const key of Object.keys(input).filter(k => !allowed.has(k))) {
     const parameter = contract.parameters.find(p => p.name === key && (p.kind === 'query' || p.kind === 'header'));
     if (parameter) throw new InputError(`Invalid input: ${parameter.name} belongs under ${parameter.kind === 'query' ? 'query' : 'headers'}. Use "fam familysearch.api describe --operation ${name} --example" for the correct nesting.`);
-    fail('input', 'documented input properties');
+    throw new InputError(`Invalid input property ${JSON.stringify(key)}. Allowed: ${[...allowed].join(', ')}. Path parameters are top-level properties. Use "fam familysearch.api describe --operation ${name} --example".`);
   }
   for (const kind of ['query', 'headers']) {
     if (input[kind] !== undefined && !object(input[kind])) fail(kind, 'object');
     const allowedNames = new Set(contract.parameters.filter(p => p.kind === (kind === 'headers' ? 'header' : 'query')).map(p => p.name));
-    if (Object.keys(input[kind] ?? {}).some(k => !allowedNames.has(k))) fail(kind, 'documented parameter names');
+    if (Object.keys(input[kind] ?? {}).some(k => !allowedNames.has(k))) {
+      fail(kind, `documented parameter names (unexpected: ${Object.keys(input[kind] as object).filter(k => !allowedNames.has(k)).map(k => JSON.stringify(k)).join(', ')}; allowed: ${[...allowedNames].join(', ') || 'none'}). Use "fam familysearch.api describe --operation ${name} --example"`);
+    }
   }
   let path = contract.path;
   const headers: Record<string, string> = { ...contract.defaultHeaders };
@@ -199,6 +205,8 @@ export function prepareOperation(name: OperationName, supplied: unknown): { path
     else throw new Error('Unsupported parameter annotation.');
   }
   if (/\{[^}]+\}/.test(path)) throw new Error('Unresolved operation path parameter.');
+  if (['search.results', 'search.categories'].includes(name) && object(body) && body.collectionId != null && body.collectionType == null)
+    throw new InputError('collectionId requires collectionType; FamilySearch ignores the collection ID without its category type. Use fam familysearch.record collections with the same search criteria to find both values (0 is a valid type).');
   if (name === 'memories.replaceFile') {
     if (typeof body !== 'string') fail('body', 'story text');
     raw = true;

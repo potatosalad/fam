@@ -34,7 +34,7 @@ fam newspapers.page.clipping list --page-id 80868055 --limit 25
 fam newspapers.page.article list --page-id 80868055
 ```
 
-Search returns `nextCursor`. Pass it verbatim as `--cursor` with the same filters, record type, and ordering. One page is fetched per command. Place filters use country/region codes (for example `--country us` or `--region us-ut`). `--city "Salt Lake City"` requires one of those codes. The `page.clipping list` command uses `nextOffset` and `--offset`. Browse follows paths returned by the provider. IDs remain exact strings at command boundaries; large integers in API responses are preserved.
+Search returns `nextCursor`. Pass it verbatim as `--cursor` with the same filters, record type, and ordering. One page is fetched per command. Place filters use country/region codes (for example `--country us` or `--region us-ut`). `--city "Salt Lake City"` requires one of those codes. Find place spellings with `fam newspapers.location search --prefix "Salt Lake"`; inspect returned publication locations to verify the scope. Publication discovery uses `fam newspapers.publication browse`, following its returned paths. The `page.clipping list` command uses `nextOffset` and `--offset`. IDs remain exact strings at command boundaries; large integers in API responses are preserved.
 
 `page get` includes citation fields, dimensions, `canView`, and the account's action permissions. Search success, sign-in, and subscription access are separate facts. Access to one scan does not establish access to every newspaper. Image authorization tokens are kept internal.
 

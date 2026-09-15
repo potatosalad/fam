@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {CookieJar} from 'tough-cookie';
+import {Impit} from 'impit';
 import {fetchWithBrowser, closeBrowserTransportTabs, isChallenge} from '../src/shared/browser-transport.js';
-import {saveBrowserConfig, browserConfig, setBrowserOverrides, endpointId, loadProviderSession, saveProviderSession, type BrowserConfig} from '../src/shared/browser-config.js';
+import {saveBrowserConfig, browserConfig, setBrowserOverrides, endpointId, loadProviderSession, saveProviderSession, rememberBrowser, useBrowser, type BrowserConfig} from '../src/shared/browser-config.js';
 import {stopBrowser, updateCookieJar, jarCookies} from '../src/shared/browser-runtime.js';
 import {loginCooldown, waitForLogin} from '../src/shared/browser-login.js';
 import {readPrivateJson, writePrivateJson} from '../src/shared/storage.js';
@@ -13,6 +14,7 @@ import {complete, completionCatalog} from '../src/shared/completion.js';
 import {HttpSession} from '../src/familysearch/http.js';
 import {AmericanAncestorsHttp} from '../src/americanancestors/http.js';
 import {simulateDelays} from './simulated-time.js';
+import {setReadRetryPolicy} from '../src/shared/read-retry.js';
 
 test('challenge classification requires provider evidence rather than a generic denial', () => {
   assert.equal(isChallenge(new Headers({'cf-mitigated':'challenge'})), true);
@@ -223,6 +225,51 @@ test('browser recovery preserves requests, cookies, sticky routing and independe
       await closeBrowserTransportTabs();
       assert.equal(requests.filter(r=>r.path==='/fam/close-tab').length, 2, path);
     }
+  });
+  await t.test('automatic research reads recover once from browser failures without replaying writes or overriding forced transport', async () => {
+    const url='https://research.example.com/image.xml';
+    let direct=0;
+    const read=async()=>{direct++;return new Response('image metadata');};
+    await rememberBrowser('familysearch',new URL(url).origin);
+    failedPath='/fam/request';
+    try {
+      const result=await fetchWithBrowser('familysearch',url,{},read,undefined,[],{readOnly:true});
+      assert.equal(await result.text(),'image metadata'); assert.equal(direct,1);
+      assert.equal(await useBrowser('familysearch',new URL(url).origin),false);
+      await fetchWithBrowser('familysearch',url,{},read,undefined,[],{readOnly:true});
+      assert.equal(direct,2);
+      await rememberBrowser('familysearch',new URL(url).origin);
+      await assert.rejects(fetchWithBrowser('familysearch',url,{method:'POST',body:'mutation'},read), {code:'BROWSER_API_FAILED'});
+      assert.equal(direct,2);
+      setBrowserOverrides({transport:'browser'});
+      await assert.rejects(fetchWithBrowser('familysearch',url,{},read,undefined,[],{readOnly:true}), /--transport http/);
+      assert.equal(direct,2);
+      setBrowserOverrides({});
+      setReadRetryPolicy({failFast:true});
+      await assert.rejects(fetchWithBrowser('familysearch',url,{},read,undefined,[],{readOnly:true}), {code:'BROWSER_API_FAILED'});
+      assert.equal(direct,2);
+      setReadRetryPolicy({});
+      await fetchWithBrowser('familysearch',url,{},async()=>{direct++;return new Response('denied',{status:403});},undefined,[],{readOnly:true});
+      assert.equal(await useBrowser('familysearch',new URL(url).origin),true);
+      assert.equal(direct,3);
+    } finally {failedPath='';setBrowserOverrides({});setReadRetryPolicy({});await closeBrowserTransportTabs();}
+  });
+  await t.test('FamilySearch marks only its documented research routes for recovery, including metadata POST reads', async t => {
+    let direct=0;
+    t.mock.method(Impit.prototype,'fetch',async()=>{direct++;return new Response('metadata');});
+    const origin='https://www.familysearch.org', http=new HttpSession();
+    failedPath='/fam/request';
+    try {
+      await rememberBrowser('familysearch',origin);
+      assert.equal(await (await http.request(`${origin}/search/filmdatainfo/image-data`,{method:'POST',body:'{}'})).text(),'metadata');
+      assert.equal(direct,1);
+      await rememberBrowser('familysearch',origin);
+      await assert.rejects(http.request(`${origin}/service/mobile/api/v1/memories`,{method:'POST',body:'mutation'}), {code:'BROWSER_API_FAILED'});
+      await assert.rejects(http.request(`${origin}/service/unrecognized-side-effect`), {code:'BROWSER_API_FAILED'});
+      assert.equal(direct,1);
+      assert.equal(await (await http.request(`${origin}/ark:/61903/3:1:EXAMPLE/image.xml`)).text(),'metadata');
+      assert.equal(direct,2);
+    } finally {failedPath='';await closeBrowserTransportTabs();}
   });
 });
 test('cookie export respects domain, path, expiry and HTTP-only attributes', async () => {

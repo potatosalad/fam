@@ -1,17 +1,17 @@
 import {InputError} from '../shared/input-error.js';
-import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { FamilySearchClient } from './client.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { CREDENTIAL_DIR } from '../shared/storage.js';
-import { operationContract, operationQueryInput } from './operations.js';
+import {prepareApiInput} from './api-input.js';
 import { writeFile, chmod } from 'node:fs/promises';
 import type { OperationName, OperationInput } from './generated/operations.js';
-import { parseJson as parseInputValue, stringifyJson } from '../shared/json.js';
+import { stringifyJson } from '../shared/json.js';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { runResearchCli } from './research-cli.js';
 import {describeOperation, discoverOperations} from './discovery.js';
+import {runMemoryUpload} from './memory-cli.js';
 
 
 export async function runProvider(argv: string[]): Promise<unknown> {
@@ -32,10 +32,19 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     return data;
   }
   if (args.includes('--stdin')) throw new InputError('--stdin belongs to fam familysearch.credential set.');
+  if (command === 'memory-upload') return runMemoryUpload(args.slice(1), output);
   const research = await runResearchCli(args, output);
   if (research) return research.data;
   const supported = new Set(['auth','status','credentials','refresh','verify','whoami','metadata','person','ancestry','mobile-person','mobile-pedigree','tree-status','get','ops','schema','call']);
   if (!supported.has(command)) throw new InputError(`Unknown command. Use "fam cli.command list --provider familysearch".`);
+  let call: {name: OperationName; input: Awaited<ReturnType<typeof prepareApiInput>>['input']} | undefined;
+  if (command === 'call') {
+    const {positionals, values} = parseArgs({args: args.slice(1), allowPositionals: true, options: {input: {type: 'string'}, query: {type: 'string', multiple: true}}});
+    const [name, file] = positionals;
+    required(name);
+    if (positionals.length > 2 || file && values.input) throw new InputError('Use one input file: --input FILE|-.');
+    call = {name: name as OperationName, input: (await prepareApiInput(name, values.input ?? file, values.query ?? [])).input};
+  }
   const client = ['ops', 'schema'].includes(command) ? undefined! : await FamilySearchClient.open();
   let result: unknown;
   switch (command) {
@@ -46,15 +55,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
       result = depth === '--example' ? description.example : description; break;
     }
     case 'call': {
-      const { positionals, values } = parseArgs({ args: args.slice(1), allowPositionals: true, options: { input: { type: 'string' }, query: { type: 'string', multiple: true } } });
-      const [name, file] = positionals;
-      required(name);
-      if (positionals.length > 2 || file && values.input) throw new InputError('Use one input file: a positional FILE or --input FILE|-.');
-      operationContract(name);
-      const source = values.input ?? file;
-      const base = source ? parseJson(source === '-' ? await readStdin() : await readFile(resolve(source), 'utf8')) : {};
-      const input = operationQueryInput(name, base, values.query ?? []);
-      result = await client.operation(name as OperationName, input as OperationInput<OperationName>);
+      result = await client.operation(call!.name, call!.input as OperationInput<OperationName>);
       break;
     }
     case 'auth': await client.login(); result = client.status(); break;
@@ -94,6 +95,3 @@ function required(value?: string): string {
   if (!value) throw new InputError('This command requires an ID or API path.');
   return value;
 }
-const readStdin = () => readCommandStdin(16 * 1024 * 1024, 'JSON input exceeded 16 MiB.');
-
-function parseJson(text: string): unknown {try {return parseInputValue(text);} catch {throw new InputError('Input must be valid JSON.');}}

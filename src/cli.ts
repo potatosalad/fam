@@ -155,9 +155,19 @@ async function main() {
   let data: unknown;
   const historyArchive = command.id === 'cli.history archive';
   if (values['dry-run'] && !historyArchive && command.id !== 'cli.update run') {
+    const validation = command.id === 'familysearch.api call'
+      ? await (await import('./familysearch/api-input.js')).prepareApiInput(String(values.operation), values.input as string | undefined,
+        values.query === undefined ? [] : Array.isArray(values.query) ? values.query : [String(values.query)]) : undefined;
+    const search = ['familysearch.record search', 'familysearch.record collections'].includes(command.id)
+      ? (await import('./familysearch/record-search.js')).prepareRecordSearch(invocation.args.slice(2).filter((arg, i, args) => arg !== '--out' && args[i - 1] !== '--out')) : undefined;
+    const upload = command.id === 'familysearch.memory upload'
+      ? await (await import('./familysearch/memory-cli.js')).prepareMemoryUpload(invocation.args.slice(1).filter((arg, i, args) => arg !== '--out' && args[i - 1] !== '--out')) : undefined;
     data = {dryRun: true, invocation: syntax(command), flags: Object.fromEntries(Object.entries(values).map(([name, value]) =>
       [name, command.flags.find(flag => flag.name === name)?.sensitive ? '[REDACTED]' : value])), risk: command.risk,
-      note: 'CLI flags validated only. No provider requests, credential lookup, output file writes, or operation simulation. Command history is recorded unless FAM_HISTORY=0.'};
+      ...(validation ? {validation: {operation: values.operation, method: validation.options.method, path: validation.path, input: validation.input}} : {}),
+      ...(search ? {validation: {operation: command.action === 'search' ? 'search.results' : 'search.categories', input: command.action === 'search' ? search : {body: search.body}}} : {}),
+      ...(upload ? {validation: {operation: 'memories.upload', upload: upload.upload}} : {}),
+      note: `${validation || search || upload ? 'CLI flags and operation input validated locally; server rules and permissions are not checked.' : 'CLI flags validated only.'} No provider requests, credential lookup, output file writes, or operation simulation. Command history is recorded unless FAM_HISTORY=0.`};
   } else if (command.provider === 'cli') data = await cliCommand(invocation);
   else if (command.binding.command[0] === 'sync' && command.provider !== 'cyndislist') {
     const {syncCredentials} = await import('./shared/credential-sync.js');
@@ -197,6 +207,7 @@ main().finally(async () => {
   const message = (error as NodeJS.ErrnoException)?.code === 'EEXIST' ? 'Output or provenance file already exists; choose a new --out path.'
     : error instanceof Error ? error.message : 'fam command failed.';
   const suggestion = usage && error.suggestedInvocation ? error.suggestedInvocation
+    : invocation?.command.id === 'familysearch.api call' ? `fam familysearch.api describe --operation ${JSON.stringify(invocation.values.operation)}`
     : invocation ? `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}` : undefined;
   if (jsonErrors) process.stderr.write(`${stringifyJson({schemaVersion: 1, ok: false, command: invocation?.command.id ?? null,
     error: {code: usage ? error.code : error?.code ?? 'EXECUTION_FAILED', message,
@@ -205,7 +216,7 @@ main().finally(async () => {
       ...(error?.vncUrl ? {vncUrl: error.vncUrl} : {}),
       ...(usage && error.navigation ? {available: error.navigation.available, suggestions: error.navigation.suggestions, help: error.navigation.help} : {}),
       ...(usage && error.suggestedInvocation ? {suggestedInvocation: error.suggestedInvocation}
-        : invocation ? {inspect: `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}`} : {})}}, 2)}\n`);
+        : suggestion ? {inspect: suggestion} : {})}}, 2)}\n`);
   else process.stderr.write(usage && error.navigation ? commandError(error.navigation, process.stderr.columns ?? 100)
     : `Error: ${message}\n${suggestion ? `\nTry: ${suggestion}\n` : ''}${guidance ? `\nExamples (replace placeholders):\n${guidance.examples.map(example => `  ${example}`).join('\n')}\n${guidance.inputExample ? `${stringifyJson(guidance.inputExample, 2)}\n` : ''}${guidance.hints.join('\n')}\n` : ''}`);
   process.exitCode = usage ? 2 : 1;

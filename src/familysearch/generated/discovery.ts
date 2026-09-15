@@ -28,10 +28,10 @@ export const discovery: DiscoveryMetadata = {
       "effect": "read"
     },
     "memories.upload": {
-      "description": "Upload a memory artifact; binary files and multipart forms require the TypeScript client.",
+      "description": "Upload a memory artifact; use fam familysearch.memory upload for local files.",
       "effect": "write",
       "limitations": [
-        "The JSON CLI cannot construct binary uploads or multipart FormData. Use the TypeScript upload helpers for file uploads."
+        "Use fam familysearch.memory upload --file PATH --visibility private|public for file uploads, or the TypeScript multipart helper. Generic JSON API input can only upload text."
       ]
     },
     "memories.delete": {
@@ -374,7 +374,16 @@ export const discovery: DiscoveryMetadata = {
     },
     "sources.create": {
       "description": "Create a source with its citation and description.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "body": {
+          "title": "Example source title",
+          "citation": "Describe the publication, volume, page, and repository.",
+          "note": "Describe the evidence.",
+          "recordUrl": "https://www.familysearch.org/ark:/61903/1:1:EXAMPLE",
+          "changeMessage": "Explain why this source is relevant."
+        }
+      }
     },
     "sources.update": {
       "description": "Edit a source's citation and description.",
@@ -385,7 +394,14 @@ export const discovery: DiscoveryMetadata = {
       "effect": "write",
       "limitations": [
         "The recovered response is an unstructured acknowledgement; the CLI cannot describe more specific response fields."
-      ]
+      ],
+      "example": {
+        "body": {
+          "recordUrl": "https://www.familysearch.org/ark:/61903/1:1:EXAMPLE",
+          "personId": "XXXX-XXX",
+          "attachmentReason": "Explain how this indexed record identifies the person."
+        }
+      }
     },
     "sources.linkerMatch": {
       "description": "Compare a historical record with a tree person in the source linker.",
@@ -393,7 +409,22 @@ export const discovery: DiscoveryMetadata = {
     },
     "sources.attach": {
       "description": "Attach a source reference to a person.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "pid": "XXXX-XXX",
+        "body": {
+          "descriptionId": "<source description ID from sources.create>",
+          "changeMessage": "Explain how the source identifies this person.",
+          "tags": [
+            {
+              "resource": "http://gedcomx.org/Name"
+            }
+          ]
+        }
+      },
+      "limitations": [
+        "Source description IDs and source reference IDs are different. This operation takes a descriptionId. Use supported conclusion tags such as Name, Birth, or Death; arbitrary fact names may be rejected."
+      ]
     },
     "sources.updateReference": {
       "description": "Edit a person's source reference and attribution.",
@@ -533,15 +564,27 @@ export const discovery: DiscoveryMetadata = {
       "effect": "read",
       "example": {
         "body": {
-          "searchType": "TREE",
+          "searchType": "RECORDS",
           "focusPerson": {
             "givenName": {
-              "value": "<given name>"
+              "value": "Alex"
             },
             "surname": {
-              "value": "<surname>"
+              "value": "Example"
             }
-          }
+          },
+          "events": [
+            {
+              "eventType": "birth",
+              "year": {
+                "value": "1850",
+                "range": 3
+              },
+              "place": {
+                "value": "Example place"
+              }
+            }
+          ]
         },
         "query": {
           "from": 0,
@@ -549,7 +592,9 @@ export const discovery: DiscoveryMetadata = {
         }
       },
       "limitations": [
-        "The included TREE example uses a known search type. Obtain other searchType and filter values from search.categories; arbitrary strings are not validated against server-supported values."
+        "Use fam familysearch.record search for indexed records with ordinary name, event, and relative flags. TREE searches return treePerson; RECORDS searches return recordPerson. Event years use string value and integer range.",
+        "Obtain category and collection filters from search.categories. The wire schema accepts arbitrary searchType strings; the server decides which values are supported.",
+        "collectionId requires the collectionType returned with it by search.categories; type 0 is valid. The CLI rejects an unpaired collectionId because the service ignores it."
       ]
     },
     "associations.create": {
@@ -646,7 +691,14 @@ export const discovery: DiscoveryMetadata = {
     },
     "parentChildren.create": {
       "description": "Create a parent-child relationship.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "body": {
+          "parent1Id": "AAAA-AAA",
+          "parent2Id": "BBBB-BBB",
+          "childId": "CCCC-CCC"
+        }
+      }
     },
     "parentChildren.notes": {
       "description": "List research notes on a parent-child relationship.",
@@ -714,7 +766,23 @@ export const discovery: DiscoveryMetadata = {
     },
     "persons.addNote": {
       "description": "Add a research note to a person.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "pid": "XXXX-XXX",
+        "body": {
+          "noteId": "00000000-0000-4000-8000-000000000000",
+          "value": {
+            "title": "Research note",
+            "text": "Describe the research and supporting sources."
+          },
+          "attribution": {
+            "changeMessage": "Describe the evidence supporting this change."
+          }
+        }
+      },
+      "limitations": [
+        "Replace the example noteId with a fresh UUID for each new note."
+      ]
     },
     "persons.deleteNote": {
       "description": "Delete a research note from a person.",
@@ -730,7 +798,21 @@ export const discovery: DiscoveryMetadata = {
     },
     "persons.addRelationship": {
       "description": "Add a relationship to a person.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "pid": "AAAA-AAA",
+        "query": {
+          "addMissingFamilyRelationships": false
+        },
+        "body": {
+          "person1Id": "AAAA-AAA",
+          "person2Id": "BBBB-BBB",
+          "relationshipType": "COUPLE",
+          "attribution": {
+            "changeMessage": "Describe the evidence supporting this change."
+          }
+        }
+      }
     },
     "persons.updateAssociation": {
       "description": "Edit a person's association relationship.",
@@ -750,7 +832,58 @@ export const discovery: DiscoveryMetadata = {
     },
     "persons.create": {
       "description": "Create a person in Family Tree.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "body": {
+          "person": {
+            "names": [
+              {
+                "preferred": true,
+                "value": {
+                  "type": "BirthName",
+                  "nameForms": [
+                    {
+                      "lang": "en",
+                      "parts": [
+                        {
+                          "type": "Given",
+                          "value": "Alex"
+                        },
+                        {
+                          "type": "Surname",
+                          "value": "Example"
+                        }
+                      ],
+                      "fullText": "Alex Example",
+                      "order": "EUROTYPIC",
+                      "separator": " "
+                    }
+                  ]
+                }
+              }
+            ],
+            "gender": {
+              "value": {
+                "type": "Female"
+              }
+            },
+            "facts": [
+              {
+                "value": {
+                  "type": "Death"
+                },
+                "attribution": {
+                  "changeMessage": "Describe the evidence supporting this change."
+                }
+              }
+            ]
+          },
+          "changeMessage": "Describe the evidence for this deceased example person."
+        }
+      },
+      "limitations": [
+        "The example explicitly describes a deceased person with a Death fact. Set gender and living/deceased conclusions from evidence; do not infer death from age. Remove or replace example facts as appropriate. Place IDs are strings from authorities.places."
+      ]
     },
     "persons.get": {
       "description": "Read a person and its genealogy details.",
@@ -758,11 +891,55 @@ export const discovery: DiscoveryMetadata = {
     },
     "persons.addFact": {
       "description": "Add a fact or event to a person.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "pid": "XXXX-XXX",
+        "body": {
+          "conclusionType": "FACT",
+          "value": {
+            "type": "Birth",
+            "date": {
+              "original": "about 1850",
+              "formal": "A+1850"
+            },
+            "place": {
+              "original": "Example place",
+              "id": "<place ID from authorities.places>"
+            }
+          },
+          "attribution": {
+            "changeMessage": "Describe the evidence supporting this change."
+          }
+        }
+      }
     },
     "persons.updateFact": {
       "description": "Edit a fact or event on a person.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "pid": "XXXX-XXX",
+        "conclusionId": "<conclusion ID from the person>",
+        "body": {
+          "conclusionType": "FACT",
+          "value": {
+            "type": "Residence",
+            "date": {
+              "original": "1900",
+              "formal": "+1900"
+            },
+            "place": {
+              "original": "Example place",
+              "id": "<place ID from authorities.places>"
+            }
+          },
+          "attribution": {
+            "changeMessage": "Describe the evidence supporting this change."
+          }
+        },
+        "headers": {
+          "X-Reason": "Describe the evidence supporting this change."
+        }
+      }
     },
     "persons.updateGender": {
       "description": "Edit a person's recorded sex or gender conclusion.",
@@ -770,11 +947,80 @@ export const discovery: DiscoveryMetadata = {
     },
     "persons.addName": {
       "description": "Add a name to a person.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "pid": "XXXX-XXX",
+        "body": {
+          "conclusionType": "NAME",
+          "preferred": false,
+          "value": {
+            "type": "AlsoKnownAs",
+            "nameForms": [
+              {
+                "lang": "en",
+                "parts": [
+                  {
+                    "type": "Given",
+                    "value": "Alex"
+                  },
+                  {
+                    "type": "Surname",
+                    "value": "Example"
+                  }
+                ],
+                "fullText": "Alex Example",
+                "order": "EUROTYPIC",
+                "separator": " "
+              }
+            ]
+          },
+          "attribution": {
+            "changeMessage": "Describe the evidence supporting this change."
+          }
+        }
+      }
     },
     "persons.updateName": {
       "description": "Edit a person's name.",
-      "effect": "write"
+      "effect": "write",
+      "example": {
+        "pid": "XXXX-XXX",
+        "nameId": "<conclusion ID from the person>",
+        "body": {
+          "conclusionType": "NAME",
+          "preferred": true,
+          "value": {
+            "type": "BirthName",
+            "nameForms": [
+              {
+                "lang": "en",
+                "parts": [
+                  {
+                    "type": "Given",
+                    "value": "Alex"
+                  },
+                  {
+                    "type": "Surname",
+                    "value": "Example"
+                  }
+                ],
+                "fullText": "Alex Example",
+                "order": "EUROTYPIC",
+                "separator": " "
+              }
+            ]
+          },
+          "attribution": {
+            "changeMessage": "Describe the evidence supporting this change."
+          }
+        },
+        "headers": {
+          "X-Reason": "Describe the evidence supporting this change."
+        }
+      },
+      "limitations": [
+        "The path input is nameId, containing the actual name conclusion ID. Supply value.nameForms, not a bare nameForm. Read existing IDs before editing; IDs are not universally fixed."
+      ]
     },
     "persons.mergeAnalysis": {
       "description": "Compare duplicate people and inspect conflicts before a merge.",

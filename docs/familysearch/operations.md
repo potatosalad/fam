@@ -155,7 +155,7 @@ Photos, documents, stories, audio, tags, and comments.
 | Operation | Description | HTTP path | Inputs | Response |
 | --- | --- | --- | --- | --- |
 | `memories.contributor` | Read the contributor of a memory photo, document, story, or audio recording. | GET `/service/mobile/api/v1/artifact/contributor/{artifactPatronId}?includePathForCloseRelatives=true` | path: artifactPatronId number \| bigint | ContributorDto |
-| `memories.upload` | Upload a memory artifact; binary files and multipart forms require the TypeScript client. | POST `/service/mobile/api/v1/artifactmanager/artifacts/multipart` | body: body UploadBody | ArtifactResponseDto |
+| `memories.upload` | Upload a memory artifact; use fam familysearch.memory upload for local files. | POST `/service/mobile/api/v1/artifactmanager/artifacts/multipart` | body: body UploadBody | ArtifactResponseDto |
 | `memories.delete` | Move a memory artifact to the trash. | DELETE `/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}` | path: artifactId number \| bigint | void |
 | `memories.get` | Read a memory artifact and its photo, document, story, or audio metadata. | GET `/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}` | path: artifactId number \| bigint; query: includeAssociatedArtifacts boolean; query: includeDatesPlaces boolean | ArtifactDto |
 | `memories.update` | Edit a memory artifact's title, description, and metadata. | POST `/service/mobile/api/v1/artifactmanager/artifacts/{artifactId}` | path: artifactId number \| bigint; body: body ArtifactDto | ArtifactDto |

@@ -4,6 +4,7 @@ import { Impit } from 'impit';
 import { Cookie, CookieJar } from 'tough-cookie';
 import type { ApiRequest, ApiResponse, HttpMethod, UploadBody } from './transport-types.js';
 import { parseJson, stringifyJson } from '../shared/json.js';
+import {isResearchPath} from './research-paths.js';
 
 export const FS_ORIGIN = 'https://www.familysearch.org';
 export const IDENT_ORIGIN = 'https://ident.familysearch.org';
@@ -29,8 +30,8 @@ export function checkOrigin(url: URL): void {
 export class HttpSession {
   readonly jar: CookieJar;
   private readonly transport: Impit;
-  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1] & {retryable?: boolean}, sessionCookies: string[] = []) {
-    return fetchWithBrowser('familysearch', url, init ?? {}, () => this.transport.fetch(url, init), this.jar, sessionCookies);
+  private fetch(url: string | URL, init: Parameters<Impit['fetch']>[1] & {retryable?: boolean}, sessionCookies: string[] = [], readOnly = false) {
+    return fetchWithBrowser('familysearch', url, init ?? {}, () => this.transport.fetch(url, init), this.jar, sessionCookies, {readOnly});
   }
   constructor(cookies?: Parameters<typeof CookieJar.deserializeSync>[0]) {
     this.jar = cookies ? CookieJar.deserializeSync(cookies) : new CookieJar();
@@ -54,7 +55,10 @@ export class HttpSession {
     const cookie = await this.jar.getCookieString(target.href);
     if (cookie) headers.Cookie = cookie;
     let response: Response;
-    try { response = await this.fetch(target, { ...init, headers, redirect: 'manual' }, sessionCookies); }
+    const researchRead = target.origin === FS_ORIGIN && (
+      (init.method ?? 'GET') === 'GET' && isResearchPath(target.pathname)
+      || init.method === 'POST' && /^\/search\/filmdatainfo\/(image-data|film-data|waypoint-data)$/.test(target.pathname));
+    try { response = await this.fetch(target, { ...init, headers, redirect: 'manual' }, sessionCookies, researchRead); }
     catch (error) { if (error instanceof BrowserError) throw error; throw new Error(`Network request failed for ${target.origin}${target.pathname}.`, {cause:error}); }
     for (const value of response.headers.getSetCookie()) await this.jar.setCookie(value, target.href);
     return response;

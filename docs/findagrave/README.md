@@ -2,6 +2,8 @@
 
 The `fam findagrave` command searches memorials and cemeteries, reads biographies and relationships, and lists photographs. Install fam using the [main README](../../README.md#install).
 
+For geographic filtering, first run `fam findagrave.location search --name "PLACE" --json`, then pass a returned ID to memorial or cemetery search with `--location`. IDs look like `county_123`, `state_123`, or `loc_123`. Plain place names are rejected locally; they are not translated automatically into IDs.
+
 ## Sign in
 
 Use your Find a Grave email address when `credentials` asks for a username:

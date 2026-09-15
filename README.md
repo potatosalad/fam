@@ -131,9 +131,12 @@ After signing in to FamilySearch, read a person, follow their ancestors, or down
 fam familysearch.person get --person-id PERSON_ID
 fam familysearch.person ancestry --person-id PERSON_ID --depth 3
 fam familysearch.image download --ark IMAGE_ARK --original --out scan.jpg
+fam familysearch.record search --last-name Example --birth-year 1850 --birth-year-range 3 --json
 ```
 
 Replace `PERSON_ID` and `IMAGE_ARK` with identifiers from FamilySearch.
+
+FamilySearch also supports [record collection filters, local write validation, and memory uploads](docs/familysearch/README.md). For example, `fam familysearch.memory upload --file portrait.jpg --visibility private --dry-run --json` previews a file upload; remove `--dry-run` to upload it.
 
 Search public memorials without signing in:
 

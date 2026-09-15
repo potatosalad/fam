@@ -51,6 +51,10 @@ test('Find a Grave search uses serializer wire enums and zero-based offsets',()=
   assert.throws(()=>searchInput({lastName:'Example',yearRange:'2'}),/requires/);
   assert.throws(()=>searchInput({lastName:'Example',size:-2}),/integer/);
   assert.throws(()=>searchInput({lastName:'Example',sort:'relevance',descending:true}),/descending/);
+  assert.equal(searchInput({lastName:'Example',location:'county_123'}).locationId,'county_123');
+  assert.equal(searchInput({input:{locationId:'loc_1'}}).locationId,'loc_1');
+  assert.throws(()=>searchInput({lastName:'Example',location:'Example County'}),/findagrave.location search/);
+  assert.throws(()=>searchInput({input:{lastName:'Example',locationId:'Example County'}}),/location ID/);
 });
 test('Find a Grave research search preserves keyword syntax and combines family filters',()=>{
   const input=searchInput({lastName:'Example',bio:'"born in Ireland" OR Dublin',relative:'Mary',includeMaidenName:true,includeNickname:true,

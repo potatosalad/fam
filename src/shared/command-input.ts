@@ -1,4 +1,5 @@
-import {readFile} from 'node:fs/promises';
+import {open, readFile} from 'node:fs/promises';
+import {constants} from 'node:fs';
 import {resolve} from 'node:path';
 
 export interface CommandInput {kind: 'file' | 'stdin'; path: string | null; data: Buffer; complete: boolean}
@@ -16,6 +17,31 @@ export async function readCommandFile(path: string, encoding?: 'utf8'): Promise<
   const data = await readFile(path);
   await capture({kind: 'file', path: resolve(path), data, complete: true});
   return encoding ? data.toString(encoding) : data;
+}
+
+/** Bounded regular-file reads for uploads; capture exactly the bytes consumed. */
+export async function readCommandBinaryFile(path: string, maximum: number): Promise<Buffer<ArrayBuffer>> {
+  if (!Number.isSafeInteger(maximum) || maximum < 1) throw new Error('Invalid input byte limit.');
+  const file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK);
+  const chunks: Buffer<ArrayBuffer>[] = [];
+  let bytes = 0, complete = false;
+  try {
+    const info = await file.stat();
+    if (!info.isFile()) throw new Error('Upload input must be a regular file.');
+    if (info.size > maximum) throw new Error(`Upload file exceeds --max-bytes (${maximum}).`);
+    while (true) {
+      const chunk = Buffer.alloc(Math.min(65536, maximum + 1 - bytes));
+      const {bytesRead} = await file.read(chunk);
+      if (!bytesRead) {complete = true; break;}
+      chunks.push(chunk.subarray(0, bytesRead)); bytes += bytesRead;
+      if (bytes > maximum) throw new Error(`Upload file exceeds --max-bytes (${maximum}).`);
+    }
+    if (!bytes) throw new Error('Upload file must not be empty.');
+    return Buffer.concat(chunks);
+  } finally {
+    await file.close();
+    await capture({kind: 'file', path: resolve(path), data: Buffer.concat(chunks), complete});
+  }
 }
 
 export async function readCommandStdin(maximum = Infinity, limitMessage = 'Input exceeded its size limit.'): Promise<string> {

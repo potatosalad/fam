@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { FindagraveClient } from './client.js';
@@ -14,6 +15,10 @@ export interface SearchOptions {name?: string; firstName?: string; middleName?: 
   bio?: string; relative?: string; includeMaidenName?: boolean; includeNickname?: boolean; similar?: boolean; plot?: string;
   birthFilter?: string; deathFilter?: string;
   sort?: string; descending?: boolean; size?: number; from?: number; input?: Record<string, unknown>;}
+export function validateLocationId(value: unknown): void {
+  if (typeof value !== 'string' || !/^[a-z][a-z0-9]*_\d+$/.test(value))
+    throw new InputError('--location requires a provider location ID, such as county_123. Run fam findagrave.location search --name "PLACE" and use a returned id.');
+}
 export function searchInput(options: SearchOptions): Record<string, unknown> {
   const input: Record<string,unknown> = {...options.input};
   for (const [key,value] of Object.entries({fullName: options.name, firstName: options.firstName, middleName: options.middleName, lastName: options.lastName,
@@ -22,6 +27,7 @@ export function searchInput(options: SearchOptions): Record<string, unknown> {
     locationId: options.location, cemeteryIds: options.cemetery, exactName: options.exact, isFamous: options.famous, isVeteran: options.veteran, hasGps: options.hasGps})) {
     if (value !== undefined) input[key] = value;
   }
+  if (input.locationId !== undefined) validateLocationId(input.locationId);
   if (input.bio !== undefined && (typeof input.bio !== 'string' || !input.bio.trim() || input.bio.length > 50)) throw new Error('--bio requires 1–50 characters of keywords.');
   if (input.exactName && input.fuzzyNames) throw new Error('Use either --exact or --similar.');
   if (options.yearRange !== undefined && options.birthYear === undefined && options.deathYear === undefined) throw new Error('--year-range requires --birth-year or --death-year.');

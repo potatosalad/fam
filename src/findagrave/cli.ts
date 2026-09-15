@@ -11,7 +11,7 @@ import { authenticateFindagrave, sessionStatus, type FindagraveSession } from '.
 import { aliases, contracts, graphqlOperation } from './catalog.js';
 import { FindagraveClient } from './client.js';
 import { restOperations, restOperation, type RestArguments } from './rest.js';
-import { integer, searchInput, memorialPhotos, downloadPhoto } from './research.js';
+import { integer, searchInput, memorialPhotos, downloadPhoto, validateLocationId } from './research.js';
 
 async function jsonInput(value?: string): Promise<Record<string,unknown>> {
   if (!value) return {};
@@ -81,6 +81,10 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     let cemeterySearch: Record<string,unknown> = {};
     if (command === 'cemeteries') {
       cemeterySearch={...input,...(first?{name:first}:{}),...(v.location?{containingLocationId:[v.location]}:{}),size,from};
+      if (cemeterySearch.containingLocationId !== undefined) {
+        if (!Array.isArray(cemeterySearch.containingLocationId)) throw new Error('containingLocationId must be an array of location IDs.');
+        cemeterySearch.containingLocationId.forEach(validateLocationId);
+      }
       if ((v.latitude===undefined)!==(v.longitude===undefined)) throw new Error('Use --latitude and --longitude together.');
       if (v.latitude!==undefined) {
         const lat=Number(v.latitude),lon=Number(v.longitude);
