@@ -1,5 +1,7 @@
 # Ancestry CLI
 
+Record IDs are opaque strings. `fam ancestry.record get --collection-id 1234 --record-id -9223372036854775808` accepts signed IDs without losing digits; `--record-id=-9223372036854775808` also works. Use the collection and record IDs returned by search.
+
 Create output folders before using these examples: `mkdir -p research-output/ancestry`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
 `fam ancestry` provides a TypeScript client and CLI based on Ancestry Android 18.16.3 contracts. See the [main README](../../README.md) for npm installation, storage locations, environment variables, and isolated installations. Authentication and data are separate from the other providers.

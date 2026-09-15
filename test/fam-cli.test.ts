@@ -223,6 +223,20 @@ test('named flags preserve existing provider inputs, repeated values, and large 
     ['newspapers', '--name', 'Ada', '--name', 'Lovelace']);
 });
 
+test('signed Ancestry record IDs survive both parsers without losing digits', async t => {
+  const {AncestryClient} = await import('../src/ancestry/client.js');
+  const calls: string[][] = [];
+  t.mock.method(AncestryClient, 'open', async () => ({record: async (...ids: string[]) => {calls.push(ids); return {ids};}}));
+  const id = '-9223372036854775808';
+  for (const flags of [['--record-id', id], [`--record-id=${id}`]]) {
+    assert.deepEqual(await providerInvoke('ancestry.record', 'get', '--collection-id', '00123', ...flags), {ids: ['00123', id]});
+  }
+  assert.deepEqual(calls, [['00123', id], ['00123', id]]);
+  assert.throws(() => parseInvocation(['ancestry.record', 'search', '--limit', '-1']), /valid integer/);
+  assert.throws(() => parseInvocation(['ancestry.record', 'get', '--collection-id', '1', '--record-id', '--json']), /ambiguous/);
+  await assert.rejects(providerInvoke('ancestry.record', 'get', '--collection-id', '1', '--record-id', id, '--bogus'), /Unknown option/);
+});
+
 test('browser capture rejects invalid modes through the parser and provider handlers', async () => {
   for (const provider of ['myheritage', 'findmypast']) {
     assert.match(help(command(`${provider}.session login`)), /--capture/);

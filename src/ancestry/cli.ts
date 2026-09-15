@@ -23,7 +23,13 @@ async function jsonInput(value?: string): Promise<Record<string, unknown>> {
   return parsed as Record<string, unknown>;
 }
 export async function runProvider(argv: string[]): Promise<unknown> {
-  const {values, positionals} = parseArgs({args: argv, allowPositionals: true, options: {
+  // The dispatcher supplies operands before flags. Preserve signed IDs through
+  // this second parser by placing those operands after its option terminator.
+  const firstOption = argv.findIndex(arg => arg.startsWith('-') && !/^-\d+$/.test(arg));
+  const operands = firstOption < 0 ? argv : argv.slice(0, firstOption);
+  const args = operands.some(arg => /^-\d+$/.test(arg))
+    ? [...(firstOption < 0 ? [] : argv.slice(firstOption)), '--', ...operands] : argv;
+  const {values, positionals} = parseArgs({args, allowPositionals: true, options: {
     help: {type: 'boolean', short: 'h'}, stdin: {type: 'boolean'}, out: {type: 'string'}, code: {type: 'string'}, 'send-code': {type: 'boolean'},
     limit: {type: 'string'}, page: {type: 'string'}, cursor: {type: 'string'}, query: {type: 'string'}, base: {type: 'string'},
     given: {type: 'string'}, surname: {type: 'string'}, 'birth-year': {type: 'string'}, 'birth-place': {type: 'string'},

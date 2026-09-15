@@ -28,7 +28,15 @@ export function parseInvocation(args: string[]): Invocation {
   const options = Object.fromEntries(command.flags.map(flag => [flag.name, {type: flag.type === 'boolean' ? 'boolean' as const : 'string' as const,
     ...(flag.multiple ? {multiple: true} : {}), ...(flag.name === 'help' ? {short: 'h'} : {})}]));
   let values: Values;
-  try {values = parseArgs({args: rest, allowPositionals: false, options}).values as Values;}
+  // Numeric-looking identifiers are strings, including signed 64-bit record IDs.
+  // Node otherwise interprets a separate negative value as another option.
+  const normalized: string[] = [];
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i], name = arg.startsWith('--') ? arg.slice(2) : '';
+    if (options[name]?.type === 'string' && /^-\d+$/.test(rest[i + 1] ?? '')) normalized.push(`${arg}=${rest[++i]}`);
+    else normalized.push(arg);
+  }
+  try {values = parseArgs({args: normalized, allowPositionals: false, options}).values as Values;}
   catch (error) {throw new UsageError(error instanceof Error ? error.message : 'Invalid flags.', syntax(command));}
   if (values.json && values.format !== undefined && values.format !== 'json')
     throw new UsageError('Use --json by itself or with --format json; other formats conflict with --json.', `${syntax(command)} --json`);
