@@ -204,6 +204,7 @@ export function prepareOperation(name: OperationName, supplied: unknown): { path
     raw = true;
   }
   return { path, options: { method: contract.method, query, headers, body, encoding: raw ? 'raw' : 'json',
+    ...((name === 'search.results' || name === 'search.categories') ? {retryable: true} : {}),
     response: contract.response.kind === 'void' ? 'void' : contract.response.kind === 'binary' ? 'binary' : 'json' } };
 }
 

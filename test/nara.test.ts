@@ -163,12 +163,13 @@ test('NARA discovery has six public commands, typed flags, URL resolution, and o
 
 
 test('informational Catalog notices remain visible without marking successful retrievals as failures', async()=>{
-  const alerts=[['usa-alert--info','Plan your research visit.'],['usa-alert--success','Update complete.']];
+  const visitNotice='The following may not represent the current availability of these records. If you plan to access these records in person, please contact the location.';
+  const alerts=[['usa-alert--info','Plan your research visit.'],['usa-alert--success','Update complete.'],['usa-alert--warning',visitNotice]];
   const document={title:'Catalog',body:{innerText:'Example'},querySelector:()=>null,
     querySelectorAll:(selector:string)=>selector==='.usa-alert'?alerts.map(([className,innerText])=>({innerText,classList:{contains:(name:string)=>name===className}})):[]};
   const captured=runInNewContext(SNAPSHOT,{document,location:{href:recordUrl(id)}});
   assert.deepEqual(Array.from(captured.alerts),[]);
-  assert.deepEqual(Array.from(captured.notices),['Plan your research visit.','Update complete.']);
+  assert.deepEqual(Array.from(captured.notices),['Plan your research visit.','Update complete.',visitNotice]);
   const s=snapshot();s.notices=Array.from(captured.notices);
   const result=await new NaraClient({read:async()=>s}).record(id), failures:unknown[]=[];
   inspectResult(result,d=>failures.push(d));assert.deepEqual(failures,[]);

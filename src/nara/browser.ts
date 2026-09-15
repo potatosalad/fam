@@ -37,7 +37,10 @@ export const SNAPSHOT = String.raw`(() => {
   if (!items.length && total === '1' && downloadUrl) items.push({page: '1', label: 'Digital object 1', thumbnailUrl: null});
   const transcriptionLabel = one('#transcription-tab')?.getAttribute('aria-label') || '';
   const alerts = all('.usa-alert');
-  const informational = el => el.classList.contains('usa-alert--info') || el.classList.contains('usa-alert--success');
+  // The Catalog styles its in-person availability reminder as a warning, even
+  // when the online retrieval succeeded. Preserve that reminder as a notice.
+  const informational = el => el.classList.contains('usa-alert--info') || el.classList.contains('usa-alert--success')
+    || /following may not represent the current availability of these records/i.test(text(el)) && /in person/i.test(text(el));
   return {
     url: location.href, title: document.title, text: body.slice(0, 2000000),
     alerts: alerts.filter(el => !informational(el)).map(text).filter(Boolean),

@@ -61,4 +61,4 @@ The implementation was first checked against the anonymous Catalog on September 
 
 This is an unofficial browser adapter. Website changes may require selector updates. Advanced search facets, bulk exports, hierarchy traversal, and the official API are not yet exposed. Search results and record metadata are research leads; follow the returned Catalog links to review the original material.
 
-Informational and success banners appear in `notices` and readable `Notice:` lines. They do not mark an otherwise successful retrieval as a history failure. Actual warnings and incomplete-result reporting remain in `warnings`.
+Informational and success banners appear in `notices` and readable `Notice:` lines. They do not mark an otherwise successful retrieval as a history failure. The reminder to confirm availability before an in-person visit is also a notice, even though the Catalog styles it as a warning. Actual retrieval warnings and incomplete-result reporting remain in `warnings`.

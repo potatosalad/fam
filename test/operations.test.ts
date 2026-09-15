@@ -7,7 +7,7 @@ import { HttpError, HttpSession } from '../src/familysearch/http.js';
 import { CHURCH_CLIENT_ID } from '../src/familysearch/auth.js';
 import { contracts } from '../src/familysearch/generated/schema.js';
 import type { WireType } from '../src/familysearch/contract-types.js';
-import { prepareOperation } from '../src/familysearch/operations.js';
+import { operationExample, prepareOperation } from '../src/familysearch/operations.js';
 import { parseJson, stringifyJson } from '../src/shared/json.js';
 
 function client() {
@@ -105,6 +105,28 @@ test('concrete genealogy mutations preserve nested payloads, reasons and fixed p
   assert.equal(analysis.options.method, 'GET');
   const changes = prepareOperation('history.changes', { pid: 'ABCD-123', query: { from: 'cursor/with+=symbols' } });
   assert.equal(changes.options.query?.from, 'cursor/with+=symbols');
+});
+
+test('FamilySearch POST searches retry overloads without replaying writes', async () => {
+  const original = Impit.prototype.fetch;
+  try {
+    for (const name of ['search.results', 'search.categories', 'persons.addFact'] as const) {
+      let calls = 0;
+      Impit.prototype.fetch = async () => {
+        calls++;
+        return new Response('{}', {status: calls === 1 ? 503 : 200, headers: {'content-type': 'application/json', 'retry-after': '0'}}) as never;
+      };
+      const request = prepareOperation(name, operationExample(name));
+      const result = new HttpSession().exchange(`https://www.familysearch.org${request.path}`, request.options);
+      if (name === 'persons.addFact') {
+        await assert.rejects(result, {status: 503});
+        assert.equal(calls, 1);
+      } else {
+        await result;
+        assert.equal(calls, 2);
+      }
+    }
+  } finally { Impit.prototype.fetch = original; }
 });
 
 test('invalid bodies, misspelled parameters, traversal and header injection fail before authentication', async () => {
