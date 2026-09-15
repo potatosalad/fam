@@ -17,6 +17,20 @@ fam cli.health check --provider ancestry --offline
 
 `fam doctor` is shorthand for `fam cli.health check --live`, with the same flags, output, and exit codes. Independent provider checks run concurrently. Each individual live check reuses its result for 45–75 minutes, with random jitter chosen when saved; local checks always run. Use `--force` to rerun live checks immediately and replace their cache entries. When a live check runs, each authenticated provider checks access, tries refresh if supported, then tries normal login, stopping on success. Use `--no-fix` to check without repairs or session saves. Interactive color terminals show animated provider rows; use `--no-pretty` for plain output. Pipes, JSON, files, CI, and `NO_COLOR` disable the display automatically. See [health checks](doctor.md) for details and offline inspection.
 
+## Agent command reasoning
+
+Agents must include `--reasoning "<brief purpose>"` on every `fam` invocation, including discovery, help, history queries, and dry runs. Put it **at the very end of the command**, after all other arguments, so the operation and its inputs are visible first. Explain the immediate purpose and intended use of the result.
+
+```sh
+fam ancestry.person get --tree-id TREE --person-id PERSON --json --reasoning "Check the recorded birthplace before choosing census collections."
+fam familysearch.image --help --reasoning "Find the options needed to download the source scan."
+fam cli.history list --query "birthplace" --reasoning "Review the earlier birthplace lookup before repeating it."
+```
+
+The parser accepts `--reasoning TEXT` or `--reasoning=TEXT` anywhere before the `--` option terminator, including before the command, between its object and action, among its flags, or between another flag and its value. It is repeatable: every value is preserved in order, including duplicates. Missing or blank values are usage errors (exit 2); use the equals form if the text begins with a hyphen. The flag is invocation metadata and is not passed to provider adapters or requests. Human invocations may omit it; the CLI does not attempt to identify agents automatically.
+
+History stores the exact values in a `reasoning` array on start, input, and finish records, alongside the original `argv`. They survive later command validation or execution failures, and start records preserve them if a process is interrupted. History list/get show each value, JSON returns the array, and `--query` searches it. Omitted reasoning and older records read as an empty array; existing history is unchanged. The normal `FAM_HISTORY=0` opt-out still applies.
+
 ## Transient failures and input errors
 
 Provider HTTP reads retry temporary connection failures and HTTP 429/502/503/504 with at most **three total attempts**. This includes known read-only POST searches and viewer requests. Retries use short randomized backoff and honor `Retry-After`, with at most 30 seconds of cumulative waiting between attempts per request. A longer requested delay is reported without retrying early. Existing request deadlines still apply; request execution time is separate from the backoff budget. Browser page navigation and interrupted response-body streams are not replayed by this policy.
@@ -227,7 +241,7 @@ Reads take a size snapshot of each daily file, process one day at a time, and le
 
 Every invocation writes a `start` record and, on normal process exit, a `finish` record to `<profile>/history/YYYY-MM-DD.jsonl`. The default is `~/.config/fam/history/`; `FAM_CONFIG_DIR`, XDG configuration, and platform defaults follow the [profile rules](setup.md#storage-and-profiles). Dates are UTC. Both records use the starting date's file, even if the command crosses midnight. Help, completion, discovery, invalid invocations, and dry runs are included. This starts with the installed logging version; earlier calls cannot be reconstructed.
 
-The schema has `schemaVersion: 1`, a shared invocation `id`, timestamps, `command`, `provider`, verbatim `argv`, `argvCapture: "verbatim"`, `cwd`, CLI `version`, `build.revision` / `build.dirty`, and Node/platform information. The start record has the attempted argv; the canonical command becomes available after lookup. Finish records include `durationMs`, the actual `exitCode`, `settled`, `error`, `inputs`, and up to 32 `diagnostics` with codes, messages, result paths and selected error details. Error details include HTTP status, stack frames and bounded causes, when available. `build` is null when running TypeScript source directly; installed builds retain the Git revision from build time (or null when built without Git metadata).
+The schema has `schemaVersion: 1`, a shared invocation `id`, timestamps, `command`, `provider`, verbatim `argv`, `argvCapture: "verbatim"`, the ordered `reasoning` array, `cwd`, CLI `version`, `build.revision` / `build.dirty`, and Node/platform information. The start record has the attempted argv; the canonical command becomes available after lookup. Finish records include `durationMs`, the actual `exitCode`, `settled`, `error`, `inputs`, and up to 32 `diagnostics` with codes, messages, result paths and selected error details. Error details include HTTP status, stack frames and bounded causes, when available. `build` is null when running TypeScript source directly; installed builds retain the Git revision from build time (or null when built without Git metadata).
 
 - `success`: exit code zero, command settled, and no detected failure diagnostics.
 - `soft_failure`: exit code zero with explicit returned errors/warnings, failure status, or a recorded recovery. Examples include GraphQL partial errors, stale-cache warnings, credential-sync failure, authentication rejection followed by a retry, transient document-service HTTP retries, and automatic browser fallback after a website challenge. Expected proactive token renewal is not a failure.

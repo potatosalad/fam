@@ -7,6 +7,7 @@ import {reportDiagnostic} from './diagnostics.js';
 import {shellCommand} from './shell-command.js';
 import type {HistoryInput} from './command-input.js';
 import {historyStatistics, type HistoryStatsData} from './history-stats.js';
+import {extractReasoning} from './command-reasoning.js';
 
 export const historyOutcomes = ['success', 'soft_failure', 'hard_failure', 'incomplete'] as const;
 export type HistoryOutcome = typeof historyOutcomes[number];
@@ -22,7 +23,7 @@ export interface HistoryEntry {
   lastRecordedAt: string; archived: boolean; archivedAt: string | null; archiveId: string | null;
   outcome: HistoryOutcome; durationMs: number | null; exitCode: number | null; settled: boolean | null;
   pid: number | null; argv: string[]; version: string | null; build: {revision: string | null; dirty: boolean | null} | null;
-  commandLine: string; cwd: string | null; argvCapture: 'verbatim' | 'legacy_redacted';
+  commandLine: string; reasoning: string[]; cwd: string | null; argvCapture: 'verbatim' | 'legacy_redacted';
   inputs: HistoryInput[];
   runtime: {node: string | null; platform: string | null; arch: string | null} | null;
   error?: ObjectValue; diagnostics: HistoryDiagnostic[]; droppedDiagnostics: number;
@@ -99,7 +100,7 @@ function recordedError(error: ObjectValue, depth = 0): ObjectValue {
 }
 function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, file: string, startLine: number | null, finishLine: number | null, capturedInputs: unknown[], lastRecordedAt: number, lastLine: number): HistoryEntry {
   const record = finish ?? start!, argv = array(record.argv);
-  const command = string(record.command) ?? (argv.slice(0, 2).join(' ') || '(help)');
+  const command = string(record.command) ?? (extractReasoning(argv).args.slice(0, 2).join(' ') || '(help)');
   const diagnostics = (Array.isArray(record.diagnostics) ? record.diagnostics : []).filter(object).map(item => ({
     code: string(item.code) ?? 'DIAGNOSTIC', message: string(item.message) ?? '',
     ...(typeof item.path === 'string' ? {path: item.path} : {}),
@@ -121,7 +122,7 @@ function entry(start: ObjectValue | undefined, finish: ObjectValue | undefined, 
     outcome, durationMs: number(record.durationMs), exitCode: number(record.exitCode), settled: typeof record.settled === 'boolean' ? record.settled : null,
     pid: number(record.pid), argv, version: string(record.version),
     commandLine: shellCommand(argv), cwd: string(record.cwd), argvCapture: record.argvCapture === 'verbatim' ? 'verbatim' : 'legacy_redacted',
-    inputs,
+    inputs, reasoning: array(record.reasoning),
     build: object(record.build) ? {revision: string(record.build.revision), dirty: typeof record.build.dirty === 'boolean' ? record.build.dirty : null} : null,
     runtime: object(record.runtime) ? {node: string(record.runtime.node), platform: string(record.runtime.platform), arch: string(record.runtime.arch)} : null,
     ...(error ? {error} : {}), diagnostics, droppedDiagnostics: number(record.droppedDiagnostics) ?? 0, codes: findings,

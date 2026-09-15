@@ -10,9 +10,11 @@ import {searchCommands, contextCommands} from './shared/command-search.js';
 import {stringifyJson} from './shared/json.js';
 import {humanOutput, wantsJson, namespaceHelp, commandError} from './shared/command-output.js';
 import {startCommandHistory} from './shared/command-history.js';
+import {extractReasoning} from './shared/command-reasoning.js';
 
+const reasoningArgs = extractReasoning(process.argv.slice(2));
 const history = await startCommandHistory(process.argv.slice(2));
-const attempted = commandById.get(process.argv.slice(2, 4).join(' '));
+const attempted = commandById.get(reasoningArgs.args.slice(0, 2).join(' '));
 if (attempted) history.command(attempted.id, attempted.provider);
 process.on('exit', code => history.finish(code));
 process.on('uncaughtExceptionMonitor', error => history.fail(error));
@@ -111,8 +113,9 @@ async function cliCommand(invocation: Invocation): Promise<unknown> {
 let invocation: Invocation | undefined;
 let jsonErrors = false;
 async function main() {
-  const args = process.argv.slice(2);
+  const args = [...reasoningArgs.args];
   jsonErrors = args.includes('--json') || args.includes('--format=json') || args.some((arg, i) => arg === '--format' && args[i + 1] === 'json');
+  if (reasoningArgs.error) throw reasoningArgs.error;
   if (!args.length || args.length === 1 && ['--help', '-h'].includes(args[0])) {process.stdout.write(help()); return;}
   if (args[0] === '--version') args.splice(0, 1, 'cli.version', 'get');
   if (args[0] === 'doctor') args.splice(0, 1, 'cli.health', 'check', '--live');
@@ -138,6 +141,7 @@ async function main() {
     return;
   }
   invocation = parseInvocation(args);
+  if (reasoningArgs.reasoning.length) invocation.values.reasoning = reasoningArgs.reasoning;
   const {command, values} = invocation;
   setReadRetryPolicy({failFast:values['fail-fast'] === true, progress:message => process.stderr.write(`${message}\n`)});
   history.command(command.id, command.provider, command.risk.level !== 'local' || command.object === 'health');

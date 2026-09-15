@@ -22,6 +22,14 @@ Automatic updates are on by default. After a command exits, fam checks for updat
 
 See [setup](docs/setup.md) for PATH problems, update behavior, and migration from an older installation.
 
+## Agent usage
+
+Agents must append `--reasoning "<brief purpose>"` at the very end of every `fam` command, after all other arguments. The parser accepts it anywhere and preserves repeated values in order; putting it last keeps command inputs easy to scan. Values are saved in local command history and searchable with `fam cli.history list --query TEXT`. See [agent command reasoning](docs/cli.md#agent-command-reasoning).
+
+```sh
+fam familysearch.image --help --reasoning "Find the options needed to download the source scan."
+```
+
 ## Try a search
 
 Search the Internet Archive catalog without an account or browser setup:

@@ -162,7 +162,7 @@ test('provider and object prefixes expose local help and nested groups', () => {
     assert.equal(namespaceInfo(provider)?.kind, 'provider');
     for (const object of namespaceInfo(provider)!.objects) assert.ok(namespaceInfo(object.name));
   }
-  assert.deepEqual(complete(catalog, ['ancestry.person', '--']).candidates, ['--help', '--json']);
+  assert.deepEqual(complete(catalog, ['ancestry.person', '--']).candidates, ['--help', '--json', '--reasoning']);
   assert.throws(() => parseNamespaceHelp(['ancestry', '--capture']), /Unknown option/);
   assert.throws(() => parseNamespaceHelp(['ancestry', '--help', 'tree']), /Unexpected argument/);
 });

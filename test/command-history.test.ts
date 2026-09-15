@@ -56,7 +56,7 @@ test('every CLI invocation records start and actual finish, including help, dry-
 
 test('JSON errors retain exit code 1 and history captures malformed stdin verbatim', async () => {
   const directory = await profile();
-  const child = spawn(process.execPath, [...loader, cli, 'ancestry.credential', 'set', '--stdin', '--json'], {
+  const child = spawn(process.execPath, [...loader, cli, 'ancestry.credential', 'set', '--stdin', '--json', '--reasoning', 'Verify malformed input diagnostics.'], {
     env: {...process.env, FAM_CONFIG_DIR: directory}, stdio: ['pipe', 'pipe', 'pipe'],
   });
   const done = once(child, 'close');
@@ -66,6 +66,7 @@ test('JSON errors retain exit code 1 and history captures malformed stdin verbat
   assert.equal(JSON.parse(stderr).ok, false);
   const history = await records(directory);
   const finish = history.find(row => row.event === 'finish');
+  assert.ok(history.every(row => row.reasoning.length === 1 && row.reasoning[0] === 'Verify malformed input diagnostics.'));
   assert.equal(finish.outcome, 'hard_failure');
   assert.match(finish.error.message, /Credential input/);
   assert.equal(finish.inputs[0].kind, 'stdin'); assert.equal(finish.inputs[0].complete, true);
@@ -94,13 +95,14 @@ test('embedded provider errors survive --out receipts without capturing the resp
   const provider = new URL('../src/cyndislist/client.ts', import.meta.url).href;
   const script = `const {CyndisListClient} = await import(${JSON.stringify(provider)});
     CyndisListClient.prototype.categories = async () => ({resources: [{title: 'private research body'}], warnings: ['fixture warning']});
-    process.argv = ['node', ${JSON.stringify(cli)}, 'cyndislist.category', 'list', '--out', 'result.json', '--json'];
+    process.argv = ['node', ${JSON.stringify(cli)}, 'cyndislist.category', 'list', '--out', 'result.json', '--json', '--reasoning', 'Verify provider dispatch.'];
     await import(${JSON.stringify(cli)});`;
   const result = await run(process.execPath, [...loader, '--input-type=module', '-e', script], {
     cwd: directory, env: {...process.env, FAM_CONFIG_DIR: directory}, timeout: 15_000,
   });
   assert.equal(JSON.parse(result.stdout).data.saved, 'result.json');
   const rows = await records(directory);
+  assert.ok(rows.every(row => row.reasoning[0] === 'Verify provider dispatch.'));
   assert.equal(rows[1].outcome, 'soft_failure');
   assert.equal(rows[1].diagnostics[0].error.message, 'fixture warning');
   assert.doesNotMatch(JSON.stringify(rows), /private research body/);
@@ -128,7 +130,7 @@ test('disabled or unavailable history preserves stdout and exit status', async (
 
 test('terminated commands leave a start record instead of a false success', async () => {
   const directory = await profile();
-  const child = spawn(process.execPath, [...loader, cli, 'ancestry.credential', 'set', '--stdin'], {
+  const child = spawn(process.execPath, [...loader, cli, 'ancestry.credential', 'set', '--stdin', '--reasoning', 'Verify interrupted input capture.'], {
     env: {...process.env, FAM_CONFIG_DIR: directory}, stdio: ['pipe', 'ignore', 'ignore'],
   });
   const done = once(child, 'close');
@@ -142,6 +144,7 @@ test('terminated commands leave a start record instead of a false success', asyn
     assert.equal(started, true);
   } finally {child.kill('SIGKILL'); await done;}
   assert.deepEqual((await records(directory)).map(r => r.event), ['start']);
+  assert.deepEqual((await records(directory))[0].reasoning, ['Verify interrupted input capture.']);
 });
 
 test('explicit failure markers include nested GraphQL errors and warnings; empty results and pagination are normal', () => {

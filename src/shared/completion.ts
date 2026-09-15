@@ -87,7 +87,8 @@ export function completionCatalog(documentation?: DocumentationCatalog): Complet
   root.options['--help'] = {value: false}; root.options['-h'] = {value: false};
   root.options['--completions'] = {value: true, choices: ['bash', 'zsh']};
   root.options['--version'] = {value: false};
-  const helpNode = (): CompletionNode => ({...node(), options: {'--help': {value: false}, '-h': {value: false}, '--json': {value: false}}});
+  root.options['--reasoning'] = {value: true};
+  const helpNode = (): CompletionNode => ({...node(), options: {'--help': {value: false}, '-h': {value: false}, '--json': {value: false}, '--reasoning': {value: true}}});
   for (const provider of namespaceNames) root.commands[provider] = helpNode();
   for (const command of commands) {
     const name = `${command.provider}.${command.object}`;

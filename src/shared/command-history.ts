@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {performance} from 'node:perf_hooks';
 import {inspectResult, setDiagnosticSink, type Diagnostic} from './diagnostics.js';
 import {setCommandInputSink, type HistoryInput} from './command-input.js';
+import {extractReasoning} from './command-reasoning.js';
 
 export function errorSummary(error: unknown, depth = 0): Record<string, unknown> {
   if (!error || typeof error !== 'object') return {message: typeof error === 'string' ? error : 'Command failed.'};
@@ -35,7 +36,7 @@ export async function startCommandHistory(args: string[]) {
     try {process.stderr.write('Warning: fam could not write command history; check the profile directory and free disk space.\n');} catch {}
   };
   const base: Record<string, unknown> = {schemaVersion: 1, id, startedAt, pid: process.pid,
-    argv: [...args], argvCapture: 'verbatim', cwd: process.cwd(),
+    argv: [...args], argvCapture: 'verbatim', reasoning: extractReasoning(args).reasoning, cwd: process.cwd(),
     runtime: {node: process.version, platform: process.platform, arch: process.arch}};
   const write = (event: Record<string, unknown>) => {
     if (!append) return;

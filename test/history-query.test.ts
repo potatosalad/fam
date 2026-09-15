@@ -212,11 +212,36 @@ test('list and detail show complete copyable commands and preserve exact argumen
   }
 });
 
+test('history searches and displays each reason, including incomplete entries, without terminal controls', async () => {
+  const reasoning = ['Choose census collections.', 'Cross-check birthplace.\u001b]52;c;clipboard\u0007\rredrawn'];
+  const file = await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'success', {reasoning}));
+  await save(record(2, '2026-09-09T02:00:00Z', 'ancestry.person get', 'success', {
+    argv: ['--reasoning', 'Follow up.', 'ancestry.person', '--reasoning=Inspect unfinished work.', 'get'],
+    reasoning: ['Follow up.', 'Inspect unfinished work.'],
+  }), true);
+  const before = await readFile(file, 'utf8');
+  const list = await queryHistory('list', {query: 'CENSUS COLLECTIONS'}) as HistoryList;
+  assert.deepEqual(list.entries.map(row => row.reasoning), [reasoning]);
+  const detail = await queryHistory('get', {id: id(1)}) as HistoryDetail;
+  assert.deepEqual(detail.entry.reasoning, reasoning);
+  for (const output of [historyOutput(list, 60), historyOutput(detail, 60)]) {
+    assert.match(output, /Reasoning: Choose census collections\./);
+    assert.match(output, /Reasoning: Cross-check birthplace\./);
+    assert.doesNotMatch(output, /[\u001b\u0007\r]/);
+  }
+  const unfinished = (await queryHistory('list', {query: 'unfinished work'}) as HistoryList).entries[0];
+  assert.equal(unfinished.command, 'ancestry.person get'); assert.equal(unfinished.outcome, 'incomplete');
+  assert.deepEqual(unfinished.reasoning, ['Follow up.', 'Inspect unfinished work.']);
+  assert.equal(await readFile(file, 'utf8'), before);
+});
+
 test('legacy logs identify discarded inputs without rewriting the evidence', async () => {
   const path = await save(record(1, '2026-09-09T01:00:00Z', 'ancestry.person get', 'success', {argv: ['ancestry.person', 'get', '--tree-id', '[REDACTED]']}));
   const before = await readFile(path, 'utf8');
   const detail = await queryHistory('get', {id: id(1)}) as HistoryDetail;
   assert.equal(detail.entry.argvCapture, 'legacy_redacted');
+  assert.deepEqual(detail.entry.reasoning, []);
+  assert.match(historyOutput(detail), /Reasoning: not recorded/);
   assert.match(historyOutput(detail), /cannot be recovered/);
   assert.equal(await readFile(path, 'utf8'), before);
 });

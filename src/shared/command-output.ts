@@ -143,6 +143,7 @@ export function overview(): string {
       ['--help, -h', 'Show help, flags, and examples.'],
       ['--json', 'Return structured JSON.'],
       ['--out <FILE>', 'Save results or downloads.'],
+      ['--reasoning <TEXT>', 'Why this command is run; required for agents.'],
       ['--transport <MODE>', 'Use auto, http, or browser.'],
       ['--version', 'Show version, revision, and install path.'],
     ], 80), '',

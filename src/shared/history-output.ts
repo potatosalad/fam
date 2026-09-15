@@ -31,6 +31,7 @@ function detail(row: HistoryEntry, width: number): string[] {
     `Runtime: ${safe(row.runtime?.node ?? 'unknown')} · ${safe(row.runtime?.platform ?? 'unknown')} ${safe(row.runtime?.arch ?? '')}`,
     '', `Command: ${row.commandLine}`,
     `Working directory: ${row.cwd ? shellQuote(row.cwd) : 'not recorded'}`];
+  for (const reasoning of row.reasoning.length ? row.reasoning : ['not recorded']) lines.push(...wrapped(`Reasoning: ${reasoning}`, width));
   if (row.argvCapture === 'legacy_redacted') lines.push('Legacy record: argument values were discarded by the old recorder and cannot be recovered.');
   if (row.archived) lines.push(`Archived: ${when(row.archivedAt!)} UTC (marker ${row.archiveId})`);
   if (row.inputs.length) lines.push('', 'Captured inputs');
@@ -94,6 +95,7 @@ export function historyOutput(result: HistoryView, columns = 100): string {
         const prefix = `${when(row.startedAt)}  ${labels[row.outcome].padEnd(10)}  ${duration(row.durationMs).padStart(7)}  ${row.id.slice(0, 8)}  `;
         // Let the terminal wrap naturally: inserting/trimming whitespace would change copied arguments.
         lines.push(prefix.trimEnd(), `  ${row.commandLine}`);
+        for (const reasoning of row.reasoning) lines.push(...wrapped(`Reasoning: ${reasoning}`, width, '  '));
         if (row.archived) lines.push(`  Archived ${when(row.archivedAt!)} UTC`);
         if (row.argvCapture === 'legacy_redacted') lines.push('  Legacy record: original argument values unavailable.');
         if (row.codes.length || row.message) lines.push('  ' + clip(`${row.codes.join(', ')}${row.message ? ` · ${row.message}` : ''}`, width - 2));

@@ -3,6 +3,7 @@ import {parseArgs} from 'node:util';
 import {commandById, syntax, type Command} from './command-registry.js';
 import {commandHelp, overview} from './command-output.js';
 import {namespaceInfo, lookupFailure, type LookupFailure} from './command-navigation.js';
+import {extractReasoning} from './command-reasoning.js';
 
 export class UsageError extends InputError {
   constructor(message: string, readonly suggestedInvocation?: string, readonly navigation?: LookupFailure) {super(message);}
@@ -12,6 +13,9 @@ export function unknownCommand(name: string, action?: string): UsageError {
   return new UsageError(failure.message, failure.suggestedInvocation, failure);
 }
 export function parseNamespaceHelp(args: string[]) {
+  const reasoningArgs = extractReasoning(args);
+  if (reasoningArgs.error) throw new UsageError(reasoningArgs.error.message);
+  args = reasoningArgs.args;
   if (args[1] && !args[1].startsWith('-')) return undefined;
   const namespace = namespaceInfo(args[0]);
   if (!namespace) return undefined;
@@ -23,6 +27,9 @@ export function parseNamespaceHelp(args: string[]) {
 export type Values = Record<string, string | boolean | number | string[] | undefined>;
 export interface Invocation {command: Command; values: Values; args: string[]}
 export function parseInvocation(args: string[]): Invocation {
+  const reasoningArgs = extractReasoning(args);
+  if (reasoningArgs.error) throw new UsageError(reasoningArgs.error.message);
+  args = reasoningArgs.args;
   const [object, action, ...rest] = args, command = commandById.get(`${object} ${action}`);
   if (!command) throw unknownCommand(object ?? '', action?.startsWith('-') ? undefined : action);
   const options = Object.fromEntries(command.flags.map(flag => [flag.name, {type: flag.type === 'boolean' ? 'boolean' as const : 'string' as const,
@@ -38,6 +45,7 @@ export function parseInvocation(args: string[]): Invocation {
   }
   try {values = parseArgs({args: normalized, allowPositionals: false, options}).values as Values;}
   catch (error) {throw new UsageError(error instanceof Error ? error.message : 'Invalid flags.', syntax(command));}
+  if (reasoningArgs.reasoning.length) values.reasoning = reasoningArgs.reasoning;
   if (values.json && values.format !== undefined && values.format !== 'json')
     throw new UsageError('Use --json by itself or with --format json; other formats conflict with --json.', `${syntax(command)} --json`);
   if (!values.help) for (const flag of command.flags) {
