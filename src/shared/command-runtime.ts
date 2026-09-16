@@ -75,6 +75,9 @@ export function parseInvocation(args: string[]): Invocation {
     if (value === undefined || value === false) continue;
     for (const item of Array.isArray(value) ? value : [value]) {bound.push(`--${flag.binding || flag.name}`); if (item !== true) bound.push(String(item));}
   }
+  // The transcript reader must know the effective output mode, including the readable default.
+  if (command.id === 'familysearch.image transcript' && values.format === undefined)
+    bound.push('--format', values.json ? 'json' : 'text');
   return {command, values, args: bound};
 }
 export function describe(command: Command) {

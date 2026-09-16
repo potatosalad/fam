@@ -172,7 +172,7 @@ const options: Record<string, Partial<Flag>> = {
   code: {sensitive: true}, 'verification-code': {sensitive: true},
   latitude: {type: 'number', minimum: -90, maximum: 90}, longitude: {type: 'number', minimum: -180, maximum: 180},
   distance: {type: 'integer', minimum: 1},
-  'entry-id': {description: 'Fold3 SUB_IMAGE entry ID. Resolves the parent scan; mutually exclusive with --image-id.'},
+  'entry-id': {description: 'Fold3 SUB_IMAGE ID or original /sub-image/ URL. Bare numbers also found as INDEX_RECORD are rejected; use the typed source URL. Mutually exclusive with --image-id.'},
   'fail-fast': {type:'boolean', binding:false, description:'Disable transient read retries; authentication and verification recovery are unchanged.'},
   errors: {binding: false, choices: ['stderr', 'stdout'], description: 'Destination for JSON error envelopes with --json; diagnostics remain on stderr and exit codes remain nonzero.'},
   reasoning: {binding: false, multiple: true, description: 'Why this command is being run, saved in local history. Accepted anywhere; agents must put it last.'},

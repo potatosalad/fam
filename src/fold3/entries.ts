@@ -1,6 +1,8 @@
 import type {Fold3Client} from './client.js';
 import {Fold3Error,WEB} from './http.js';
 import {id,integer,object,metadata,publicData} from './parse.js';
+import {entryReference} from './image-reference.js';
+import {InputError} from '../shared/input-error.js';
 
 export function rectangle(value:unknown){
   if(value===undefined||value===null)return null;
@@ -26,7 +28,18 @@ export async function imageContributions(client:Fold3Client,value:string){
   return {imageId,sourceUrl:`${WEB}/image/${imageId}`,items:contributions(v.de),note:'Contributions are user annotations, corrections, and comments. Retain the original scan as evidence.'};
 }
 export async function entry(client:Fold3Client,value:string){
-  const entryId=id(value),v=wrapped(await client.http.json(`${WEB}/fold31-image-data/sub-image/document/SUB_IMAGE/${entryId}?flag=ALL_CONTRIBUTIONS&flag=PERMISSIONS`),'SUB_IMAGE',entryId),d=v.d,parentImageId=id(d.i);
+  const {entryId,explicitType}=entryReference(value);
+  if (!explicitType) {
+    let record;
+    try {record=await client.record(entryId);}
+    catch(error) {if(!(error instanceof Fold3Error)||error.code!=='not-found')throw error;}
+    if(record){
+      const ref=record.data?.content?.metadata?.id;
+      if(ref?.contentType!=='INDEX_RECORD'||id(ref.objectId)!==entryId)throw new Fold3Error('api-changed');
+      throw new InputError('Ambiguous Fold3 number: an INDEX_RECORD exists with this ID. Use fold3.record get for that record, or pass the original /sub-image/ URL from an entry result to --entry-id.');
+    }
+  }
+  const v=wrapped(await client.http.json(`${WEB}/fold31-image-data/sub-image/document/SUB_IMAGE/${entryId}?flag=ALL_CONTRIBUTIONS&flag=PERMISSIONS`),'SUB_IMAGE',entryId),d=v.d,parentImageId=id(d.i);
   return {entryId,parentImageId,title:d.t,ordinal:d.o,rect:rectangle(d.r),metadata:metadata(d.m),contributions:contributions(v.de),permissions:publicData(v.r?.p),sourceUrl:`${WEB}/sub-image/${entryId}`,imageUrl:`${WEB}/image/${parentImageId}`};
 }
 export interface EntryOptions {x?:number;y?:number;width?:number;height?:number;limit?:number;offset?:number}

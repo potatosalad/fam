@@ -37,6 +37,15 @@ export function buildAttachPlan(personId: string, url: string, linker: any, reas
   if (linker.record?.persistentUrl && recordUrl(linker.record.persistentUrl) === url) focusIds.add(linker.record.recordId);
   const matches = (linker.matches ?? []).filter((match: any) => focusIds.has(match.recordPersonId) && match.treePersonId === personId);
   if (matches.length !== 1) throw new Error('The source linker did not identify exactly one pairing for the requested record and tree person. Inspect sources.linkerMatch.');
+  const attachmentsKnown = Array.isArray(linker.recordAttachments);
+  const attachments = (linker.recordAttachments ?? []).filter((attachment: any) => attachment.recordPersonId === matches[0].recordPersonId);
+  const alreadyAttached = attachments.some((attachment: any) => attachment.treePersonId === personId);
+  const attachedElsewhere = attachments.some((attachment: any) => attachment.treePersonId !== personId);
+  const warnings = [
+    ...(!attachmentsKnown ? ['The source linker did not supply attachment status. Check existing sources before executing.'] : []),
+    ...(alreadyAttached ? ['This indexed person is already attached to the requested tree person. Do not execute another attachment; review the existing source and facts.'] : []),
+    ...(attachedElsewhere ? ['This indexed person is attached to another tree person. Review that attachment before executing.'] : []),
+  ];
   const candidates = (matches[0].pairings ?? []).filter((pairing: any) => pairing.recordFact).map((pairing: any) => ({
     id:pairing.recordFact.conclusionId ?? null, type:pairing.recordFact.type ?? null, fact:pairing.recordFact, existingTreeFact:pairing.treeFact ?? null}));
   const selected = new Set<any>();
@@ -49,7 +58,8 @@ export function buildAttachPlan(personId: string, url: string, linker: any, reas
   const body = {personId,recordUrl:url,attachmentReason:reason,recordFactsToCopy:copy.map(item => item.inputFact)};
   const input = prepareOperation('sources.attachRecord',{body}).input;
   copy.forEach((item,index)=>{item.inputFact=(input.body as any).recordFactsToCopy[index];});
-  return {operation:'sources.attachRecord',input,candidates,copy,
+  return {operation:'sources.attachRecord',input,candidates,copy,ready:warnings.length===0,alreadyAttached,
+    attachmentStatus:alreadyAttached?'attached':attachedElsewhere?'attached-elsewhere':attachmentsKnown?'unattached':'unknown',attachments,warnings,
     note:'Read-only attachment plan. Selected facts come directly from the source linker. Executing this input attaches the record and copies those facts in the same request.'};
 }
 

@@ -13,6 +13,9 @@ import {downloadImage} from '../src/fold3/download.js';
 import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {FamilySearchClient} from '../src/familysearch/client.js';
 import {runResearchCli} from '../src/familysearch/research-cli.js';
+import {runProvider} from '../src/familysearch/cli.js';
+import {parseInvocation} from '../src/shared/command-runtime.js';
+import {humanOutput} from '../src/shared/command-output.js';
 
 test('FamilySearch normalizes only exact numeric IDs and search years', async () => {
   const input = {pid: 340, body: {conclusionType:'FACT', value:{type:'Birth',place:{id:9007199254740997n}}}};
@@ -44,9 +47,60 @@ test('Fold3 entry IDs resolve to the parent scan without guessing across numeric
   assert.equal(await resolveImageReference(client,imageReference(undefined,'456')),'123');
   assert.equal(await resolveImageReference(client,imageReference('https://www.fold3.com/sub-image/456/test')),'123');
   assert.equal(await resolveImageReference(client,imageReference('456')),'456');
-  assert.deepEqual(seen,['456','456']);
+  assert.deepEqual(seen,['456','https://www.fold3.com/sub-image/456']);
   assert.throws(()=>imageReference('123','456'),/exactly one/);
   assert.throws(()=>imageReference('https://evil.test/sub-image/456'),/Expected/);
+});
+
+test('readable create dry runs show the Living warning and exact prepared input',async()=>{
+  const input=JSON.stringify({body:{person:{names:[],gender:{value:{type:'Female'}},facts:[{value:{type:'Birth',place:{id:340}}}]}}});
+  const {stdout}=await promisify(execFile)(process.execPath,['--import',import.meta.resolve('tsx'),fileURLToPath(new URL('../src/cli.ts',import.meta.url)),
+    'familysearch.api','call','--operation','persons.create','--input',input,'--dry-run','--reasoning','Check the readable warning and normalized input'],
+    {cwd:CREDENTIAL_DIR,env:{...process.env,FAM_HISTORY:'0'}});
+  assert.match(stdout,/Warning:.*[Ll]iving/);assert.match(stdout,/Creation status: living-by-default/);
+  assert.match(stdout.split('Prepared input')[1],/"id": "340"/);
+});
+
+test('deceased reaches the executed request and is refused before opening a client on other operations',async t=>{
+  let opened=0,body:any;
+  t.mock.method(FamilySearchClient,'open',async()=>{opened++;return {operation:async(name:string,input:any)=>{assert.equal(name,'persons.create');body=input.body;return {};}} as any;});
+  const args=['familysearch.api','call','--operation','persons.create','--input','{"body":{"person":{"names":[],"gender":{"value":{"type":"Female"}},"facts":[]}}}','--deceased'];
+  await runProvider(parseInvocation(args).args);
+  assert.deepEqual(body.person.facts,[{value:{type:'Death'}}]);
+  await assert.rejects(runProvider(parseInvocation(['familysearch.api','call','--operation','persons.get','--input','{"pid":"AAAA-AAA"}','--deceased']).args),/only/);
+  assert.equal(opened,1);
+});
+
+test('default and explicit readable transcripts report unavailable data consistently while JSON retains status',async t=>{
+  const unavailable={available:false,text:'',unavailableReason:'indexed-records-only'};
+  t.mock.method(FamilySearchClient,'open',async()=>({research:{imageTranscript:async()=>unavailable}} as any));
+  for(const flags of [[],['--format','text']]){
+    const invocation=parseInvocation(['familysearch.image','transcript','--ark','3:1:TEST',...flags]);
+    await assert.rejects(runProvider(invocation.args),/indexed records only/);
+  }
+  for(const flags of [['--json'],['--format','json']]){
+    const invocation=parseInvocation(['familysearch.image','transcript','--ark','3:1:TEST',...flags]);
+    assert.deepEqual(await runProvider(invocation.args),unavailable);
+  }
+  t.mock.method(FamilySearchClient,'open',async()=>({research:{imageTranscript:async()=>({...unavailable,available:true,text:'Indexed text'})}} as any));
+  const invocation=parseInvocation(['familysearch.image','transcript','--ark','3:1:TEST']);
+  assert.equal(humanOutput(invocation.command,await runProvider(invocation.args),invocation.values),'Indexed text\n');
+});
+
+test('Fold3 rejects ambiguous numbers and wrong typed URLs before looking up an unrelated entry',async t=>{
+  let entryReads=0,recordReads=0;
+  const client=new Fold3Client(new Fold3Http(undefined,async()=>{
+    entryReads++;return new Response(JSON.stringify({w:{id:{ct:'SUB_IMAGE',id:'456'}},d:{i:'123',m:[]}}),{headers:{'content-type':'application/json'}});
+  }));
+  t.mock.method(client,'record',async()=>{recordReads++;return {data:{content:{metadata:{id:{contentType:'INDEX_RECORD',objectId:'456'}}}}} as any;});
+  await assert.rejects(client.entry('456'),/Ambiguous Fold3/);assert.equal(entryReads,0);
+  await assert.rejects(client.entry('https://www.fold3.com/record/456'),/INDEX_RECORD/);assert.equal(recordReads,1);
+  assert.equal((await client.entry('https://www.fold3.com/sub-image/456')).parentImageId,'123');assert.equal(recordReads,1);
+  const numeric=new Fold3Client(new Fold3Http(undefined,async url=>url.includes('/record/')?new Response('',{status:404}):
+    new Response(JSON.stringify({w:{id:{ct:'SUB_IMAGE',id:'456'}},d:{i:'123',m:[]}}),{headers:{'content-type':'application/json'}})));
+  assert.equal((await numeric.entry('456')).parentImageId,'123');
+  const wrongType=new Fold3Client(new Fold3Http(undefined,async()=>new Response(JSON.stringify({w:{id:{ct:'INDEX_RECORD',id:'456'}},d:{i:'123',m:[]}}),{headers:{'content-type':'application/json'}})));
+  await assert.rejects(wrongType.entry('https://www.fold3.com/sub-image/456'),{code:'api-changed'});
 });
 
 test('Fold3 refuses reduced exports unless requested and always preserves the real dimensions',async()=>{

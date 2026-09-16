@@ -46,7 +46,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     const [name, file] = positionals;
     required(name);
     if (positionals.length > 2 || file && values.input) throw new InputError('Use one input file: --input FILE|-.');
-    call = {name: name as OperationName, input: (await prepareApiInput(name, values.input ?? file, values.query ?? [])).input};
+    call = {name: name as OperationName, input: (await prepareApiInput(name, values.input ?? file, values.query ?? [], {deceased: values.deceased === true})).input};
   }
   const client = ['ops', 'schema'].includes(command) ? undefined! : await FamilySearchClient.open();
   let result: unknown;

@@ -78,3 +78,28 @@ test('workflow command flags bind to validated read-only plans',()=>{
   const parsed=parseFamilyWorkflow(invocation.args);assert.equal(parsed.includeVitals,true);assert.equal(parsed.reason,'Evidence');
   const source=parseInvocation(['familysearch.source','list','--person-id','AAAA-AAA']);assert.equal(parseFamilyWorkflow(source.args).maxPages,10);
 });
+
+test('attachment plans distinguish the requested indexed person from other household attachments',()=>{
+  const url='https://www.familysearch.org/ark:/61903/1:1:TEST';
+  const linker={record:{persistentUrl:url,recordId:'record-1'},matches:[{recordPersonId:'record-1',treePersonId:'AAAA-AAA',pairings:[]}],
+    recordAttachments:[{recordPersonId:'record-2',treePersonId:'AAAA-AAA',sourceReferenceId:'other-person-source'}]};
+  const plan=(recordAttachments:any[]|undefined)=>buildAttachPlan('AAAA-AAA',url,{...linker,recordAttachments},'Evidence');
+  assert.equal(plan(linker.recordAttachments).ready,true);
+  const attached=plan([...linker.recordAttachments,{recordPersonId:'record-1',treePersonId:'AAAA-AAA',sourceReferenceId:'existing-source'}]);
+  assert.equal(attached.alreadyAttached,true);assert.equal(attached.ready,false);assert.equal(attached.attachments[0].sourceReferenceId,'existing-source');
+  assert.match(attached.warnings[0],/already attached/);
+  const elsewhere=plan([{recordPersonId:'record-1',treePersonId:'BBBB-BBB'}]);
+  assert.equal(elsewhere.attachmentStatus,'attached-elsewhere');assert.equal(elsewhere.ready,false);
+  assert.equal(plan(undefined).attachmentStatus,'unknown');assert.equal(plan(undefined).ready,false);
+});
+
+test('not-a-match attribution resolves names once, normalizes dates, and retains the original fields',async()=>{
+  let calls=0;
+  const raw={modified:1704067200000,contributor:{resourceId:'contributor-1',resource:'https://www.familysearch.org/platform/users/agents/contributor-1'}};
+  const result=await notMatches({requestDetailed:async()=>({status:200,data:{persons:[{id:'BBBB-BBB',attribution:raw},{id:'CCCC-CCC',attribution:raw}]}}),
+    operation:async(name:string,input:any)=>{calls++;assert.equal(name,'contributors.get');assert.equal(input.contributorOrCisId,'contributor-1');return {contributor:{contactName:'Synthetic Contributor',email:'private@example.test'}};}} as any,'AAAA-AAA');
+  assert.equal(calls,1);assert.equal(result.items[0].contributor.name,'Synthetic Contributor');assert.equal(result.items[0].modified,new Date(raw.modified).toISOString());
+  assert.deepEqual(result.items[0].attribution,raw);assert.equal(result.items[0].reason,null);assert.doesNotMatch(JSON.stringify(result),/private@example/);
+  const unavailable=await notMatches({requestDetailed:async()=>({status:200,data:{persons:[{id:'BBBB-BBB',attribution:raw}]}}),operation:async()=>{throw new Error('Unavailable');}} as any,'AAAA-AAA');
+  assert.equal(unavailable.items[0].contributor.name,null);assert.equal(unavailable.items[0].contributor.id,'contributor-1');
+});

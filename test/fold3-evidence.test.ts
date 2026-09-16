@@ -73,12 +73,12 @@ test('entry listing tiles constrained indexes, deduplicates overlaps, and marks 
 test('entry and contribution reads retain fields and corrections while stripping tokens and account context',async()=>{
   const de=[{w:{id:{ct:'IMAGE_ANNOTATION',id:'annotation-1'},o:9,n:1},d:{t:'full-name',v:'Test Ancestor',r:rect}},{w:{id:{ct:'CORRECTION',id:'correction-1'},n:2},d:{f:'birth-date',v:'1880',token:'secret'}}];
   const client=new Fold3Client(new Fold3Http(undefined,async url=>response(url.includes('/sub-image/')?{w:{id:{ct:'SUB_IMAGE',id:'456'}},d:{i:'123',o:0,t:'Test',r:rect,m:[{n:'age',v:'40'}]},de,r:{p:{allowed:['VIEW'],denied:{}},o:{token:'secret'},users:[{password:'secret'}]}}:{...scan(),de})));
-  const item=await client.entry('456');assert.equal(item.parentImageId,'123');assert.equal(item.metadata[0].value,'40');assert.equal(item.contributions[1].field,'birth-date');assert.equal(item.contributions[1].value,'1880');assert.doesNotMatch(stringifyJson(item),/secret|password/);
+  const item=await client.entry(WEB+'/sub-image/456');assert.equal(item.parentImageId,'123');assert.equal(item.metadata[0].value,'40');assert.equal(item.contributions[1].field,'birth-date');assert.equal(item.contributions[1].value,'1880');assert.doesNotMatch(stringifyJson(item),/secret|password/);
   assert.equal((await client.contributions('123')).items[0].annotationType,'full-name');
-  const bad=new Fold3Client(new Fold3Http(undefined,async()=>response({w:{id:{ct:'SUB_IMAGE',id:'999'}},d:{}})));await assert.rejects(bad.entry('456'),{code:'api-changed'});
+  const bad=new Fold3Client(new Fold3Http(undefined,async()=>response({w:{id:{ct:'SUB_IMAGE',id:'999'}},d:{}})));await assert.rejects(bad.entry(WEB+'/sub-image/456'),{code:'api-changed'});
   const empty=new Fold3Client(new Fold3Http(undefined,async()=>response(scan())));assert.equal((await empty.entries('123')).total,0);
 });
 test('OCR and entry discovery expose the new commands and exact sub-image IDs',()=>{
   for(const command of ['fold3.file.ocr get','fold3.file.ocr search','fold3.entry get','fold3.image.entry list','fold3.image.contribution list'])assert.ok(commandById.has(command));
-  assert.deepEqual(resolveContext(WEB+'/sub-image/9007199254740997/test').flags,{'entry-id':'9007199254740997'});
+  assert.deepEqual(resolveContext(WEB+'/sub-image/9007199254740997/test').flags,{'entry-id':WEB+'/sub-image/9007199254740997'});
 });

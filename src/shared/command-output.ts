@@ -12,6 +12,7 @@ import {formatCliVersion, type CliVersion} from './cli-version.js';
 import type {HistoryView} from './history-query.js';
 import {searchTable, searchTree} from './command-search-output.js';
 import type {searchCommands} from './command-search.js';
+import {stringifyJson} from './json.js';
 
 export const wantsJson = (values: Values): boolean => values.json === true || values.format === 'json';
 const label = (key: string): string => key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replaceAll(/[_-]/g, ' ').replace(/^./, s => s.toUpperCase());
@@ -175,7 +176,17 @@ export function humanOutput(command: Command, data: unknown, values: Values, wid
     return `Saved ${saved}\n${metadata ? `Metadata: ${metadata}\n` : ''}${Object.keys(details).length ? renderData(details) + '\n' : ''}`;
   }
   if (command.id === 'cli.history archive') return historyOutput(data as HistoryView, width);
-  if (values['dry-run'] && object(data) && command.id !== 'cli.update run') return `Dry run: fam ${command.id}\n\n${renderData(data.flags)}\n\n${data.note}\n`;
+  if (values['dry-run'] && object(data) && command.id !== 'cli.update run') {
+    const validation = object(data.validation) ? data.validation : undefined;
+    const creation = validation && object(validation.creation) ? validation.creation : undefined;
+    const warnings = creation && Array.isArray(creation.warnings) ? creation.warnings : [];
+    const details = validation ? Object.fromEntries(Object.entries(validation).filter(([key]) => key !== 'input' && key !== 'creation')) : undefined;
+    return [`Dry run: fam ${command.id}`, ...warnings.map(warning => `Warning: ${warning}`),
+      ...(creation ? [`Creation status: ${creation.status}`] : []), '', renderData(data.flags),
+      ...(details ? ['', 'Validation', renderData(details)] : []),
+      ...(validation && Object.hasOwn(validation, 'input') ? ['', 'Prepared input', stringifyJson(validation.input, 2)] : []),
+      '', data.note, ''].join('\n');
+  }
   if (command.provider === 'cli' && command.object === 'doc') return documentationOutput(command.action, data, values, width);
   if (command.id === 'familysearch.api list') return operationList(data as Parameters<typeof operationList>[0]);
   if (command.id === 'familysearch.api describe' && !values.example) return operationDescription(data as Parameters<typeof operationDescription>[0]);
