@@ -1,9 +1,10 @@
+import {InputError} from '../shared/input-error.js';
 import { GeneanetHttp, GeneanetError, WEB, TREE } from './http.js';
 import { loadSession, readAccount, saveSession, type GeneanetSession } from './auth.js';
 import { integer, searchUrl, type SearchKind, type SearchInput } from './catalog.js';
 import { parseSearch, parsePage, parseCollections, researchUrl } from './parse.js';
 
-export const id = (value: string) => { if (!/^\d+$/.test(value)) throw new Error('Geneanet IDs must be decimal strings.'); return value; };
+export const id = (value: string) => { if (!/^\d+$/.test(value)) throw new InputError('Geneanet IDs must be decimal strings.'); return value; };
 export const treeName = (value: string) => { if (!/^[a-zA-Z0-9_]+$/.test(value)) throw new Error('Invalid Geneanet tree name.'); return value; };
 export interface MediaView { id: string | number; page: number; files?: Record<string,string> }
 export interface MediaDeposit { id: string | number; username?: string; title?: string; slug?: string; type?: string; private?: boolean; views: MediaView[]; [key: string]: unknown }
@@ -64,7 +65,7 @@ export class GeneanetClient {
   }
   async images(register: string, from = 1, to = from) {
     integer(from, 1, 1, 100000); integer(to, from, 1, 100000);
-    if (to < from || to - from >= 100) throw new Error('Request an inclusive range of at most 100 register pages.');
+    if (to < from || to - from >= 100) throw new InputError('Request an inclusive range of at most 100 register pages.');
     const data = await this.http.json<unknown[]>(`${WEB}/registres/api/images/${id(register)}?min_page=${from}&max_page=${to}`);
     if (!Array.isArray(data)) throw new GeneanetError('api-changed'); await this.saved(); return data;
   }

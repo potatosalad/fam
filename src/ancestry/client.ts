@@ -73,7 +73,15 @@ export class AncestryClient {
   person(treeId: string, personId: string) { return this.call('persons.get', {path: {treeId, personId}}); }
   relatives(treeId: string, personId: string, query: Query = {}) { return this.call('persons.relationships', {path: {treeId, personId}, query: {genup: 2, gendown: 1, siblings: true, spouses: true, childLimit: 20, ...query}}); }
   research(treeId: string, personId: string) { return this.call('persons.research', {path: {treeId, personId}}); }
-  hints(treeId: string, personId: string, limit = 20) { return this.graphql('GetPersonsHints', {treeId, personIds: [personId], limit}); }
+  async hints(treeId: string, personId: string, limit = 20) {
+    const result = await this.graphql<any, 'GetPersonsHints'>('GetPersonsHints', {treeId, personIds: [personId], limit});
+    const hints = result?.discoveries?.discoveryFeed?.hints?.personsHints;
+    if (!Array.isArray(hints?.nodes)) throw new Error('Ancestry returned an unexpected person hints response.');
+    return {...result, discoveries: {...result.discoveries, discoveryFeed: {...result.discoveries.discoveryFeed,
+      hints: {...result.discoveries.discoveryFeed.hints, personsHints: {...hints,
+        providerTotalHintsCount: hints.totalHintsCount ?? null, totalHintsCount: null, returned: hints.nodes.length, limit, hasMore: null,
+        countNote: 'The provider count is limit-dependent; the total available hints and whether more exist are unknown. No continuation is exposed by this operation.'}}}}};
+  }
   async search(options: RecordSearchOptions) { return enrichSearchCollections(await this.call('search.records', {body: recordSearchBody(options, this.session.tokens.user_id!)})); }
   record(collectionId: string, recordId: string) {
     return this.call('records.get', {body: {RequestContext: {Data: {CultureId: 'en-US'}},

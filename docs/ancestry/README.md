@@ -43,7 +43,7 @@ fam ancestry.tree citations --tree-id TREE --limit 20 --page 1
 fam ancestry.tree sources --tree-id TREE --limit 20 --page 1
 ```
 
-`research` returns facts, sources, web links, and family context. `relatives` defaults to two generations up and one down, including spouses and siblings. REST responses retain the app's wire names: for example `person` returns an envelope with `Persons`, `Names`, and `Events`. GraphQL commands return the `data` object and retain nested connections.
+`research` returns facts, sources, web links, and family context. `relatives` defaults to two generations up and one down, including spouses and siblings. REST responses retain the app's wire names: for example `person` returns an envelope with `Persons`, `Names`, and `Events`. GraphQL commands return the `data` object and retain nested connections. The `person hints` convenience command annotates `personsHints` with `returned`, `limit`, and `hasMore: null`. Its `totalHintsCount` is `null` (unknown): the provider's count changes with the requested limit and is retained separately as `providerTotalHintsCount`, not an exhaustive total. No continuation is exposed here, and fewer nodes than the limit do not establish completeness. Low-level `GetPersonsHints` GraphQL calls retain the provider's raw count semantics.
 
 Search historical records using known names, years, and places:
 
@@ -55,7 +55,7 @@ fam ancestry.record get --collection-id 1093 --record-id 100012925800
 fam ancestry.place search --prefix Springfield --limit 5
 ```
 
-Search results expose `RecordView.Records[].Gid.Value` in `RECORD:COLLECTION` format. Pass those parts to `record` in **COLLECTION RECORD** order. `record` requests fields, household information, collection metadata, and rights. Returned content depends on the account's subscription and the collection's permissions. Inspect service `Status`, per-record status, and rights fields even when HTTP succeeds.
+Search results retain `RecordView.Records[].Gid.Value`, which can be `RECORD:COLLECTION` or `RECORD:COLLECTION:QUALIFIER`. Each search card also exposes exact string `recordId` and `collectionId` fields. Pass these to `fam ancestry.record get --collection-id COLLECTION --record-id RECORD`; do not pass the full GID as `--record-id` or treat the optional third component as the collection ID. `record` requests fields, household information, collection metadata, and rights. Returned content depends on the account's subscription and the collection's permissions. Inspect service `Status`, per-record status, and rights fields even when HTTP succeeds.
 
 ## More operations and pagination
 

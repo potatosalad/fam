@@ -10,7 +10,11 @@ export function pageDetails(html: string, sourceUrl: string) {
   const title = clean($('title').text());
   const publication = meta('meta[itemprop="publisher"]');
   const date = meta('meta[property="article:published_time"]');
-  const pageNumber = String($('#hdnCurrentPage').val() ?? $('#hdnCurrentpageNumber').val() ?? '') || null;
+  // hdnCurrentPage is the viewer position, not necessarily the printed issue page.
+  const printedPage = String($('#hdnCurrentpageNumber').val() ?? '') || null;
+  const urlPage = /-p-([1-9]\d*)\/?$/.exec(new URL(sourceUrl).pathname)?.[1] ?? null;
+  if (printedPage && urlPage && printedPage !== urlPage) throw new NewspaperArchiveError('api-changed');
+  const pageNumber = printedPage ?? urlPage ?? (String($('#hdnCurrentPage').val() ?? '') || null);
   const ocr = $('.ocr-txt').first();
   ocr.find('script,style,noscript').remove();
   const text = clean(ocr.text()) || null;

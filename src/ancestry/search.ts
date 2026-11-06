@@ -11,7 +11,8 @@ export function enrichSearchCollections(result: any): any {
   if (!Array.isArray(result?.RecordView?.Records)) return result;
   return {...result, RecordView: {...result.RecordView, Records: result.RecordView.Records.map((record: any) => {
     const collection = Array.isArray(record.Features) ? record.Features.find((feature: any) => feature?.FeatureName === 'CollectionMetadata') : undefined;
-    return {...record, collectionId: collection?.CollectionId == null ? null : String(collection.CollectionId),
+    const gid = typeof record.Gid?.Value === 'string' ? /^(-?\d+):(\d+)(?::\d+)?$/.exec(record.Gid.Value) : null;
+    return {...record, recordId: gid?.[1] ?? null, collectionId: gid?.[2] ?? (collection?.CollectionId == null ? null : String(collection.CollectionId)),
       collectionTitle: collection?.Title ?? collection?.OnlineTitle ?? null};
   })}};
 }

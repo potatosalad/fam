@@ -1,9 +1,9 @@
 import type {Fold3Client} from './client.js';
 import {fileInfo,fileImages,type FileInfo,type FileImage} from './research.js';
 import {Fold3Error,WEB} from './http.js';
-import {id,integer,object} from './parse.js';
+import {id,integer,object,ocrQuality} from './parse.js';
 
-export interface TranscriptPage extends FileImage {status:'available'|'unavailable'|'access-denied';text?:string}
+export interface TranscriptPage extends FileImage {status:'available'|'unavailable'|'access-denied';text?:string;transcriptType?:string|null;warnings?:string[]}
 export interface FileTranscript {version:1;provider:'Fold3';kind:'file-ocr';file:FileInfo;retrievedAt:string;complete:boolean;pages:TranscriptPage[]}
 const maxTextBytes=16*1024*1024;
 export async function fileTranscript(client:Fold3Client,value:string,maxPages=100):Promise<FileTranscript>{
@@ -14,7 +14,7 @@ export async function fileTranscript(client:Fold3Client,value:string,maxPages=10
   if(new Set(inventory.map(p=>p.imageId)).size!==file.total)throw new Error('The file contains repeated image IDs.');
   const pages:TranscriptPage[]=[];let bytes=0;
   for(const page of inventory){
-    try{const result=await client.ocr(page.imageId);bytes+=Buffer.byteLength(result.text);if(bytes>maxTextBytes)throw new Error('File OCR exceeded the 16 MiB text bound.');pages.push({...page,status:'available',text:result.text});}
+    try{const result=await client.ocr(page.imageId);bytes+=Buffer.byteLength(result.text);if(bytes>maxTextBytes)throw new Error('File OCR exceeded the 16 MiB text bound.');pages.push({...page,status:'available',text:result.text,...ocrQuality(result.transcriptType)});}
     catch(error){if(!(error instanceof Fold3Error)||!['not-found','ocr-unavailable','access-denied'].includes(error.code))throw error;pages.push({...page,status:error.code==='access-denied'?'access-denied':'unavailable'});}
   }
   return {version:1,provider:'Fold3',kind:'file-ocr',file,retrievedAt:new Date().toISOString(),complete:pages.every(p=>p.status==='available'),pages};
@@ -29,7 +29,7 @@ export function validateTranscript(value:unknown):FileTranscript{
     object(page);const imageId=id(page.imageId);
     if(page.ordinal!==i||typeof page.title!=='string'||!['available','unavailable','access-denied'].includes(page.status)||page.status==='available'&&(typeof page.text!=='string'||!page.text.trim())||page.status!=='available'&&page.text!==undefined)throw new Error('Invalid Fold3 transcript page.');
     if(page.text)bytes+=Buffer.byteLength(page.text);
-    return {imageId,ordinal:i,title:page.title,status:page.status,text:page.text,sourceUrl:`${WEB}/image/${imageId}`} as TranscriptPage;
+    return {imageId,ordinal:i,title:page.title,status:page.status,text:page.text,...ocrQuality(page.transcriptType),sourceUrl:`${WEB}/image/${imageId}`} as TranscriptPage;
   });
   if(bytes>maxTextBytes||new Set(pages.map(p=>p.imageId)).size!==pages.length||!pages.some(p=>p.imageId===file.anchorImageId))throw new Error('Invalid or oversized Fold3 transcript.');
   return {...v,file,pages,complete:pages.every(p=>p.status==='available')} as FileTranscript;

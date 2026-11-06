@@ -18,6 +18,7 @@ export function catalogUrl(value: string): URL {
 }
 export function recordId(value: string): string {
   if (/^[1-9]\d{0,19}$/.test(value)) return naid(value);
+  try {new URL(value);} catch {throw new NaraError('Use a positive numeric NAID or a https://catalog.archives.gov/id/NAID record URL.', 'INVALID_ARGUMENT');}
   const match = catalogUrl(value).pathname.match(/^\/id\/([1-9]\d{0,19})\/?$/);
   if (!match) throw new NaraError('Use a NAID or a Catalog /id/NAID record URL.', 'INVALID_ARGUMENT');
   return match[1];

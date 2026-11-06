@@ -26,7 +26,7 @@ test('advanced searches preserve date boundaries, exclusions, and typed military
 function transcriptClient(failure?:Fold3Error){
   const cluster={i:'7.fixture',t:'Synthetic diary',s:'diary\tfixture',z:3},nodes=[0,1,2].map(i=>({i:String(i+123),c:cluster.i,t:`Page ${i+1}`,o:i}));
   const client=new Fold3Client(new Fold3Http(undefined,async()=>response({a:'123',n:nodes,c:[cluster]})));
-  client.ocr=async(imageId:string)=>{if(imageId==='124')throw failure??new Fold3Error('ocr-unavailable');return {imageId,text:imageId==='123'?'First a.b match.\nNavy, NAVY.':'Navy in another page.',sourceUrl:`${WEB}/image/${imageId}`,note:'Synthetic OCR'};};
+  client.ocr=async(imageId:string)=>{if(imageId==='124')throw failure??new Fold3Error('ocr-unavailable');return {imageId,text:imageId==='123'?'First a.b match.\nNavy, NAVY.':'Navy in another page.',sourceUrl:`${WEB}/image/${imageId}`,note:'Synthetic OCR',transcriptType:null,warnings:[]};};
   return client;
 }
 test('file OCR keeps unavailable pages in order and does not hide authentication or transport failures',async()=>{
@@ -36,6 +36,18 @@ test('file OCR keeps unavailable pages in order and does not hide authentication
   await assert.rejects(fileTranscript(transcriptClient(new Fold3Error('http',429)),'123'),{code:'http'});
   await assert.rejects(fileTranscript(transcriptClient(),'123',2),/exceeding/);
 });
+test('file transcripts and cached inventories retain OCR quality independently of availability',async()=>{
+  const client=transcriptClient();
+  client.ocr=async imageId=>({imageId,text:'Synthetic OCR',transcriptType:'GARBAGE_BOUNDS',warnings:['Synthetic quality warning'],sourceUrl:`${WEB}/image/${imageId}`,note:'Synthetic OCR'});
+  const corpus=await fileTranscript(client,'123');
+  assert.equal(corpus.complete,true);
+  assert.equal(corpus.pages[0].transcriptType,'GARBAGE_BOUNDS');
+  assert.match(corpus.pages[0].warnings!.join(' '),/unreliable/i);
+  const cached=validateTranscript(corpus);
+  assert.equal(cached.pages[0].transcriptType,'GARBAGE_BOUNDS');
+  assert.match(cached.pages[0].warnings!.join(' '),/unreliable/i);
+});
+
 test('OCR search uses literal matching, page citations and stable pagination across missing pages',async()=>{
   const corpus=await fileTranscript(transcriptClient(),'123');
   const first=searchTranscript(corpus,'navy',2),next=searchTranscript(corpus,'navy',2,first.nextOffset!);

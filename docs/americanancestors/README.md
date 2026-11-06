@@ -83,6 +83,8 @@ fam americanancestors.collection browse --name 'Massachusetts: Vital Records, 16
 fam americanancestors.image list --url 'https://www.americanancestors.org/databases/massachusetts-vital-records-1620-1850/image/?volumeId=7748' --limit 3 --json
 ```
 
+Public collections support `--anonymous` consistently on `collection browse`, `image list`, and `image download`, as well as the adjacent metadata reads. Membership restrictions still apply; anonymous access does not grant permission to gated scans.
+
 Volume links open the first published page without requiring an indexed person or record ID. `collection browse` verifies that the volume belongs to the collection and rejects a substituted page. Use the exact printed/indexed page label, including Roman numerals or compound labels such as `2207:1` where supplied by the provider.
 
 `image get`, `collection browse`, and each `image list` item return `pageName`, `previousUrl`, and `nextUrl`. `image list` walks these links sequentially, pauses between requests, and returns at most 100 page metadata items per invocation (10 by default). Continue from its top-level `nextUrl`; `complete` means the volume ended. It never invents a next page by adding one to the label. No tiles are downloaded by these browsing commands. Pass an item's `sourceUrl` to `image download` for the scan and citation sidecar.

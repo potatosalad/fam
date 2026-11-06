@@ -62,6 +62,8 @@ Catalog zones are `all`, `north_america`, `australia`, `benelux`, `central_easte
 
 `record` accepts supported Geneanet collection, `cercles/view`, archival-register, library, public-media, and tree-person URLs. It returns page text, table fields, source/relative links, and viewer or person metadata where present. It strips navigation and executable scripts. Tree profiles can include parent/spouse/child links, notes, sources, a person index, and linked media. The HTML output is a structured extraction, not a complete normalized genealogy model. Cross-site source links are returned for reference but not followed automatically. No generic GET/POST command exposes tree edits, messages, or other side effects.
 
+Book viewers distinguish `viewer.page` (the requested book page, also reflected by the PDF URL) from `viewer.pdfPage` (the provider's PDF-relative viewer position). These can differ, for example book page 129 and PDF position 1. Portrait search results extract available tree attribution, birth/death dates, and thumbnail URLs from the dedicated portrait layout.
+
 An archival index may contain a transcription without an attached scan. Availability also varies by subscription, owner privacy, and external repository. An absent `viewer.downloadUrl` is not an invitation to construct one.
 
 ## Photos and documents

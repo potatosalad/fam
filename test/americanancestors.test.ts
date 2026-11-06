@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {AmericanAncestorsHttp,checkUrl,WEB,APP,ACCOUNT,type Transport} from '../src/americanancestors/http.js';
 import {authenticate,readAccount,sessionStatus} from '../src/americanancestors/auth.js';
-import {AmericanAncestorsClient,searchQuery} from '../src/americanancestors/client.js';
+import {AmericanAncestorsClient,searchQuery,operations} from '../src/americanancestors/client.js';
 import {searchResults,recordDetails,imageDetails} from '../src/americanancestors/parse.js';
 import {deepZoom} from '../src/americanancestors/download.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
@@ -60,6 +60,20 @@ test('search parsing preserves exact IDs, masks, citations links and continuatio
   assert.equal(searchResults(results(0),searchQuery({lastName:'NoMatch'})).nextPage,null);
   assert.throws(()=>searchResults('<html>Unavailable</html>',searchQuery({lastName:'A'})),/format changed/);
 });
+test('person search separates reusable collection titles from categories',async()=>{
+  const html=results(1).replace('<div class="nameValueDiv">Example Collection</div>','<div class="nameValueDiv">Example Collection</div><div class="nameValueDiv">Journals and Periodicals</div>');
+  const hit=searchResults(html,searchQuery({lastName:'Example'})).items[0];
+  assert.equal(hit.collection,'Example Collection');assert.equal(hit.category,'Journals and Periodicals');
+  const client=new AmericanAncestorsClient(new AmericanAncestorsHttp(undefined,async url=>{
+    assert.equal(new URL(url).searchParams.get('collectionName'),hit.collection);
+    const path=new URL(url).pathname;
+    return response(JSON.stringify(path===operations['collection-url'].path?'202/example-collection':path===operations['collection-fields'].path?{volumes:[],attributes:[]}:'Guidance'),200,{'content-type':'application/json'});
+  }));
+  assert.equal((await client.collection(hit.collection)).title,hit.collection);
+  const record=searchResults(html.replace('id="name-','id="record-'),searchQuery({lastName:'Example'})).items[0];
+  assert.equal(record.collection,'Example Person');assert.equal(record.category,'Example Collection');
+});
+
 test('record parsing distinguishes access gates and returns citation and indexed values',()=>{
   const r=recordDetails('<input id="hdnRecordid" value="9007199254740993"><table id="tblRecordDislpay"><tr><td>Name</td><td>Example</td></tr><tr><td>Original Text</td><td>Child of Example</td></tr></table><div id="divClipboardURLTranscript">Example citation /DB27/r/9007199254740993</div>',WEB);
   assert.equal(r.fields[1].value,'Child of Example');assert.match(r.citation,/Example citation/);
@@ -82,6 +96,14 @@ test('provider registry exposes implemented commands and source URL context',()=
   const invocation=parseInvocation(['americanancestors.record','search','--last-name','Example','--soundex','--from-year','1730','--json']);assert.ok(invocation.args.includes('--soundex'));
   assert.equal(resolveContext(`${WEB}/DB27/r/123`).provider,'americanancestors');
   assert.equal(resolveContext(`${WEB}/databases/example/image/?volumeId=1&pageName=2&rId=3`).object,'image');
+});
+
+test('public browse, image list and download accept anonymous access consistently',()=>{
+  for (const args of [
+    ['americanancestors.collection','browse','--name','Example','--volume-id','1'],
+    ['americanancestors.image','list','--url',`${WEB}/databases/example/image/?volumeId=1`],
+    ['americanancestors.image','download','--url',`${WEB}/databases/example/image/?volumeId=1`,'--out','fixture.png'],
+  ]) assert.equal(parseInvocation([...args,'--anonymous']).values.anonymous,true);
 });
 
 test('scan download validates octet-stream pixels, removes tile overlap and refuses overwrite',async()=>{

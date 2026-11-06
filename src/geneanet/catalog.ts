@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import { contracts } from './generated/contracts.js';
 export const operations = contracts.operations;
 export const routes = contracts.routes;
@@ -20,7 +21,7 @@ const fields = new Set(['go','nom','prenom','nom_conjoint','prenom_conjoint','no
   'restriction','source','sourcename','ignore_sourcename','id_filter_block','sort','order']);
 export function integer(value: unknown, fallback: number, min = 1, max = 10000): number {
   if (value === undefined) return fallback;
-  if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < min || Number(value) > max) throw new Error(`Expected an integer between ${min} and ${max}.`);
+  if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < min || Number(value) > max) throw new InputError(`Expected an integer between ${min} and ${max}.`);
   return Number(value);
 }
 export function searchUrl(kind: SearchKind, input: SearchInput): URL {
@@ -38,7 +39,7 @@ export function searchUrl(kind: SearchKind, input: SearchInput): URL {
   if (![10,20,30,40,50,100].includes(size)) throw new Error('Geneanet page size must be 10, 20, 30, 40, 50, or 100.');
   integer(input.page, 1);
   for (const field of ['from','to','exact_year']) if (input[field] !== undefined) integer(input[field], 1, 1, 9999);
-  if (input.from !== undefined && input.to !== undefined && Number(input.from) > Number(input.to)) throw new Error('The start year must not exceed the end year.');
+  if (input.from !== undefined && input.to !== undefined && Number(input.from) > Number(input.to)) throw new InputError('The start year must not exceed the end year.');
   if (input.periode_mode !== undefined && !['all','birth','wedding','death'].includes(String(input.periode_mode))) throw new Error('Unsupported event type.');
   return url;
 }

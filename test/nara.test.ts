@@ -47,6 +47,14 @@ test('NARA identifiers stay exact and provider URLs reject unsafe origins', () =
   assert.throws(() => mediaUrl(`${media}?key=secret`));
 });
 
+test('malformed NAIDs explain numeric IDs and Catalog record URLs as input errors',()=>{
+  assert.throws(()=>recordId('not-a-number'),error=>{
+    assert.equal((error as any).code,'INVALID_ARGUMENT');
+    assert.match((error as Error).message,/numeric NAID.*https:\/\/catalog.archives.gov\/id\//);
+    return true;
+  });
+});
+
 test('search retains provider warnings, exact IDs, and explicit continuation', async () => {
   const s = searchSnapshot(); s.alerts = ['The search took too long and timed out. Only some results are listed here.'];
   const result = await new NaraClient({read: async () => s}).search('Example');
@@ -78,6 +86,13 @@ test('record hierarchy and rendered object lists keep completeness explicit', as
   assert.equal((await client.objects(id)).complete, true);
   s.objects.items.pop(); const subset = await client.objects(id); assert.equal(subset.complete, false); assert.equal(subset.warnings.length, 1);
   s.record.header = 'NAID: 123'; await assert.rejects(client.record(id), /requested NAID/);
+});
+
+test('object range errors use the base record before navigating an impossible page',async()=>{
+  const seen:string[]=[];
+  const client=new NaraClient({read:async url=>{seen.push(url);if(new URL(url).searchParams.has('objectPage'))throw new Error('Invalid page must not be opened');return snapshot();}});
+  await assert.rejects(client.object(id,3),{code:'INVALID_ARGUMENT'});
+  assert.deepEqual(seen,[recordUrl(id)]);
 });
 
 test('object selection never substitutes the first page; transcriptions preserve line breaks', async () => {

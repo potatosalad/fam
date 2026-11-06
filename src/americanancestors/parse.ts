@@ -14,8 +14,9 @@ export function searchResults(html: string, query: URLSearchParams) {
     if (!match) throw new AmericanAncestorsError('api-changed');
     const labels = cells.eq(1).find('.labelDivStyle').toArray().map(e => clean($(e).text()));
     const values = cells.eq(1).find('.valueDiv').toArray().map(e => clean($(e).text()));
-    const person = link.attr('id')?.startsWith('name-') === true, label = clean(link.text()), subtitle = clean(cells.eq(0).find('.nameValueDiv').text());
-    return {collectionId: match[1], recordId: match[2], kind:person ? 'person' : 'record', name:person ? label : null, title:person ? null : label, collection:person ? subtitle : label, category:person ? null : subtitle,
+    const person = link.attr('id')?.startsWith('name-') === true, label = clean(link.text());
+    const subtitles = cells.eq(0).find('.nameValueDiv').toArray().map(e => clean($(e).text()));
+    return {collectionId: match[1], recordId: match[2], kind:person ? 'person' : 'record', name:person ? label : null, title:person ? null : label, collection:person ? subtitles[0] ?? '' : label, category:subtitles[person ? 1 : 0] || null,
       sourceUrl: source(link.attr('href')), imageUrl: source(cells.eq(0).find('a[id^=image-]').attr('href')),
       events: clean(cells.eq(1).text()), fields: labels.length === values.length ? labels.map((label,i) => ({label, value: values[i]})) : [],
       relationships: clean(cells.eq(2).text()), masked: cells.find('.placeholder-text').length > 0};

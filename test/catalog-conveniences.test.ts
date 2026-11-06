@@ -12,6 +12,13 @@ test('Ancestry promotes collection titles without dropping provider fields',()=>
   assert.equal(result.RecordView.Records[0].Gid.Value,'-9223372036854775808:340');assert.equal(result.RecordView.Records[1].collectionTitle,null);assert.equal('collectionTitle' in original.RecordView.Records[0],false);
 });
 
+test('Ancestry exposes exact record and collection IDs from two- and three-part GIDs',()=>{
+  const values=['9007199254740993:61843:9007199254740993','-9223372036854775808:340','not:a:gid'];
+  const result=enrichSearchCollections({RecordView:{Records:values.map(Value=>({Gid:{Value}}))}});
+  assert.deepEqual(result.RecordView.Records.map((r:any)=>[r.recordId,r.collectionId]),[['9007199254740993','61843'],['-9223372036854775808','340'],[null,null]]);
+  assert.equal(result.RecordView.Records[0].Gid.Value,values[0]);
+});
+
 test('Newspapers title search uses the Papers endpoint and honest pagination',async()=>{
   const client=new NewspapersClient(new NewspapersHttp(undefined,async url=>{
     const u=new URL(url);assert.equal(u.pathname,'/api/title/query');assert.equal(u.searchParams.get('product-id'),'1');assert.equal(u.searchParams.get('keyword'),'Daily News');assert.equal(u.searchParams.get('start'),'2');

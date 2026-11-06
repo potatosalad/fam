@@ -7,8 +7,9 @@ import {UsageError} from '../shared/command-runtime.js';
 import {archiveUrl, originalUrl, replaySnapshot, snapshot, timestamp, fullTimestamp, type Snapshot} from './url.js';
 
 export interface WaybackOptions {timeout?: number; open?: 'auto' | 'always' | 'never'}
-export interface FindResult {url: string; requestedDate?: string; available: boolean; snapshot: Snapshot | null}
-export interface ListResult {url: string; snapshots: Snapshot[]; limit: number; truncated: boolean}
+interface CaptureWarnings {warnings: string[]; skipped: number; partial: boolean}
+export interface FindResult extends CaptureWarnings {url: string; requestedDate?: string; available: boolean; snapshot: Snapshot | null}
+export interface ListResult extends CaptureWarnings {url: string; snapshots: Snapshot[]; limit: number; truncated: boolean}
 export interface ArchivedPage extends BrowserFetchResult {snapshot: Snapshot; requestedUrl: string}
 type Wire = {url: string; status: number; statusText: string; headers: [string,string][]; bodyBase64: string};
 
@@ -61,22 +62,27 @@ export class WaybackClient {
     try {return JSON.parse(Buffer.from(response.bodyBase64, 'base64').toString('utf8'));}
     catch {throw new Error('Internet Archive returned an unexpected response instead of JSON.');}
   }
-  private async captures(url: string, query: Record<string,string>): Promise<Snapshot[]> {
+  private async captures(url: string, query: Record<string,string>) {
     const params = new URLSearchParams({url, matchType:'exact', output:'json', fl:'timestamp,original,statuscode,mimetype,digest', filter:'statuscode:200', ...query});
     const rows = await this.json(`https://web.archive.org/cdx/search/cdx?${params}`);
     if (!Array.isArray(rows) || rows.length && JSON.stringify(rows[0]) !== JSON.stringify(['timestamp','original','statuscode','mimetype','digest']))
       throw new Error('Unexpected Wayback capture index response.');
-    return rows.slice(1).map(row => {
+    const snapshots: Snapshot[] = []; let skipped = 0;
+    for (const row of rows.slice(1)) {
       if (!Array.isArray(row) || row.length !== 5 || !row.every(value => typeof value === 'string')) throw new Error('Invalid Wayback capture record.');
-      return {...snapshot(row[0],row[1]), status:Number(row[2]), mimeType:row[3], digest:row[4]};
-    });
+      try {snapshots.push({...snapshot(row[0],row[1]), status:Number(row[2]), mimeType:row[3], digest:row[4]});}
+      catch {skipped++;} // Upstream originals/timestamps are not caller arguments. Never echo unsafe URLs.
+    }
+    return {snapshots, rowCount:Math.max(0,rows.length - 1), skipped, partial:skipped > 0,
+      warnings:skipped ? [`Wayback CDX supplied ${skipped} unsafe or invalid capture row(s); skipped from this bounded response. Safe captures may not fill the requested limit.`] : []};
   }
   async find(input: string, date?: string): Promise<FindResult> {
     const saved = replaySnapshot(input), url = saved?.originalUrl ?? originalUrl(input), when = timestamp(date);
     const closest = when ?? saved?.timestamp;
-    const [found] = await this.captures(url, closest ? {limit:'1', sort:'closest', closest:fullTimestamp(closest)} : {limit:'-1'});
+    const captures = await this.captures(url, closest ? {limit:'1', sort:'closest', closest:fullTimestamp(closest)} : {limit:'-1'});
+    const found = captures.snapshots[0];
     return {url, ...(when ? {requestedDate:when} : {}), available:!!found,
-      snapshot:found ?? null};
+      snapshot:found ?? null, warnings:captures.warnings, skipped:captures.skipped, partial:captures.partial};
   }
   async list(input: string, options: {from?: string; to?: string; limit?: number} = {}): Promise<ListResult> {
     const url = replaySnapshot(input)?.originalUrl ?? originalUrl(input), limit = options.limit ?? 20;
@@ -84,7 +90,8 @@ export class WaybackClient {
     const from = timestamp(options.from), to = timestamp(options.to);
     if (from && to && from.padEnd(14,'0') > to.padEnd(14,'9')) throw new UsageError('--from must be no later than --to.');
     const records = await this.captures(url, {limit:String(limit + 1), ...(from ? {from} : {}), ...(to ? {to} : {})});
-    return {url, snapshots:records.slice(0, limit), limit, truncated:records.length > limit};
+    return {url, snapshots:records.snapshots.slice(0, limit), limit, truncated:records.rowCount > limit,
+      warnings:records.warnings, skipped:records.skipped, partial:records.partial};
   }
   async fetch(input: string, options: {date?: string; format?: FetchFormat} = {}): Promise<ArchivedPage> {
     const exact = replaySnapshot(input);

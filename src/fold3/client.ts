@@ -1,6 +1,7 @@
+import {InputError} from '../shared/input-error.js';
 import {Fold3Http,Fold3Error,WEB} from './http.js';
 import {loadSession,saveSession,type Fold3Session} from './auth.js';
-import {account,hit,id,imageDetails,integer,object,page,publication,publicData} from './parse.js';
+import {account,hit,id,imageDetails,integer,object,ocrQuality,page,publication,publicData} from './parse.js';
 import {browsePublication,connections,fileInfo,fileImages,type BrowseOptions,type ConnectionOptions} from './research.js';
 import {fileTranscript,searchTranscript} from './transcript.js';
 import {entry,entries,imageContributions,type EntryOptions} from './entries.js';
@@ -33,7 +34,7 @@ export function searchQuery(options:SearchOptions={},facetsOnly=false) {
   for(const [name,from,to,year] of [['date',options.from,options.to,options.year],['date.vital.birth',options.birthFrom,options.birthTo,options.birthYear],['date.vital.death',options.deathFrom,options.deathTo,options.deathYear]] as const){
     if(from===undefined&&to===undefined)continue;
     if(from===undefined||to===undefined||year!==undefined)throw new Error('Supply both date range endpoints and omit the single-year filter for that date.');
-    const start=dateBound(from,false),end=dateBound(to,true);if(start>end)throw new Error('Date range start must precede its end.');add(name,`${start} - ${end}`);
+    const start=dateBound(from,false),end=dateBound(to,true);if(start>end)throw new InputError('Date range start must precede its end.');add(name,`${start} - ${end}`);
   }
   for(const value of options.excludeFilter??[]){const [name,text]=pair(value);const existing=filters.find(f=>f.type===name&&f.exclude);if(existing)existing.values.push(text);else filters.push({type:name,values:[text],filterType:'TERM',strict:true,exclude:true});}
   const fieldedKeywords:Array<{type:string;texts:string[];strict:boolean;exclude:boolean}>=[];
@@ -126,7 +127,8 @@ export class Fold3Client {
     if(typeof text!=='string')throw new Fold3Error('api-changed');
     if(!text.trim())throw new Fold3Error('ocr-unavailable');
     if(/<(!doctype|html|body)\b/i.test(text))throw new Fold3Error('api-changed');
-    return {imageId:identity,text,sourceUrl:`${WEB}/image/${identity}`,note:'Machine OCR can misread names and dates; verify against the scan.'};
+    const image=await this.image(identity);
+    return {imageId:identity,text,...ocrQuality(image.transcriptType),sourceUrl:`${WEB}/image/${identity}`,note:'Machine OCR can misread names and dates; verify against the scan.'};
   }
   async ocrHits(value:string,keyword:string){if(typeof keyword!=='string'||!keyword.trim())throw new Error('Supply --keyword for OCR hits.');const identity=id(value);
     const result=await this.http.json(`${WEB}/fold31-image-data/ocr/hits/IMAGE/${identity}?keyword=${encodeURIComponent(keyword)}`);if(!Array.isArray(result))throw new Fold3Error('api-changed');

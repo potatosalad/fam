@@ -87,6 +87,20 @@ function mockClient(send: (options: ApiRequest) => Promise<unknown>, expiresAt =
   return {client, saved, refreshes: () => refreshes};
 }
 
+test('person hints distinguish returned nodes from limit-dependent provider totals',async()=>{
+  const mock=mockClient(async options=>{
+    const limit=(options.body as any).variables.limit;
+    return {data:{discoveries:{discoveryFeed:{hints:{personsHints:{nodes:Array.from({length:limit},(_,i)=>({id:String(i)})),totalHintsCount:limit}}}}}};
+  });
+  for(const limit of [1,10]) {
+    const result=await mock.client.hints('1','2',limit) as any;
+    const hints=result.discoveries.discoveryFeed.hints.personsHints;
+    assert.equal(hints.returned,limit);assert.equal(hints.providerTotalHintsCount,limit);
+    assert.equal(hints.totalHintsCount,null);assert.equal(hints.hasMore,null);
+    assert.match(hints.countNote,/limit-dependent.*unknown/i);
+  }
+});
+
 test('concurrent Ancestry 401s share refresh and save rotated session without changing its expiration', async () => {
   const seen: string[] = [];
   const mock = mockClient(async options => {

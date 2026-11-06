@@ -88,6 +88,13 @@ export class NaraClient {
   }
   async object(value: string, page = 1, transcription = false) {
     const id = recordId(value), url = recordUrl(id, page, transcription);
+    // Invalid objectPage URLs can prevent the Catalog from rendering any record metadata.
+    // Establish the count from the unselected record before opening another page.
+    if (page > 1) {
+      const record = await this.record(id);
+      if (record.objectCount !== null && page > record.objectCount)
+        throw new NaraError(`Requested object page ${page} exceeds the record’s object count (${record.objectCount}).`, 'INVALID_ARGUMENT');
+    }
     const state = await this.read(url, transcription ? 'transcription' : 'object');
     this.checkRecord(state, id);
     if (Number(state.objects.page || state.objects.selected) !== page || state.objects.selected && Number(state.objects.selected) !== page)

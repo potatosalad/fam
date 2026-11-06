@@ -107,12 +107,38 @@ test('Geneanet JSON page literals are parsed without evaluation; profile media u
   assert.deepEqual(pageKeys('<script>throw new Error("must never execute")</script>'), {});
 });
 
+test('Geneanet portraits extract tree attribution, event dates and image locators', () => {
+  const html = `<span data-nb-results="1"></span><a class="ligne-resultat" data-id-es="portrait_1" href="/media/public/fixture"><div class="image-resultat"><img src="/public/fixture.jpg"></div><div class="info-resultat"><p class="fake-a">DOE Jane</p><p><span class="text-light">Spouse</span>: <span class="text-large">DOE John (1842)</span></p><p><span class="text-light">Birth</span>&nbsp;<span class="text-large">1809</span></p><p><span class="text-light">Death</span>&nbsp;<span class="text-large">1865</span></p><p class="ligne-lieu"><span title="Birth"></span><span class="title-lieu">Example Town</span></p><p><em>Family tree of fixture</em></p></div></a>`;
+  const result = parseSearch(html,WEB).results[0];
+  assert.equal(result.source,'Family tree of fixture');
+  assert.deepEqual(result.dates,['Birth 1809','Death 1865']);
+  assert.equal(result.thumbnail,`${WEB}/public/fixture.jpg`);
+});
+
 test('Geneanet register and PDF viewer metadata reflect page scope and download permission', () => {
   const register = parsePage('<div id="viewer-map" data-doc-id="10" data-max-page="20" data-api-url="/registres/api/images/10"></div><button class="svg-icon-viewer-download" data-url="/archival-registers/download/10/3"></button>', `${WEB}/archival-registers/view/10/3`);
   assert.equal(register.viewer?.page, '3'); assert.equal(register.viewer?.pages, '20');
   const pdf = '<div id="viewer-meta" data-livre-id="4" data-page="7" data-livre-nb-pages="30" data-single-page-mode="true" data-telechargeable="1" data-pdf-url="/library/viewer/pdf/4?page=7"></div>';
   assert.equal(parsePage(pdf, `${WEB}/library/viewer/4?page=7`).viewer?.singlePage, true);
   assert.equal(parsePage(pdf.replace('data-telechargeable="1"','data-telechargeable="0"'), WEB).viewer?.downloadUrl, undefined);
+});
+
+test('Geneanet book viewers distinguish requested book page from PDF-relative position', () => {
+  const html = '<div id="viewer-meta" data-livre-id="4" data-page="1" data-livre-nb-pages="355" data-pdf-url="/library/viewer/pdf/4?page=129" data-telechargeable="1"></div>';
+  const viewer = parsePage(html,`${WEB}/library/viewer/4?page=129`).viewer;
+  assert.equal(viewer?.page,'129');
+  assert.equal(viewer?.pdfPage,'1');
+  assert.equal(parsePage(html,`${WEB}/library/viewer/4`).viewer?.page,'129');
+});
+
+test('Geneanet register input failures are local INVALID_ARGUMENT errors', async () => {
+  let requests=0;
+  const client = new GeneanetClient(new GeneanetHttp(undefined,async()=>{requests++;return response('[]');}));
+  for (const [id,from,to] of [['abc',1,1],['10',75,74],['10',0,1],['10',1,101]] as const) {
+    await assert.rejects(client.images(id,from,to),{code:'INVALID_ARGUMENT'});
+  }
+  assert.throws(()=>searchUrl('search',{nom:'Doe',from:1900,to:1800}),{code:'INVALID_ARGUMENT'});
+  assert.equal(requests,0);
 });
 
 test('Geneanet downloads resolve view membership and decode the returned original image', async () => {

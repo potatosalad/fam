@@ -123,6 +123,14 @@ test('OCR service errors are not successful empty transcripts; public OCR includ
   assert.throws(()=>pageDetails('<h1>Unexpected login page</h1>',url),/format changed/);
 });
 
+test('page citations use the newspaper page, not the viewer position, and cross-check the URL', () => {
+  const input = html.replace('id="hdnCurrentPage" value="3"', 'id="hdnCurrentPage" value="1"><input id="hdnCurrentpageNumber" value="3"');
+  assert.equal(pageDetails(input,url).pageNumber,'3');
+  assert.match(pageDetails(input,url).citation,/p\. 3/);
+  assert.equal(pageDetails(html.replace('value="3"','value="1"'),url).pageNumber,'3');
+  assert.throws(()=>pageDetails(input.replace('id="hdnCurrentpageNumber" value="3"','id="hdnCurrentpageNumber" value="2"'),url),/format changed/);
+});
+
 test('public page transport sends no account credentials and blocks foreign redirects, oversized responses and challenges', async () => {
   let calls=0;
   const http = new NewspaperArchiveHttp(async (request,init)=>{calls++;assert.equal(new URL(request).origin,WEB);assert.deepEqual(init.headers,{});assert.equal(init.redirect,'manual');return new Response(html);});

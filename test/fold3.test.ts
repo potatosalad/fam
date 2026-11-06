@@ -25,6 +25,13 @@ test('Fold3 search maps fields, reusable facets, sorts, and bounded pagination',
  assert.equal(searchQuery({},true).maxCount,0);
  for(const value of [{},{name:'X',limit:101},{name:'X',offset:9999},{name:'X',field:['bad']},{name:'X',facet:['../x']},{name:'X',filter:'place=US'},{name:'X',unknown:1},{name:42},{name:'X',sort:'invented'}])assert.throws(()=>searchQuery(value as any));
 });
+test('Fold3 malformed image IDs and reversed date ranges are local argument errors',async()=>{
+ let requests=0;const client=new Fold3Client(new Fold3Http(undefined,async()=>{requests++;return response({});}));
+ await assert.rejects(client.image('not-an-id'),{code:'INVALID_ARGUMENT'});
+ assert.throws(()=>searchQuery({name:'Example',birthFrom:'1809',birthTo:'1808'}),{code:'INVALID_ARGUMENT'});
+ assert.equal(requests,0);
+});
+
 test('wire IDs remain exact and research output excludes account context and signed tokens',()=>{
  const parsed=parseJson('{"userId":9007199254740997,"username":"fixture","accountStatus":"non-subscriber","passwordSerial":1}');
  assert.equal(account(parsed).userId,'9007199254740997');assert.ok(!('passwordSerial' in account(parsed)));
@@ -69,9 +76,16 @@ test('search normalizes compact results and does not present incomplete pages as
  await assert.rejects(forbidden.call('delete'));await assert.rejects(forbidden.call('image',{id:'123',token:'injected'}));assert.equal(requests,0);
 });
 test('compact filmstrip and text OCR decode independently from viewing permissions',async()=>{
- const c=new Fold3Client(new Fold3Http(undefined,async url=>url.includes('/filmstrip/')?response({a:123,n:[{i:123,c:'7.cluster',o:0,t:'Page 1'}],c:[{i:'7.cluster',t:'File',z:2}]}):new Response('Synthetic OCR\nTest Ancestor',{headers:{'content-type':'text/plain'}})));
+ const c=new Fold3Client(new Fold3Http(undefined,async url=>url.includes('/image/document/')?response(wrapper()):url.includes('/filmstrip/')?response({a:123,n:[{i:123,c:'7.cluster',o:0,t:'Page 1'}],c:[{i:'7.cluster',t:'File',z:2}]}):new Response('Synthetic OCR\nTest Ancestor',{headers:{'content-type':'text/plain'}})));
  const strip=await c.filmstrip('123',2);assert.equal(strip.nodes[0].imageId,'123');assert.equal(strip.clusters[0].size,2);assert.match((await c.ocr('123')).text,/Test Ancestor/);
 });
+test('OCR retains provider garbage classification without rewriting upstream punctuation',async()=>{
+ const c=new Fold3Client(new Fold3Http(undefined,async url=>url.includes('/image/document/')?response({...wrapper(),d:{...wrapper().d,x:'GARBAGE_BOUNDS'}}):new Response('Synthetic â€” OCR',{headers:{'content-type':'text/plain'}})));
+ const result=await c.ocr('123');
+ assert.equal(result.transcriptType,'GARBAGE_BOUNDS');assert.match(result.warnings.join(' '),/GARBAGE_BOUNDS.*unreliable/i);
+ assert.equal(result.text,'Synthetic â€” OCR');
+});
+
 test('downloads require fresh permission, validate JPEG, and publish private sidecars without overwriting',async()=>{
  const jpeg=await sharp({create:{width:4,height:3,channels:3,background:'#abcdef'}}).jpeg().toBuffer();let requests=0;
  const c=new Fold3Client(new Fold3Http(undefined,async url=>{requests++;return url.startsWith(IMG)?new Response(jpeg,{headers:{'content-type':'image/jpeg'}}):url.includes('/publication/pub/')?response({id:7,t:'Synthetic military records',cal:'REGISTERED'}):response(wrapper());}));

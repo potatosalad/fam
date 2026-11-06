@@ -55,10 +55,10 @@ export function parseSearch(html: string, url: string): SearchPage {
     const target = link(row.attr('href'), url);
     if (!target || !name) throw new GeneanetError('api-changed');
     return {id: row.attr('data-id-es')!, type: row.attr('data-type-fonds') ?? '', url: target, name,
-      source: clean(row.find('.content-individu em').text()), summary: clean(row.find('.info-resultat').text()),
-      dates: row.find('.content-periode p').map((_j, p) => clean($(p).text())).get().filter(Boolean),
+      source: clean(row.find('.info-resultat em').text()), summary: clean(row.find('.info-resultat').text()),
+      dates: row.find('.content-periode p, .info-resultat > p').filter((_j, p) => $(p).parent().hasClass('content-periode') || /^(Birth|Death|Marriage)$/.test(clean($(p).find('.text-light').text())) && /^\d{3,4}$/.test(clean($(p).find('.text-large').text()))).map((_j, p) => clean($(p).text())).get().filter(Boolean),
       places: row.find('.ligne-lieu').map((_j, p) => ({event: $(p).find('[title]').first().attr('title') ?? '', place: clean($(p).find('.title-lieu').text())})).get(),
-      thumbnail: link(row.find('.vignette img').attr('src'), url),
+      thumbnail: link(row.find('.vignette img, .image-resultat img').attr('src'), url),
       accessMarkers: ['privilege','non-privilege','external-document'].filter(c => row.hasClass(c))};
   }).get();
   if (count !== '0' && !results.length) throw new GeneanetError('api-changed');
@@ -71,7 +71,7 @@ export function parseSearch(html: string, url: string): SearchPage {
 }
 export interface Viewer {
   kind: 'register' | 'book'; id: string; page: string; pages: string; downloadUrl?: string;
-  imageApiUrl?: string; imageBaseUrl?: string; singlePage?: boolean;
+  imageApiUrl?: string; imageBaseUrl?: string; singlePage?: boolean; pdfPage?: string;
 }
 export interface ResearchPage {
   url: string; title: string; text: string; fields: {label: string; value: string}[];
@@ -90,7 +90,10 @@ export function parsePage(html: string, url: string): ResearchPage {
       pages: viewer.attr('data-max-page') ?? '', imageApiUrl: link(viewer.attr('data-api-url'), url), imageBaseUrl: link(viewer.attr('data-img-url'), url),
       downloadUrl: link($('.svg-icon-viewer-download').attr('data-url'), url)};
   } else if (pdf.length) {
-    info = {kind: 'book', id: pdf.attr('data-livre-id') ?? '', page: pdf.attr('data-page') ?? '1', pages: pdf.attr('data-livre-nb-pages') ?? '',
+    const pdfUrl = link(pdf.attr('data-pdf-url'), url);
+    info = {kind: 'book', id: pdf.attr('data-livre-id') ?? '',
+      page: new URL(url).searchParams.get('page') ?? (pdfUrl ? new URL(pdfUrl).searchParams.get('page') : null) ?? pdf.attr('data-page') ?? '1',
+      pdfPage: pdf.attr('data-page') ?? '1', pages: pdf.attr('data-livre-nb-pages') ?? '',
       singlePage: pdf.attr('data-single-page-mode') === 'true',
       downloadUrl: pdf.attr('data-telechargeable') === '1' ? link(pdf.attr('data-pdf-url'), url) : undefined};
   }

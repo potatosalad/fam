@@ -1,9 +1,10 @@
+import {InputError} from '../shared/input-error.js';
 import {load} from 'cheerio';
 import {parseJson} from '../shared/json.js';
 import {Fold3Error,WEB,checkUrl} from './http.js';
 export function object(value: any): Record<string, any> {if(!value||typeof value!=='object'||Array.isArray(value))throw new Fold3Error('api-changed');return value;}
 export function id(value: unknown): string {
-  if(!['string','number','bigint'].includes(typeof value)||typeof value==='number'&&!Number.isSafeInteger(value)||! /^[1-9]\d*$/.test(String(value)))throw new Error('Fold3 IDs must be positive decimal integers. Pass large IDs as strings.');
+  if(!['string','number','bigint'].includes(typeof value)||typeof value==='number'&&!Number.isSafeInteger(value)||! /^[1-9]\d*$/.test(String(value)))throw new InputError('Fold3 IDs must be positive decimal integers. Pass large IDs as strings.');
   return String(value);
 }
 export function integer(value: number, min=0, max=10_000): number {if(!Number.isSafeInteger(value)||value<min||value>max)throw new Error(`Expected an integer between ${min} and ${max}.`);return value;}
@@ -49,6 +50,11 @@ export function page(text: string,url: string) {
   if(!['content','unitContent','image','imageData'].some(key=>content[key]&&typeof content[key]==='object'))throw new Fold3Error('api-changed');
   return {sourceUrl:url,title:$('h1').first().text().trim()||$('title').text().trim(),
     citation:{provider:'Fold3',sourceUrl:url,accessedAt:new Date().toISOString()},data:publicData(content)};
+}
+export function ocrQuality(value: unknown) {
+  const transcriptType = typeof value === 'string' ? value : null;
+  return {transcriptType, warnings: transcriptType && /GARBAGE/i.test(transcriptType)
+    ? [`Fold3 classifies this transcript as ${transcriptType}; the OCR may be unreliable or unusable. Verify against the scan.`] : []};
 }
 export function imageDetails(value:unknown,expectedId:string) {
   const v=object(value),w=object(v.w),d=object(v.d),runtime=object(v.r),ref=object(w.id);
