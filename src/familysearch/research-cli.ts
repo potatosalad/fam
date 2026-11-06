@@ -1,7 +1,9 @@
+import {InputError} from '../shared/input-error.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { parseArgs } from 'node:util';
-import { writeFile, chmod, link, rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { writeFile, mkdir, link, rm } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import {writeOutputFile} from '../shared/storage.js';
 import { randomUUID } from 'node:crypto';
 import { FamilySearchClient } from './client.js';
 import { stringifyJson } from '../shared/json.js';
@@ -15,8 +17,7 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
   if (command === 'record' && ['search', 'collections'].includes(argv[1])) {
     const result = await runRecordSearch(argv.slice(2), argv[1] as 'search' | 'collections');
     if (output) {
-      await writeFile(resolve(output), `${stringifyJson(result, 2)}\n`, {mode: 0o600});
-      await chmod(resolve(output), 0o600);
+      await writeOutputFile(resolve(output), `${stringifyJson(result, 2)}\n`);
       return {data: {saved: resolve(output)}};
     }
     return {data: result};
@@ -36,19 +37,19 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
     'fulltext available': [], 'fulltext search': [...pagination,'format','name','keywords','place','years','dgs','collection','record-type'],
     'record details': [],
   };
-  if (!allowed[key]) throw new Error('Unknown research command. Use "fam cli.command list --provider familysearch".');
-  if (args.length !== (key === 'fulltext search' ? 1 : 2)) throw new Error('Missing or extra research arguments. Use "fam cli.command list --provider familysearch".');
-  for (const flag of Object.keys(flags)) if (!allowed[key].includes(flag)) throw new Error(`--${flag} is not supported for ${key}.`);
+  if (!allowed[key]) throw new InputError('Unknown research command. Use "fam cli.command list --provider familysearch".');
+  if (args.length !== (key === 'fulltext search' ? 1 : 2)) throw new InputError('Missing or extra research arguments. Use "fam cli.command list --provider familysearch".');
+  for (const flag of Object.keys(flags)) if (!allowed[key].includes(flag)) throw new InputError(`--${flag} is not supported for ${key}.`);
   const format = flags.format ?? 'json';
-  if (!['json','jsonl','text'].includes(format) || format === 'jsonl' && !['collection browse','film images','fulltext search'].includes(key)) throw new Error('Use --format text or json; jsonl is for listings/search.');
-  if (flags.resume && flags.offset !== undefined) throw new Error('Use either --resume or --offset.');
-  if (flags.resume && ['name','keywords','place','years','dgs','collection','record-type'].some(k => Object.hasOwn(flags,k))) throw new Error('--resume already contains search criteria; do not combine it with new filters.');
+  if (!['json','jsonl','text'].includes(format) || format === 'jsonl' && !['collection browse','film images','fulltext search'].includes(key)) throw new InputError('Use --format text or json; jsonl is for listings/search.');
+  if (flags.resume && flags.offset !== undefined) throw new InputError('Use either --resume or --offset.');
+  if (flags.resume && ['name','keywords','place','years','dgs','collection','record-type'].some(k => Object.hasOwn(flags,k))) throw new InputError('--resume already contains search criteria; do not combine it with new filters.');
   const page: PageOptions = { count: numberFlag(flags.count), offset: numberFlag(flags.offset), all: flags.all,
     limit: numberFlag(flags.limit), resume: flags.resume };
-  if (key === 'image download' && !output) throw new Error('Image download requires --out FILE.jpg.');
-  if (key === 'film image' && !flags.image) throw new Error('Use --image NUMBER (one-based).');
+  if (key === 'image download' && !output) throw new InputError('Image download requires --out FILE.jpg.');
+  if (key === 'film image' && !flags.image) throw new InputError('Use --image NUMBER (one-based).');
   const years = flags.years?.match(/^(\d{1,4})?:(\d{1,4})?$/);
-  if (flags.years && (!years || !years[1] && !years[2])) throw new Error('--years requires FROM:TO, FROM:, or :TO.');
+  if (flags.years !== undefined && (!years || !years[1] && !years[2])) throw new InputError('--years requires FROM:TO, FROM:, or :TO.');
   const client = await FamilySearchClient.open();
   let result: unknown;
   switch (key) {
@@ -56,7 +57,7 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
     case 'image download': return {data: await client.research.downloadOriginal(value, output!)};
     case 'image transcript': {
       const data = await client.research.imageTranscript(value);
-      if (output) { await saveTranscript(data, output); return {data: {saved: resolve(output), metadata: `${resolve(output)}.json`}}; }
+      if (output) { await saveTranscript(data, output, format as 'text' | 'json'); return {data: {saved: resolve(output), ...(format === 'text' ? {metadata: `${resolve(output)}.json`} : {})}}; }
       if (format === 'text') {
         if (!data.available) throw new Error(transcriptUnavailable(data));
         return {data};
@@ -71,8 +72,10 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
       dgs: flags.dgs, collection: flags.collection, recordType: flags['record-type'],
       fromYear: years?.[1] ? Number(years[1]) : undefined, toYear: years?.[2] ? Number(years[2]) : undefined }, page); break;
     case 'record details': {
-      const url = new URL(value.startsWith('1:1:') ? `https://www.familysearch.org/ark:/61903/${value}` : value);
-      if (url.protocol !== 'https:' || !['www.familysearch.org','familysearch.org'].includes(url.host) || url.username || url.password || !/^\/ark:\/61903\/1:1:[A-Z0-9-]+$/i.test(url.pathname)) throw new Error('Expected an indexed-record ARK (1:1:...).');
+      let url: URL;
+      try {url = new URL(value.startsWith('1:1:') ? `https://www.familysearch.org/ark:/61903/${value}` : value);}
+      catch {throw new InputError('Expected an indexed-record ARK (1:1:...).');}
+      if (url.protocol !== 'https:' || !['www.familysearch.org','familysearch.org'].includes(url.host) || url.username || url.password || !/^\/ark:\/61903\/1:1:[A-Z0-9-]+$/i.test(url.pathname)) throw new InputError('Expected an indexed-record ARK (1:1:...).');
       const record = await client.genealogy.sources.recordDetails({ query: { recordUrl: url.origin + url.pathname, hideSectionFields:false, includeFocusPersonSummary:true } });
       const rowCount = (record.sections ?? []).reduce((count, section) => count + (section.rows?.length ?? 0), 0);
       result = {...record, recordSections: {available:rowCount>0,rowCount,
@@ -85,20 +88,22 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
     text = items.map(x => stringifyJson(x)).join('\n') + (items.length ? '\n' : '');
     // Completion metadata is retained in the returned data envelope.
   } else text = `${stringifyJson(result,2)}\n`;
-  if (output) { inspectResult(result); await writeFile(resolve(output), text, { mode: 0o600 }); await chmod(resolve(output), 0o600); return {data: {saved: resolve(output), ...(format === 'jsonl' ? {pagination: Object.fromEntries(Object.entries(result as object).filter(([key]) => key !== 'items'))} : {})}}; }
+  if (output) { inspectResult(result); await writeOutputFile(resolve(output), text); return {data: {saved: resolve(output), ...(format === 'jsonl' ? {pagination: Object.fromEntries(Object.entries(result as object).filter(([key]) => key !== 'items'))} : {})}}; }
   return {data: result};
 }
 
 function numberFlag(value?: string): number | undefined {
   if (value === undefined) return undefined;
-  if (!/^\d+$/.test(value)) throw new Error('Pagination/image values must be nonnegative integers.');
+  if (!/^\d+$/.test(value)) throw new InputError('Pagination/image values must be nonnegative integers.');
   return Number(value);
 }
-async function saveTranscript(data: ImageTranscript, output: string): Promise<void> {
-  if (!data.available) throw new Error(`${transcriptUnavailable(data)} No output file was saved.`);
+async function saveTranscript(data: ImageTranscript, output: string, format: 'text' | 'json'): Promise<void> {
+  if (format === 'text' && !data.available) throw new Error(`${transcriptUnavailable(data)} No output file was saved.`);
   const file = resolve(output), metadata = `${file}.json`, temporary = `${file}.${randomUUID()}.tmp`;
+  await mkdir(dirname(file), {recursive: true, mode: 0o700});
   try {
-    await writeFile(temporary, `${data.text}\n`, { flag: 'wx', mode: 0o600 });
+    await writeFile(temporary, format === 'text' ? `${data.text}\n` : `${stringifyJson(data, 2)}\n`, { flag: 'wx', mode: 0o600 });
+    if (format === 'json') {await link(temporary, file); return;}
     await writeFile(`${temporary}.json`, `${stringifyJson(data, 2)}\n`, { flag: 'wx', mode: 0o600 });
     await link(`${temporary}.json`, metadata);
     try { await link(temporary, file); } catch (error) { await rm(metadata, { force: true }); throw error; }

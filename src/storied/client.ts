@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import { operation, validate, type Operation } from './catalog.js';
 import { StoriedHttp } from './http.js';
 import { loadSession, saveSession, validSession, refreshStoried, type StoriedSession } from './auth.js';
@@ -5,36 +6,36 @@ import { withSessionRefresh } from '../shared/session-refresh.js';
 
 export interface CallInput {path?: Record<string, unknown>; query?: Record<string, unknown>; body?: unknown}
 export function prepareCall(op: Operation, input: CallInput = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(k => !['path', 'query', 'body'].includes(k))) throw new Error('Call input accepts only path, query, and body.');
+  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(k => !['path', 'query', 'body'].includes(k))) throw new InputError('Call input accepts only path, query, and body.');
   for (const section of ['path', 'query'] as const) {
     const data = input[section] ?? {};
-    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error(`${section} must be an object.`);
-    for (const key of Object.keys(data)) if (!op.parameters.some(p => p.in === section && p.name === key)) throw new Error(`Unknown ${section} parameter. Run fam storied.api describe.`);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new InputError(`${section} must be an object.`);
+    for (const key of Object.keys(data)) if (!op.parameters.some(p => p.in === section && p.name === key)) throw new InputError(`Unknown ${section} parameter. Run fam storied.api describe.`);
     for (const param of op.parameters.filter(p => p.in === section)) {
       const present = Object.hasOwn(data, param.name) && data[param.name] !== undefined;
-      if (!present && param.required) throw new Error(`${section}.${param.name} is required.`);
+      if (!present && param.required) throw new InputError(`${section}.${param.name} is required.`);
       if (present && param.schema) validate(data[param.name], param.schema, `${section}.${param.name}`);
     }
   }
   let path = op.path.replace(/\{([^}]+)\}/g, (_m, key: string) => {
     const value = input.path?.[key];
-    if (!['string', 'number', 'bigint', 'boolean'].includes(typeof value) || String(value) === '.' || String(value) === '..' || String(value).includes('/')) throw new Error('Invalid Storied path parameter.');
+    if (!['string', 'number', 'bigint', 'boolean'].includes(typeof value) || String(value) === '.' || String(value) === '..' || String(value).includes('/')) throw new InputError('Invalid Storied path parameter.');
     return encodeURIComponent(String(value));
   });
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(input.query ?? {})) {
     for (const item of Array.isArray(value) ? value : [value]) {
       if (item === undefined) continue;
-      if (item === null || !['string', 'number', 'bigint', 'boolean'].includes(typeof item)) throw new Error('Query values must be scalar values or arrays of scalars.');
+      if (item === null || !['string', 'number', 'bigint', 'boolean'].includes(typeof item)) throw new InputError('Query values must be scalar values or arrays of scalars.');
       query.append(key, String(item));
     }
   }
   if (query.size) path += `?${query}`;
   if (input.body !== undefined) {
-    if (!op.requestBody) throw new Error('This operation has no request body.');
-    if (!op.requestBody.contentType.startsWith('application/json')) throw new Error('This operation requires a non-JSON body; it is catalog-only.');
+    if (!op.requestBody) throw new InputError('This operation has no request body.');
+    if (!op.requestBody.contentType.startsWith('application/json')) throw new InputError('This operation requires a non-JSON body; it is catalog-only.');
     validate(input.body, op.requestBody.schema, 'body');
-  } else if (op.requestBody) throw new Error('Supply the request body shown by fam storied.api describe.');
+  } else if (op.requestBody) throw new InputError('Supply the request body shown by fam storied.api describe.');
   return {path, method: op.method, version: op.version, body: input.body};
 }
 

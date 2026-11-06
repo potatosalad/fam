@@ -3,6 +3,7 @@ import { link, open, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 import { FS_ORIGIN } from './http.js';
+import {InputError} from '../shared/input-error.js';
 import { stringifyJson } from '../shared/json.js';
 import { ResearchError, ResearchTransport, researchUrl } from './research-transport.js';
 
@@ -87,20 +88,21 @@ export const FULLTEXT_FEATURES = 'search.original.gedcomx,search.default.facet.i
 export function imageArk(input: string): string {
   let value = input;
   if (/^https?:/i.test(value)) {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' || !['www.familysearch.org', 'familysearch.org'].includes(url.host) || url.username || url.password) throw new Error('Expected a FamilySearch image ARK.');
+    let url: URL;
+    try {url = new URL(value);} catch {throw new InputError('Expected a FamilySearch image ARK.');}
+    if (url.protocol !== 'https:' || !['www.familysearch.org', 'familysearch.org'].includes(url.host) || url.username || url.password) throw new InputError('Expected a FamilySearch image ARK.');
     value = url.pathname;
   }
   const match = /^(?:\/?ark:\/61903\/)?(3:[12]:[A-Z0-9-]+)(?:\/image\.xml)?$/i.exec(value);
-  if (!match) throw new Error('Expected an image ARK such as 3:1:3QS7-8935-BJZR, not a person or indexed-record ARK.');
+  if (!match) throw new InputError('Expected an image ARK such as 3:1:3QS7-8935-BJZR, not a person or indexed-record ARK.');
   return `${FS_ORIGIN}/ark:/61903/${match[1].toUpperCase()}`;
 }
 export function dgsNumber(value: string): string {
-  if (!/^\d{1,9}$/.test(value) || Number(value) === 0) throw new Error('Expected a numeric DGS/image group number (up to nine digits).');
+  if (!/^\d{1,9}$/.test(value) || Number(value) === 0) throw new InputError('Expected a numeric DGS/image group number (up to nine digits).');
   return value.padStart(9, '0');
 }
 function integer(value: number, name: string, min = 0, max = Number.MAX_SAFE_INTEGER): number {
-  if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`${name} must be an integer between ${min} and ${max}.`);
+  if (!Number.isSafeInteger(value) || value < min || value > max) throw new InputError(`${name} must be an integer between ${min} and ${max}.`);
   return value;
 }
 function title(source?: SourceDescription): string | undefined {
@@ -213,8 +215,10 @@ export class ResearchClient {
 
   async browse(input: string, options: PageOptions = {}): Promise<ResearchPage<Waypoint>> {
     const start = /^\d+$/.test(input) ? `/service/cds/recapi/collections/${input}/waypoints` : input;
-    const url = researchUrl(start);
-    if (!url.pathname.startsWith('/service/cds/recapi/')) throw new Error('Expected a collection ID or recapi waypoint URL.');
+    let url: URL;
+    try {url = researchUrl(start);}
+    catch {throw new InputError('Expected a collection ID or recapi waypoint URL.');}
+    if (!url.pathname.startsWith('/service/cds/recapi/')) throw new InputError('Expected a collection ID or recapi waypoint URL.');
     return this.collect(url.href, options, async path => {
       const data = await this.transport.json<SourceDocument>(path);
       const all = sources(data);
@@ -235,7 +239,7 @@ export class ResearchClient {
 
   async filmImages(input: string, options: PageOptions = {}): Promise<ResearchPage<FilmImage>> {
     const dgs = dgsNumber(input);
-    if (options.resume) throw new Error('Use --offset with a DGS listing; --resume is for waypoint/search links.');
+    if (options.resume) throw new InputError('Use --offset with a DGS listing; --resume is for waypoint/search links.');
     const { count, offset, limit } = pageOptions(options);
     const data = await this.transport.json<FilmData>('/search/filmdatainfo/film-data', { body: { type: 'film-data', loggedIn: true,
       args: { dgsNum: dgs, state: { i: 0, imageOrFilmUrl: `/search/film/${dgs}`, viewMode: 'g', selectedImageIndex: 0 }, locale: 'en' } } });
@@ -282,12 +286,12 @@ export class ResearchClient {
     url.searchParams.set('m.defaultFacets', 'on');
     for (const [key, value] of Object.entries({ 'q.fullName': query.name, 'q.text': query.keywords, 'q.anyPlace': query.place,
       'q.groupName': query.dgs ? dgsNumber(query.dgs) : undefined, 'f.collectionId': query.collection, 'f.recordType': query.recordType })) {
-      if (value !== undefined) { if (!value.trim()) throw new Error('Search criteria must not be empty.'); url.searchParams.set(key, value); }
+      if (value !== undefined) { if (!value.trim()) throw new InputError('Search criteria must not be empty.'); url.searchParams.set(key, value); }
     }
     if (query.fromYear !== undefined) url.searchParams.set('q.anyYear.from', String(integer(query.fromYear, 'Starting year', 1, 9999)));
     if (query.toYear !== undefined) url.searchParams.set('q.anyYear.to', String(integer(query.toYear, 'Ending year', 1, 9999)));
-    if (query.fromYear !== undefined && query.toYear !== undefined && query.fromYear > query.toYear) throw new Error('Starting year must not exceed ending year.');
-    if (url.searchParams.size === 2 && !options.resume) throw new Error('Supply at least one Full-Text Search criterion.');
+    if (query.fromYear !== undefined && query.toYear !== undefined && query.fromYear > query.toYear) throw new InputError('Starting year must not exceed ending year.');
+    if (url.searchParams.size === 2 && !options.resume) throw new InputError('Supply at least one Full-Text Search criterion.');
     return this.collect(url.href, options, async path => {
       const data = await this.transport.json<FulltextResponse>(path, { headers: { 'x-fs-feature-tag': FULLTEXT_FEATURES } });
       if (!Array.isArray(data.entries)) schema('Full-Text Search response has no entries array.');
@@ -304,7 +308,7 @@ export class ResearchClient {
   private async collect<T>(initial: string, options: PageOptions, read: (url: string) => Promise<ResearchPage<T>>): Promise<ResearchPage<T>> {
     const { count, offset, limit } = pageOptions(options);
     const start = researchUrl(initial), url = options.resume ? researchUrl(options.resume) : start;
-    if (url.pathname !== start.pathname) throw new Error('Resume URL belongs to a different research route.');
+    if (url.pathname !== start.pathname) throw new InputError('Resume URL belongs to a different research route.');
     if (!options.resume) { url.searchParams.set('count', String(Math.min(count, limit))); url.searchParams.set('offset', String(offset)); }
     const seen = new Set<string>();
     const result: ResearchPage<T> = { items: [], offset: integer(Number(url.searchParams.get('offset') ?? 0), 'Resume offset'), complete: false };

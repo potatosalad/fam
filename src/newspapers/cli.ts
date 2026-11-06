@@ -10,7 +10,7 @@ import {configureCredentials} from '../shared/credentials.js';
 import {parseJson,stringifyJson} from '../shared/json.js';
 import {NewspapersClient, operations, type Operation} from './client.js';
 import {loadSession, loginNewspapers, sessionStatus} from './auth.js';
-import {saveDownload} from './download.js';
+import {saveDownload, checkDownloadDestination} from './download.js';
 import type {ArticleType} from './records.js';
 const strings=['type','keyword','publication-id','country','region','city','from','to','sort','limit','cursor','offset','article-id','clipping-id','user','tag','x','y','width','height','out'] as const;
 export async function runProvider(argv: string[]) {
@@ -25,6 +25,10 @@ export async function runProvider(argv: string[]) {
   else if(command==='ops')result=Object.entries(operations).map(([name,op])=>({name,...op})).filter(op=>!arg||JSON.stringify(op).toLowerCase().includes(arg.toLowerCase()));
   else if(command==='schema'){if(!Object.hasOwn(operations,arg))throw new InputError('Unknown Newspapers operation.');result={name:arg,...operations[arg as Operation]};}
   else{
+    if(['download','article-download','clipping-download'].includes(command)){
+      if(typeof v.out!=='string' || !v.out.trim())throw new InputError('Supply --out FILE.jpg for the download.');
+      await checkDownloadDestination(v.out);
+    }
     const client=await NewspapersClient.open();
     if(command==='me')result=await client.me();else if(command==='verify')result=await client.verify();else if(command==='refresh')result=await client.refresh();
     else if(command==='search')result=await client.search(options);
@@ -38,8 +42,7 @@ export async function runProvider(argv: string[]) {
     else if(command==='issue')result=await client.issue(arg,extra);
     else if(command==='page')result=await client.page(arg);
     else if(['download','article-download','clipping-download'].includes(command)){
-      if(typeof v.out!=='string' || !v.out.trim())throw new InputError('Supply --out FILE.jpg for the download.');
-      return saveDownload(v.out,await(command==='article-download'?client.downloadArticle(arg,extra,v.type as ArticleType|undefined):command==='clipping-download'?client.downloadClipping(arg):client.download(arg)));
+      return saveDownload(v.out as string,await(command==='article-download'?client.downloadArticle(arg,extra,v.type as ArticleType|undefined):command==='clipping-download'?client.downloadClipping(arg):client.download(arg)));
     }
     else if(command==='hits')result=await client.hits(arg,v.keyword as string);
     else if(command==='clippings')result=await client.clippings(arg,number('offset'),number('limit'));

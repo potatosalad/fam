@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import { readFileSync } from 'node:fs';
 
 export interface Schema {
@@ -45,7 +46,7 @@ export function model(name: string): Schema {
 
 /** Validate primitive wire values without converting exact IDs or inventing defaults. */
 export function validate(value: unknown, s: Schema, label: string, depth = 0): void {
-  if (depth > 30) throw new Error(`${label} exceeds the supported schema depth.`);
+  if (depth > 30) throw new InputError(`${label} exceeds the supported schema depth.`);
   if (value === null && s.nullable) return;
   if (s.$ref) {
     const key = s.$ref.replace('#/components/schemas/', '');
@@ -55,29 +56,29 @@ export function validate(value: unknown, s: Schema, label: string, depth = 0): v
   for (const part of s.allOf ?? []) validate(value, part, label, depth + 1);
   // Storied's OpenAPI marks several string enums as type: object. Wire enums are authoritative.
   if (s.enum) {
-    if (!s.enum.includes(value)) throw new Error(`${label} is outside the allowed enum values.`);
+    if (!s.enum.includes(value)) throw new InputError(`${label} is outside the allowed enum values.`);
     return;
   }
   if (s.type === 'object') {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be an object.`);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new InputError(`${label} must be an object.`);
     const obj = value as Record<string, unknown>;
-    for (const key of s.required ?? []) if (!Object.hasOwn(obj, key)) throw new Error(`${label}.${key} is required.`);
+    for (const key of s.required ?? []) if (!Object.hasOwn(obj, key)) throw new InputError(`${label}.${key} is required.`);
     for (const [key, val] of Object.entries(obj)) {
       if (s.properties && Object.hasOwn(s.properties, key)) validate(val, s.properties[key], `${label}.${key}`, depth + 1);
-      else if (s.additionalProperties === false) throw new Error(`${label} has an unknown field. Check fam storied.api describe or model.`);
+      else if (s.additionalProperties === false) throw new InputError(`${label} has an unknown field. Check fam storied.api describe or model.`);
     }
   }
   if (s.type === 'array') {
-    if (!Array.isArray(value)) throw new Error(`${label} must be an array.`);
+    if (!Array.isArray(value)) throw new InputError(`${label} must be an array.`);
     if (s.items) value.forEach(v => validate(v, s.items!, label, depth + 1));
   }
   if (s.type === 'string') {
-    if (typeof value !== 'string') throw new Error(`${label} must be a string.`);
-    if (s.format === 'uuid' && !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value)) throw new Error(`${label} must be a UUID.`);
-    if (s.minLength !== undefined && value.length < s.minLength || s.maxLength !== undefined && value.length > s.maxLength) throw new Error(`${label} has an invalid length.`);
+    if (typeof value !== 'string') throw new InputError(`${label} must be a string.`);
+    if (s.format === 'uuid' && !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value)) throw new InputError(`${label} must be a UUID.`);
+    if (s.minLength !== undefined && value.length < s.minLength || s.maxLength !== undefined && value.length > s.maxLength) throw new InputError(`${label} has an invalid length.`);
   }
-  if (s.type === 'boolean' && typeof value !== 'boolean') throw new Error(`${label} must be a boolean.`);
-  if (s.type === 'integer' && !(typeof value === 'bigint' || typeof value === 'number' && Number.isSafeInteger(value))) throw new Error(`${label} must be an exact integer.`);
-  if (s.type === 'number' && !(typeof value === 'number' && Number.isFinite(value))) throw new Error(`${label} must be a number.`);
-  if (typeof value === 'number' && (s.minimum !== undefined && value < s.minimum || s.maximum !== undefined && value > s.maximum)) throw new Error(`${label} is out of range.`);
+  if (s.type === 'boolean' && typeof value !== 'boolean') throw new InputError(`${label} must be a boolean.`);
+  if (s.type === 'integer' && !(typeof value === 'bigint' || typeof value === 'number' && Number.isSafeInteger(value))) throw new InputError(`${label} must be an exact integer.`);
+  if (s.type === 'number' && !(typeof value === 'number' && Number.isFinite(value))) throw new InputError(`${label} must be a number.`);
+  if (typeof value === 'number' && (s.minimum !== undefined && value < s.minimum || s.maximum !== undefined && value > s.maximum)) throw new InputError(`${label} is out of range.`);
 }

@@ -2,9 +2,8 @@ import {InputError} from '../shared/input-error.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { FamilySearchClient } from './client.js';
 import { configureCredentials } from '../shared/credentials.js';
-import { CREDENTIAL_DIR } from '../shared/storage.js';
+import { CREDENTIAL_DIR, writeOutputFile } from '../shared/storage.js';
 import {prepareApiInput} from './api-input.js';
-import { writeFile, chmod } from 'node:fs/promises';
 import type { OperationName, OperationInput } from './generated/operations.js';
 import { stringifyJson } from '../shared/json.js';
 import { resolve } from 'node:path';
@@ -29,7 +28,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     if (args.length > 2 || id && id !== '--stdin') throw new InputError('Use fam familysearch.credential set [--stdin].');
     await configureCredentials('familysearch', { stdin: id === '--stdin' });
     const data = { saved: true, credentialDirectory: CREDENTIAL_DIR, next: 'fam familysearch.session login' };
-    if (output) {await writeFile(resolve(output), stringifyJson(data, 2) + '\n', {mode: 0o600}); await chmod(resolve(output), 0o600); return {saved: resolve(output)};}
+    if (output) {await writeOutputFile(resolve(output), stringifyJson(data, 2) + '\n'); return {saved: resolve(output)};}
     return data;
   }
   if (args.includes('--stdin')) throw new InputError('--stdin belongs to fam familysearch.credential set.');
@@ -87,8 +86,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   }
   if (output) {
     inspectResult(result);
-    await writeFile(resolve(output), result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`, { mode: 0o600 });
-    await chmod(resolve(output), 0o600);
+    await writeOutputFile(resolve(output), result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`);
     return {saved: resolve(output), ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};
   }
   if (result instanceof Uint8Array) throw new InputError('Binary responses require --out FILE.');

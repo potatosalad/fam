@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import {createHash, randomUUID} from 'node:crypto';
-import {mkdir, writeFile, link, rm} from 'node:fs/promises';
+import {mkdir, writeFile, link, rm, lstat} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {NewspapersHttp, NewspapersError, WEB, IMG} from './http.js';
 import {account, pageMetadata} from './parse.js';
@@ -61,8 +61,18 @@ export async function downloadPage(http: NewspapersHttp, pageId: string, authori
 
 export type NewspapersDownload = Awaited<ReturnType<typeof downloadPage>>;
 
+/** Reject existing files, directories, and dangling symlinks before contacting the provider. */
+export async function checkDownloadDestination(path: string): Promise<void> {
+  for (const file of [resolve(path), `${resolve(path)}.json`]) {
+    try {await lstat(file);}
+    catch (error) {if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error;}
+    throw Object.assign(new Error('Output or provenance file already exists; choose a new --out path.'), {code: 'EEXIST'});
+  }
+}
+
 /** Publish a private image and citation sidecar without replacing either existing file. */
 export async function saveDownload(path: string, result: NewspapersDownload) {
+  await checkDownloadDestination(path);
   path = resolve(path);
   await mkdir(dirname(path),{recursive:true,mode:0o700});
   const temp = `${path}.${randomUUID()}.tmp`, sidecar = `${path}.json`, sideTemp = `${sidecar}.${randomUUID()}.tmp`;

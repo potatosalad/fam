@@ -127,6 +127,13 @@ export async function writePrivateFile(name: string, data: string | Uint8Array):
     await chmod(directory, 0o700);
     if (directory === CREDENTIAL_DIR) break;
   }
+  return writeOutputFile(path, data);
+}
+
+/** Atomically replace an output file, creating missing parent directories privately.
+ * Existing parent permissions are not changed outside the credential store. */
+export async function writeOutputFile(path: string, data: string | Uint8Array): Promise<string> {
+  await mkdir(dirname(path), {recursive: true, mode: 0o700});
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     const file = await open(temporary, 'wx', 0o600);

@@ -1,9 +1,8 @@
 import {setReadRetryPolicy} from './shared/read-retry.js';
 import {InputError} from './shared/input-error.js';
 import {badRequestHelp} from './shared/command-error-help.js';
-import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
-import {dirname, basename} from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {basename} from 'node:path';
+import {writeOutputFile} from './shared/storage.js';
 import {commands, commandById, providerNames, providerInfo, namespaceNames, syntax, type Provider} from './shared/command-registry.js';
 import {parseInvocation, parseNamespaceHelp, unknownCommand, describe, help, UsageError, type Invocation} from './shared/command-runtime.js';
 import {searchCommands, contextCommands} from './shared/command-search.js';
@@ -15,6 +14,7 @@ import {extractReasoning} from './shared/command-reasoning.js';
 const reasoningArgs = extractReasoning(process.argv.slice(2));
 const history = await startCommandHistory(process.argv.slice(2));
 const attempted = commandById.get(reasoningArgs.args.slice(0, 2).join(' '));
+let recognizedCommand = attempted;
 if (attempted) history.command(attempted.id, attempted.provider);
 process.on('exit', code => history.finish(code));
 process.on('uncaughtExceptionMonitor', error => history.fail(error));
@@ -136,6 +136,7 @@ async function main() {
   // update group; bare cli.update remains ordinary namespace help.
   if (args[0] === 'update') args.splice(0, 1, 'cli.update',
     ...(!args.includes('--help') && !args.includes('-h') ? ['run'] : []));
+  recognizedCommand = commandById.get(args.slice(0, 2).join(' '));
   const namespace = parseNamespaceHelp(args);
   if (namespace) {
     process.stdout.write(namespace.json ? `${stringifyJson({schemaVersion: 1, ok: true, command: null, data: namespace.namespace}, 2)}\n`
@@ -196,10 +197,8 @@ async function main() {
     ? fetchOutput.renderBrowserFetch(data as import('./shared/browser-fetch.js').BrowserFetchResult, (values.format ?? 'text') as import('./shared/browser-fetch.js').FetchFormat)
     : humanOutput(command, data, values, process.stdout.columns ?? 100);
   if (!values['dry-run'] && (command.provider === 'cli' || command.provider === 'wayback' || ['internetarchive', 'nara'].includes(command.provider) && command.flags.find(f => f.name === 'out')?.binding === false || command.binding.command[0] === 'sync') && values.out) {
-    const path = String(values.out), temporary = `${path}.${randomUUID()}.tmp`;
-    await mkdir(dirname(path), {recursive: true, mode: 0o700});
-    try {await writeFile(temporary, rendered(), {mode: 0o600, flag: 'wx'}); await rename(temporary, path);}
-    finally {await rm(temporary, {force: true});}
+    const path = String(values.out);
+    await writeOutputFile(path, rendered());
     process.stdout.write(wantsJson(values) ? `${stringifyJson({...envelope, data: {saved: path}}, 2)}\n` : `Saved ${path}\n`); return;
   }
   if (!values['dry-run'] && !values.out && values.format === 'jsonl') {
@@ -218,10 +217,11 @@ main().finally(async () => {
   const guidance = invocation && error?.status === 400 ? await badRequestHelp(invocation) : undefined;
   const message = (error as NodeJS.ErrnoException)?.code === 'EEXIST' ? 'Output or provenance file already exists; choose a new --out path.'
     : error instanceof Error ? error.message : 'fam command failed.';
+  const command = invocation?.command ?? recognizedCommand;
   const suggestion = usage && error.suggestedInvocation ? error.suggestedInvocation
     : invocation?.command.id === 'familysearch.api call' ? `fam familysearch.api describe --operation ${JSON.stringify(invocation.values.operation)}`
-    : invocation ? `fam cli.command describe --command ${JSON.stringify(invocation.command.id)}` : undefined;
-  if (jsonErrors) (errorsToStdout ? process.stdout : process.stderr).write(`${stringifyJson({schemaVersion: 1, ok: false, command: invocation?.command.id ?? null,
+    : command ? `fam cli.command describe --command ${JSON.stringify(command.id)}` : undefined;
+  if (jsonErrors) (errorsToStdout ? process.stdout : process.stderr).write(`${stringifyJson({schemaVersion: 1, ok: false, command: command?.id ?? null,
     error: {code: usage ? error.code : error?.code ?? 'EXECUTION_FAILED', message,
       ...(typeof error?.status === 'number' ? {status:error.status} : {}),
       ...guidance,

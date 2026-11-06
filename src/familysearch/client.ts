@@ -8,27 +8,28 @@ import type { GenealogyApi, OperationArgs, OperationName, OperationOutput } from
 import { ResearchClient } from './research.js';
 import { ResearchTransport, isResearchPath, researchUrl } from './research-transport.js';
 import { refreshFamilySearchTokens } from './session.js';
+import {InputError} from '../shared/input-error.js';
 import {reportDiagnostic} from '../shared/diagnostics.js';
 
 export function apiUrl(path: string, query: Query = {}): URL {
-  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) throw new Error('Supply an absolute API path, not a URL.');
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) throw new InputError('Supply an absolute API path, not a URL.');
   const url = new URL(path, FS_ORIGIN);
   if (url.origin !== FS_ORIGIN || (!url.pathname.startsWith('/platform/') && !url.pathname.startsWith('/service/mobile/api/'))) {
-    throw new Error('Requests must stay within the FamilySearch API paths.');
+    throw new InputError('Requests must stay within the FamilySearch API paths.');
   }
   for (const [name, value] of Object.entries(query)) if (value !== undefined) {
     url.searchParams.delete(name);
     for (const item of Array.isArray(value) ? value : [value]) url.searchParams.append(name, String(item));
   }
-  if ([...url.searchParams.keys()].some(key => ['access_token', 'sessionid', 'fssessionid', 'refresh_token'].includes(key.toLowerCase()))) throw new Error('Send authentication in headers, not URL parameters.');
+  if ([...url.searchParams.keys()].some(key => ['access_token', 'sessionid', 'fssessionid', 'refresh_token'].includes(key.toLowerCase()))) throw new InputError('Send authentication in headers, not URL parameters.');
   return url;
 }
 function personId(id: string): string {
-  if (!/^[A-Z0-9]{4}-[A-Z0-9]{3,4}$/i.test(id)) throw new Error('Expected a FamilySearch person ID such as XXXX-XXX.');
+  if (!/^[A-Z0-9]{4}-[A-Z0-9]{3,4}$/i.test(id)) throw new InputError('Expected a FamilySearch person ID such as XXXX-XXX.');
   return id.toUpperCase();
 }
 function generations(value: number): number {
-  if (!Number.isInteger(value) || value < 1 || value > 8) throw new Error('Generations must be an integer from 1 through 8.');
+  if (!Number.isInteger(value) || value < 1 || value > 8) throw new InputError('Generations must be an integer from 1 through 8.');
   return value;
 }
 
