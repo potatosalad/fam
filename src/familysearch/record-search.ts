@@ -51,7 +51,9 @@ export function prepareRecordSearch(args: string[]) {
   if (Object.keys(body).length === 1) throw new InputError('Provide a name, relative, event, or collection filter.');
   const query = {size: integer('limit', 20, 1, 100)!, from: integer('offset', 0, 0, Number.MAX_SAFE_INTEGER)!};
   const input = {body, query};
-  prepareOperation('search.results', input);
+  // Validate the wire shape locally; the missing type is resolved before execution.
+  prepareOperation('search.results', collectionId !== undefined && collectionType === undefined
+    ? {...input, body: {...body, collectionType: 0}} : input);
   return input;
 }
 
@@ -63,18 +65,54 @@ export function recordSearchPage(result: OneSearchResultsDto, input: ReturnType<
   const end = input.query.from + result.results.length;
   if (!Number.isSafeInteger(end)) throw new Error('Search offset exceeded the supported integer range.');
   const complete = result.results.length === 0 || total !== null && end >= total;
+  const requestedPlace = input.body.events?.find(event => event.eventType === 'residence')?.place?.value;
+  let residencePlaceCheck: {requestedPlace: string; method: 'display-text-comparison'; unmatchedRecordIds: string[]; uncheckedRecordIds: string[]} | undefined;
+  const warnings: string[] = [];
+  if (requestedPlace) {
+    // This is a display-text diagnostic, not geographic authority validation.
+    // Do not discard fuzzy matches or mistake a birthplace for a residence.
+    const normalize = (text: string) => text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
+      .replace(/\b(county|state|province)\b/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const parts = requestedPlace.split(',').map(normalize).filter(Boolean);
+    residencePlaceCheck = {requestedPlace, method: 'display-text-comparison', unmatchedRecordIds: [], uncheckedRecordIds: []};
+    for (const {recordPerson} of result.results) {
+      const places = recordPerson!.fields.filter(field => /\/(Residence|Census)$/.test(field.type) && field.value).map(field => ` ${normalize(field.value!)} `);
+      if (!places.length) residencePlaceCheck.uncheckedRecordIds.push(recordPerson!.id);
+      else if (!places.some(place => parts.every(part => place.includes(` ${part} `)))) residencePlaceCheck.unmatchedRecordIds.push(recordPerson!.id);
+    }
+    if (residencePlaceCheck.unmatchedRecordIds.length) warnings.push('Residence results appear outside the requested place by display-text comparison. FamilySearch can expand or misresolve place names; these results are not a reliable county-specific negative. Inspect residencePlaceCheck and the records; no results were removed.');
+    if (residencePlaceCheck.uncheckedRecordIds.length) warnings.push('Some records have no displayed residence or census place to compare. Their geographic match is unverified.');
+  }
   return {items: result.results.map(item => ({...item.recordPerson!, resultId: item.id ?? null, resultType: item.type, confidence: item.confidence ?? null})),
-    total, offset: input.query.from, limit: input.query.size, complete, nextOffset: complete ? null : end, criteria: input.body};
+    total, offset: input.query.from, limit: input.query.size, complete, nextOffset: complete ? null : end, criteria: input.body,
+    ...(residencePlaceCheck ? {residencePlaceCheck} : {}), ...(warnings.length ? {warnings} : {})};
 }
 
 export async function runRecordSearch(args: string[], action: 'search' | 'collections') {
   const input = prepareRecordSearch(args);
   const client = await FamilySearchClient.open();
-  if (action === 'search') return recordSearchPage(await client.operation('search.results', input), input);
+  const searchedCollectionTypes: number[] = [];
+  if (input.body.collectionId !== undefined && input.body.collectionType === undefined) {
+    // Category buckets are not collection search types (e.g. a census under Other).
+    // The service rejects collection-only probes: retain all supplied criteria,
+    // test from offset zero, and never turn off the collection restriction.
+    for (const collectionType of [0, 6, 1, 4, 5, 7]) {
+      const probe = {body: {...input.body, collectionType}, query: {size: 1, from: 0}};
+      const page = recordSearchPage(await client.operation('search.results', probe), probe);
+      searchedCollectionTypes.push(collectionType);
+      if (page.items.length) { input.body.collectionType = collectionType; break; }
+    }
+    if (input.body.collectionType === undefined) {
+      const empty = action === 'search' ? recordSearchPage({results: [], total: 0}, input) : {items: [], criteria: input.body};
+      return {...empty, searchedCollectionTypes, warnings: ['No matches across the supported collection search types. This does not establish collection availability or coverage. No unrestricted search was run.']};
+    }
+  }
+  if (action === 'search') return {...recordSearchPage(await client.operation('search.results', input), input),
+    ...(searchedCollectionTypes.length ? {searchedCollectionTypes} : {})};
   const data = await client.operation('search.categories', {body: input.body});
   if (!Array.isArray(data?.categoryFilters)) throw new Error('FamilySearch returned an unexpected collection catalog.');
   const items = data.categoryFilters.flatMap(category => (category.collectionFilters ?? []).flatMap(group =>
-    (group.subCollections ?? []).map(collection => ({collectionId: collection.collectionId, collectionType: group.collectionType,
+    (group.subCollections ?? []).map(collection => ({collectionId: collection.collectionId, categoryType: group.collectionType,
       title: collection.displayName, count: collection.count ?? null, category: group.displayName}))));
   const index=args.indexOf('--sort'), sort=index < 0 ? 'count-desc' : args[index+1];
   items.sort((a,b) => sort === 'title' ? (a.title ?? '').localeCompare(b.title ?? '') : (a.count == null ? (b.count == null ? 0 : 1) : b.count == null ? -1 : sort === 'count-asc' ? a.count-b.count : b.count-a.count) || (a.title ?? '').localeCompare(b.title ?? ''));

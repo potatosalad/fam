@@ -28,7 +28,7 @@ test('record flags build native name, relative, event, exact, and collection cri
   assert.deepEqual(input, {body: {searchType: 'RECORDS', focusPerson: {givenName: {value: 'Alex', exact: true}, surname: {value: 'Example', exact: true}},
     fathers: [{givenName: {value: 'Parent', exact: true}}], events: [{eventType: 'birth', year: {value: '1820', range: 3}},
       {eventType: 'residence', year: {value: '1850', range: 0}, place: {value: 'Example County', exact: true}}], collectionId: 1234567, collectionType: 0}, query: {size: 5, from: 10}});
-  for (const args of [[], ['--first-name', ' '], ['--birth-year-range', '3'], ['--collection-id', '1234567'], ['--last-name','Example','--limit','101']])
+  for (const args of [[], ['--first-name', ' '], ['--birth-year-range', '3'], ['--last-name','Example','--limit','101']])
     assert.throws(() => prepareRecordSearch(args));
   assert.throws(() => prepareOperation('search.results', {body: {searchType: 'RECORDS', collectionId: 1234567}}), /collectionId requires collectionType/);
 });
@@ -55,7 +55,7 @@ test('record search and collection discovery call the matching read operation', 
   const result = await runRecordSearch(['--last-name','Example'], 'search');
   assert.equal('complete' in result && result.complete, true);
   const collections = await runRecordSearch(['--last-name','Example'], 'collections');
-  assert.deepEqual(collections.items, [{collectionId: 1234567, collectionType: 0, title: 'Example census', count: 2, category: 'Censuses'}]);
+  assert.deepEqual(collections.items, [{collectionId: 1234567, categoryType: 0, title: 'Example census', count: 2, category: 'Censuses'}]);
   assert.deepEqual(calls.map((x: any) => x.name), ['search.results','search.categories']);
 });
 

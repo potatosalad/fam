@@ -39,6 +39,14 @@ Each retry prints the provider, reason, delay, and upcoming attempt number to **
 
 Negative numeric IDs are preserved as strings: both `--record-id -123` and `--record-id=-123` work. Unknown commands still show suggestions. Provider-specific values and filters remain unchanged; there is no additional semantic prevalidation. Known local input errors use `INVALID_ARGUMENT` and exit 2. Remote HTTP 400 responses retain their failure, include the HTTP status in JSON errors, and show relevant local examples (including an operation input example where available). Showing examples makes no provider requests.
 
+## Record-search interpretation
+
+For FamilySearch, use `fam familysearch.record collections` to discover IDs, then `fam familysearch.record search --last-name Example --collection-id ID`. Discovery `categoryType` is a grouping label, not a reliable `--collection-type`; the search resolves a missing type with bounded read-only probes and reports `searchedCollectionTypes` and the selected `criteria.collectionType`. Reuse that type for paging. Generic API input still requires a verified type. Residence results expose `residencePlaceCheck` and warnings for displayed Census/Residence text mismatches without dropping records. See [FamilySearch search behavior](familysearch/README.md#search-indexed-records).
+
+FamilySearch Full-Text `--name` matches NAME entity tags, which may omit visible names. Zero name hits include a `--keywords` hint; no silent fallback runs. See [Full-Text interpretation](familysearch/document-research.md#full-text-search-and-transcripts).
+
+`fam ancestry.record get` preserves the provider response and adds `household` from one additional same-record fields read. Members retain exact related record IDs, names, relationships, and original source labels. Missing or failed household enrichment is explicit; completeness remains unknown. See [indexed household context](ancestry/README.md#indexed-household-context).
+
 ## Local discovery
 
 Provider and object prefixes show local help without signing in or making provider requests:

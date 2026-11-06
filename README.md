@@ -144,7 +144,7 @@ fam familysearch.record search --last-name Example --birth-year 1850 --birth-yea
 
 Replace `PERSON_ID` and `IMAGE_ARK` with identifiers from FamilySearch.
 
-FamilySearch also supports [record collection filters, local write validation, and memory uploads](docs/familysearch/README.md). For example, `fam familysearch.memory upload --file portrait.jpg --visibility private --dry-run --json` previews a file upload; remove `--dry-run` to upload it.
+FamilySearch also supports [record collection filters, local write validation, and memory uploads](docs/familysearch/README.md). Search with a discovered `--collection-id` alone to resolve its search type; discovery `categoryType` is only a grouping label. Residence searches warn on displayed place mismatches. Full-Text `--name` searches entity tags; try `--keywords` after zero hits. Ancestry `record get` adds [structured indexed household context](docs/ancestry/README.md#indexed-household-context), with exact related record IDs and unknown completeness. For example, `fam familysearch.memory upload --file portrait.jpg --visibility private --dry-run --json` previews a file upload; remove `--dry-run` to upload it.
 
 Search public memorials without signing in:
 

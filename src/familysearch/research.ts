@@ -35,6 +35,7 @@ export interface ResearchPage<T> {
   next?: string;
   /** Zero-based position to pass as --offset for bulk film listings. */
   nextOffset?: number;
+  warnings?: string[];
 }
 export interface PageOptions { count?: number; offset?: number; all?: boolean; limit?: number; resume?: string }
 export interface Waypoint {
@@ -292,7 +293,7 @@ export class ResearchClient {
     if (query.toYear !== undefined) url.searchParams.set('q.anyYear.to', String(integer(query.toYear, 'Ending year', 1, 9999)));
     if (query.fromYear !== undefined && query.toYear !== undefined && query.fromYear > query.toYear) throw new InputError('Starting year must not exceed ending year.');
     if (url.searchParams.size === 2 && !options.resume) throw new InputError('Supply at least one Full-Text Search criterion.');
-    return this.collect(url.href, options, async path => {
+    const page = await this.collect(url.href, options, async path => {
       const data = await this.transport.json<FulltextResponse>(path, { headers: { 'x-fs-feature-tag': FULLTEXT_FEATURES } });
       if (!Array.isArray(data.entries)) schema('Full-Text Search response has no entries array.');
       const items = data.entries.map(e => {
@@ -303,6 +304,9 @@ export class ResearchClient {
       });
       return { items, total: data.results, offset: data.index ?? 0, complete: !data.links?.next?.href, next: safeLink(data.links?.next?.href) };
     });
+    const name = researchUrl(options.resume ?? url.href).searchParams.get('q.fullName');
+    if (name && page.total === 0) page.warnings = ['No name matches. Try --keywords with the same text: --name searches NAME entity tags, which can omit or misclassify names visible in the machine transcript. No keyword fallback was run.'];
+    return page;
   }
 
   private async collect<T>(initial: string, options: PageOptions, read: (url: string) => Promise<ResearchPage<T>>): Promise<ResearchPage<T>> {
