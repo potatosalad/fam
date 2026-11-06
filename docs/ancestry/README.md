@@ -57,6 +57,12 @@ fam ancestry.place search --prefix Springfield --limit 5
 
 Search results retain `RecordView.Records[].Gid.Value`, which can be `RECORD:COLLECTION` or `RECORD:COLLECTION:QUALIFIER`. Each search card also exposes exact string `recordId` and `collectionId` fields. Pass these to `fam ancestry.record get --collection-id COLLECTION --record-id RECORD`; do not pass the full GID as `--record-id` or treat the optional third component as the collection ID. `record` requests fields, household information, collection metadata, and rights. Returned content depends on the account's subscription and the collection's permissions. Inspect service `Status`, per-record status, and rights fields even when HTTP succeeds.
 
+### Indexed household context
+
+`record get` preserves the selected-person response and adds `household` by making one additional `records.fields` read for the same collection/record. When the index supplies `HouseholdId`, `household.members[]` contains the selected person and linked related PIDs, with exact string `collectionId`/`recordId`, `relationship`, `givenName`, `surname`, and the original evidence `fields`. Repeated child groups remain separate, and provider `Source` labels such as `historic_inferred` are retained. Use a member's IDs with `record get` for its full persona. No original-image transcription is implied.
+
+`household.status` is `available`, `not-supplied` (no HouseholdId), or `unavailable` (the additional read failed or did not identify this record). An unavailable read retains the selected persona and adds a warning; an empty member list is not evidence of an empty household. `household.complete` is always null: the fields index may omit unrelated or unlinked residents. Collection rights and upstream indexing still apply. Generic `ancestry.api call --operation records.get` retains the raw service response without this enrichment.
+
 ## More operations and pagination
 
 ```sh

@@ -45,6 +45,25 @@ function imageResponses(url: URL, bytes: Uint8Array, allow = 'true') {
   return new Response(bytes as BodyInit, { headers: { 'Content-Type': 'image/jpeg' } });
 }
 
+test('empty Full Text name hits suggest keywords without silently changing the query', async () => {
+  const urls: URL[] = [];
+  await mocked(url => {
+    urls.push(url);
+    return json({index: 0, results: 0, entries: []});
+  }, async () => {
+    const result = await client().fulltextSearch({name: 'Syntheticname', dgs: '123456'});
+    assert.match((result as any).warnings?.join(' ') ?? '', /--keywords.*entity/i);
+    assert.equal(result.complete, true);
+    assert.equal(urls.length, 1);
+    assert.equal(urls[0].searchParams.get('q.fullName'), 'Syntheticname');
+    assert.equal(urls[0].searchParams.has('q.text'), false);
+    const keyword = await client().fulltextSearch({keywords: 'Syntheticname'});
+    assert.equal((keyword as any).warnings, undefined);
+    const resumed = await client().fulltextSearch({}, {resume: '/service/search/fulltext/search?q.fullName=Syntheticname&count=10&offset=0'});
+    assert.match((resumed as any).warnings?.join(' ') ?? '', /--keywords/);
+  });
+});
+
 test('research URL validation rejects credential destinations and normalizes image ARKs', () => {
   assert.equal(imageArk('https://familysearch.org/ark:/61903/3:1:test-image?view=fullText'), ark);
   assert.equal(dgsNumber('5764700'), '005764700');

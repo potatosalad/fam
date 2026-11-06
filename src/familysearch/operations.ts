@@ -217,7 +217,7 @@ export function prepareOperation(name: OperationName, supplied: unknown): { inpu
   }
   if (/\{[^}]+\}/.test(path)) throw new Error('Unresolved operation path parameter.');
   if (['search.results', 'search.categories'].includes(name) && object(body) && body.collectionId != null && body.collectionType == null)
-    throw new InputError('collectionId requires collectionType; FamilySearch ignores the collection ID without its category type. Use fam familysearch.record collections with the same search criteria to find both values (0 is a valid type).');
+    throw new InputError('collectionId requires collectionType in generic API input; FamilySearch ignores an omitted type. Use fam familysearch.record search --collection-id for automatic type resolution, or supply a verified type (0 is valid). Category buckets from search.categories may not be usable search types.');
   if (name === 'memories.replaceFile') {
     if (typeof body !== 'string') fail('body', 'story text');
     raw = true;

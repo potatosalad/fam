@@ -613,7 +613,7 @@ export const discovery: DiscoveryMetadata = {
       "limitations": [
         "Use fam familysearch.record search for indexed records with ordinary name, event, and relative flags. TREE searches return treePerson; RECORDS searches return recordPerson. Event years use string value and integer range.",
         "Obtain category and collection filters from search.categories. The wire schema accepts arbitrary searchType strings; the server decides which values are supported.",
-        "collectionId requires the collectionType returned with it by search.categories; type 0 is valid. The CLI rejects an unpaired collectionId because the service ignores it."
+        "Generic API input requires a verified collectionType with collectionId; an omitted type ignores the collection restriction. Type 0 is valid, but search.categories grouping types can disagree with actual collection search types. Use fam familysearch.record search --collection-id for automatic resolution; discovery categoryType is not a required search type."
       ]
     },
     "associations.create": {

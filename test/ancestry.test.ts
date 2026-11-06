@@ -74,6 +74,55 @@ test('auth and refresh requests use distinct endpoints and form encoding', async
   assert.equal(calls[0]!.options.encoding, 'raw');
 });
 
+test('record get reports absent, failed, and mismatched household fields honestly', async () => {
+  for (const variant of ['no-household', 'failed', 'wrong-record', 'denied']) {
+    const mock = mockClient(async options => {
+      if ((options.body as any).Features) return {Status: 'Successful', selected: 'retained'};
+      if (variant === 'denied') throw new AncestryHttpError(403, '/fields');
+      return {Status: variant === 'failed' ? 'Failed' : 'Successful', DocumentFields: [{CollectionId: 1234,
+        RecordId: variant === 'wrong-record' ? 999 : 100, Fields: [{Name: 'SelfGivenName', Assertion: 'GivenName', Value: 'Example', Relationship: 'Self'}]}]};
+    });
+    const result = await mock.client.record('1234', '100') as any;
+    assert.equal(result.selected, 'retained');
+    assert.equal(result.household.status, variant === 'no-household' ? 'not-supplied' : 'unavailable');
+    assert.equal(result.household.complete, null); assert.deepEqual(result.household.members, []);
+    if (variant !== 'no-household') assert.match(result.warnings.join(' '), /could not be retrieved.*empty member list does not establish/i);
+  }
+});
+
+test('record get adds structured indexed household members while retaining the selected persona', async () => {
+  const selected = {Status: 'Successful', RecordView: {Records: [{Gid: {Value: '100:1234'}}]}};
+  const fields = [
+    {Name: 'SelfGivenName', Assertion: 'GivenName', Value: 'Alex', Relationship: 'Self', Source: 'transcribed'},
+    {Name: 'SelfSurname', Assertion: 'Surname', Value: 'Example', Relationship: 'Self', Source: 'transcribed'},
+    {Name: 'ChildGivenName', Assertion: 'GivenName', Value: 'First', Relationship: 'Child', Source: 'historic_inferred'},
+    {Name: 'ChildSurname', Assertion: 'Surname', Value: 'Example', Relationship: 'Child', Source: 'historic_inferred'},
+    {Name: 'ChildPid', Assertion: 'Pid', Value: '9007199254740993', Relationship: 'Child', Source: 'historic_inferred'},
+    {Name: 'ChildGivenName', Assertion: 'GivenName', Value: 'Second', Relationship: 'Child', Source: 'historic_inferred'},
+    {Name: 'ChildSurname', Assertion: 'Surname', Value: 'Example', Relationship: 'Child', Source: 'historic_inferred'},
+    {Name: 'ChildPid', Assertion: 'Pid', Value: '-9223372036854775808', Relationship: 'Child', Source: 'historic_inferred'},
+    {Name: 'MotherBirthPlace', Assertion: 'Place', Value: 'Elsewhere', Relationship: 'Mother', Source: 'transcribed'},
+    {Name: 'HouseholdId', Assertion: 'HouseholdId', Value: '99', Source: 'historic_inferred'},
+  ];
+  const bodies: any[] = [];
+  const mock = mockClient(async options => {
+    const body = options.body as any; bodies.push(body);
+    return body.Features ? selected : {Status: 'Successful', DocumentFields: [{CollectionId: 1234, RecordId: 100, Fields: fields}]};
+  });
+  const result = await mock.client.record('1234', '100') as any;
+  assert.deepEqual(result.RecordView, selected.RecordView);
+  assert.equal(result.household.householdId, '99');
+  assert.equal(result.household.source, 'records.fields');
+  assert.equal(result.household.complete, null);
+  assert.deepEqual(result.household.members.map((m: any) => [m.recordId, m.givenName, m.surname, m.relationship]), [
+    ['100', 'Alex', 'Example', 'Self'], ['9007199254740993', 'First', 'Example', 'Child'], ['-9223372036854775808', 'Second', 'Example', 'Child'],
+  ]);
+  assert.equal(result.household.members[1].fields[0].Source, 'historic_inferred');
+  assert.equal(result.household.members[1].collectionId, '1234');
+  assert.equal(bodies.length, 2);
+  assert.deepEqual(bodies[1].Documents, [{CollectionId: '1234', RecordId: '100'}]);
+});
+
 function mockClient(send: (options: ApiRequest) => Promise<unknown>, expiresAt = Date.now() + 60_000) {
   let refreshes = 0;
   const saved: AncestrySession[] = [];

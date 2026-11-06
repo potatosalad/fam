@@ -486,23 +486,24 @@ add('familysearch', 'collection browse', 'collection browse', 'Browse a collecti
 add('familysearch', 'film images', 'film images', 'List the images in a digital film (DGS).', ['dgs'], 'count offset all limit format', {...fsPageExtra, pagination: 'One page by default. --all lists up to --limit items. Continue with --offset set to the returned nextOffset. Completeness remains in data.'});
 add('familysearch', 'film image', 'film image', 'Resolve a single numbered image in a digital film.', ['dgs'], 'image', {flags: {image: {required: true, minimum: 1}}});
 add('familysearch', 'fulltext available', 'fulltext available', 'Check whether a digital film has full-text research coverage.', ['dgs']);
-add('familysearch', 'fulltext search', 'fulltext search', 'Search historical full-text document transcriptions by names, keywords, place, and years.', [], `name keywords place years dgs collection record-type ${fsPaging}`, {...fsPageExtra, flags: {...fsPageExtra.flags, 'record-type': {choices: undefined, description: 'FamilySearch Full-Text Search service record-type value; use the value returned by a relevant hit, not a guessed display label.'}, years: {description: 'Inclusive year range using FROM:TO, FROM:, or :TO (for example 1809:1865).'}}});
+add('familysearch', 'fulltext search', 'fulltext search', 'Search historical full-text document transcriptions by names, keywords, place, and years.', [], `name keywords place years dgs collection record-type ${fsPaging}`, {...fsPageExtra, flags: {...fsPageExtra.flags, name: {description: 'Search NAME entity tags, not all text. Misclassified names may be missed; try --keywords after zero hits.'}, keywords: {description: 'Search machine-transcribed text regardless of entity tagging.'}, 'record-type': {choices: undefined, description: 'FamilySearch Full-Text Search service record-type value; use the value returned by a relevant hit, not a guessed display label.'}, years: {description: 'Inclusive year range using FROM:TO, FROM:, or :TO (for example 1809:1865).'}}});
 add('familysearch', 'record details', 'record get', 'Read details of an indexed historical record ARK (1:1:).', ['ark']);
 const fsRecordNames = 'first-name last-name father-first-name father-last-name mother-first-name mother-last-name spouse-first-name spouse-last-name';
 const fsRecordEvents = ['birth', 'death', 'marriage', 'residence'].flatMap(event => [`${event}-year`, `${event}-year-range`, `${event}-place`]).join(' ');
 const fsRecordFlags: Extras['flags'] = {
   limit: {default: 20, minimum: 1, maximum: 100}, offset: {default: 0, minimum: 0},
-  'collection-id': {type: 'integer', minimum: 1, description: 'Collection ID from record collections; requires its collection-type.'},
-  'collection-type': {type: 'integer', minimum: 0, description: 'Category type from record collections; 0 is a valid value.'},
+  'collection-id': {type: 'integer', minimum: 1, description: 'Collection ID from record collections. Omit collection-type to resolve it automatically with bounded read-only probes.'},
+  'collection-type': {type: 'integer', minimum: 0, description: 'Optional verified search-type override; 0 is valid. Discovery categoryType is only a grouping label and may not work here.'},
+  'residence-place': {description: 'Provider place text. Fuzzy or misresolved results can fall outside this place; output warns on displayed residence/census mismatches without removing records.'},
   ...Object.fromEntries(['birth','death','marriage','residence'].flatMap(event => [
     [`${event}-year`, {minimum: 1, maximum: 9999}],
     [`${event}-year-range`, {minimum: 0, maximum: 9999, description: 'Years on either side of the event year; default 0. Requires the corresponding year.'}],
   ])),
 };
 add('familysearch', 'record search', 'record search', 'Search indexed historical records by name, relatives, event dates and places, or collection.', [], `${fsRecordNames} ${fsRecordEvents} exact collection-id collection-type limit offset`, {
-  flags: fsRecordFlags, pagination: 'One page per call. Reuse criteria with nextOffset. Missing totals remain null; continue until complete is true.',
-  examples: ['fam familysearch.record search --first-name Alex --last-name Example --birth-year 1850 --birth-year-range 3 --json', 'fam familysearch.record search --last-name Example --collection-type 0 --collection-id 1234567 --json']});
-add('familysearch', 'record collections', 'record collections', 'Find collection IDs and their required category types for the supplied record-search criteria.', [], `${fsRecordNames} ${fsRecordEvents} exact collection-id collection-type sort`, {flags: {...fsRecordFlags, sort: {choices:['count-desc','count-asc','title'], default:'count-desc', description:'Order matching collections; missing counts sort last.'}},
+  flags: fsRecordFlags, pagination: 'One result page per call; automatic collection-type resolution can add up to six one-hit probes. Reuse criteria (including resolved collectionType) with nextOffset. Missing totals remain null.',
+  examples: ['fam familysearch.record search --first-name Alex --last-name Example --birth-year 1850 --birth-year-range 3 --json', 'fam familysearch.record search --last-name Example --collection-id 1234567 --json']});
+add('familysearch', 'record collections', 'record collections', 'Find collection IDs and category buckets; search by collection-id without copying categoryType.', [], `${fsRecordNames} ${fsRecordEvents} exact collection-id collection-type sort`, {flags: {...fsRecordFlags, sort: {choices:['count-desc','count-asc','title'], default:'count-desc', description:'Order matching collections; missing counts sort last.'}},
   examples: ['fam familysearch.record collections --last-name Example --json']});
 add('familysearch', 'memory-upload', 'memory upload', 'Upload a local photo, document, audio file, or story as a FamilySearch memory.', [], 'file title description visibility media-type max-bytes', {
   risk: {level: 'write', description: 'Creates a memory in the signed-in account with the explicitly selected visibility.'},
@@ -521,7 +522,7 @@ for (const [legacy, objectAction, description] of [
   ['hints', 'person hints', 'List record hints for a person.'], ['media', 'person media', 'Read person media.'],
 ]) add('ancestry', legacy, objectAction, description, ['tree-id', 'person-id'], legacy === 'hints' ? 'limit' : legacy === 'media' ? 'query limit page' : legacy === 'relatives' ? commonRead : '', {pagination: ['hints', 'media'].includes(legacy) ? paging : undefined});
 for (const noun of ['citations', 'sources']) add('ancestry', noun, `tree ${noun}`, `Read cached tree ${noun}.`, ['tree-id'], 'query limit page', {pagination: paging});
-add('ancestry', 'record', 'record get', 'Read record fields, collection metadata, and rights.', ['collection-id', 'record-id']);
+add('ancestry', 'record', 'record get', 'Read record fields, indexed household members, collection metadata, and rights. Household completeness is unknown.', ['collection-id', 'record-id']);
 add('ancestry', 'search', 'record search', 'Search historical genealogy records by name, life dates, and places.', [], `${names} birth-place death-place limit page cursor filter`, {flags: {'first-name': {binding: 'given'}, 'last-name': {binding: 'surname'}, filter: {multiple: true, description: 'Native filter expression, for example 1|Category|SET=HistoricalRecords. Plain collectionId=VALUE is unsupported.'}}, pagination: paging,
   examples: ['fam ancestry.record search --first-name Abraham --last-name Lincoln --birth-year 1809']});
 add('ancestry', 'places', 'place search', 'Autocomplete place names.', ['prefix'], 'query limit', {pagination: paging});

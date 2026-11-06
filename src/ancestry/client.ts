@@ -6,6 +6,7 @@ import { AncestryHttp, AncestryHttpError, GATEWAY, checkAncestryUrl } from './ht
 import { authenticateAncestry, saveAncestrySession, type AncestrySession } from './auth.js';
 import { graphqlOperation, prepareRest, validateVariables, type GraphQLName, type Variables, type RestArguments } from './catalog.js';
 import { recordSearchBody, enrichSearchCollections, type RecordSearchOptions } from './search.js';
+import {recordHousehold, type RecordHousehold} from './household.js';
 
 export interface GraphQLResult<T = unknown> { data?: T | null; errors?: {message?: string; path?: (string | number)[]; extensions?: Record<string, unknown>}[]; extensions?: Record<string, unknown>; }
 export class AncestryGraphQLError extends Error {
@@ -83,10 +84,20 @@ export class AncestryClient {
         countNote: 'The provider count is limit-dependent; the total available hints and whether more exist are unknown. No continuation is exposed by this operation.'}}}}};
   }
   async search(options: RecordSearchOptions) { return enrichSearchCollections(await this.call('search.records', {body: recordSearchBody(options, this.session.tokens.user_id!)})); }
-  record(collectionId: string, recordId: string) {
-    return this.call('records.get', {body: {RequestContext: {Data: {CultureId: 'en-US'}},
+  async record(collectionId: string, recordId: string) {
+    const record = await this.call<Record<string, unknown>>('records.get', {body: {RequestContext: {Data: {CultureId: 'en-US'}},
       Documents: [{CollectionId: collectionId, RecordId: recordId}],
       Features: [{Name: 'IncludeContentRights'}, {Name: 'IncludeCollectionMetadata'}, {Name: 'IncludeHouseholdMembers'},
         {Name: 'DisplayFields', Options: {IncludeEmptyFields: true, MarkEstimatedYearsWithAbt: true, ConvertNumericMonthsToAbbreviatedMonths: false}}]}});
+    let household: RecordHousehold;
+    try {
+      const fields = await this.call('records.fields', {body: {RequestContext: {Data: {CultureId: 'en-US'}},
+        Documents: [{CollectionId: collectionId, RecordId: recordId}]}});
+      household = recordHousehold(fields, collectionId, recordId);
+    } catch {
+      household = {status: 'unavailable', householdId: null, source: 'records.fields', complete: null, members: [],
+        note: 'Household fields could not be retrieved or did not identify this record. The selected persona is retained; an empty member list does not establish an empty household.'};
+    }
+    return {...record, household, ...(household.status === 'unavailable' ? {warnings: [household.note]} : {})};
   }
 }
