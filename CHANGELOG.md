@@ -2,6 +2,45 @@
 
 Versions use `YYYY.MDD.N` (UTC date, daily counter). Newest first.
 
+## 2026.1106.3
+
+Fixes from a research pass that used all 14 providers.
+
+- Output safety: `--out` never overwrites. Every provider refuses an existing output file or provenance sidecar. Previously, Find a Grave and Ancestry JSON and Findmypast image downloads replaced files silently.
+- Help: root and provider help accept `--json`, `--errors` and `--reasoning`. `fam --help --json` returns structured help.
+- FamilySearch:
+  - `record collections` reports the group as `categoryType` instead of a search type. Before, following discovery could search the 1870 census with type 7 and get zero results.
+  - `record search --collection-id` without `--collection-type` resolves the working type itself.
+  - Residence searches warn when the returned places don't match the requested place (`residencePlaceCheck`).
+  - `fulltext search --name` with zero hits suggests `--keywords`, because upstream sometimes tags names as places.
+- Ancestry: `record get` adds the indexed household (`household`), with exact related record IDs.
+- Find a Grave:
+  - A missing memorial or photo list returns `NOT_FOUND` instead of a null crash.
+  - Cemetery IDs are validated, and missing cemeteries no longer report success.
+  - The `city_undefined` place IDs in search results become null.
+- Newspapers.com:
+  - Clipping OCR works.
+  - `everydayStories` article IDs resolve.
+  - Each endpoint's `--limit` maximum is enforced: clippings 25, publications 50, places 20.
+- NewspaperArchive: publications whose calendar returns null report `calendar-unavailable` with a search fallback, instead of `api-changed`.
+- NARA:
+  - Empty transcription panels return unavailable instead of the panel's instruction text.
+  - A missing NAID returns `NOT_FOUND` instead of timing out.
+- Fold3: `file download --allow-reduced`, and no misleading `--resume` advice.
+- MyHeritage:
+  - An unknown search field is `INVALID_ARGUMENT`.
+  - Tree-record text keeps spaces between names and dates.
+  - Newspaper rows flag that the name is the search query (`nameIsSearchQuery`).
+  - Collection icons are labeled `collection-icon`.
+  - Person matches warn when two match counts disagree.
+- Findmypast: external (FamilySearch ImagePal) images report `image-details-unavailable` with the transcript locator.
+- American Ancestors:
+  - Filtered totals are counted after filtering, with `totalAvailable` for the full inventory.
+  - Underfull search pages warn.
+  - Legacy FamilySearch PAL image links are accepted.
+- Geneanet: person pages have no duplicated layout text or `{{ }}` template placeholders.
+- Storied: `person hints` is documented and labeled as returning record-search criteria, not hint records.
+
 ## 2026.1106.2
 
 Provider fixes from a read-only pass over all 15 providers, plus cleanup.
