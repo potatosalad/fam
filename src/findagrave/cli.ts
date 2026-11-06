@@ -1,15 +1,13 @@
+import {writeOutputFile, writeOutputFiles, assertOutputAvailable} from '../shared/storage.js';
 import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
-import { writeFile, mkdir, rename, rm, access } from 'node:fs/promises';
-import { dirname } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { parseJson, stringifyJson } from '../shared/json.js';
 import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { authenticateFindagrave, sessionStatus, type FindagraveSession } from './auth.js';
 import { aliases, contracts, graphqlOperation } from './catalog.js';
-import { FindagraveClient } from './client.js';
+import { FindagraveClient, validateCemeteryId } from './client.js';
 import { restOperations, restOperation, type RestArguments } from './rest.js';
 import { integer, searchInput, memorialPhotos, downloadPhoto, validateLocationId } from './research.js';
 
@@ -22,12 +20,6 @@ async function jsonInput(value?: string): Promise<Record<string,unknown>> {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Input must be a JSON object.');
   return parsed as Record<string,unknown>;
 }
-async function outputFile(path: string, data: string | Uint8Array, exclusive = false) {
-  await mkdir(dirname(path), {recursive:true, mode:0o700});
-  if (exclusive) {await writeFile(path, data, {flag:'wx', mode:0o600}); return;}
-  const temp = `${path}.${randomUUID()}.tmp`;
-  try {await writeFile(temp, data, {flag:'wx', mode:0o600}); await rename(temp,path);} finally {await rm(temp,{force:true});}
-}
 export async function runProvider(argv: string[]): Promise<unknown> {
   const {values:v, positionals:p} = parseArgs({args: argv, allowPositionals:true, options:{
     help:{type:'boolean',short:'h'}, stdin:{type:'boolean'}, out:{type:'string'}, anonymous:{type:'boolean'}, limit:{type:'string'}, offset:{type:'string'}, input:{type:'string'},
@@ -39,6 +31,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     latitude:{type:'string'}, longitude:{type:'string'}, distance:{type:'string'},
   }});
   const [command='help', first, second] = p;
+  if (v.out) await assertOutputAvailable(v.out, ...(command === 'download' ? [`${v.out}.json`] : []));
   if (v.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam findagrave.credential set.');
   const arities: Record<string,[number,number]> = {credentials:[0,0],auth:[0,0],status:[0,0],verify:[0,0],me:[0,0],search:[0,0],
     memorial:[1,1],relatives:[1,1],photos:[1,1],download:[2,2],cemeteries:[0,1],cemetery:[1,1],locations:[1,1],contributor:[1,1],
@@ -53,13 +46,8 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   if (command !== 'cemeteries' && [v.latitude,v.longitude,v.distance].some(x=>x!==undefined)) throw new Error('Coordinate options belong to cemeteries.');
   const paginated = ['search','photos','cemeteries','locations','my-cemeteries','virtual-cemeteries','virtual-cemetery','requests'];
   if (!paginated.includes(command) && [v.limit,v.offset].some(x=>x!==undefined)) throw new Error('This command does not accept pagination options.');
-  if (command === 'download') {
-    if (!v.out) throw new Error('download requires --out FILE.');
-    for (const path of [v.out,`${v.out}.json`]) {
-      try {await access(path);} catch(e) {if ((e as NodeJS.ErrnoException).code === 'ENOENT') continue;throw e;}
-      throw new Error('Download destination or sidecar already exists.');
-    }
-  }
+  if (command === 'download' && !v.out) throw new Error('download requires --out FILE.');
+  if (command === 'cemetery') validateCemeteryId(first!);
   const size = integer(v.limit,20,1,100), from = integer(v.offset,0);
   const filter = (value: unknown) => stringifyJson(value).toLowerCase().includes((first??'').toLowerCase());
   let result: unknown;
@@ -104,8 +92,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
       case 'photos':result=await memorialPhotos(client,first!,size,from);break;
       case 'download':{
         const download=await downloadPhoto(client,first!,second!);
-        await outputFile(v.out!,download.bytes,true);
-        try {await outputFile(`${v.out}.json`,`${stringifyJson(download.metadata,2)}\n`,true);} catch(e){await rm(v.out!,{force:true});throw e;}
+        await writeOutputFiles([{path:v.out!,data:download.bytes},{path:`${v.out}.json`,data:`${stringifyJson(download.metadata,2)}\n`}]);
         return {saved: v.out, metadata: `${v.out}.json`, bytes: download.bytes.byteLength, source: download.metadata};
       }
       case 'cemeteries':result=await client.cemeteries(cemeterySearch);break;
@@ -128,6 +115,6 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   }
   const output=`${stringifyJson(result??null,2)}\n`;
   if (v.out) inspectResult(result);
-  if(v.out){await outputFile(v.out,output); return {saved: v.out};}
+  if(v.out){await writeOutputFile(v.out,output); return {saved: v.out};}
   return result;
 }

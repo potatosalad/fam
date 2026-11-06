@@ -1,4 +1,5 @@
 import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
+import {writeOutputFile} from '../shared/storage.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import {loadProviderSession} from '../shared/browser-config.js';
 import { configureCredentials } from '../shared/credentials.js';
@@ -6,9 +7,7 @@ import {buildRecordSearch, recordUrl, contextId, researchPage, type RecordSearch
 import {parse} from 'graphql';
 import {transferMyHeritage} from './http.js';
 import { parseArgs } from 'node:util';
-import { writeFile, rename, rm, mkdir } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
-import { dirname, basename } from 'node:path';
+import { basename } from 'node:path';
 import { parseJson, stringifyJson } from '../shared/json.js';
 import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { MyHeritageClient } from './client.js';
@@ -198,10 +197,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const output = result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`;
   if (values.out) inspectResult(result);
   if (values.out) {
-    await mkdir(dirname(values.out), {recursive: true, mode: 0o700});
-    const temporary = `${values.out}.${randomUUID()}.tmp`;
-    try {await writeFile(temporary, output, {mode: 0o600, flag: 'wx'}); await rename(temporary, values.out);}
-    finally {await rm(temporary, {force: true});}
+    await writeOutputFile(values.out, output);
     return {saved: values.out, ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};
   }
   return result;

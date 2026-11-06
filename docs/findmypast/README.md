@@ -58,7 +58,7 @@ Record pages start at 1 and use the service's page size. Use `--year`, `--birth-
 
 For additional search fields, pass `--filters` an inline object or JSON file containing `{"filter":[{"field":"LastName","values":["Lovelace"]}]}`.
 
-`record` requests the transcript with purchase confirmation disabled. Access still depends on your account. `download` accepts only free or already-unlocked images, validates the full-resolution JPEG, and saves `scan.jpg.json` with source information, dimensions, and SHA-256. It replaces existing files at those paths. PDF and newspaper-page downloads are not supported.
+`record` requests the transcript with purchase confirmation disabled. Access still depends on your account. `download` accepts only free or already-unlocked images, validates the full-resolution JPEG, and saves `scan.jpg.json` with source information, dimensions, and SHA-256. It refuses an existing JPEG or provenance sidecar before contacting the provider; JSON `--out` exports also refuse existing paths. Choose a new filename to repeat a download. PDF and newspaper-page downloads are not supported.
 
 ## Newspapers
 

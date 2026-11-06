@@ -158,7 +158,7 @@ Retrieve a web page from the Wayback Machine near a chosen date:
 fam wayback.page fetch --url https://example.org/page --date 2015-01-01 --format markdown
 ```
 
-Commands print readable text, including when piped. Add `--json` for structured results and errors, or `--out FILE` to save results and downloads. Providers have different pagination rules; check the returned continuation information before treating a result as complete.
+Commands print readable text, including when piped. Root, provider, object, and action help accept `--json`, `--errors stdout|stderr`, and `--reasoning`. Add `--json` for structured results and errors, or `--out FILE` to save results and downloads. Output files and provenance sidecars must not already exist; choose a new path instead of overwriting research. Providers have different pagination rules; check the returned continuation information before treating a result as complete.
 
 Some commands can change or delete provider data. fam executes them without a confirmation prompt. Inspect an API operation with `fam PROVIDER.api describe --operation NAME` before using it. See [command effects](docs/cli.md#effects) for details.
 

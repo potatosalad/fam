@@ -83,6 +83,17 @@ test('Find a Grave biography searches return source text through the existing Gr
   }));
   assert.deepEqual(await client.search(searchInput({bio:'Dublin',from:5})),{memorialSearch:{total:6,memorials:[{id:'synthetic',bio:biography}]}});
 });
+test('Find a Grave search normalizes upstream city_undefined IDs without inventing missing places', async () => {
+  for (const bio of [undefined, 'Synthetic']) {
+    const client = new FindagraveClient(undefined, mock(() => ({data: {memorialSearch: {total: 2, memorials: [null, {
+      id: '123', birth: {place: {id: 'city_undefined', names: null}}, death: {place: {id: 'state_43', names: [{name: 'Synthetic State'}]}},
+    }]}}})));
+    assert.deepEqual(await client.search({lastName: 'Example', ...(bio ? {bio} : {})}), {memorialSearch: {total: 2, memorials: [null, {
+      id: '123', birth: {place: {id: null, names: null}}, death: {place: {id: 'state_43', names: [{name: 'Synthetic State'}]}},
+    }]}});
+  }
+});
+
 test('Find a Grave every executable REST route binds path and body with its documented verb',()=>{
   for(const op of restOperations){
     const path=Object.fromEntries([...op.path.matchAll(/\{([^}]+)\}/g)].map(m=>[m[1]!, 'synthetic']));
@@ -199,6 +210,32 @@ test('Find a Grave generic queries cannot print authentication tokens, including
   await assert.rejects(client.query('mutation X { alias: authenticate(credentials: {email: "example",password: "synthetic"}) { token } }'),/managed/);
   assert.equal(calls,0);
 });
+test('Find a Grave missing memorial and photo pages return NOT_FOUND for null entries', async () => {
+  const client = new FindagraveClient(undefined, mock(() => ({data: {memorialsById: [null, {id: '456'}]}})));
+  await assert.rejects(client.memorial('123'), {code: 'NOT_FOUND'});
+  await assert.rejects(memorialPhotos(client, '123', 1), {code: 'NOT_FOUND'});
+});
+
+test('Find a Grave cemetery get validates numeric IDs locally and rejects null or mismatched results', async () => {
+  let calls = 0;
+  let cemeteries: (Record<string, unknown> | null)[] = [null];
+  const client = new FindagraveClient(undefined, mock((_url, options) => {
+    calls++;
+    assert.equal((options.body as {variables: {id: string}}).variables.id, '999999999999');
+    return {data: {cemeteries: {total: cemeteries.length, cemeteries}}};
+  }));
+  for (const id of ['NOTANID', '', '-1', '12.0', ' 123', '1e3']) await assert.rejects(client.cemetery(id), {code: 'INVALID_ARGUMENT'});
+  assert.equal(calls, 0);
+  const {runProvider} = await import('../src/findagrave/cli.js');
+  await assert.rejects(runProvider(['cemetery', 'NOTANID']), {code: 'INVALID_ARGUMENT'});
+  await assert.rejects(client.cemetery('999999999999'), {code: 'NOT_FOUND'});
+  cemeteries = [null, {id: '456'}];
+  await assert.rejects(client.cemetery('999999999999'), {code: 'NOT_FOUND'});
+  cemeteries = [null, {id: '999999999999', names: [{name: 'Synthetic Cemetery'}]}];
+  const result = await client.cemetery('999999999999');
+  assert.deepEqual(result, {cemeteries: {total: 1, cemeteries: [cemeteries[1]]}});
+});
+
 test('Find a Grave photo paging uses returned identity and actual from/size arguments',async()=>{
   const client=new FindagraveClient(undefined,mock((url,o)=>{
     const body=o.body as {query:string;variables:Record<string,unknown>};

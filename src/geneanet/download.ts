@@ -1,5 +1,6 @@
+import {writeOutputFile} from '../shared/storage.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, writeFile, rename, rm, link } from 'node:fs/promises';
+import { mkdir, writeFile, rm, link } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import sharp from 'sharp';
 import { GeneanetClient, id } from './client.js';
@@ -60,8 +61,5 @@ export async function saveDownload(path: string, result: Download): Promise<void
   } finally { await rm(temporary, {force: true}); await rm(sideTemp, {force: true}); }
 }
 export async function saveOutput(path: string, text: string): Promise<void> {
-  await mkdir(dirname(path), {recursive: true, mode: 0o700});
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  try { await writeFile(temporary, text, {flag: 'wx', mode: 0o600}); await rename(temporary, path); }
-  finally { await rm(temporary, {force: true}); }
+  await writeOutputFile(path, text);
 }

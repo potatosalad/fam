@@ -1,11 +1,10 @@
+import {writeOutputFiles, assertOutputAvailable} from '../shared/storage.js';
 import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import {loadProviderSession} from '../shared/browser-config.js';
 import { configureCredentials } from '../shared/credentials.js';
 import { parseArgs } from 'node:util';
-import { writeFile, mkdir, rename, rm } from 'node:fs/promises';
-import { dirname, basename } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { basename } from 'node:path';
 import { parseJson, stringifyJson } from '../shared/json.js';
 import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { authenticateFindmypast, beginBrowserAuthorization, finishBrowserAuthorization, sessionStatus, type SavedFindmypastSession } from './auth.js';
@@ -14,12 +13,6 @@ import { FindmypastClient, searchFilters, type SearchFilter } from './client.js'
 import { aliases, contracts, graphqlOperation, restOperation, type RestArguments } from './catalog.js';
 import { downloadRecordImage, newspaperVariables, recordOrder, searchNewspapers } from './research.js';
 
-async function writeOutput(path: string, output: string | Uint8Array) {
-  await mkdir(dirname(path), {recursive: true, mode: 0o700});
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  try { await writeFile(temporary, output, {mode: 0o600, flag: 'wx'}); await rename(temporary, path); }
-  finally { await rm(temporary, {force: true}); }
-}
 async function jsonInput(value?: string): Promise<Record<string, unknown>> {
   if (!value) return {};
   let text: string;
@@ -42,6 +35,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     county: {type: 'string'}, place: {type: 'string'}, from: {type: 'string'}, to: {type: 'string'},
   }});
   const [command = 'help', first, second] = positionals;
+  if (values.out) await assertOutputAvailable(values.out, ...(command === 'download' ? [`${values.out}.json`] : []));
   if (values.stdin && command !== 'credentials') throw new Error('--stdin belongs to fam findmypast.credential set.');
   const arity: Record<string, [number, number]> = {credentials: [0,0], auth: [0,0], status: [0,0], refresh: [0,0], me: [0,0], subscription: [0,0], trees: [0,0],
     tree: [1,1], people: [1,1], person: [2,2], relatives: [2,2], facts: [1,1], hints: [2,2], media: [1,1], search: [0,0],
@@ -141,8 +135,8 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const output = result instanceof Uint8Array ? result : `${stringifyJson(result ?? null, 2)}\n`;
   if (values.out) inspectResult(result);
   if (values.out) {
-    await writeOutput(values.out, output);
-    if (sidecar) await writeOutput(`${values.out}.json`, `${stringifyJson(sidecar, 2)}\n`);
+    await writeOutputFiles([{path: values.out, data: output},
+      ...(sidecar ? [{path: `${values.out}.json`, data: `${stringifyJson(sidecar, 2)}\n`}] : [])]);
     return {saved: values.out, ...(sidecar ? {metadata: `${values.out}.json`, source: sidecar} : {}), ...(result instanceof Uint8Array ? {bytes: result.byteLength} : {})};
   }
   return result;

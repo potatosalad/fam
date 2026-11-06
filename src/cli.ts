@@ -2,9 +2,9 @@ import {setReadRetryPolicy} from './shared/read-retry.js';
 import {InputError} from './shared/input-error.js';
 import {badRequestHelp} from './shared/command-error-help.js';
 import {basename} from 'node:path';
-import {writeOutputFile} from './shared/storage.js';
+import {writeOutputFile, assertOutputAvailable} from './shared/storage.js';
 import {commands, commandById, providerNames, providerInfo, namespaceNames, syntax, type Provider} from './shared/command-registry.js';
-import {parseInvocation, parseNamespaceHelp, unknownCommand, describe, help, UsageError, type Invocation} from './shared/command-runtime.js';
+import {parseInvocation, parseNamespaceHelp, parseHelpOptions, unknownCommand, describe, help, UsageError, type Invocation} from './shared/command-runtime.js';
 import {searchCommands, contextCommands} from './shared/command-search.js';
 import {stringifyJson} from './shared/json.js';
 import {humanOutput, wantsJson, namespaceHelp, commandError} from './shared/command-output.js';
@@ -118,7 +118,11 @@ async function main() {
   jsonErrors = args.includes('--json') || args.includes('--format=json') || args.some((arg, i) => arg === '--format' && args[i + 1] === 'json');
   errorsToStdout = args.includes('--errors=stdout') || args.some((arg, i) => arg === '--errors' && args[i + 1] === 'stdout');
   if (reasoningArgs.error) throw reasoningArgs.error;
-  if (!args.length || args.length === 1 && ['--help', '-h'].includes(args[0])) {process.stdout.write(help()); return;}
+  if (!args.length || args[0].startsWith('-') && (args.includes('--help') || args.includes('-h'))) {
+    const options = parseHelpOptions(args);
+    process.stdout.write(options.json ? `${stringifyJson({schemaVersion: 1, ok: true, command: null, data: {help: help(), providers: namespaceNames.map(provider => ({provider, ...providerInfo[provider]}))}}, 2)}\n` : help());
+    return;
+  }
   if (args[0] === '--version') args.splice(0, 1, 'cli.version', 'get');
   if (args[0] === 'doctor') args.splice(0, 1, 'cli.health', 'check', '--live');
   if (args[0] === '--completions' || args[0].startsWith('--completions=')) {
@@ -156,6 +160,13 @@ async function main() {
       process.stdout.write(wantsJson(values) ? `${stringifyJson(operation, 2)}\n` : operationDescription(operation));
     } else process.stdout.write(wantsJson(values) ? `${stringifyJson(describe(command), 2)}\n` : help(command));
     return;
+  }
+  if (!values['dry-run'] && typeof values.out === 'string'
+      && !(command.id === 'fold3.file download' && values.resume || command.id === 'americanancestors.record export' && values.resume)) {
+    const sidecar = command.action === 'download' && command.id !== 'fold3.file download'
+      || command.id === 'familysearch.image transcript' && !wantsJson(values);
+    const sidecarSuffix = command.provider === 'nara' ? '.provenance.json' : '.json';
+    await assertOutputAvailable(values.out, ...(sidecar ? [`${values.out}${sidecarSuffix}`] : []));
   }
   const {setBrowserOverrides} = await import('./shared/browser-config.js');
   setBrowserOverrides({transport: values.transport as 'auto' | 'http' | 'browser' | undefined, timeout: values['browser-timeout'] as number | undefined});

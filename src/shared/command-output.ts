@@ -143,7 +143,7 @@ export function overview(): string {
       ['--dry-run', 'Preview an invocation without running it.'],
       ['--help, -h', 'Show help, flags, and examples.'],
       ['--json', 'Return structured JSON.'],
-      ['--out <FILE>', 'Save results or downloads.'],
+      ['--out <FILE>', 'Save to a new file; never overwrite.'],
       ['--reasoning <TEXT>', 'Why this command is run; required for agents.'],
       ['--transport <MODE>', 'Use auto, http, or browser.'],
       ['--version', 'Show version, revision, and install path.'],

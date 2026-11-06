@@ -68,7 +68,7 @@ fam findagrave.memorial search --cemetery CEMETERY_ID --plot "Section 3"
 fam findagrave.contributor get --contributor-id CONTRIBUTOR_ID
 ```
 
-Copy IDs from responses and keep them as strings. Location IDs have prefixes such as `city_`, `county_`, or `state_`. A memorial includes names, dates, biography, burial information, relationships, and the first 20 photos. Use `photos` for further pages. Most other commands retain the service's response envelope; `cemetery`, for example, returns `cemeteries.cemeteries[]`.
+Copy IDs from responses and keep them as strings. Location IDs have prefixes such as `city_`, `county_`, or `state_`. A memorial includes names, dates, biography, burial information, relationships, and the first 20 photos. Use `photos` for further pages. Most other commands retain the service's response envelope; `cemetery`, for example, returns `cemeteries.cemeteries[]`. Cemetery IDs must contain only digits; malformed IDs fail locally with `INVALID_ARGUMENT`. Missing memorials, memorial photo listings, and cemeteries return `NOT_FOUND`, not successful null entries. Search sometimes returns the upstream placeholder `city_undefined`; fam normalizes that place ID to `null` without inventing a location. Search place fields can be incomplete even when memorial get has a known place, so inspect the full memorial before concluding that a place is unknown.
 
 Signed-in account commands include `my-cemeteries`, `virtual-cemeteries`, `volunteer-cemeteries`, and `requests mine|claimed|volunteer`. To read a public virtual cemetery, use `virtual-cemeteries CONTRIBUTOR_ID` and `virtual-cemetery VIRTUAL_CEMETERY_ID`.
 
@@ -94,7 +94,7 @@ fam findagrave.api.gql execute --document /path/to/query.graphql --variables /pa
 fam findagrave.api.http-site list --filter transcription
 ```
 
-JSON input accepts inline objects, filenames, or `-` for stdin. Commands print readable text by default; add `--json` for structured output. `--out FILE` saves provider data as JSON. Keep personal research outside Git.
+JSON input accepts inline objects, filenames, or `-` for stdin. Commands print readable text by default; add `--json` for structured output. `--out FILE` saves provider data as JSON and refuses existing destinations. Downloads check both the image and sidecar before provider access; exclusive publication also protects against files created during the request. Keep personal research outside Git.
 
 Some GraphQL names are ambiguous. Use a full operation ID or alias: `memorial` selects the complete profile, and `memorial.edits` selects pending edits. Authentication operations are reserved for `auth`, so generic commands cannot print returned login tokens.
 
