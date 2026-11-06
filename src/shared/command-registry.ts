@@ -304,7 +304,7 @@ add('newspapers','download','page download','Save a whole-page JPG export and ci
 add('newspapers','hits','page.hits get','Locate keyword matches in scan coordinates.', ['page-id'], 'keyword', {flags:{keyword:{required:true}}});
 add('newspapers','clippings','page.clipping list','List public clippings on a newspaper page.', ['page-id'], 'offset limit', {pagination:'Use nextOffset to continue; one page per request.'});
 add('newspapers','articles','page.article list','Read structured article categories for an accessible page.', ['page-id']);
-add('newspapers','ocr','page.ocr get','Read page OCR, a clipping, an indexed article, or a rectangle; article IDs resolve coordinates automatically.', ['page-id'], 'article-id type clipping-id x y width height', {flags:{'article-id':{description:'Article UUID or decimal ID; omit coordinates to resolve its indexed rectangle automatically.'},type:{choices:['obituary','marriage','birth','enslavement','crime'],description:'Article category when resolving an article ID.'}}});
+add('newspapers','ocr','page.ocr get','Read indexed article or saved clipping OCR; supply --article-id or --clipping-id. Whole-page OCR is unavailable.', ['page-id'], 'article-id type clipping-id x y width height', {flags:{'article-id':{description:'Article UUID or decimal ID; omit coordinates to resolve its indexed rectangle automatically.'},type:{choices:['obituary','marriage','birth','enslavement','crime'],description:'Article category when resolving an article ID.'}}});
 
 const cyndiFlags: Extras['flags'] = {
   'all-pages': {type: 'boolean', default: false, description: 'Follow available pagination from the requested page onward.'},
@@ -558,7 +558,7 @@ add('findmypast', 'facts', 'person facts', 'Read personal, family, and name fact
 add('findmypast', 'media', 'person media', 'List person media.', ['person-id'], page, {pagination: paging});
 add('findmypast', 'search', 'record search', 'Search historical records by names, dates, keywords, and provider filters.', [], `${names} year keywords collection exact filters country year-range sort descending page`, {pagination: 'One provider-sized page; use --page to continue. This provider does not support --limit or --offset here.', flags: {sort: {choices: ['relevance', 'first-name', 'last-name', 'birth', 'death', 'year', 'collection']}}});
 add('findmypast', 'collections', 'collection search', 'Find historical record sets.', ['?name'], page, {pagination: paging});
-add('findmypast', 'collection', 'collection get', 'Read record-set metadata.', ['collection-id']);
+add('findmypast', 'collection', 'collection get', 'Read record-set metadata using a record metadata ID, not a collection-search ID.', ['collection-id'], '', {flags:{'collection-id':{description:'recordMetadataId from a record search result (for example image.recordMetadataId). Opaque collection-search IDs are not metadata IDs.'}}});
 add('findmypast', 'entitlement', 'record entitlement', 'Read the transcript access decision without confirming a purchase.', ['record-id']);
 add('findmypast', 'record', 'record get', 'Read a transcript without confirming a credit purchase.', ['record-id']);
 add('findmypast', 'image', 'image get', 'Read record image gateway details.', ['record-id']);

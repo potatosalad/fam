@@ -60,7 +60,7 @@ export const operations = {
   hits: {method:'GET',path:'/api/search/hits',input:{pageId:'decimal ID',keyword:'string'},description:'Coordinates of keyword matches on the scan.'},
   clippings: {method:'GET',path:'/api/clipping/page',input:{pageId:'decimal ID',offset:'0–1000000?',limit:'1–100?'},description:'Public clippings on a page.'},
   articles: {method:'GET',path:'/api/article/page/{pageId}/articles',input:{pageId:'decimal ID'},description:'Structured article categories using a fresh page authorization.'},
-  ocr: {method:'GET',path:'/api/client/image/ocr/',input:{pageId:'decimal ID',articleId:'UUID or decimal ID?',type:'obituary | marriage | birth | enslavement | crime?',clippingId:'decimal ID?',x:'integer?',y:'integer?',width:'integer?',height:'integer?'},description:'Page or selection OCR. An article ID resolves its rectangle automatically; empty/unavailable text is explicit.'},
+  ocr: {method:'GET',path:'/api/client/image/ocr/',input:{pageId:'decimal ID',articleId:'UUID or decimal ID?',type:'obituary | marriage | birth | enslavement | crime?',clippingId:'decimal ID?',x:'integer?',y:'integer?',width:'integer?',height:'integer?'},description:'Indexed article or saved clipping OCR. An article ID resolves its rectangle automatically; whole-page and rectangle-only retrieval are unavailable.'},
 } as const;
 export type Operation = keyof typeof operations;
 export class NewspapersClient {
@@ -167,11 +167,12 @@ export class NewspapersClient {
     const rect = ['x','y','width','height'] as const;
     if (rect.some(k=>options[k]!==undefined) && !rect.every(k=>options[k]!==undefined)) throw new Error('Supply x, y, width, and height together.');
     if (options.clippingId && options.x !== undefined) throw new Error('Clipping OCR uses the clipping rectangle; omit coordinates.');
+    if (!options.articleId && !options.clippingId) throw new InputError('Newspapers whole-page and rectangle-only OCR are unavailable through the current integration. Supply --article-id from page articles or --clipping-id from an existing clipping.');
     for (const key of rect) if (options[key] !== undefined) integer(options[key]!, key==='x'||key==='y'?0:1,100000);
     return this.run(async () => {
       const value=await this.authorize(pageId);if (!value.image.canView || typeof value.iat !== 'string') throw new NewspapersError('access-denied');
       const selection = options.articleId&&options.x===undefined ? (await this.articleData(pageId,options.articleId,value,options.type)).rectangle
-        : !options.clippingId && options.x === undefined ? {x:0,y:0,width:integer(value.image.width,1,100000),height:integer(value.image.height,1,100000)} : options;
+        : options;
       if (selection.x !== undefined && (selection.x+selection.width! > value.image.width || selection.y!+selection.height! > value.image.height)) throw new Error('OCR rectangle exceeds the page dimensions.');
       const query:Record<string,string>={page:pageId,type:options.clippingId?'clipping':'article',objectId:options.clippingId ?? options.articleId ?? '',iat:value.iat};
       for (const key of rect) if (selection[key]!==undefined) query[key]=String(selection[key]);

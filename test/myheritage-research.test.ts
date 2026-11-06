@@ -68,6 +68,17 @@ test('record search uses saved session, server-side scope, variables and explici
   assert.equal(r.nextOffset,40);assert.equal(r.returned,1);assert.equal(r.data[0].user_info.is_purchased,false);assert.equal(r.serviceStatus,230);assert.match(r.notice!,/230/);
   assert.equal(contexts,1);assert.equal(f.session.accessToken,'fresh-research-token');assert.equal(f.saves(),2);
 });
+test('record search accepts null data only for an explicit zero count',async()=>{
+  for(const count of [0,'0',0n]){
+    const f=fixture(async url=>url.endsWith('/research')?{data:page}:{data:{data:{search_query_upload:{response:{summary:{total:{count:'0'}},results:{count,data:null}}}}}});
+    const r=await f.client.search({lastName:'Synthetic',collection:'101'});
+    assert.deepEqual(r.data,[]);assert.equal(r.returned,0);assert.equal(r.nextOffset,null);assert.equal(r.lastCursor,null);
+  }
+  for(const results of [{count:1,data:null},{data:null},{count:0},{count:-1,data:null},{count:'invalid',data:[]}]){
+    const f=fixture(async url=>url.endsWith('/research')?{data:page}:{data:{data:{search_query_upload:{response:{results}}}}});
+    await assert.rejects(f.client.search({lastName:'Synthetic'}),/result connection/);
+  }
+});
 test('expired research sessions and API challenges stop without password retries',async()=>{
   let calls=0;
   const expired=fixture(async()=>{calls++;return{data:page.replace('isLoggedIn\\":true','isLoggedIn\\":false')};});

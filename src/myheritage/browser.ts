@@ -131,8 +131,12 @@ export class MyHeritageBrowser {
   async find(treeId: string, query: string, limit = 20) {
     const p = await this.context(), local = await this.localId(treeId, 'tree');
     await this.tree(treeId);
-    return this.api('individual-lookup.php', {siteID: p.siteId, familyTreeID: local, query, thumbnailType: 2,
-      displayLang: p.lang, dataLang: p.dataLang, formatAsJSON: 1, maxResults: limit, rpl: 1});
+    // maxResults is a provider safety cap on lookup matches, not pagination:
+    // exceeding it returns errorCode 102 instead of the first N individuals.
+    const result = await this.api('individual-lookup.php', {siteID: p.siteId, familyTreeID: local, query, thumbnailType: 2,
+      displayLang: p.lang, dataLang: p.dataLang, formatAsJSON: 1, rpl: 1});
+    if (!Array.isArray(result.individuals)) throw new Error('MyHeritage tree lookup returned no individuals list.');
+    return {...result, individuals: result.individuals.slice(0, limit)};
   }
   async person(id: string) {
     const p = await this.context(), local = await this.localId(id, 'individual');

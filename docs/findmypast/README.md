@@ -52,6 +52,8 @@ fam findmypast.record get --record-id RECORD_ID --out transcript.json
 fam findmypast.image download --record-id RECORD_ID --out scan.jpg
 ```
 
+`collection get` requires a `recordMetadataId` from a record search result's `image`, `transcript`, or `pdf` object, not the opaque `id` returned by `collection search`. An empty metadata article is an error, not a successful collection description. `image get --record-id RECORD_ID` resolves the record's image before requesting details; it does not accept an image ID in that flag. An entitlement response with `reason: Error` fails the command, while an ordinary access denial remains a valid decision.
+
 Record pages start at 1 and use the service's page size. Use `--year`, `--birth-year`, or `--death-year` with `--year-range` for a date range. Sorting accepts `relevance`, `first-name`, `last-name`, `birth`, `death`, `year`, or `collection`; add `--descending` for a field sort.
 
 For additional search fields, pass `--filters` an inline object or JSON file containing `{"filter":[{"field":"LastName","values":["Lovelace"]}]}`.
@@ -66,7 +68,7 @@ fam findmypast.newspaper search --keywords mathematics --publication "Example Ga
 fam findmypast.newspaper manifest --newspaper-id MANIFEST_ID
 ```
 
-Names and publication titles can be repeated. Location filters are `--country`, `--county`, and `--place`. Date filters require both endpoints. Results contain snippets, issue metadata, and page references, rather than full OCR. Use a manifest ID from those references with `newspaper-manifest`.
+Names and publication titles can be repeated. Location filters are `--country`, `--county`, and `--place`. Date filters require both endpoints. Results contain snippets, issue metadata, and page references, rather than full OCR. Pass a returned `BL/title/YYYYMMDD/page-or-article` reference to `fam findmypast.newspaper manifest --newspaper-id ID`. The command loads the issue manifest, retaining all of its page canvases; the trailing page or article component is not a manifest ID.
 
 ## API access
 

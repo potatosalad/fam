@@ -125,6 +125,21 @@ test('Google URLs are derived from actual hrefs/redirects; abbreviated displayed
   assert.throws(()=>checkContinuation('https://evil.test/search?q='+encodeURIComponent(googleQuery('probate')),'probate'),/same/);
 });
 
+test('Google HTTP 200 redirect pages resolve explicit Cyndi destinations without guessing breadcrumbs',async()=>{
+  const tab={request:async()=>new Response(`<html><title>Redirect Notice</title><a href="${child}">Continue</a></html>`)};
+  assert.equal(await resolveGoogleLink('https://www.google.com/goto?url=opaque',tab),child);
+  const canonical={request:async()=>new Response(`<link rel="canonical" href="${root}">`)};
+  assert.equal(await resolveGoogleLink('https://www.google.com/goto?url=opaque',canonical),root);
+  const external={request:async()=>new Response('<link rel="canonical" href="https://outside.example/probate">')};
+  await assert.rejects(resolveGoogleLink('https://www.google.com/goto?url=opaque',external),/could not be resolved/);
+});
+test('search with only unusable or off-site results fails prominently instead of succeeding with null URLs',async()=>{
+  setBrowserOverrides({transport:'browser'});let closed=0;
+  const tab:any={id:'owned',userId:'test',evaluate:async()=>({url:searchUrl('probate'),title:'Google',ready:true,challenge:false,empty:false,hits:[{href:'https://outside.example/probate',title:'Offsite result',snippet:''}],nextUrl:null})};
+  const browser:any={tab:async()=>tab,api:async()=>{closed++;}};
+  try{await assert.rejects(search('probate',{},async()=>browser),/no usable Cyndi.*not.*empty/i);assert.equal(closed,1);}
+  finally{setBrowserOverrides({});}
+});
 test('CloakBrowser search follows observed continuation, distinguishes challenges, and closes only its own tab',async()=>{
   setBrowserOverrides({transport:'browser'});
   try {

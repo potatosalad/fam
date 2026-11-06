@@ -9,6 +9,7 @@ export async function listPersonSources(client: FamilySearchClient, pid: string,
   if (!Number.isSafeInteger(maxPages) || maxPages < 1 || maxPages > 100) throw new InputError('--max-pages requires 1–100.');
   const source = await client.operation('sources.forPerson', {pid});
   if (source.person.id !== pid) throw new Error('Source response does not identify the requested person.');
+  if (Array.isArray(source.person.sources) && !source.person.sources.length) return {personId:pid,items:[],historyComplete:true,warnings:[]};
   const descriptions = new Map(source.sourceDescriptions.map(item => [item.id, item]));
   const names = new Map<string, string>(), attached = new Map<string, any>(), warnings: string[] = [];
   const seen = new Set<string>(); let from: string | undefined, historyComplete = false;

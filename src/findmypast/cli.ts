@@ -114,11 +114,11 @@ export async function runProvider(argv: string[]): Promise<unknown> {
       case 'newspapers': result = await searchNewspapers(client, newspaperOptions); break;
       case 'download': { const download = await downloadRecordImage(client, first!); result = download.bytes; sidecar = download.metadata; break; }
       case 'collections': result = await client.collections(first, limit, offset); break;
-      case 'collection': result = await client.graphql('recordSetInformation', {recordMetadataId: first}); break;
-      case 'entitlement': result = await client.graphql('GetTranscriptEntitlement', {recordId: first}); break;
+      case 'collection': result = await client.collection(first!); break;
+      case 'entitlement': result = await client.entitlement(first!); break;
       case 'record': result = await client.record(first!); break;
-      case 'image': result = await client.call('image.details', {path: {id: first!}}); break;
-      case 'newspaper-manifest': result = await client.call('newspaper.manifest', {path: {id: first!}}); break;
+      case 'image': result = await client.image(first!); break;
+      case 'newspaper-manifest': result = await client.newspaperManifest(first!); break;
       case 'gql': result = await client.graphql(first!, input); break;
       case 'query': result = await client.query(await readFile(first!, 'utf8'), input); break;
       case 'call': {

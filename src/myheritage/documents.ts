@@ -75,7 +75,7 @@ export class MyHeritageDocuments {
       if([301,302,303,307,308].includes(r.status)){const next=r.headers.get('location');await r.body?.cancel();if(!next)throw new Error('Document redirect has no destination.');url=destination(new URL(next,url).href);continue;}
       if(!r.ok){await r.body?.cancel();throw new Error(`Document provider ${url.hostname} returned HTTP ${r.status}; no retries were attempted.`);}
       contentType=r.headers.get('content-type')??'';
-      if(!/^(image\/|application\/pdf|application\/octet-stream)/i.test(contentType)){await r.body?.cancel();throw new Error('Document provider returned a page instead of a document.');}
+      if(!/^(image\/|application\/pdf\b|(?:application|binary)\/octet-stream\b)/i.test(contentType)){await r.body?.cancel();throw new Error('Document provider returned a page instead of a document.');}
       if(Number(r.headers.get('content-length')??0)>200_000_000){await r.body?.cancel();throw new Error('Document exceeds 200 MB.');}
       const chunks:Uint8Array[]=[];let length=0;for await(const chunk of r.body!){length+=chunk.length;if(length>200_000_000){await r.body?.cancel().catch(()=>{});throw new Error('Document exceeds 200 MB.');}chunks.push(chunk);}
       bytes=Buffer.concat(chunks);break;

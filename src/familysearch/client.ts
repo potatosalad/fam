@@ -172,9 +172,13 @@ export class FamilySearchClient {
   }
 
   async operationDetailed<K extends OperationName>(name: K, ...args: OperationArgs<K>): Promise<ApiResponse<OperationOutput<K>>> {
-    const { path, options } = prepareOperation(name, args[0]);
+    const { input, path, options } = prepareOperation(name, args[0]);
     const result = await this.requestDetailed(path, options);
-    return { ...result, data: decodeOperationResponse(name, result.data) as OperationOutput<K> };
+    // The mobile source endpoint returns No Content for a person with no
+    // attached sources. Do not generalize this to empty 200s or other reads.
+    const data = name === 'sources.forPerson' && result.status === 204 && result.data === undefined
+      ? {person:{id:input.pid,sources:[]},sourceDescriptions:[]} : result.data;
+    return { ...result, data: decodeOperationResponse(name, data) as OperationOutput<K> };
   }
 
   private async authenticatedJson<T>(url: URL, body?: unknown, accept = 'application/json'): Promise<T> {

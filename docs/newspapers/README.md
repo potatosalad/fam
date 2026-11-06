@@ -89,14 +89,14 @@ Page, article, and clipping downloads all obtain fresh page authorization and re
 ## OCR and API catalog
 
 ```sh
-fam newspapers.page.ocr get --page-id 80868055
-fam newspapers.page.ocr get --page-id 80868055 --x 0 --y 0 --width 1000 --height 1000
+fam newspapers.page.article list --page-id 80868055
+fam newspapers.page.ocr get --page-id PAGE_ID --article-id ARTICLE_ID
 fam newspapers.api describe --operation ocr
 fam newspapers.api list
 fam newspapers.api call --operation issue --input '{"publicationId":"1618","date":"1900-10-07"}'
 ```
 
-OCR reads the whole page by default. Supply an article ID to resolve its rectangle automatically, a clipping ID to use the saved selection, or explicit x/y/width/height coordinates. Coordinates are original scan pixels. The service can return an empty string; fam reports `available: false` rather than presenting it as a successful transcript. OCR availability has not been established for every account or page. Check the scan when using names and dates.
+OCR requires an indexed article ID or an existing clipping ID. Whole-page and rectangle-only retrieval are currently unavailable: the observed website endpoint rejects an empty objectId, and no replacement whole-page request has been verified. fam reports this locally rather than sending a known-invalid request or returning an invented empty transcript. An article ID resolves its rectangle automatically; any supplied coordinates use original scan pixels. The service can return an empty string; fam reports `available: false` rather than presenting it as a successful transcript. OCR availability has not been established for every account or page. Check the scan when using names and dates.
 
 All commands support `--json` and `--out FILE`. `fam cli.context resolve --context https://www.newspapers.com/image/80868055/` resolves a viewer URL into its page ID. Clipping URLs and viewer URLs with `article` or `clipping_id` also resolve their record IDs; access tokens are excluded. Use `fam cli.health check --provider newspapers --no-fix` for an account probe without password repair.
 

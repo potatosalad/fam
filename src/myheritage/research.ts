@@ -174,9 +174,11 @@ export class MyHeritageResearch {
         ...(built.recordType === 'all' ? {} : {record_type_filter: [built.recordType]})}}, additional_params: [],
     }});
     const response = r.data.data.search_query_upload?.response, results = response?.results;
-    if (!Array.isArray(results?.data) || results.count === undefined) throw new Error('Record search returned no result connection.');
-    if (options.collection && results.data.some((row: ObjectData) => row.record?.collection?.id !== built.hierarchy)) throw new Error('The service returned records outside the requested collection; refusing misleading scoped results.');
-    const data = results.data.map((row: ObjectData) => ({...row.record, record_type: row.record_type, user_info: row.user_info, cursor: row.cursor}));
+    if (!results || !['number','bigint','string'].includes(typeof results.count) || !/^\d+$/.test(String(results.count)) || typeof results.count === 'number' && !Number.isSafeInteger(results.count)) throw new Error('Record search returned no result connection.');
+    const rows = results.data === null && BigInt(results.count) === 0n ? [] : results.data;
+    if (!Array.isArray(rows)) throw new Error('Record search returned no result connection.');
+    if (options.collection && rows.some((row: ObjectData) => row.record?.collection?.id !== built.hierarchy)) throw new Error('The service returned records outside the requested collection; refusing misleading scoped results.');
+    const data = rows.map((row: ObjectData) => ({...row.record, record_type: row.record_type, user_info: row.user_info, cursor: row.cursor}));
     return {query: options, count: results.count, returned: data.length, offset: built.offset, limit: built.limit,
       nextOffset: data.length && BigInt(built.offset + built.limit) < BigInt(results.count) ? built.offset + built.limit : null,
       lastCursor: data.at(-1)?.cursor ?? null, summary: response.summary, data, serviceStatus: r.status,

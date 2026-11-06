@@ -1,4 +1,6 @@
 import {parse, getOperationAST} from 'graphql';
+import {load} from 'cheerio';
+import {InputError} from '../shared/input-error.js';
 import {loadProviderSession} from '../shared/browser-config.js';
 import {CookieJar} from 'tough-cookie';
 import { withSessionRefresh } from '../shared/session-refresh.js';
@@ -129,6 +131,34 @@ export class FindmypastClient {
     return orderBy ? this.graphql('GetSearchResultsWithSort', {filter, page, orderBy}) : this.graphql('GetSearchResults', {filter, page});
   }
   collections(query = '', rows = 20, startFrom = 0) { return this.graphql('SearchRecordSets', {query, categories: [], subcategories: [], startFrom, rows}); }
+  async entitlement(recordId: string) {
+    const result = await this.graphql<{getTranscriptEntitlement:{decision:boolean;reason:string;fulfillmentAction:number}}>('GetTranscriptEntitlement', {recordId});
+    if (!result?.getTranscriptEntitlement || result.getTranscriptEntitlement.reason === 'Error') throw new Error('Findmypast entitlement lookup failed; this is not a confirmed access denial. Check the record ID.');
+    return result;
+  }
+  async newspaperManifest(newspaperId: string) {
+    const issue = /^BL\/(\d+)\/(\d{8})(?:\/\d+)?$/i.exec(newspaperId);
+    if (/^BL\//i.test(newspaperId) && !issue) throw new InputError('Expected a newspaper search ID: BL/title/YYYYMMDD[/page-or-article].');
+    // The website viewer loads the issue, not the page/article suffix. The fn
+    // route is reserved for a different identifier domain.
+    return issue ? (await this.request<Record<string,unknown>>(`/obscura/api/manifest/${issue[1]}/${issue[2]}`)).data
+      : await this.call('newspaper.manifest', {path:{id:newspaperId}}) as Record<string,unknown>;
+  }
+  async collection(recordMetadataId: string) {
+    const result = await this.graphql<{recordSetInformation:string}>('recordSetInformation', {recordMetadataId});
+    if (typeof result?.recordSetInformation !== 'string' || !load(result.recordSetInformation).text().trim()) throw new Error('No collection description was returned. Use a record metadata ID from a record search result (for example image.recordMetadataId), not the opaque ID from collection search.');
+    return result;
+  }
+  async image(recordId: string) {
+    const result = await this.search([{field:'Id',values:[recordId]}]) as {root?:{search?:{recordSearch?:{records?:{id:string;image?:{id:string;recordMetadataId:string}}[]}}}};
+    const record = result.root?.search?.recordSearch?.records?.find(r=>r.id === recordId);
+    if (!record) throw new Error('Record was not found by its exact record ID.');
+    const media = record.image;
+    if (!media?.id || !media.recordMetadataId) throw new Error('This record has no image metadata.');
+    const details = await this.call('image.details', {path:{id:media.id},query:{recordMetadataId:media.recordMetadataId,parentRecordId:recordId,confirmedPurchase:false}}) as Record<string,unknown>;
+    if (!details || typeof details !== 'object' || Array.isArray(details) || !Object.keys(details).length) throw new Error('Findmypast returned empty image details for this record.');
+    return details;
+  }
   async record(recordId: string) {
     // The app hardcodes confirmedPurchase:true. CLI reads never silently confirm a credit purchase.
     const op = graphqlOperation('GetTranscriptById');

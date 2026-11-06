@@ -75,12 +75,15 @@ test('catalog rejects writes and unknown inputs before making any request; empty
  assert.throws(()=>c.call('delete-account'));assert.throws(()=>c.call('page',{pageId:'123',iat:'injected'}));assert.throws(()=>c.call('issue',{publicationId:'1'}));assert.equal(requests,0);
  const result=await c.search({keyword:'synthetic'});assert.deepEqual(result.records,[]);assert.equal(result.nextCursor,null);
 });
+test('OCR without an indexed article or clipping fails locally with an actionable scope diagnostic',()=>{
+ const c=new NewspapersClient(new NewspapersHttp(undefined,async()=>{throw new Error('Unexpected request')}));
+ for(const options of [{},{x:0,y:0,width:50,height:50}])assert.throws(()=>c.ocr('123',options),/whole-page.*article.*clipping/i);
+});
 test('OCR validates selection geometry and exposes empty text without inventing a transcript',async()=>{
  let requests=0;const c=new NewspapersClient(new NewspapersHttp(undefined,async(url)=>{requests++;return new Response(JSON.stringify(url.includes('/authorize')?{image:{imageId:123,publicationId:9,publicationTitle:'Synthetic',canView:true,width:100,height:100},iat:'synthetic',rights:{Get:{allowed:true}}}:{ocr:''}));}));
  assert.throws(()=>c.ocr('123',{articleId:'../4'}));assert.throws(()=>c.ocr('123',{x:0}));
- await assert.rejects(c.ocr('123',{x:90,y:0,width:20,height:10}),/exceeds/);assert.equal(requests,1);
- const result=await c.ocr('123',{x:0,y:0,width:50,height:50});assert.equal(result.available,false);assert.equal(result.text,'');
- const full=await c.ocr('123');assert.equal(full.available,false);
+ await assert.rejects(c.ocr('123',{articleId:'456',x:90,y:0,width:20,height:10}),/exceeds/);assert.equal(requests,1);
+ const result=await c.ocr('123',{articleId:'456',x:0,y:0,width:50,height:50});assert.equal(result.available,false);assert.equal(result.text,'');
 });
 test('login fills but never submits while Turnstile is pending',async()=>{
  process.env.NEWSPAPERS_USERNAME='reader@example.test';process.env.NEWSPAPERS_PASSWORD='synthetic';const calls:string[]=[];

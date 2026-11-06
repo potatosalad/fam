@@ -1,4 +1,5 @@
 import {setTimeout as delay} from 'node:timers/promises';
+import {load} from 'cheerio';
 import {configuredBrowser, type BrowserTab, type BrowserClient} from '../shared/browser-runtime.js';
 import {BrowserError, transportPreference, browserConfig} from '../shared/browser-config.js';
 import {siteUrl} from './url.js';
@@ -58,6 +59,17 @@ export async function resolveGoogleLink(href: string, tab: Pick<BrowserTab, 'req
     if (embedded?.startsWith('https://') || embedded?.startsWith('http://')) {url = new URL(embedded); continue;}
     const response = await tab.request(url.href);
     const location = response.headers.get('location');
+    if (response.status === 200) {
+      // Some browser transports already followed the redirect; Google can also
+      // serve an HTML redirect notice. Use explicit destinations, never a cite
+      // breadcrumb (which is often abbreviated or belongs to an off-site hit).
+      if (response.url) try {return siteUrl(response.url);} catch {}
+      const $ = load(await response.text()), candidates = $('link[rel="canonical"]').map((_i,e)=>$(e).attr('href')).get();
+      if (/redirect notice/i.test($('title').text())) candidates.push(...$('a[href]').map((_i,e)=>$(e).attr('href')).get());
+      const destinations = new Set<string>();
+      for (const candidate of candidates) try {destinations.add(siteUrl(candidate));} catch {}
+      if (destinations.size === 1) return [...destinations][0];
+    }
     if (![301,302,303,307,308].includes(response.status) || !location) throw new Error(`Site search result redirect could not be resolved (HTTP ${response.status}).`);
     url = new URL(location, url);
   }
@@ -112,6 +124,7 @@ export async function search(query: string, options: {allPages?: boolean; cursor
         result.errors.push({url: requestedPage, ...errorDetails(error)}); result.nextUrl = requestedPage; result.cursor = requestedPage; result.complete = false; break;
       }
     }
+    if (result.results.length && !result.results.some(hit=>hit.url)) throw new Error('Site search returned no usable Cyndi’s List links; Google returned off-site or unresolvable results. This is not a confirmed empty search. Browse Cyndi’s List categories or retry the query.');
     return result;
   } finally {
     if (!keepTab) try {await browser.api('/fam/close-tab', {userId: tab.userId, tabId: tab.id});} catch {result.warnings.push('The search finished, but its browser tab could not be closed.');}

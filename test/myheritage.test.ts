@@ -181,6 +181,20 @@ test('browser page parsing accepts JSON literals, never executes scripts and rej
   assert.throws(() => checkTreePageUrl('https://www.myheritage.com/FP/API/Mobile/login.php'), /family-tree/);
 });
 
+test('tree lookup does not confuse the provider tree-size guard with a result limit', async () => {
+  const current = {...session(), mode:'browser' as const, browser:{pageUrl:'https://www.myheritage.com/family-trees/fixture/SITE'}};
+  const individuals = Array.from({length:25},(_,i)=>({id:String(i+1),nameAsPlainText:'Synthetic Reader'}));
+  const http = mock(async (url,request) => {
+    if(url.includes('/family-trees/'))return browserPage;
+    assert.equal(request.query?.maxResults,undefined);
+    assert.equal(request.query?.query,'Reader');
+    return {num:25,phrase:'Reader',individuals};
+  });
+  const client = new MyHeritageClient(current,http,{save:noSave});
+  const result = await client.find('1','Reader') as any;
+  assert.equal(result.individuals.length,20);assert.equal(result.num,25);
+});
+
 test('HAR import accepts signed-in tree response credentials without requiring a person request', () => {
   const entry = {request: {url: 'https://www.myheritage.com/family-trees/fixture/SITE', headers: [{name: 'Cookie', value: 'PHPSESSID=fixture-session'}]},
     response: {status: 200, content: {text: browserPage}}};
