@@ -1,8 +1,6 @@
+import {writeOutputFile} from '../shared/storage.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import {parseArgs} from 'node:util';
-import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
-import {dirname} from 'node:path';
-import {randomUUID} from 'node:crypto';
 import {CyndisListClient} from './client.js';
 import {search} from './search.js';
 
@@ -20,10 +18,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   else throw new Error('Unknown Cyndi’s List command.');
   if (v.out) inspectResult(result);
   if (v.out) {
-    await mkdir(dirname(v.out), {recursive: true, mode: 0o700});
-    const temporary = `${v.out}.${randomUUID()}.tmp`;
-    try {await writeFile(temporary, JSON.stringify(result, null, 2) + '\n', {mode: 0o600, flag: 'wx'}); await rename(temporary, v.out);}
-    finally {await rm(temporary, {force: true});}
+    await writeOutputFile(v.out, JSON.stringify(result, null, 2) + '\n');
     return {saved: v.out};
   }
   return result;

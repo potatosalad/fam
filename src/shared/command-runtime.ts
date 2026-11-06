@@ -12,6 +12,19 @@ export function unknownCommand(name: string, action?: string): UsageError {
   const failure = lookupFailure(name, action);
   return new UsageError(failure.message, failure.suggestedInvocation, failure);
 }
+export function parseHelpOptions(args: string[]) {
+  const reasoning = extractReasoning(args);
+  if (reasoning.error) throw new UsageError(reasoning.error.message);
+  try {
+    const {values} = parseArgs({args: reasoning.args, allowPositionals: false, options: {
+      help: {type: 'boolean', short: 'h'}, json: {type: 'boolean'}, errors: {type: 'string'}, format: {type: 'string'},
+    }});
+    if (values.errors !== undefined && !['stdout', 'stderr'].includes(values.errors)) throw new UsageError('--errors must be one of: stderr, stdout.');
+    if (values.format !== undefined && !['json', 'text'].includes(values.format)) throw new UsageError('--format must be one of: text, json.');
+    if (values.json && values.format === 'text') throw new UsageError('Use --json by itself or with --format json; other formats conflict with --json.');
+    return {json: values.json === true || values.format === 'json'};
+  } catch (error) {throw new UsageError(error instanceof Error ? error.message : 'Invalid help options.');}
+}
 export function parseNamespaceHelp(args: string[]) {
   const reasoningArgs = extractReasoning(args);
   if (reasoningArgs.error) throw new UsageError(reasoningArgs.error.message);
@@ -20,8 +33,7 @@ export function parseNamespaceHelp(args: string[]) {
   const namespace = namespaceInfo(args[0]);
   if (!namespace) return undefined;
   try {
-    const {values} = parseArgs({args: args.slice(1), allowPositionals: false, options: {help: {type: 'boolean', short: 'h'}, json: {type: 'boolean'}}});
-    return {namespace, json: values.json === true};
+    return {namespace, ...parseHelpOptions(args.slice(1))};
   } catch (error) {throw new UsageError(error instanceof Error ? error.message : 'Invalid help options.', `fam ${namespace.name} --help`);}
 }
 export type Values = Record<string, string | boolean | number | string[] | undefined>;

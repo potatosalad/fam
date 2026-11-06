@@ -1,10 +1,9 @@
 import {parseArgs} from 'node:util';
-import {mkdir,writeFile,rename,rm,stat} from 'node:fs/promises';
-import {dirname} from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {stat} from 'node:fs/promises';
 import {CREDENTIAL_DIR} from '../shared/storage.js';
 import {configureCredentials} from '../shared/credentials.js';
 import {readCommandFile,readCommandStdin} from '../shared/command-input.js';
+import {writeOutputFile} from '../shared/storage.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import {parseJson,stringifyJson} from '../shared/json.js';
 import {Fold3Client,operations,type Operation,type SearchOptions} from './client.js';
@@ -57,6 +56,6 @@ export async function runProvider(argv:string[]){
     else if(command==='call'){const text=extra===undefined?'{}':extra==='-'?await readCommandStdin():extra.trimStart().startsWith('{')?extra:await readCommandFile(extra,'utf8');let input:any;try{input=parseJson(text);}catch{throw new Error('Input must be valid JSON.');}result=await client.call(arg,input);}
     else throw new Error('Unknown Fold3 command. Run fam fold3 --help.');
   }
-  if(typeof v.out==='string'){inspectResult(result);await mkdir(dirname(v.out),{recursive:true,mode:0o700});const temp=`${v.out}.${randomUUID()}.tmp`;try{await writeFile(temp,stringifyJson(result,2)+'\n',{mode:0o600,flag:'wx'});await rename(temp,v.out);}finally{await rm(temp,{force:true});}return {saved:v.out};}
+  if(typeof v.out==='string'){inspectResult(result);await writeOutputFile(v.out,stringifyJson(result,2)+'\n');return {saved:v.out};}
   return result;
 }

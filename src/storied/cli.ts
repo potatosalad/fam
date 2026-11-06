@@ -1,8 +1,7 @@
 import {readCommandFile as readFile, readCommandStdin} from '../shared/command-input.js';
+import {writeOutputFile} from '../shared/storage.js';
 import {inspectResult} from '../shared/diagnostics.js';
 import { parseArgs } from 'node:util';
-import { writeFile, mkdir, rename, rm } from 'node:fs/promises';
-import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { configureCredentials } from '../shared/credentials.js';
 import { CREDENTIAL_DIR } from '../shared/storage.js';
@@ -100,9 +99,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
   const text = stringifyJson(result, 2) + '\n';
   if (v.out) inspectResult(result);
   if (v.out) {
-    await mkdir(dirname(v.out), {recursive: true, mode: 0o700});
-    const temp = `${v.out}.${randomUUID()}.tmp`;
-    try {await writeFile(temp, text, {mode: 0o600, flag: 'wx'}); await rename(temp, v.out);} finally {await rm(temp, {force: true});}
+    await writeOutputFile(v.out, text);
     return {saved: v.out};
   }
   return result;

@@ -88,7 +88,7 @@ The register image API requires both `min_page` and `max_page`; `images` supplie
 
 Library pages use PDF.js. The CLI reads the viewer's `data-pdf-url` only when `data-telechargeable` permits downloading. The returned `singlePage` flag tells you whether the payload represents one page or a full PDF; the tested large book used a single-page PDF. Do not assume one download contains the whole volume. The CLI does not combine pages or reconstruct image tiles.
 
-Downloads validate the image by decoding it, or check the PDF header and EOF marker. A `.json` sidecar records source and download URLs, record/view IDs, page scope, attribution, time, bytes, SHA-256, and image dimensions when applicable. No file is created for an HTML login/challenge response, a denied request, or corrupt image. Existing image/PDF and sidecar files are never overwritten. JSON output with ordinary `--out` is replaced atomically. API reads have 30-second request timeouts and bounded redirects; binary responses are limited to 150 MiB.
+Downloads validate the image by decoding it, or check the PDF header and EOF marker. A `.json` sidecar records source and download URLs, record/view IDs, page scope, attribution, time, bytes, SHA-256, and image dimensions when applicable. No file is created for an HTML login/challenge response, a denied request, or corrupt image. Existing image/PDF and sidecar files are never overwritten. JSON output with ordinary `--out` is published atomically to a new file and refuses existing destinations. API reads have 30-second request timeouts and bounded redirects; binary responses are limited to 150 MiB.
 
 ## API catalog and TypeScript
 

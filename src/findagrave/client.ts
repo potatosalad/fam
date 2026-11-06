@@ -1,3 +1,4 @@
+import {InputError} from '../shared/input-error.js';
 import { readPrivateJson } from '../shared/storage.js';
 import { Kind, parse } from 'graphql';
 import { graphqlOperation, validateDocument } from './catalog.js';
@@ -12,6 +13,9 @@ export class FindagraveGraphQLError extends Error {
     super(`Find a Grave GraphQL operation ${operationName} failed${codes.length ? ` (${codes.join(', ')})` : ''}.`);
     this.name = 'FindagraveGraphQLError';
   }
+}
+export function validateCemeteryId(id: string): void {
+  if (!/^\d+$/.test(id)) throw new InputError('--cemetery-id requires a numeric Find a Grave cemetery ID.');
 }
 export class FindagraveClient {
   constructor(private session?: FindagraveSession, private readonly http: Http = new FindagraveHttp(session?.cookies),
@@ -67,21 +71,39 @@ export class FindagraveClient {
     await this.save(this.session); return this.status();
   }
   async memorial(id: string): Promise<Record<string,unknown>> {
-    const data = await this.graphql<{memorialsById: Record<string,unknown>[]}>('memorial', {ids: [id]});
-    const memorial = data.memorialsById?.find(m => String(m.id) === id);
-    if (!memorial) throw new Error('Memorial was not found.');
+    const data = await this.graphql<{memorialsById: (Record<string,unknown> | null)[]}>('memorial', {ids: [id]});
+    const memorial = data.memorialsById?.find(m => m !== null && String(m.id) === id);
+    if (!memorial) throw Object.assign(new Error('Memorial was not found.'), {code: 'NOT_FOUND'});
     return memorial;
   }
-  search(input: Record<string,unknown>) {
-    if (!input.bio) return this.graphql('MemorialSearch', {input});
-    // The live API accepts bio although the APK's older input inventory omits it.
-    // Return the biography with each hit so researchers can inspect the evidence.
-    const op = graphqlOperation('MemorialSearch');
-    const document = op.document.replace('memorials {', 'memorials {\n            bio { value language }');
-    return this.query(document, {input}, op.name, op.headers);
+  async search(input: Record<string,unknown>) {
+    type Result = {memorialSearch?: {memorials?: ({birth?: {place?: {id?: string | null}}; death?: {place?: {id?: string | null}}} | null)[]}};
+    let result: Result;
+    if (!input.bio) result = await this.graphql<Result>('MemorialSearch', {input});
+    else {
+      // The live API accepts bio although the APK's older input inventory omits it.
+      // Return the biography with each hit so researchers can inspect the evidence.
+      const op = graphqlOperation('MemorialSearch');
+      const document = op.document.replace('memorials {', 'memorials {\n            bio { value language }');
+      result = await this.query<Result>(document, {input}, op.name, op.headers);
+    }
+    // The search representation can invent this placeholder even when the full
+    // memorial has a valid place. Do not expose it as a reusable location ID.
+    for (const memorial of result.memorialSearch?.memorials ?? []) {
+      for (const place of [memorial?.birth?.place, memorial?.death?.place]) {
+        if (place?.id === 'city_undefined') place.id = null;
+      }
+    }
+    return result;
   }
   cemeteries(search: Record<string,unknown>) { return this.graphql('SearchCemeteries', {search}); }
-  cemetery(id: string) { return this.graphql('FindCemetery', {id}); }
+  async cemetery(id: string) {
+    validateCemeteryId(id);
+    const data = await this.graphql<{cemeteries?: {total: number; cemeteries: (Record<string,unknown> | null)[]}}>('FindCemetery', {id});
+    const cemeteries = data.cemeteries?.cemeteries?.filter(c => c !== null && String(c.id) === id) ?? [];
+    if (!cemeteries.length) throw Object.assign(new Error('Cemetery was not found.'), {code: 'NOT_FOUND'});
+    return {...data, cemeteries: {...data.cemeteries, total: cemeteries.length, cemeteries}};
+  }
   contributor(id: string) { return this.graphql('FindContributor', {id: [id], ...(this.session ? {contributorId: this.session.contributorId} : {})}); }
   locations(name: string, size = 20, from = 0) { return this.graphql('LocationTypeahead', {search: {name, size, from, autocomplete: 'location', categories: ['city','county','state','loc']}}); }
   myCemeteries(size = 20, from = 0) { return this.graphql('MyCemeteries', {size, from}); }

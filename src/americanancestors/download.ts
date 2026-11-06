@@ -1,8 +1,9 @@
+import {writeOutputFile} from '../shared/storage.js';
 import sharp, {type OverlayOptions} from 'sharp';
 import {load} from 'cheerio';
 import {setTimeout as delay} from 'node:timers/promises';
 import {createHash, randomUUID} from 'node:crypto';
-import {mkdir, writeFile, link, rm, rename} from 'node:fs/promises';
+import {mkdir, writeFile, link, rm} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {AmericanAncestorsClient} from './client.js';
 import {AmericanAncestorsError, checkUrl} from './http.js';
@@ -45,6 +46,5 @@ export async function saveDownload(path: string, result: Awaited<ReturnType<type
   } finally {await rm(temp,{force:true});await rm(sideTemp,{force:true});}
 }
 export async function saveOutput(path: string, text: string) {
-  await mkdir(dirname(path),{recursive:true,mode:0o700}); const temp = `${path}.${randomUUID()}.tmp`;
-  try {await writeFile(temp,text,{mode:0o600,flag:'wx'});await rename(temp,path);} finally {await rm(temp,{force:true});}
+  await writeOutputFile(path, text);
 }

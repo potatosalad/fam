@@ -1,10 +1,9 @@
-import {mkdir, open, readFile, rm, lstat} from 'node:fs/promises';
+import {mkdir, open, readFile, rm, lstat, writeFile, rename} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
-import {createHash} from 'node:crypto';
+import {createHash, randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {AmericanAncestorsClient} from './client.js';
 import {validateSearch, type SearchOptions} from './search.js';
-import {saveOutput} from './download.js';
 import {stringifyJson, parseJson} from '../shared/json.js';
 
 type SearchPage = Awaited<ReturnType<AmericanAncestorsClient['search']>>;
@@ -74,7 +73,11 @@ export async function exportRecords(client: Pick<AmericanAncestorsClient,'search
     const save=async()=>{
       state.updatedAt=new Date().toISOString();const text=stringifyJson(state,2)+'\n';
       if(Buffer.byteLength(text)>maximumBytes)throw new Error('Export exceeds 50 MiB; the previous checkpoint remains intact.');
-      await saveOutput(path,text);
+      // This exporter exclusively reserves/validates the file and holds its lock.
+      // Checkpoints deliberately replace that owned state, unlike ordinary --out.
+      const temporary = `${path}.${randomUUID()}.tmp`;
+      try {await writeFile(temporary,text,{flag:'wx',mode:0o600});await rename(temporary,path);}
+      finally {await rm(temporary,{force:true});}
     };
     if(!options.resume)await save();
     const before=state.items.length, seen=new Set(state.items.map(r=>`${r.collectionId}:${r.recordId}`));

@@ -60,9 +60,9 @@ export async function memorialPhotos(client: FindagraveClient, id: string, size 
   const op = graphqlOperation('memorial');
   const document = op.document.replace('($ids: [ID!]!)', '($ids: [ID!]!, $photoFrom: Int, $photoSize: Int)')
     .replace('photos(size: 20)', 'photos(from: $photoFrom, size: $photoSize)');
-  const result = await client.query<{memorialsById: {id: string; photos?: {total: number; photos: Photo[] | null}}[]}>(document, {ids: [id], photoFrom: from, photoSize: size}, op.name, op.headers);
-  const memorial = result.memorialsById?.find(m => String(m.id) === id);
-  if (!memorial) throw new Error('Memorial was not found.');
+  const result = await client.query<{memorialsById: ({id: string; photos?: {total: number; photos: Photo[] | null}} | null)[]}>(document, {ids: [id], photoFrom: from, photoSize: size}, op.name, op.headers);
+  const memorial = result.memorialsById?.find(m => m !== null && String(m.id) === id);
+  if (!memorial) throw Object.assign(new Error('Memorial was not found.'), {code: 'NOT_FOUND'});
   return {memorialId: id, total: memorial.photos?.total ?? 0, from, size, photos: memorial.photos?.photos ?? []};
 }
 export async function downloadPhoto(client: FindagraveClient, memorialId: string, photoId: string) {

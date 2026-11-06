@@ -106,7 +106,7 @@ export interface Command {
 }
 
 const descriptions: Record<string, string> = {
-  out: 'Destination file. JSON uses private permissions; downloads retain their source/checksum sidecars.',
+  out: 'New destination file; refuses existing paths. JSON uses private permissions; downloads retain their source/checksum sidecars.',
   input: 'Additional input as inline JSON, a JSON file, or - for stdin (see the operation schema).',
   variables: 'GraphQL variables as inline JSON, a JSON file, or - for stdin.',
   document: 'File containing a custom GraphQL document.',
@@ -562,7 +562,7 @@ add('findmypast', 'collection', 'collection get', 'Read record-set metadata usin
 add('findmypast', 'entitlement', 'record entitlement', 'Read the transcript access decision without confirming a purchase.', ['record-id']);
 add('findmypast', 'record', 'record get', 'Read a transcript without confirming a credit purchase.', ['record-id']);
 add('findmypast', 'image', 'image get', 'Read record image gateway details.', ['record-id']);
-add('findmypast', 'download', 'image download', 'Download a full-resolution record image with source/checksum metadata.', ['record-id'], '', {flags: {out: {required: true, description: 'JPEG destination ending in .jpg or .jpeg; also writes FILE.json.'}}});
+add('findmypast', 'download', 'image download', 'Download a full-resolution record image with source/checksum metadata.', ['record-id'], '', {flags: {out: {required: true, description: 'New JPEG destination ending in .jpg or .jpeg; also writes FILE.json. Neither path may already exist.'}}});
 add('findmypast', 'newspapers', 'newspaper search', 'Search historical newspapers by person, publication, dates, and location.', [], `name keywords exact publication country county place from to sort descending ${page}`, {pagination: paging, flags: {name: {multiple: true}, publication: {multiple: true}, sort: {choices: ['relevance', 'date']}}});
 add('findmypast', 'newspaper-manifest', 'newspaper manifest', 'Read the newspaper image manifest.', ['newspaper-id']);
 

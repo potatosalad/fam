@@ -1,9 +1,9 @@
+import {writeOutputFiles, assertOutputAvailable} from '../shared/storage.js';
 import {fetchWithBrowser} from '../shared/browser-transport.js';
 import {load} from 'cheerio';
 import sharp from 'sharp';
-import {createHash, randomUUID} from 'node:crypto';
-import {mkdir, writeFile, rename, rm} from 'node:fs/promises';
-import {dirname, resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {resolve} from 'node:path';
 import {WEB, MyHeritageHttpError, type MyHeritageHttp} from './http.js';
 import type {MyHeritageSession} from './auth.js';
 import {pageJson} from './page-data.js';
@@ -46,10 +46,6 @@ function destination(value: string) {
   if (url.protocol!=='https:' || url.username || url.password || /^(?:localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.|\[)/i.test(url.hostname)) throw new Error('Refusing an unsafe document destination.');
   return url;
 }
-async function atomicFile(path: string, data: string | Uint8Array) {
-  await mkdir(dirname(path),{recursive:true,mode:0o700});const temp=`${path}.${randomUUID()}.tmp`;
-  try{await writeFile(temp,data,{mode:0o600,flag:'wx'});await rename(temp,path);}finally{await rm(temp,{force:true});}
-}
 export class MyHeritageDocuments {
   private cached = new Map<string, Promise<DocumentManifest>>();
   constructor(private readonly session: MyHeritageSession, private readonly http: Pick<MyHeritageHttp,'exchange'|'jar'>, private readonly persist:()=>Promise<void>){}
@@ -64,6 +60,7 @@ export class MyHeritageDocuments {
   async document(value: string, relatedKey?: string) {return this.load(value,relatedKey);}
   async download(value: string, output: string, page = 1, relatedKey?: string) {
     if(!Number.isSafeInteger(page)||page<1)throw new Error('Document page numbers start at 1.');
+    await assertOutputAvailable(resolve(output), `${resolve(output)}.json`);
     const manifest=await this.document(value,relatedKey),selected=manifest.pages[page-1];if(!selected)throw new Error(`Document has ${manifest.pageCount} pages.`);
     let url=destination(selected.originalUrl),bytes:Uint8Array|undefined,contentType='';const visited=new Set<string>();
     for(let attempt=0;attempt<6;attempt++){
@@ -85,7 +82,7 @@ export class MyHeritageDocuments {
     const info=pdf?{format:'pdf'}:await sharp(bytes,{limitInputPixels:300_000_000}).metadata().then(m=>{if(!m.width||!m.height)throw new Error('Invalid document image.');return{format:m.format,width:m.width,height:m.height};}).catch(()=>{throw new Error('Downloaded bytes are not a readable document image.');});
     const path=resolve(output),provenance={recordId:manifest.recordId,recordUrl:manifest.recordUrl,title:manifest.title,page,pageCount:manifest.pageCount,
       sourceUrl:selected.originalUrl,finalUrl:url.href,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),contentType,...info,downloadedAt:new Date().toISOString()};
-    await atomicFile(path,bytes);await atomicFile(`${path}.json`,stringifyJson(provenance,2)+'\n');
+    await writeOutputFiles([{path,data:bytes},{path:`${path}.json`,data:stringifyJson(provenance,2)+'\n'}]);
     return{saved:path,metadata:`${path}.json`,page,pageCount:manifest.pageCount,bytes:bytes.length,...info};
   }
 }

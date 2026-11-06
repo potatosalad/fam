@@ -1,4 +1,4 @@
-import { chmod, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises';
+import { chmod, mkdir, open, readFile, readdir, rename, rm, link, lstat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -127,12 +127,45 @@ export async function writePrivateFile(name: string, data: string | Uint8Array):
     await chmod(directory, 0o700);
     if (directory === CREDENTIAL_DIR) break;
   }
-  return writeOutputFile(path, data);
+  return atomicPrivateFile(path, data);
 }
 
-/** Atomically replace an output file, creating missing parent directories privately.
- * Existing parent permissions are not changed outside the credential store. */
+/** Preflight only: publication still uses exclusive creation to close the race. */
+export async function assertOutputAvailable(...paths: string[]): Promise<void> {
+  for (const path of paths) {
+    try {await lstat(path);}
+    catch (error) {if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error;}
+    throw Object.assign(new Error('Output or provenance file already exists; choose a new --out path.'), {code: 'EEXIST', path});
+  }
+}
+
+/** Publish complete private files without replacing destinations, including symlinks.
+ * A sidecar conflict rolls back only the new files from this call. */
+export async function writeOutputFiles(files: {path: string; data: string | Uint8Array}[]): Promise<void> {
+  await assertOutputAvailable(...files.map(file => file.path));
+  const staged = files.map(file => ({...file, temporary: `${file.path}.${randomUUID()}.tmp`}));
+  const created: string[] = [];
+  try {
+    for (const {path, data, temporary} of staged) {
+      await mkdir(dirname(path), {recursive: true, mode: 0o700});
+      const file = await open(temporary, 'wx', 0o600);
+      try {await file.writeFile(data); await file.sync();} finally {await file.close();}
+    }
+    for (const {path, temporary} of staged) {await link(temporary, path); created.push(path);}
+  } catch (error) {
+    for (const path of created.reverse()) await rm(path, {force: true});
+    throw error;
+  } finally {for (const {temporary} of staged) await rm(temporary, {force: true});}
+}
+
+/** Exclusive atomic publication; existing parent permissions remain unchanged. */
 export async function writeOutputFile(path: string, data: string | Uint8Array): Promise<string> {
+  await writeOutputFiles([{path, data}]);
+  return path;
+}
+
+/** Credential refresh intentionally replaces private state, unlike --out. */
+async function atomicPrivateFile(path: string, data: string | Uint8Array): Promise<string> {
   await mkdir(dirname(path), {recursive: true, mode: 0o700});
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {

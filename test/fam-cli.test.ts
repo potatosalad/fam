@@ -94,6 +94,27 @@ test('doctor shorthand preserves health flags and canonical identity', async () 
     assert.throws(() => parseInvocation(['cli.health', 'check', flag]), UsageError);
 });
 
+test('root and namespace help accept common global flags without provider work', async () => {
+  for (const provider of ['cli', ...providerNames]) {
+    const parsed = parseNamespaceHelp([provider, '--help', '--json', '--errors', 'stdout', '--reasoning', 'test help'])!;
+    assert.equal(parsed.namespace.name, provider);
+    assert.equal(parsed.json, true);
+  }
+  const responses = await Promise.all([
+    invoke('--help', '--json', '--errors', 'stdout', '--reasoning', 'test root JSON help'),
+    invoke('-h', '--errors=stderr', '--reasoning', 'test root text help'),
+    invoke('findagrave.memorial', '--help', '--json', '--errors=stdout', '--reasoning', 'test namespace help'),
+  ]);
+  const root = JSON.parse(responses[0].stdout);
+  assert.equal(root.ok, true);
+  assert.equal(root.command, null);
+  assert.equal(root.data.help, help());
+  assert.equal(responses[1].stdout, help());
+  assert.equal(JSON.parse(responses[2].stdout).data.name, 'findagrave.memorial');
+  for (const response of responses) assert.equal(response.stderr, '');
+  assert.throws(() => parseNamespaceHelp(['findagrave', '--help', '--errors', 'invalid']), UsageError);
+});
+
 test('overview stays compact with ordered providers and single-line descriptions', () => {
   const overview = help();
   for (const text of ['fam - Genealogy CLI', 'Available providers:', 'Common tasks:', 'Global options:', 'Find commands:',

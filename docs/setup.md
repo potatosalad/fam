@@ -186,7 +186,7 @@ To keep an existing profile, set `FAM_CONFIG_DIR` to its absolute directory. Alt
 
 ## Output files
 
-Commands print JSON unless you pass `--out FILE`. Create output directories first. Image downloads also save a JSON file with the source citation and checksum. Findmypast output replaces files at the chosen path; use a new filename for each download. Other providers' image-download commands refuse to overwrite existing files.
+Commands print readable text by default; add `--json` for structured results and errors. `--out FILE` creates a new private output file, creating missing parent directories as needed. Image downloads also save a JSON sidecar with the source citation and checksum. Every provider refuses existing output paths and required sidecars, including symlinks; use a new filename for each export or download. Explicit `--resume` export workflows validate and continue their own checkpoints instead of starting a new output.
 
 Keep personal exports outside Git. The checkout ignores `research-output/` and `artifacts/` for local research.
 
