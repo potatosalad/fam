@@ -16,7 +16,7 @@ const exec = promisify(execFile);
 export const CAMOFOX_IMAGE = 'ghcr.io/jo-inc/camofox-browser:1.16.0@sha256:3cc29763d3c784ae71a7d56853a12c43e100ff2f13da1e2eb88322b08e12d6a0';
 export const pluginDirectory = fileURLToPath(new URL('../../browser/camofox-plugin/', import.meta.url));
 export const browserDirectory = fileURLToPath(new URL('../../browser/', import.meta.url));
-export const CLOAKBROWSER_IMAGE = 'fam-cloakbrowser:0.5.10';
+export const CLOAKBROWSER_IMAGE = 'fam-cloakbrowser:0.6.5';
 export function localBrowserDirectory(engine: BrowserEngine) {return join(CREDENTIAL_DIR, 'browser', engine === 'cloakbrowser' ? 'local-cloakbrowser' : 'local');}
 export function localBrowserEndpoint(engine: BrowserEngine, options: {apiPort?: number; vncPort?: number} = {}): BrowserEndpoint {
   const apiPort = options.apiPort ?? (engine === 'cloakbrowser' ? 9378 : 9377), vncPort = options.vncPort ?? (engine === 'cloakbrowser' ? 6082 : 6080);

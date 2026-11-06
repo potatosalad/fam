@@ -1,6 +1,6 @@
 {
   "name": "@potatosalad/fam",
-  "version": "2026.916.0",
+  "version": "2026.1106.0",
   "type": "module",
   "description": "One genealogy CLI and TypeScript clients for FamilySearch, Ancestry, MyHeritage, Findmypast, Find a Grave, Geneanet, Storied, NewspaperArchive, Newspapers.com, American Ancestors, and Fold3; genealogy resource browsing with Cyndi\u2019s List",
   "scripts": {
@@ -41,20 +41,20 @@
   "dependencies": {
     "@huggingface/tokenizers": "0.2.0",
     "cheerio": "^1.2.0",
-    "graphql": "^17.0.2",
-    "impit": "^0.14.5",
-    "onnxruntime-web": "1.30.0",
-    "playwright": "1.63.0",
-    "sharp": "^0.35.4",
+    "graphql": "^17.1.0",
+    "impit": "^0.14.8",
+    "onnxruntime-web": "1.31.1",
+    "playwright": "1.65.0",
+    "sharp": "^0.35.5",
     "tough-cookie": "^6.0.2",
-    "turndown": "^7.2.4",
+    "turndown": "^7.2.5",
     "turndown-plugin-gfm": "^1.0.2"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.6",
     "@types/turndown": "^5.0.6",
-    "express": "^5.2.1",
-    "tsx": "^4.23.13",
+    "express": "^5.3.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "license": "MIT",

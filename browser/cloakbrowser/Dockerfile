@@ -1,4 +1,4 @@
-FROM cloakhq/cloakbrowser@sha256:2ed5b2d047cbdde22cde7ef1a796526c716aadaa5bccbe1db5ade49282b64a76
+FROM cloakhq/cloakbrowser:0.6.5@sha256:d25e539dd029d899734aa6e2a706ccc7fa4014cc5654dc07cb5afcfe1048c4e9
 RUN apt-get update && apt-get install -y --no-install-recommends x11vnc novnc websockify \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/fam-browser

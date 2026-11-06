@@ -62,11 +62,11 @@ The npm package includes the complete service under `browser/`. Build from that
 installed directory or a committed fam checkout:
 
 ```sh
-docker build -t fam-cloakbrowser:0.5.10 -f /path/to/fam/browser/cloakbrowser/Dockerfile /path/to/fam/browser
+docker build -t fam-cloakbrowser:0.6.5 -f /path/to/fam/browser/cloakbrowser/Dockerfile /path/to/fam/browser
 docker run -d --name fam-cloakbrowser --init --restart unless-stopped --shm-size 1g \
   --env-file /path/to/private/browser.env \
   -p 127.0.0.1:9378:9377 -p 127.0.0.1:6082:6080 \
-  -v /path/to/private/profiles:/data/profiles fam-cloakbrowser:0.5.10
+  -v /path/to/private/profiles:/data/profiles fam-cloakbrowser:0.6.5
 ```
 
 The private env file supplies `FAM_BROWSER_API_KEY` (a random secret of at least
@@ -299,6 +299,6 @@ Configuration is stored in `browser/config.json` under the [fam profile](setup.m
 
 An explicit native login selects that native session for the current instance without deleting its previous browser login. Browser login selects the browser session again. Browser checkpoints contain account state and remain on the configured browser host.
 
-CloakBrowser uses a headed window, GeoIP timezone/language detection, and the default humanization preset. Humanization is applied to fam’s Playwright CDP connection, including locator-based form filling. The binary remains pinned; no browser upgrade is required. GeoIP uses the server’s public IP (no proxy is configured by fam) and may download its database on first startup. Lookup is bounded to 40 seconds; if unavailable, the service logs a warning and starts with the binary defaults. These settings can improve consistency but do not guarantee that a site will accept the browser.
+CloakBrowser uses a headed window, GeoIP timezone/language detection, and the default humanization preset. Humanization is applied to fam’s Playwright CDP connection, including locator-based form filling; CloakBrowser 0.6 resolves every Playwright selector in its humanized engine. The service pins the keyless CloakBrowser 0.6.5 image and its bundled binary, with automatic binary updates off. CloakBrowser 0.7 requires a license key for every launch, and a free key allows one concurrent browser, so fam has not adopted it. GeoIP uses the server’s public IP (no proxy is configured by fam) and may download its database on first startup. Lookup is bounded to 40 seconds; if unavailable, the service logs a warning and starts with the binary defaults. These settings can improve consistency but do not guarantee that a site will accept the browser.
 
 For service troubleshooting, set `FAM_CLOAKBROWSER_GEOIP=false` or `FAM_CLOAKBROWSER_HUMANIZE=false` on the container before recreating it. This does not switch engines or erase profiles. The CDP interaction regression can be run with `npm --prefix browser/cloakbrowser ci --ignore-scripts` followed by `node --test test/cloakbrowser-human.integration.mjs`.
