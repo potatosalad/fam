@@ -11,6 +11,7 @@ import {chromium, firefox} from 'playwright';
 import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {browserFetchOptions, fetchBrowserUrl} from '../src/shared/browser-fetch.js';
 import {saveBrowserConfig, setBrowserOverrides} from '../src/shared/browser-config.js';
+import {BrowserClient} from '../src/shared/browser-runtime.js';
 // @ts-expect-error JavaScript plugin deployed to CloakBrowser.
 import {register} from '../browser/cloakbrowser/plugin.js';
 // @ts-expect-error Test-only express server.
@@ -56,13 +57,25 @@ test('URL fetching uses real browser navigation and requests with exact CLI outp
   await saveBrowserConfig({version:1,mode:'remote',remote:{url:base,vncUrl:`${base}/viewer`},timeout:3,transport:'auto',session:'test',open:false});
   t.after(async()=>{events.emit('server:shutdown');await browser.close();await Promise.all([new Promise<void>(r=>web.close(()=>r())),new Promise<void>(r=>api.close(()=>r()))]);});
   const fetchPage=async(path:string,values:Record<string,any>={})=>fetchBrowserUrl(await browserFetchOptions({url:origin+path,open:'never',...values}));
-  await t.test('rendered and original content differ; selector, settling and markup extraction work',async()=>{
-    const rendered=await fetchPage('/',{format:'json','wait-for':'article','wait-ms':200,header:'X-Custom: navigation',cookie:'test=seed','user-agent':'navigation-agent',referer:'https://referrer.example/'});
+  await t.test('rendered and original content differ; selector and markup extraction work',async()=>{
+    const rendered=await fetchPage('/',{format:'json','wait-for':'article:has(#loaded)',header:'X-Custom: navigation',cookie:'test=seed','user-agent':'navigation-agent',referer:'https://referrer.example/'});
     assert.match(rendered.html!,/Rendered <b>content/);assert.match(rendered.text!,/Rendered content/);assert.doesNotMatch(rendered.text!,/Navigation|Hidden/);
     assert.match(rendered.markdown!,/Rendered \*\*content\*\*/);assert.doesNotMatch(rendered.markdown!,/Hidden/);
     const nav=requests.find(r=>r.url==='/'&&r.headers['x-custom']);assert.equal(nav.headers['x-custom'],'navigation');assert.match(nav.headers.cookie,/test=seed/);
     assert.equal(nav.headers['user-agent'],'navigation-agent');assert.equal(nav.headers.referer,'https://referrer.example/');
     const original=await fetchPage('/',{mode:'navigate',format:'raw'});assert.doesNotMatch(Buffer.from(original.bodyBase64!,'base64').toString(),/<p id="loaded">/);
+  });
+  await t.test('wait-ms adds settling time after an already-ready selector',async t=>{
+    const api=BrowserClient.prototype.api;
+    let readyAt:number|undefined;
+    t.mock.method(BrowserClient.prototype,'api',async function(this:BrowserClient,path:string,...args:any[]){
+      const result=await api.call(this,path,...args) as any;
+      if(path==='/fam/page-result'&&!result.pending&&result.ready&&result.selected)readyAt??=performance.now();
+      return result;
+    });
+    await fetchPage('/',{'wait-for':'article','wait-ms':200});
+    assert.notEqual(readyAt,undefined);
+    assert.ok(performance.now()-readyAt!>=200,'the explicit settling delay must elapse after readiness, not during navigation');
   });
   await t.test('request headers, cookies, methods and binary body reach the server',async()=>{
     const result=await fetchPage('/echo',{mode:'request',method:'PATCH',body:'payload',format:'json',header:['Authorization: Bearer synthetic'],referer:'https://referrer.example/','user-agent':'fam-synthetic',cookie:'added=yes'});

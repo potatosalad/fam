@@ -1,7 +1,6 @@
 import {parse, getOperationAST} from 'graphql';
 import {loadProviderSession} from '../shared/browser-config.js';
 import {CookieJar} from 'tough-cookie';
-import { readPrivateJson } from '../shared/storage.js';
 import { withSessionRefresh } from '../shared/session-refresh.js';
 import type { ApiRequest, ApiResponse } from '../familysearch/transport-types.js';
 import { AUTH, CONTENT, GRAPHQL, TITAN, FindmypastHttp, FindmypastHttpError, checkFindmypastUrl } from './http.js';

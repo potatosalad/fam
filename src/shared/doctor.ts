@@ -1,6 +1,6 @@
 import type {Provider} from './command-registry.js';
 import {browserConfig, loadProviderSession, saveProviderSession} from './browser-config.js';
-import { inspectLoginCredentials, type Service } from './credentials.js';
+import { inspectLoginCredentials } from './credentials.js';
 import { CREDENTIAL_DIR, readPrivateJson, writePrivateJson } from './storage.js';
 import {doctorCheckCache, type DoctorCheckCache} from './doctor-cache.js';
 import { DoctorIssue, object, failure, type CheckStatus, type DoctorCheck, type DoctorProvider, type SessionInfo } from './doctor-checks.js';

@@ -15,6 +15,15 @@ test('retired engine flags are rejected', () => {
   assert.throws(() => parseInvocation(['myheritage.session','login','--browser-channel','camofox']));
 });
 
+test('login browser-channel accepts only CloakBrowser and explains retired selections', () => {
+  for (const provider of ['myheritage', 'findmypast', 'storied', 'newspaperarchive']) {
+    assert.doesNotThrow(() => parseInvocation([`${provider}.session`, 'login', '--browser-channel', 'cloakbrowser']));
+    for (const channel of ['chrome', 'msedge', 'chromium']) {
+      assert.throws(() => parseInvocation([`${provider}.session`, 'login', '--browser-channel', channel]), /fam cli\.browser setup.*CloakBrowser/);
+    }
+  }
+});
+
 test('an untagged remote endpoint cannot silently use the retired engine', async t => {
   const server = createServer((_req,res) => {
     res.setHeader('content-type','application/json');

@@ -2,7 +2,7 @@ import {PageCache, errorDetails, type CacheStore} from './cache.js';
 import {CyndisListHttp, type Transport} from './http.js';
 import {parsePage} from './parse.js';
 import {CATEGORY_INDEX, siteUrl, categoryUrl, sameCollection} from './url.js';
-import type {PageCollection, CategoryLink} from './types.js';
+import type {PageCollection} from './types.js';
 
 export interface ReadOptions {allPages?: boolean; depth?: number; refresh?: boolean}
 export class CyndisListClient {

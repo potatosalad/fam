@@ -10,7 +10,6 @@ import { parseJson, stringifyJson } from '../shared/json.js';
 import { CREDENTIAL_DIR, readPrivateJson } from '../shared/storage.js';
 import { authenticateFindmypast, beginBrowserAuthorization, finishBrowserAuthorization, sessionStatus, type SavedFindmypastSession } from './auth.js';
 import { importFindmypastHar } from './har.js';
-import { captureOptions } from '../shared/browser-capture.js';
 import { FindmypastClient, searchFilters, type SearchFilter } from './client.js';
 import { aliases, contracts, graphqlOperation, restOperation, type RestArguments } from './catalog.js';
 import { downloadRecordImage, newspaperVariables, recordOrder, searchNewspapers } from './research.js';

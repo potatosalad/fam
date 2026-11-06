@@ -1,7 +1,7 @@
 import {setTimeout as delay} from 'node:timers/promises';
 import {inspectLoginCredentials, loadLoginCredentials, type Service} from './credentials.js';
 import {BrowserError} from './browser-config.js';
-import {configuredBrowser, type BrowserTab} from './browser-runtime.js';
+import type {BrowserTab} from './browser-runtime.js';
 import {readPrivateJson, writePrivateJson} from './storage.js';
 
 export interface BrowserLoginOptions {timeoutMs?: number; interactive?: boolean; autofill?: boolean; readyToSubmit?: () => Promise<boolean>}
@@ -97,23 +97,4 @@ async function pollLogin<T>(tab: BrowserTab, origins: string[], verify: (page?: 
     if (Date.now() >= deadline) throw new BrowserError(`Sign-in did not finish. Open ${tab.browser.endpoint.vncUrl}, complete sign-in or verification, and retry.`, 'BROWSER_INTERACTION_REQUIRED', tab.browser.endpoint.vncUrl);
     await delay(Math.min(2000, Math.max(1, deadline - Date.now())));
   }
-}
-export async function loginTab(provider: string, startUrl: string) {
-  const browser = await configuredBrowser();
-  return browser.tab(provider, startUrl);
-}
-export async function browserRead(tab: BrowserTab, target: string): Promise<{url: string; text: string} | undefined> {
-  const origin = new URL(target).origin;
-  try {
-    for (let hop = 0; hop < 6; hop++) {
-      const response = await tab.request(target, {headers: {Accept: 'text/html'}});
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('location'); if (!location) return;
-        const next = new URL(location, target); if (next.origin !== origin) return;
-        target = next.href; continue;
-      }
-      if (response.ok) return {url: target, text: await response.text()};
-      return;
-    }
-  } catch (error) {if (!(error instanceof BrowserError)) throw error;}
 }

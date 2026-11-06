@@ -2,7 +2,7 @@ import {commands, namespaceNames, compareCliNames} from './command-registry.js';
 import {operationNames} from '../familysearch/discovery.js';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type {DocumentationCatalog} from './documentation.js';
 
 interface Option { value: boolean; file?: boolean; choices?: string[]; sections?: Record<string, string[]> }

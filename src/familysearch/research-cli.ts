@@ -81,7 +81,7 @@ export async function runResearchCli(argv: string[], output?: string): Promise<{
   }
   let text: string;
   if (format === 'jsonl') {
-    const { items, ...continuation } = result as ResearchPage<unknown>;
+    const { items } = result as ResearchPage<unknown>;
     text = items.map(x => stringifyJson(x)).join('\n') + (items.length ? '\n' : '');
     // Completion metadata is retained in the returned data envelope.
   } else text = `${stringifyJson(result,2)}\n`;

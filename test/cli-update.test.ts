@@ -9,6 +9,8 @@ import {autoUpdateCli, newerVersion, planUpdate, setAutoUpdate, updateCli, type 
 // @ts-expect-error Launcher tooling runs before TypeScript is built.
 import {autoUpdateEnabled, installationBusy, readUpdateState, updateDue, updateInterval, withUpdateLock, writeUpdateState} from '../bin/update-state.mjs';
 
+import {observeLockContention} from './helpers/lock-contention.mjs';
+
 const execute = promisify(execFile);
 const name = '@potatosalad/fam';
 const pkg = {name, version: '1.0.0'};
@@ -112,12 +114,24 @@ test('npm updates preserve a custom global prefix or local dependency project', 
 test('concurrent updates serialize their install steps', async t => {
   const {root} = await repository(t);
   let active = 0, maximum = 0, installs = 0;
+  const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
   const run = async () => {
     maximum = Math.max(maximum, ++active);
-    await new Promise(resolve => setTimeout(resolve, 25));
+    entered.resolve();
+    await release.promise;
     active--; installs++;
   };
-  await Promise.all([updateCli({root, run}), updateCli({root, run})]);
+  const first = updateCli({root, run});
+  await entered.promise;
+  const {ready, restore} = observeLockContention(join(root, '.fam-update.lock'));
+  const second = updateCli({root, run});
+  try {
+    await ready;
+    assert.equal(installs, 0, 'the first update must still hold the lock');
+  } finally {
+    restore(); release.resolve();
+    await Promise.all([first, second]);
+  }
   assert.equal(maximum, 1); assert.equal(installs, 4);
 });
 
@@ -293,15 +307,31 @@ test('active commands defer checks, dead readers are reclaimed, and launchers wa
   await assert.rejects(updateCli({root, run: async () => {}}), /Other fam commands/);
   const stopped = new Promise(resolve => child.once('exit', resolve)); child.kill('SIGKILL'); await stopped;
   assert.equal(await installationBusy(root), false);
-  let started = false;
-  let pending!: ReturnType<typeof execute>;
+  let pending!: Promise<string>;
   await withUpdateLock(root, async () => {
-    pending = execute(process.execPath, [join(root, 'bin/fam.mjs'), '--once'], {env: {...process.env, FAM_AUTO_UPDATE: '0'}});
-    pending.then(() => {started = true;});
-    await new Promise(resolve => setTimeout(resolve, 200));
-    assert.equal(started, false);
+    const preload = `import {observeLockContention} from ${JSON.stringify(new URL('./helpers/lock-contention.mjs', import.meta.url).href)};
+      observeLockContention(${JSON.stringify(join(root, '.fam-update.lock'))}).ready.then(
+        () => {process.send('lock-contention'); process.disconnect();},
+        error => {console.error(error); process.exit(1);});`;
+    const waiting = spawn(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, join(root, 'bin/fam.mjs'), '--once'],
+      {env: {...process.env, FAM_AUTO_UPDATE: '0'}, stdio: ['ignore', 'pipe', 'pipe', 'ipc']});
+    t.after(() => {waiting.kill('SIGKILL');});
+    let output = '', errors = '';
+    waiting.stdout.on('data', chunk => {output += chunk;});
+    waiting.stderr.on('data', chunk => {errors += chunk;});
+    pending = new Promise<string>((resolve, reject) => {
+      waiting.once('error', reject);
+      waiting.once('close', code => code === 0 ? resolve(output) : reject(new Error(`Launcher exited ${code}: ${errors}`)));
+    });
+    void pending.catch(() => {});
+    await new Promise<void>((resolve, reject) => {
+      waiting.once('message', message => {assert.equal(message, 'lock-contention'); resolve();});
+      waiting.once('error', reject);
+      waiting.once('exit', () => reject(new Error('Launcher exited before attempting the lock')));
+    });
+    assert.equal(output, '', 'the launcher cannot enter the CLI while installation is locked');
   });
-  assert.equal((await pending).stdout, 'ready\n');
+  assert.equal(await pending, 'ready\n');
   await writeUpdateState(root, 'reader-unknown', JSON.stringify({host: 'another-host.invalid', pid: 123}));
   assert.equal(await installationBusy(root), true);
   await writeUpdateState(root, 'checked', String(Date.now() + updateInterval));
@@ -347,7 +377,7 @@ test('launcher detaches a silent worker after exit without changing output or ex
   await waitFor('worker-finished');
   await rm(join(root, 'worker-started'));
   for (const args of [['cli.update'], ['cli.update', 'disable'], ['update'], ['update', '--help'], ['--completions=zsh'], ['cli.completion', 'query'], ['--offline'], ['--dry-run']]) {
-    await execute(process.execPath, [join(root, 'bin/fam.mjs'), ...args]).catch(error => {assert.equal(error.code, 7);});
+    await assert.rejects(execute(process.execPath, [join(root, 'bin/fam.mjs'), ...args]), {code: 7});
   }
   await assert.rejects(readFile(join(root, 'worker-started')), {code: 'ENOENT'});
 });

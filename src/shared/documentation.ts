@@ -19,7 +19,6 @@ export class DocumentationError extends Error {
 }
 const quote = (value: string) => /^[a-z0-9_./-]+$/i.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`;
 export const docReadCommand = (doc: string, section?: string): string => `fam cli.doc read --doc ${quote(doc)}${section ? ` --section ${quote(section)}` : ''}`;
-export const providerDocCommand = (provider: string): string => `fam cli.doc read --provider ${provider}`;
 const slug = (title: string) => title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').trim().replace(/\s/g, '-') || 'section';
 
 /** Heading ranges include child sections; fences never create headings. Lines are one-based. */

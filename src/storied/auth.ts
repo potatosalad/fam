@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { readPrivateJson, writePrivateJson } from '../shared/storage.js';
 import { CLIENT_ID, StoriedHttp } from './http.js';
 import {loadProviderSession, saveProviderSession} from '../shared/browser-config.js';
 

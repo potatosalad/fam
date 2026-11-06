@@ -2,7 +2,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile, rm, writeFile, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +39,8 @@ test('completion covers dotted objects, actions, flags and option values from th
   assert.deepEqual(query('geneanet.record', 'search', '--event', '=', 'b').candidates, ['birth']);
   assert.deepEqual(query('findagrave.photo.request', 'list', '--scope', 'v').candidates, ['volunteer']);
   assert.deepEqual(query('cli.completion', 'install', '--shell', '').candidates, ['bash', 'zsh']);
+  for (const provider of ['myheritage', 'findmypast', 'storied', 'newspaperarchive'])
+    assert.deepEqual(query(`${provider}.session`, 'login', '--browser-channel', '').candidates, ['cloakbrowser']);
   for (const words of [['ancestry.record', 'search', '--first-name', ''], ['ancestry.record', 'search', '--', '--'], ['toString', ''], ['ancestry.record', 'search', '--unknown', '']]) assert.equal(query(...words).kind, 'none', words.join(' '));
 
   for (const words of [['ancestry.tree', 'list', '--out', 'a b'], ['myheritage.session', 'login', '--har', 'a b'],
@@ -105,7 +107,16 @@ test('installer preserves startup files, handles both bash startup modes and hon
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
-for (const shell of ['/bin/bash', 'bash']) test(`${shell} completion function returns intact words and file paths`, async t => {
+const bashPaths = new Set<string>();
+for (const candidate of ['/bin/bash', 'bash']) {
+  try {
+    const path = candidate.includes('/') ? candidate
+      : (await run(candidate, ['--noprofile', '--norc', '-c', 'command -v bash'])).stdout.trim();
+    bashPaths.add(await realpath(path));
+  } catch { /* Missing candidates do not add duplicate skipped tests. */ }
+}
+
+for (const shell of bashPaths.size ? bashPaths : ['bash']) test(`${shell} completion function returns intact words and file paths`, async t => {
   try { await run(shell, ['--version']); } catch { t.skip('bash unavailable'); return; }
   const directory = await mkdtemp(join(tmpdir(), 'fam-completion-shell-'));
   try {

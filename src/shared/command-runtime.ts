@@ -53,6 +53,8 @@ export function parseInvocation(args: string[]): Invocation {
     if (flag.required && (value === undefined || value === '')) throw new UsageError(`Missing required flag --${flag.name}.`, syntax(command));
     if (value === undefined) continue;
     for (const item of Array.isArray(value) ? value : [value]) {
+      if (flag.name === 'browser-channel' && ['chrome', 'msedge', 'chromium'].includes(String(item)))
+        throw new UsageError('Run fam cli.browser setup to configure CloakBrowser; Chrome, Edge, and Chromium sign-in channels are retired.', 'fam cli.browser setup');
       if (flag.choices && !flag.choices.includes(String(item))) throw new UsageError(`--${flag.name} must be one of: ${flag.choices.join(', ')}.`, syntax(command));
       if (flag.type === 'integer' || flag.type === 'number') {
         const number = Number(item);

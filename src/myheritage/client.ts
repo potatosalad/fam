@@ -4,11 +4,10 @@ import {MyHeritageResearch, type RecordSearchOptions, type CatalogOptions} from 
 import {MyHeritageBrowser} from './browser.js';
 import {parse, getOperationAST} from 'graphql';
 import {CookieJar} from 'tough-cookie';
-import { readPrivateJson } from '../shared/storage.js';
 import { isGraphQLAuthenticationFailure, withSessionRefresh } from '../shared/session-refresh.js';
 import type { ApiRequest, ApiResponse, Query } from '../familysearch/transport-types.js';
 import { MyHeritageHttp, MyHeritageHttpError, FAMILYGRAPH, GRAPHQL, transferMyHeritage, checkMyHeritageUrl } from './http.js';
-import { authenticateMyHeritage, refreshMyHeritage, saveMyHeritageSession, type MyHeritageSession } from './auth.js';
+import { refreshMyHeritage, saveMyHeritageSession, type MyHeritageSession } from './auth.js';
 import { graphqlOperation, validateVariables, prepareRest, type GraphQLId, type Variables, type RestArguments } from './catalog.js';
 export interface GraphQLResult<T = unknown> {data?: T | null; errors?: {message?: string; path?: (string | number)[]; extensions?: Record<string, unknown>}[];}
 export class MyHeritageGraphQLError extends Error {

@@ -10,6 +10,8 @@ import {publishBuild} from '../scripts/build.mjs';
 // @ts-expect-error Launcher tooling is executable JavaScript.
 import {cleanupBuilds, markBuilding, withProcessLock} from '../bin/build-state.mjs';
 
+import {observeLockContention} from './helpers/lock-contention.mjs';
+
 const run = promisify(execFile);
 
 async function waitForReady(child: ReturnType<typeof spawn>) {
@@ -121,8 +123,13 @@ test('cleanup retains uncertain ownership, active compilers and symlinks; reclai
   await mkdir(join(root, '.fam-update.lock'));
   await writeFile(join(root, '.fam-update.lock/owner.json'), JSON.stringify({pid: child.pid, host: hostname()}));
   let active = 0, maximum = 0;
-  const work = async () => {maximum = Math.max(maximum, ++active); await new Promise(r => setTimeout(r, 30)); active--;};
-  await Promise.all([withProcessLock(root, '.fam-update.lock', work), withProcessLock(root, '.fam-update.lock', work)]);
+  const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  const work = async () => {maximum = Math.max(maximum, ++active); entered.resolve(); await release.promise; active--;};
+  const {ready, restore} = observeLockContention(join(root, '.fam-update.lock'), process.pid);
+  const first = withProcessLock(root, '.fam-update.lock', work);
+  const second = withProcessLock(root, '.fam-update.lock', work);
+  try {await entered.promise; await ready; assert.equal(active, 1);}
+  finally {restore(); release.resolve(); await Promise.all([first, second]);}
   assert.equal(maximum, 1);
 });
 

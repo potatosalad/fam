@@ -2,7 +2,6 @@ import {readCommandFile as readFile, readCommandStdin} from '../shared/command-i
 import {inspectResult} from '../shared/diagnostics.js';
 import {loadProviderSession} from '../shared/browser-config.js';
 import { configureCredentials } from '../shared/credentials.js';
-import { captureOptions } from '../shared/browser-capture.js';
 import {buildRecordSearch, recordUrl, contextId, researchPage, type RecordSearchOptions, type CatalogOptions, type ResearchEvent} from './research.js';
 import {parse} from 'graphql';
 import {transferMyHeritage} from './http.js';
