@@ -1,6 +1,6 @@
 # Persistent browser setup
 
-CloakBrowser is the default browser for MyHeritage, Findmypast, and Storied/NewspaperArchive sign-in. Camofox remains selectable through the same fam API. A shared transport recovers Cloudflare and Imperva/Incapsula challenges across provider APIs, document metadata, and image downloads. Existing working native login flows remain available.
+CloakBrowser is the browser for MyHeritage, Findmypast, and Storied/NewspaperArchive sign-in. A shared transport recovers Cloudflare and Imperva/Incapsula challenges across provider APIs, document metadata, and image downloads. Existing working native login flows remain available.
 
 ## Local Docker
 
@@ -13,37 +13,25 @@ Setup reuses your running Docker engine. On macOS, if Docker is unavailable, fam
 
 The first setup builds the bundled service from the pinned CloakBrowser image and starts a persistent container. It includes a headed Chromium browser, the fam HTTP API, and noVNC. Both API and noVNC ports bind to `127.0.0.1`. The viewer has no password. The internal API key is generated and configured automatically; there is no extra login step.
 
-Default CloakBrowser API port: `9378`; viewer: <http://127.0.0.1:6082/vnc.html?autoconnect=1&resize=scale>. Camofox uses API `9377` and viewer `6080`, so both can be installed together. Use `--api-port` and `--vnc-port` at first setup if the defaults are occupied. Ports are fixed for that container. A separate `FAM_CONFIG_DIR` creates a separate container and profile directory.
+Default CloakBrowser API port: `9378`; viewer: <http://127.0.0.1:6082/vnc.html?autoconnect=1&resize=scale>. Use `--api-port` and `--vnc-port` at first setup if the defaults are occupied. Ports are fixed for that container. A separate `FAM_CONFIG_DIR` creates a separate container and profile directory.
 
-## Choosing a browser
+## Selecting a location
 
 ```sh
-fam cli.browser use --engine cloakbrowser
-fam cli.browser use --engine camofox
 fam cli.browser use --mode local
 fam cli.browser use --mode remote
 fam cli.browser use --mode remote --engine cloakbrowser
 ```
 
-Changing engines clears **both engines' browser profiles and browser-derived
-session snapshots at the selected location**, including reset backups. It does
-not import cookies. Configured credentials, credential helpers, connection
-settings, native sessions, and login cooldowns remain. Re-selecting the current
-engine simply starts it. Switching between local and remote retains each
-location's independent logins. Switching back to a different engine starts fresh.
+CloakBrowser is the only engine. `--engine cloakbrowser` remains accepted by
+`setup` and `use` for existing scripts; no other engine value is accepted.
+Re-selecting it starts the configured browser without clearing sessions.
+Switching between local and remote retains each location's independent logins.
 
-New installations default to CloakBrowser. Existing local installations select it
-on their next browser use/start/open, building the service automatically. Existing
-remote installations switch when their operator deploys CloakBrowser and advertises
-its endpoint (see below). Until then `status` shows `upgradePending`. An explicit
-Camofox selection is retained on subsequent commands and updates.
-
-Use `setup --local --engine camofox` to install the fallback directly. Local
-containers use separate profile directories and ports. MyHeritage uses ordinary
-persistent Chromium profiles in CloakBrowser; the Firefox private-window workaround
-is confined to Camofox. Both engines reuse the same login polling, credential
-submission limits, HTTP fallback, and `--browser-timeout` behavior. The existing
-600-second verification setting and zero-wait option remain unchanged.
+MyHeritage uses an ordinary persistent Chromium profile. Login polling,
+credential submission limits, HTTP fallback, and `--browser-timeout` behavior
+are shared across providers. Verification defaults to 600 seconds; zero returns
+immediately when human interaction is required.
 
 ## Remote URL
 
@@ -82,36 +70,11 @@ fam cli.browser setup --engine cloakbrowser --remote https://browser.example.org
   --api-key-file /path/to/private/api-key
 ```
 
-To switch remote engines with one command, configure each once with `setup`, or
-advertise sibling endpoints using `FAM_BROWSER_ALTERNATIVES` on each service:
-
-```json
-{"cloakbrowser":{"url":"/cloakbrowser","vncUrl":"/cloakbrowser-viewer/vnc.html?autoconnect=1&path=cloakbrowser-viewer/websockify"}}
-```
-
-The Camofox service advertises CloakBrowser; CloakBrowser advertises Camofox using
-the corresponding key and URLs. Discovered API/viewer URLs must retain their
-respective existing origins, and the API endpoints must share the existing key.
-Different origins or keys require explicit setup. Upgrade the Camofox fam plugin
-before switching: both remote services must support deletion without backups.
-
 Persistent profiles and storage checkpoints include cookies, local storage, and
 IndexedDB. Successful requests checkpoint immediately, manual sessions checkpoint
 periodically, and shutdown checkpoints before Chromium exits. If a browser
 process crashes, a new tab relaunches it from its last durable state. The service
 starts browsers lazily per session and releases them after their final fam tab closes.
-
-### Deploying the Camofox fallback
-
-For the Camofox fallback, remote Camofox must load the bundled `browser/camofox-plugin` directory as `/app/plugins/fam`, with `ENABLE_FAM=1`, persistence enabled, and `CAMOFOX_PROFILE_DIR` on persistent storage. Start the server with `node /app/plugins/fam/start.mjs`. This prepares the Camoufox engine for MyHeritage private contexts before loading the server; it needs Python 3 and the engine at `~/.cache/camoufox` (override with `FAM_CAMOUFOX_DIR`). The original `omni.ja` is preserved alongside the engine. Enable noVNC with `ENABLE_VNC=1`. For Docker, use `VNC_BIND=0.0.0.0` inside the container and publish the viewer port on the host interface you intend to use. The plugin uses Camofox's existing API authentication. `fam cli.browser status` checks whether the plugin is reachable.
-
-Example plugin configuration in `/app/camofox.config.json`:
-
-```json
-{"plugins":{"persistence":{"enabled":true},"vnc":{"enabled":true},"fam":{"enabled":true}}}
-```
-
-Preserve other plugins and settings when adding these entries to an existing installation. Restart Camofox after installing or updating the plugin, including to enable the 15-minute fam tab cleanup. The packaged plugin supports Camofox 1.11.2, 1.14.0, and 1.16.0; local setup pins the official 1.16.0 image digest. See [Camofox](https://github.com/jo-inc/camofox-browser) for server configuration.
 
 ## Everyday commands
 
@@ -126,9 +89,9 @@ fam cli.browser configure --timeout 1200 --open
 fam cli.browser configure --vnc-url https://viewer.example.org --no-open
 ```
 
-Local `stop` stops the owned container and retains saved state. The container forwards shutdown signals so the browser can finish checkpoints. `open` starts an idle browser before opening its viewer. Camofox retains its 24-hour browser idle setting; CloakBrowser releases individual browser processes when their final fam tab closes. Upgrading an older fam container retains it under a timestamped name and reuses its persistent profiles. Remote `stop` closes only tabs in fam's tab group for the selected session name. It leaves the browser process, other tab groups, and other users' work running.
+Local `stop` stops the owned container and retains saved state. The container forwards shutdown signals so the browser can finish checkpoints. `open` starts an idle browser before opening its viewer. CloakBrowser releases individual browser processes when their final fam tab closes. Upgrading an older fam container retains it under a timestamped name and reuses its persistent profiles. Remote `stop` closes only tabs in fam's tab group for the selected session name. It leaves the browser process, other tab groups, and other users' work running.
 
-Ordinary commands leave the browser running. HTTP operations close their own transport tabs at CLI exit; completed logins and failed setup/API operations also close their tabs. Unfinished sign-in and verification tabs remain available in the viewer. The fam plugin checks every minute and closes fam tabs after 15 minutes without browser API activity, including tabs abandoned by an interrupted or killed CLI. Active requests are protected, saved cookies/storage are checkpointed before cleanup, and unrelated users or tab groups are untouched. Closing the last tab also releases its browser context while preserving the saved login. Camofox retains its existing 24-hour shared browser idle setting.
+Ordinary commands leave the browser running. HTTP operations close their own transport tabs at CLI exit; completed logins and failed setup/API operations also close their tabs. Unfinished sign-in and verification tabs remain available in the viewer. The fam plugin checks every minute and closes fam tabs after 15 minutes without browser API activity, including tabs abandoned by an interrupted or killed CLI. Active requests are protected, saved cookies/storage are checkpointed before cleanup, and unrelated users or tab groups are untouched. Closing the last tab also releases its browser context while preserving the saved login.
 
 `fam browser` is a short alias for `fam cli.browser`. Help, command discovery, and completion describe the same operations.
 
@@ -183,7 +146,7 @@ Navigation overrides apply to main-document requests on the starting origin and,
 
 The default persistent context is `web`, separate from provider logins. Select `--context myheritage` (or another provider) to explicitly reuse that provider's browser cookies. The configured browser session name still scopes contexts. Each command creates and closes its own tab; `--keep-tab` retains it after success and includes its ID/viewer URL in JSON. Retained tabs (including `--open=always` and unfinished verification) still expire after 15 minutes without browser API activity; viewer interaction alone does not extend that deadline. Clear general browsing state with `fam cli.browser reset --provider web`; browser stop and reset-all also include it.
 
-Private browsing is off by default. Add `--private` for Chromium incognito windows in CloakBrowser or Firefox private windows in Camofox, using cookies separate from `web` and all provider logins. `--context web-private` selects the same context. Private-window behavior and durable session storage are separate: fam checkpoints private cookies so a browser restart can restore them. Clear this context with `fam cli.browser reset --provider web-private`. It requires the updated plugin's `privateFetch` capability.
+Private browsing is off by default. Add `--private` for Chromium incognito windows in CloakBrowser, using cookies separate from `web` and all provider logins. `--context web-private` selects the same context. Private-window behavior and durable session storage are separate: fam checkpoints private cookies so a browser restart can restore them. Clear this context with `fam cli.browser reset --provider web-private`. It requires the updated plugin's `privateFetch` capability.
 
 Fetching renders in the configured browser in the background. One flag controls the viewer for this command:
 
@@ -197,7 +160,7 @@ Challenges wait up to the configured browser verification timeout; override with
 
 Outputs use private atomic files with `--out`. As with all fam commands, command history records arguments and consumed input files verbatim for reproduction; use `FAM_HISTORY=0` if a particular fetch should not enter history. JSON response headers/content can include session information from the requested site. Nothing is imported from another provider unless its context was explicitly selected.
 
-URL fetching requires the bundled plugin's `fetch` capability. After updating fam, stop/start a local browser once. On a remote browser, update the mounted fam plugin and restart its service once. An older plugin produces an actionable error rather than falling back to plain HTTP.
+URL fetching requires the bundled plugin's `fetch` capability. After updating fam, stop/start a local browser once. On a remote browser, rebuild and restart its service once. An older plugin produces an actionable error rather than falling back to plain HTTP.
 
 ## Login and verification
 
@@ -225,7 +188,7 @@ Automatic sign-in allows up to five seconds for the page to load or redirect aft
 
 MyHeritage and Findmypast validate account access before saving a browser session. Storied captures its native-app callback in the plugin, validates OAuth state, and exchanges the code with PKCE. NewspaperArchive shares Storied authentication. Saved OAuth refresh tokens continue to support ordinary native requests.
 
-In the Camofox fallback, MyHeritage uses actual Firefox private windows. CloakBrowser uses an ordinary persistent Chromium profile. Firefox's ordinary Playwright contexts are containers, which can behave differently even after their storage is erased. The bundled engine bridge scopes private windows to MyHeritage's fam context and exports/restores their cookies and site storage so sign-in survives service restarts. Other browser contexts retain their existing behavior. Updating an existing remote deployment requires the startup command above and one service restart; local setup handles this automatically.
+MyHeritage uses an ordinary persistent Chromium profile. Cookies and site storage are checkpointed so sign-in survives service restarts.
 
 MyHeritage and Findmypast browser commands make at most one login renewal after an explicit session rejection. MFA and provider restrictions may still require your attention. A detected MyHeritage 24-hour login restriction suppresses further automatic password attempts until its recorded deadline; it does not invalidate an existing working session. Health checks do not submit passwords.
 
@@ -285,9 +248,9 @@ Storied and NewspaperArchive share authentication, so choosing either resets bot
 
 Both forms retain configured usernames/passwords, native sessions, viewer/API settings, and automatic-login cooldowns. They do not reset the provider's server-side restrictions, change the browser fingerprint or network address, or promise that a restriction is lifted. Complete the next login yourself when appropriate; browser sign-ins support `--interactive` to autofill without submitting.
 
-Profiles are archived privately on the browser host under the configured profile directory’s `fam-reset-backups/` (CloakBrowser: `FAM_BROWSER_PROFILE_DIR`; Camofox: `CAMOFOX_PROFILE_DIR`). Matching CLI snapshots are archived under this client's `browser/<instance-id>/reset-backups/`. These backups contain old account state and are never automatically restored. After reset, the plugin prevents bootstrap cookies and stale HTTP cookies from silently seeding the cleared context, including requests from another fam client. An explicit HAR import can still add cookies. Other clients keep their local snapshots and routing decisions until reset or a new login there.
+Profiles are archived privately on the browser host under the configured profile directory’s `fam-reset-backups/` (`FAM_BROWSER_PROFILE_DIR`). Matching CLI snapshots are archived under this client's `browser/<instance-id>/reset-backups/`. These backups contain old account state and are never automatically restored. After reset, the plugin prevents bootstrap cookies and stale HTTP cookies from silently seeding the cleared context, including requests from another fam client. An explicit HAR import can still add cookies. Other clients keep their local snapshots and routing decisions until reset or a new login there.
 
-Reset requires the updated fam cli.browser service and persistence. Updating the service requires rebuilding/restarting CloakBrowser or restarting Camofox to load its mounted plugin; running either reset afterward does **not** restart the browser. For an existing local container, stop/start it once after updating fam. For a remote deployment, update the mounted plugin and restart its service.
+Reset requires the updated fam cli.browser service and persistence. Updating the service requires rebuilding/restarting CloakBrowser to load its bundled plugin; running either reset afterward does **not** restart the browser. For an existing local container, stop/start it once after updating fam. For a remote deployment, rebuild and restart its service.
 
 `fam browser reset` and `fam browser.transport reset` are short aliases. Migration: the old bare `fam cli.browser reset` only forgot transport decisions. It now requires `--provider NAME` or `--all`; use `fam cli.browser.transport reset` for the old behavior.
 
@@ -295,10 +258,10 @@ Reset requires the updated fam cli.browser service and persistence. Updating the
 
 Local and remote browser contexts remain separate. Switching modes restores that mode's saved provider session and routing decisions. Two clients using the same remote service and `--session` name (default `default`) share browser cookies and website logins there. They create their own tabs, so normal fetches do not navigate another command's login tab. Remote stop closes fam tabs for that shared session name, including those opened by another fam client.
 
-Configuration is stored in `browser/config.json` under the [fam profile](setup.md#storage-and-profiles). Provider session snapshots and routing preferences live under `browser/<instance-id>/`. Local Docker storage is under `browser/local-cloakbrowser/profiles/` for CloakBrowser and `browser/local/profiles/` for Camofox. CloakBrowser retains ordinary Chromium profiles plus cookie/storage checkpoints. Camofox persists cookies, local storage, and supported IndexedDB state; this is not a complete Firefox profile backup. A website can expire or revoke login independently.
+Configuration is stored in `browser/config.json` under the [fam profile](setup.md#storage-and-profiles). Provider session snapshots and routing preferences live under `browser/<instance-id>/`. Local Docker storage is under `browser/local-cloakbrowser/profiles/`. CloakBrowser retains ordinary Chromium profiles plus cookie/storage checkpoints, including cookies, local storage, and IndexedDB. A website can expire or revoke login independently.
 
 An explicit native login selects that native session for the current instance without deleting its previous browser login. Browser login selects the browser session again. Browser checkpoints contain account state and remain on the configured browser host.
 
 CloakBrowser uses a headed window, GeoIP timezone/language detection, and the default humanization preset. Humanization is applied to fam’s Playwright CDP connection, including locator-based form filling; CloakBrowser 0.6 resolves every Playwright selector in its humanized engine. The service pins the keyless CloakBrowser 0.6.5 image and its bundled binary, with automatic binary updates off. CloakBrowser 0.7 requires a license key for every launch, and a free key allows one concurrent browser, so fam has not adopted it. GeoIP uses the server’s public IP (no proxy is configured by fam) and may download its database on first startup. Lookup is bounded to 40 seconds; if unavailable, the service logs a warning and starts with the binary defaults. These settings can improve consistency but do not guarantee that a site will accept the browser.
 
-For service troubleshooting, set `FAM_CLOAKBROWSER_GEOIP=false` or `FAM_CLOAKBROWSER_HUMANIZE=false` on the container before recreating it. This does not switch engines or erase profiles. The CDP interaction regression can be run with `npm --prefix browser/cloakbrowser ci --ignore-scripts` followed by `node --test test/cloakbrowser-human.integration.mjs`.
+For service troubleshooting, set `FAM_CLOAKBROWSER_GEOIP=false` or `FAM_CLOAKBROWSER_HUMANIZE=false` on the container before recreating it. This does not erase profiles. The CDP interaction regression can be run with `npm --prefix browser/cloakbrowser ci --ignore-scripts` followed by `node --test test/cloakbrowser-human.integration.mjs`.

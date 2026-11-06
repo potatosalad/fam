@@ -29,7 +29,7 @@ The resource ID in the last example is illustrative; use an actual URL returned 
 
 `page get` extracts main text and links and recognizes categories and resource listings where available. Unfamiliar HTML falls back to available text and links with a warning. Non-text files return their source URL and media type. Cyndi redirects to external sites return the destination URL without fetching that site. HTTP and non-www Cyndi aliases are normalized; arbitrary paths and query parameters are preserved, and fragments are ignored for retrieval.
 
-Native HTTP is preferred, with the existing Camofox recovery for browser challenges. `--transport http|browser|auto` and `--browser-timeout` use the shared browser controls.
+Native HTTP is preferred, with the existing CloakBrowser recovery for browser challenges. `--transport http|browser|auto` and `--browser-timeout` use the shared browser controls.
 
 ## Site search
 

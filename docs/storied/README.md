@@ -2,7 +2,7 @@
 
 `fam storied` signs in through Storied's native Auth0 client and calls its REST API. It supports trees, people, pedigrees, relatives, events, hints, saved records, stories, historical search, media, groups, and account metadata. The offline catalog includes 728 consumer operations and 1,021 model schemas.
 
-Use the [shared setup guide](../setup.md) to install fam and [browser setup](../browser.md) to configure local Docker or a remote Camofox URL. Node 22.16+ is required. Ordinary API commands use renewable native tokens.
+Use the [shared setup guide](../setup.md) to install fam and [browser setup](../browser.md) to configure local Docker or a remote CloakBrowser URL. Node 22.16+ is required. Ordinary API commands use renewable native tokens.
 
 ## Sign in
 
@@ -14,7 +14,7 @@ fam cli.health check --provider storied
 fam storied.session get
 ```
 
-Credentials use the shared precedence: `STORIED_USERNAME` and `STORIED_PASSWORD`, configured credential helper, saved `storied/login.json`. Passwords are not command-line arguments. The default `auth` command submits configured credentials once to the real Storied login form in the selected persistent Camofox browser. It exchanges the native callback's authorization code using PKCE, validates `/userinfo`, and checks the account tree list before saving the session. Direct password grants are disabled for this mobile client.
+Credentials use the shared precedence: `STORIED_USERNAME` and `STORIED_PASSWORD`, configured credential helper, saved `storied/login.json`. Passwords are not command-line arguments. The default `auth` command submits configured credentials once to the real Storied login form in the selected persistent CloakBrowser browser. It exchanges the native callback's authorization code using PKCE, validates `/userinfo`, and checks the account tree list before saving the session. Direct password grants are disabled for this mobile client.
 
 For Google, Apple, MFA, or another interactive verification step, use `fam storied.session login --interactive` and open the configured noVNC URL from any machine that can reach it. Empty login fields are autofilled from configured credentials; you submit the form yourself. Add `--no-autofill` to leave the fields untouched. Cookies and browser storage are retained on the browser host; no HAR is generated. Passwords, callback codes, and PKCE verifiers are not persisted. Browser exceptions are suppressed because they can contain credentials.
 

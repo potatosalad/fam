@@ -11,7 +11,7 @@ import {ready, readPage, type Snapshot} from '../src/nara/browser.js';
 import {recordId, recordUrl, searchUrl, mediaUrl, ORIGIN} from '../src/nara/url.js';
 import {downloadObject} from '../src/nara/download.js';
 import {setBrowserOverrides} from '../src/shared/browser-config.js';
-import type {Camofox} from '../src/shared/browser-runtime.js';
+import type {BrowserClient} from '../src/shared/browser-runtime.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
 import {resolveContext} from '../src/shared/command-search.js';
 import {authenticatedProviderNames, commands, commandById} from '../src/shared/command-registry.js';
@@ -96,7 +96,7 @@ test('object selection never substitutes the first page; transcriptions preserve
 
 test('browser reads close their tab after success, rendering failure, and verification', async () => {
   const s = snapshot(); let closed = 0;
-  const get = async () => ({tab: async (provider: string) => {assert.equal(provider, 'nara'); return {evaluate: async () => s, close: async () => {closed++;}};}} as unknown as Camofox);
+  const get = async () => ({tab: async (provider: string) => {assert.equal(provider, 'nara'); return {evaluate: async () => s, close: async () => {closed++;}};}} as unknown as BrowserClient);
   setBrowserOverrides({transport: 'browser'});
   try {
     assert.equal((await readPage(recordUrl(id), 'record', 0, get)).record.title, 'Example record');

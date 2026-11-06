@@ -127,7 +127,7 @@ fam myheritage.session login
 
 Local setup runs CloakBrowser in Docker. On macOS, fam offers to install OrbStack if needed. If sign-in needs MFA or a CAPTCHA, fam opens or prints a viewer URL and waits for you to complete it. The browser retains your login for later commands.
 
-The [browser guide](docs/browser.md) covers remote servers, browser engines, and session resets. See your provider's guide for its sign-in requirements. NewspaperArchive shares Storied's credentials and session.
+The [browser guide](docs/browser.md) covers remote servers, local/remote selection, and session resets. See your provider's guide for its sign-in requirements. NewspaperArchive shares Storied's credentials and session.
 
 Cyndi's List, Internet Archive public research, NARA, and Wayback need no provider credentials. NARA still requires browser setup.
 

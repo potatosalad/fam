@@ -23,7 +23,7 @@ export async function loginMyHeritage(options: BrowserLoginOptions & {treeUrl?: 
     const candidate = new BrowserTab(browser, 'myheritage', existing.tabId);
     try {
       if (reusable(await candidate.evaluate<string>('location.href'))) {reused = candidate; break;}
-    } catch { /* Camofox can retain a tab entry after the user closes its page. */ }
+    } catch { /* The browser can retain a tab entry after the user closes its page. */ }
   }
   const tab = reused ?? await browser.tab('myheritage', treeUrl ?? `${WEB}/login`);
   const navigated = new Set<string>();

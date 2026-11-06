@@ -296,7 +296,7 @@ test('downloads refuse new credit-priced images but allow already-unlocked image
   await downloadRecordImage(imageClient(bytes,2,3,7,true).client,'test/record');
 });
 
-test('Camofox Findmypast sessions renew at most once on an authentication rejection', async () => {
+test('CloakBrowser Findmypast sessions renew at most once on an authentication rejection', async () => {
   const session={...browserSessionFromHar(JSON.stringify({log:{entries:[{request:{url:'https://www.findmypast.com/titan/marshal/graphql',cookies:[{name:'test',value:'test-value'}]},response:{status:200}}]}})),browserInstance:'a'.repeat(24)};
   for (const status of [401,403,429,500]) {
     let sends=0,renewals=0;

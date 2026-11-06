@@ -7,7 +7,7 @@ import {createServer} from 'node:net';
 import {mkdir, readFile, writeFile, rename, rm, readdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
-import {register} from '../camofox-plugin/index.js';
+import {register} from './plugin.js';
 import {humanizeBrowser} from './humanize.mjs';
 
 const validOwner = id => typeof id === 'string' && /^fam-[A-Za-z0-9._-]{1,128}$/.test(id);
@@ -47,7 +47,7 @@ export async function clearStaleProcessLocks(directory, processRoot = '/proc') {
 }
 
 /** Implements the existing fam browser protocol with persistent Chromium profiles. */
-export async function createService({apiKey, profileDir, launch, launchContext, alternatives = {}}) {
+export async function createService({apiKey, profileDir, launch, launchContext}) {
   if (typeof apiKey !== 'string' || apiKey.length < 16 || /[\r\n]/.test(apiKey)) throw new Error('FAM_BROWSER_API_KEY must contain at least 16 characters.');
   await mkdir(profileDir, {recursive: true, mode: 0o700});
   const app = express(), sessions = new Map(), creating = new Map(), closing = new Map(), events = new EventEmitter();
@@ -183,7 +183,7 @@ export async function createService({apiKey, profileDir, launch, launchContext, 
     page.setDefaultTimeout(15000);
   }
   const ctx = {engine: 'cloakbrowser', privateBrowsing: true, sessions, events, getSession, closeSession,
-    config: {profileDir, browserAlternatives: alternatives}, auth};
+    config: {profileDir}, auth};
   const plugin = register(app, ctx);
   const route = (method, path, action) => app[method](path, async (req, res) => {
     try {

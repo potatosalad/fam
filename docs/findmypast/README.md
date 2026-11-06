@@ -11,7 +11,7 @@ fam findmypast.session login
 fam findmypast.account get
 ```
 
-Camofox retains the website session and tries configured credentials when needed. Complete MFA or CAPTCHA at the printed viewer URL. Use `--region co.uk` for the UK website or `--interactive` to autofill credentials and submit yourself. Add `--no-autofill` to leave the fields untouched. See [browser setup](../browser.md). `--capture` remains an alias, and `--har FILE` imports an existing capture. Browser session renewal is bounded to one attempt per rejected operation.
+CloakBrowser retains the website session and tries configured credentials when needed. Complete MFA or CAPTCHA at the printed viewer URL. Use `--region co.uk` for the UK website or `--interactive` to autofill credentials and submit yourself. Add `--no-autofill` to leave the fields untouched. See [browser setup](../browser.md). `--capture` remains an alias, and `--har FILE` imports an existing capture. Browser session renewal is bounded to one attempt per rejected operation.
 
 Login reuses a working fam tab for the selected region, including a sign-in already in progress. Closed or crashed tabs are skipped. It validates the current account before saving the session; retrying after completing sign-in does not open another tab or submit credentials again.
 
@@ -21,7 +21,7 @@ Both `--transport browser` and `--transport http` use the saved website session.
 
 ## Native login and existing HAR files
 
-`fam findmypast.session login --native` retains the mobile password flow. If it requires browser verification, the default Camofox website login is available. For compatibility with a native-app callback file, `fam findmypast.session login --native --browser` starts native authorization and `fam findmypast.session login --callback-file FILE` completes it.
+`fam findmypast.session login --native` retains the mobile password flow. If it requires browser verification, the default CloakBrowser website login is available. For compatibility with a native-app callback file, `fam findmypast.session login --native --browser` starts native authorization and `fam findmypast.session login --callback-file FILE` completes it.
 
 `fam findmypast.session login --har FILE` validates cookies from an existing successful website GraphQL capture. See [capture compatibility](../browser-capture.md).
 

@@ -1,5 +1,5 @@
 import {setTimeout as delay} from 'node:timers/promises';
-import {configuredBrowser, type BrowserTab, type Camofox} from '../shared/browser-runtime.js';
+import {configuredBrowser, type BrowserTab, type BrowserClient} from '../shared/browser-runtime.js';
 import {BrowserError, transportPreference, browserConfig} from '../shared/browser-config.js';
 import {siteUrl} from './url.js';
 import {errorDetails} from './cache.js';
@@ -13,7 +13,7 @@ export interface SearchResult {
   query: string; googleQuery: string; results: SearchHit[]; pages: string[]; nextUrl: string | null; cursor: string | null;
   complete: boolean; errors: {url: string; message: string; code?: string; vncUrl?: string}[]; warnings: string[];
 }
-// Runs in the rendered Camofox tab. No destination URL is reconstructed from
+// Runs in the rendered CloakBrowser tab. No destination URL is reconstructed from
 // Google's abbreviated visible breadcrumbs. Redirect links are resolved below.
 export const SEARCH_SNAPSHOT = `(() => {
   const text = document.body?.innerText || '';
@@ -79,7 +79,7 @@ async function ready(tab: BrowserTab): Promise<SearchSnapshot> {
     await delay(1000);
   }
 }
-export async function search(query: string, options: {allPages?: boolean; cursor?: string} = {}, getBrowser: () => Promise<Camofox> = configuredBrowser): Promise<SearchResult> {
+export async function search(query: string, options: {allPages?: boolean; cursor?: string} = {}, getBrowser: () => Promise<BrowserClient> = configuredBrowser): Promise<SearchResult> {
   const initial = options.cursor ? checkContinuation(options.cursor, query) : searchUrl(query);
   if (transportPreference(await browserConfig()).policy === 'http') throw new Error('Site search requires a browser; use --transport browser or auto.');
   const browser = await getBrowser(), tab = await browser.tab('cyndislist', initial);

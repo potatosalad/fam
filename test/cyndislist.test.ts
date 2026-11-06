@@ -7,7 +7,7 @@ import {CyndisListHttp} from '../src/cyndislist/http.js';
 import {CATEGORY_INDEX, ORIGIN, siteUrl} from '../src/cyndislist/url.js';
 import {search, searchUrl, googleQuery, resolveGoogleLink, checkContinuation, type SearchSnapshot} from '../src/cyndislist/search.js';
 import {setBrowserOverrides, BrowserError} from '../src/shared/browser-config.js';
-import type {Camofox} from '../src/shared/browser-runtime.js';
+import type {BrowserClient} from '../src/shared/browser-runtime.js';
 import {commandById, providerNames} from '../src/shared/command-registry.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
 import {humanOutput} from '../src/shared/command-output.js';
@@ -125,7 +125,7 @@ test('Google URLs are derived from actual hrefs/redirects; abbreviated displayed
   assert.throws(()=>checkContinuation('https://evil.test/search?q='+encodeURIComponent(googleQuery('probate')),'probate'),/same/);
 });
 
-test('Camofox search follows observed continuation, distinguishes challenges, and closes only its own tab',async()=>{
+test('CloakBrowser search follows observed continuation, distinguishes challenges, and closes only its own tab',async()=>{
   setBrowserOverrides({transport:'browser'});
   try {
     const initial=searchUrl('probate'),next=initial+'&start=10';let current=initial,closed=0,challenge=false;
@@ -133,7 +133,7 @@ test('Camofox search follows observed continuation, distinguishes challenges, an
       tab:async()=>tab};
     const tab:any={browser,id:'owned',userId:'test',navigate:async(url:string)=>{current=url;},evaluate:async():Promise<SearchSnapshot>=>({url:current,title:'Google',ready:true,challenge,empty:false,
       hits:challenge?[]:[{href:current===initial?root:child,title:'Result',snippet:'A snippet'}],nextUrl:current===initial?next:null})};
-    const result=await search('probate',{allPages:true},async()=>browser as Camofox);
+    const result=await search('probate',{allPages:true},async()=>browser as BrowserClient);
     assert.deepEqual(result.results.map(r=>r.url),[root,child]);assert.equal(result.complete,true);assert.equal(closed,1);
     challenge=true; await assert.rejects(search('probate',{},async()=>browser),(e:any)=>e.code==='BROWSER_INTERACTION_REQUIRED');assert.equal(closed,1);
   } finally {setBrowserOverrides({});}

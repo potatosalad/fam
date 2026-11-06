@@ -27,7 +27,7 @@ export async function loginFindmypast(options: BrowserLoginOptions & {region?: s
     const candidate = new BrowserTab(browser, 'findmypast', existing.tabId);
     try {
       if (reusable(await candidate.evaluate<string>('location.href'))) {reused = candidate; break;}
-    } catch { /* Closed or crashed pages can remain in Camofox's tab list. */ }
+    } catch { /* Closed or crashed pages can remain in the browser's tab list. */ }
   }
   // Preserve an in-progress sign-in and its rendered page, as with MyHeritage.
   // Transport-only documents have no login UI and must not be adopted here.

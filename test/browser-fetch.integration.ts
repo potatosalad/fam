@@ -11,8 +11,8 @@ import {chromium, firefox} from 'playwright';
 import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {browserFetchOptions, fetchBrowserUrl} from '../src/shared/browser-fetch.js';
 import {saveBrowserConfig, setBrowserOverrides} from '../src/shared/browser-config.js';
-// @ts-expect-error JavaScript plugin deployed to Camofox.
-import {register} from '../browser/camofox-plugin/index.js';
+// @ts-expect-error JavaScript plugin deployed to CloakBrowser.
+import {register} from '../browser/cloakbrowser/plugin.js';
 // @ts-expect-error Test-only express server.
 import express from 'express';
 

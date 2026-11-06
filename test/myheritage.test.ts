@@ -236,7 +236,7 @@ test('browser reads refresh page credentials, attach CSRF, preserve scopes, and 
   assert.equal(pages, 1); await client.refresh(); assert.equal(pages, 2); assert(saves >= 5);
 });
 
-test('Camofox tree session rejection renews once and leaves other failures alone', async () => {
+test('CloakBrowser tree session rejection renews once and leaves other failures alone', async () => {
   for (const failure of ['expired', '403', 'network'] as const) {
     let reads = 0, renewals = 0;
     const current = {...session(), mode:'browser' as const, browserInstance:'a'.repeat(24), browser:{pageUrl:'https://www.myheritage.com/FP/family-tree.php'}};

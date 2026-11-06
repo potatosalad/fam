@@ -6,7 +6,7 @@ import {CREDENTIAL_DIR} from '../src/shared/storage.js';
 import {browserFetchOptions, browserFetchResult, extractBrowserContent, renderBrowserFetch} from '../src/shared/browser-fetch.js';
 import {parseInvocation} from '../src/shared/command-runtime.js';
 import {browserResponseHeaders} from '../src/shared/browser-response.js';
-import {BrowserTab, Camofox} from '../src/shared/browser-runtime.js';
+import {BrowserTab, BrowserClient} from '../src/shared/browser-runtime.js';
 
 test('generic fetch parses headers, scoped cookies, binary bodies and meaningful modes', async () => {
   const headersFile=join(CREDENTIAL_DIR,'headers.json'),cookiesFile=join(CREDENTIAL_DIR,'cookies.json'),bodyFile=join(CREDENTIAL_DIR,'body.bin');
@@ -82,7 +82,7 @@ test('browser response normalization preserves duplicate values and cookie bound
 test('browser API normalizes navigation and request headers before provider consumption', async t => {
   const wire = {status: 200, headers: [['server-timing', 'one\ntwo'], ['set-cookie', 'a=one\nb=two']], bodyBase64: Buffer.from('content').toString('base64')};
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(wire)));
-  const browser = new Camofox({version: 1, mode: 'remote', remote: {url: 'https://browser.example.test', vncUrl: 'https://browser.example.test/viewer'}, timeout: 1, transport: 'auto', session: 'synthetic', open: false});
+  const browser = new BrowserClient({version: 1, mode: 'remote', remote: {url: 'https://browser.example.test', vncUrl: 'https://browser.example.test/viewer'}, timeout: 1, transport: 'auto', session: 'synthetic', open: false});
   for (const path of ['/fam/page-result', '/fam/fetch-request', '/fam/request']) {
     const data = await browser.api(path, {});
     assert.equal(new Headers(data.headers).get('server-timing'), 'one, two');

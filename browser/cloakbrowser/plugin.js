@@ -3,10 +3,10 @@ import {randomUUID, createHash} from 'node:crypto';
 import {mkdir, writeFile, readFile, readdir, rename, rm, cp, access} from 'node:fs/promises';
 import {join} from 'node:path';
 
-// A small Camofox extension: real browser response metadata, durable checkpoints,
+// Shared fam browser protocol: real response metadata, durable checkpoints,
 // and OAuth redirects which never become a document URL (native app callbacks).
 export function register(app, ctx) {
-  const watches = new Map(), queues = new Map(), resetting = new Set(), operations = new Map(), privateStates = new Map(), pages = new Map();
+  const watches = new Map(), queues = new Map(), resetting = new Set(), operations = new Map(), pages = new Map();
   const activity = new WeakMap(), closing = new Map();
   const tabIdleMs = 15 * 60 * 1000;
   let resettingAll = false;
@@ -29,7 +29,6 @@ export function register(app, ctx) {
   });
   const fail = code => {throw Object.assign(new Error(code), {famCode: code});};
   const isOwner = userId => typeof userId === 'string' && /^fam-[a-zA-Z0-9._-]+$/.test(userId);
-  const isPrivate = userId => ctx.engine !== 'cloakbrowser' && isOwner(userId) && /-(?:myheritage|web-private)$/.test(userId) && process.env.FAM_PRIVATE_CONTEXTS === '1';
   const owner = userId => isOwner(userId) ? userId : fail('invalid-fam-session');
   const profile = userId => join(ctx.config.profileDir, createHash('sha256').update(owner(userId)).digest('hex').slice(0, 32));
   async function wasReset(userId) {
@@ -83,8 +82,7 @@ export function register(app, ctx) {
     const session = ctx.sessions.get(owner(userId));
     if (!session) return {cookies: [], origins: []};
     const state = await session.context.storageState({indexedDB: true});
-    // Write the upstream persistence format ourselves as well: old Camofox
-    // versions do not await/export checkpoints. Never rely on eventual shutdown.
+    // Persist a durable checkpoint immediately; never rely on eventual shutdown.
     const root = ctx.config.profileDir;
     if (root) {
       const directory = join(root, createHash('sha256').update(userId).digest('hex').slice(0, 32));
@@ -102,9 +100,9 @@ export function register(app, ctx) {
     queues.set(key, next);
     try {return await next;} finally {if (queues.get(key) === next) queues.delete(key);}
   }
-  route('get', 'capabilities', async () => ({version: 1, engine: ctx.engine ?? 'camofox', alternatives: ctx.config.browserAlternatives ?? JSON.parse(process.env.FAM_BROWSER_ALTERNATIVES ?? '{}'),
+  route('get', 'capabilities', async () => ({version: 1, engine: 'cloakbrowser',
     response: true, callbacks: true, checkpoint: true, autofill: true, fetch: true, fetchInteraction: true, tabIdleMs,
-    privateBrowsing: !!ctx.privateBrowsing || process.env.FAM_PRIVATE_CONTEXTS === '1', privateFetch: !!ctx.privateBrowsing || process.env.FAM_PRIVATE_CONTEXTS === '1',
+    privateBrowsing: !!ctx.privateBrowsing, privateFetch: !!ctx.privateBrowsing,
     purge: !!ctx.config.profileDir && typeof ctx.closeSession === 'function',
     reset: !!ctx.config.profileDir && typeof ctx.closeSession === 'function'}));
   async function ownedSessions() {
@@ -194,16 +192,6 @@ export function register(app, ctx) {
       if (ctx.config.profileDir) contextOptions.storageState = JSON.parse(await readFile(join(profile(userId), 'storage-state.json'), 'utf8'));
     }
     if (resettingAll || resetting.has(userId)) fail('session-reset-in-progress');
-    // Firefox containers are not private windows. Keep the general private
-    // browsing context separate from MyHeritage and ordinary web cookies.
-    if (isPrivate(userId)) {
-      contextOptions.extraHTTPHeaders = {...contextOptions.extraHTTPHeaders, 'x-fam-private-context': '1'};
-      // Upstream persistence hooks run concurrently. Capture even a later
-      // storageState assignment, and restore only after a private page exists.
-      privateStates.set(userId, contextOptions.storageState);
-      Object.defineProperty(contextOptions, 'storageState', {enumerable: true, configurable: true,
-        get: () => undefined, set: state => privateStates.set(userId, state)});
-    }
     // A previously unseen fam session must not reload bootstrap cookies after
     // --all, including a session requested by an older client on another host.
     if (ctx.config.profileDir && await exists(join(ctx.config.profileDir, 'fam-reset-all.json')) && !await exists(join(profile(userId), 'storage-state.json'))) {
@@ -213,23 +201,6 @@ export function register(app, ctx) {
       await atomicJson(join(profile(userId), 'fam-session.json'), {userId});
       contextOptions.storageState = state;
     }
-  });
-  ctx.events.on('session:created', async ({userId, context}) => {
-    if (!isPrivate(userId)) return;
-    // Firefox clears private storage when its last private window closes.
-    // Keep this page alive through Playwright's temporary restore pages, then
-    // hand it to Camofox's first tab request without leaving an extra window.
-    const initial = await context.newPage();
-    const state = privateStates.get(userId); privateStates.delete(userId);
-    if (state) {
-      if (typeof context.setStorageState !== 'function') fail('private-storage-restore-unsupported');
-      await context.setStorageState(state);
-    }
-    const newPage = context.newPage.bind(context);
-    context.newPage = async (...args) => {
-      context.newPage = newPage;
-      return initial.isClosed() ? newPage(...args) : initial;
-    };
   });
   route('post', 'storage', async ({userId}) => ({state: await checkpoint(userId)}));
   route('post', 'cookies', async ({userId, cookies, explicit = false}) => {
@@ -253,9 +224,7 @@ export function register(app, ctx) {
     if (!eligible() || ctx.sessions.get(userId) !== session || group.get(tabId) !== state) return {};
     await releasePage(tabId);
     if (!eligible() || ctx.sessions.get(userId) !== session || group.get(tabId) !== state) return {};
-    // Close the context while its final page is still alive. Firefox clears
-    // private cookies at the last window, so closing the page first would let
-    // upstream persistence overwrite our checkpoint with an empty session.
+    // Teardown the final context only after its checkpoint is durable.
     const onlyPage = [...session.tabGroups.values()].reduce((n, tabs) => n + tabs.size, 0) === 1
       && session.context.pages().every(page => page === state.page || page.isClosed());
     if (onlyPage && typeof ctx.closeSession === 'function') {
@@ -274,7 +243,7 @@ export function register(app, ctx) {
     const {page} = tab(userId, tabId), target = new URL(origin);
     if (!['https:', 'http:'].includes(target.protocol) || target.origin !== origin) fail('wrong-browser-origin');
     // A transport-only document avoids an API root's redirects or restrictive
-    // homepage CSP. Actual fetches still travel through Firefox with its cookies.
+    // homepage CSP. Actual fetches still travel through Chromium with its cookies.
     const url = `${origin}/.fam-browser-${randomUUID()}`;
     const handler = route => route.fulfill({status: 200, contentType: 'text/html', body: '<!doctype html><title>fam browser transport</title>'});
     await page.route(url, handler);

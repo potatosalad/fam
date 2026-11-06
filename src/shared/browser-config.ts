@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {readPrivateJson, writePrivateJson} from './storage.js';
 
 export type BrowserMode = 'local' | 'remote';
-export type BrowserEngine = 'cloakbrowser' | 'camofox';
+export type BrowserEngine = 'cloakbrowser';
 export type BrowserTransportMode = 'auto' | 'http' | 'browser';
 export interface BrowserEndpoint {url: string; vncUrl: string; engine?: BrowserEngine; apiKey?: string; container?: string; image?: string; apiPort?: number; vncPort?: number}
 export interface BrowserConfig {
@@ -23,24 +23,35 @@ export function browserUrl(value: string): string {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash) throw new BrowserError('Browser URLs must use HTTP or HTTPS without embedded credentials.');
   return url.href;
 }
-export async function browserConfig(): Promise<BrowserConfig | undefined> {
+export async function browserConfig({forSetup = false}: {forSetup?: boolean} = {}): Promise<BrowserConfig | undefined> {
   const saved = await readPrivateJson<BrowserConfig>('browser/config.json');
   if (!saved) return undefined;
-  if (saved.version !== 1 || !['local', 'remote'].includes(saved.mode) || !saved[saved.mode] || !['auto','http','browser'].includes(saved.transport)
+  if (saved.version !== 1 || !['local', 'remote'].includes(saved.mode) || !['auto','http','browser'].includes(saved.transport)
     || !Number.isSafeInteger(saved.timeout) || saved.timeout < 0 || saved.timeout > 3600 || !/^[A-Za-z0-9._-]{1,64}$/.test(saved.session)) throw new BrowserError('Invalid browser configuration. Run fam browser setup.');
+  // Drop retired Camofox endpoints before URL validation, including unused or
+  // malformed entries. Never start or delete their containers/profiles.
+  for (const mode of ['local', 'remote'] as const) {
+    const retired = (endpoint?: BrowserEndpoint) => endpoint && (String(endpoint.engine) === 'camofox'
+      || mode === 'local' && endpoint.engine === undefined && (endpoint.container?.startsWith('fam-browser-') || endpoint.image?.includes('camofox')));
+    const retained = saved.engines?.[mode]?.cloakbrowser;
+    if (saved.engines?.[mode]) saved.engines[mode] = retained && !retired(retained) ? {cloakbrowser: retained} : {};
+    if (retired(saved[mode])) {
+      delete saved[mode];
+      if (saved.engines?.[mode]?.cloakbrowser) saved[mode] = {...saved.engines[mode]!.cloakbrowser!, engine: 'cloakbrowser'};
+    }
+  }
+  if (!saved[saved.mode] && !forSetup) throw new BrowserError('Run fam cli.browser setup to configure CloakBrowser at this location.');
   for (const endpoint of [saved.local, saved.remote, ...Object.values(saved.engines?.local ?? {}), ...Object.values(saved.engines?.remote ?? {})]) if (endpoint) {
     browserUrl(endpoint.url); browserUrl(endpoint.vncUrl);
-    if (endpoint.engine !== undefined && !['cloakbrowser', 'camofox'].includes(endpoint.engine)) throw new BrowserError('Invalid browser engine.');
+    if (endpoint.engine !== undefined && endpoint.engine !== 'cloakbrowser') throw new BrowserError('Invalid browser engine.');
   }
   return {...saved, ...overrides};
 }
 export const saveBrowserConfig = (config: BrowserConfig) => writePrivateJson('browser/config.json', config);
-export function browserEngine(config: BrowserConfig): BrowserEngine {return config[config.mode]!.engine ?? 'camofox';}
-export function browserName(config: BrowserConfig): string {return browserEngine(config) === 'cloakbrowser' ? 'CloakBrowser' : 'Camofox';}
+export function browserEngine(_config: BrowserConfig): BrowserEngine {return 'cloakbrowser';}
+export function browserName(_config: BrowserConfig): string {return 'CloakBrowser';}
 export function endpointId(config: BrowserConfig): string {
-  // Preserve legacy Camofox identities; never mix Chromium and Firefox snapshots.
-  const engine = browserEngine(config) === 'cloakbrowser' ? 'cloakbrowser:' : '';
-  return createHash('sha256').update(`${engine}${config.mode}:${config[config.mode]!.url}:${config.session}`).digest('hex').slice(0, 24);
+  return createHash('sha256').update(`cloakbrowser:${config.mode}:${config[config.mode]!.url}:${config.session}`).digest('hex').slice(0, 24);
 }
 export function browserUserId(config: BrowserConfig, provider: string): string {
   if (provider !== 'web-private' && !/^[a-z][a-z0-9]*$/.test(provider)) throw new BrowserError('Invalid browser provider.');

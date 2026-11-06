@@ -24,7 +24,7 @@ export function callbackCode(location: string, state: string): string | undefine
 
 /** Native PKCE through the configured persistent browser. */
 export async function authenticateBrowser(options: {interactive?: boolean; autofill?: boolean; channel?: string; timeoutMs?: number} = {}) {
-  if (options.channel && !['camofox', 'cloakbrowser'].includes(options.channel)) throw new Error('Select the browser with fam browser use --engine cloakbrowser or --engine camofox.');
+  if (options.channel && !['cloakbrowser'].includes(options.channel)) throw new Error('Configure CloakBrowser with fam cli.browser setup.');
   const {configuredBrowser} = await import('../shared/browser-runtime.js');
   const {waitForLogin} = await import('../shared/browser-login.js');
   const browser = await configuredBrowser(), tab = await browser.tab('storied');

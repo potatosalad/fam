@@ -7,9 +7,9 @@ import {join} from 'node:path';
 import {chromium} from 'playwright';
 // @ts-ignore The Docker service is shipped as JavaScript.
 import {createService} from '../browser/cloakbrowser/server.mjs';
-import {Camofox} from '../src/shared/browser-runtime.js';
+import {BrowserClient} from '../src/shared/browser-runtime.js';
 
-test('CloakBrowser service persists normal profiles, implements fam HTTP, and deletes switch state', {timeout:120000}, async t=>{
+test('CloakBrowser service persists normal profiles, implements fam HTTP, and resets persisted state', {timeout:120000}, async t=>{
   const root=await mkdtemp(join(tmpdir(),'fam-cloak-service-'));
   const web=createServer(async(req,res)=>{
     let body=Buffer.alloc(0);for await(const chunk of req)body=Buffer.concat([body,chunk]);
@@ -27,7 +27,7 @@ test('CloakBrowser service persists normal profiles, implements fam HTTP, and de
   }});
   const api=service.app.listen(0,'127.0.0.1');await new Promise<void>(r=>api.once('listening',r));
   const base=`http://127.0.0.1:${api.address().port}`;
-  const browser=new Camofox({version:1,mode:'remote',remote:{engine:'cloakbrowser',url:base,vncUrl:base,apiKey:'synthetic-cloak-key'},timeout:0,transport:'auto',session:'test',open:false});
+  const browser=new BrowserClient({version:1,mode:'remote',remote:{engine:'cloakbrowser',url:base,vncUrl:base,apiKey:'synthetic-cloak-key'},timeout:0,transport:'auto',session:'test',open:false});
   t.after(async()=>{await service.close();await Promise.all([new Promise<void>(r=>api.close(()=>r())),new Promise<void>(r=>web.close(()=>r()))]);await rm(root,{recursive:true,force:true});});
   assert.equal((await fetch(`${base}/health`)).status,403);
   const capabilities=await browser.capabilities();assert.equal(capabilities.engine,'cloakbrowser');assert.equal(capabilities.purge,true);assert.equal(capabilities.privateFetch,true);

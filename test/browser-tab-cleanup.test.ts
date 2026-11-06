@@ -6,9 +6,9 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import express from 'express';
-// @ts-ignore The plugin is shipped as JavaScript for the Camofox host.
-import {register} from '../browser/camofox-plugin/index.js';
-import {Camofox} from '../src/shared/browser-runtime.js';
+// @ts-ignore The plugin is shipped as JavaScript for the CloakBrowser host.
+import {register} from '../browser/cloakbrowser/plugin.js';
+import {BrowserClient} from '../src/shared/browser-runtime.js';
 import {waitForLogin} from '../src/shared/browser-login.js';
 import {BrowserError} from '../src/shared/browser-config.js';
 
@@ -19,8 +19,8 @@ async function fixture(t: any) {
   const app = express();
   const ctx = {sessions, events, config: {profileDir: directory}, auth: () => (_req: any, _res: any, next: any) => next(),
     closeSession: async (id: string, session: any) => {
-      // Upstream persistence runs before context.close. Simulate Firefox
-      // clearing private cookies when the last window closes.
+      // Simulate context teardown making live storage unavailable, as with
+      // a private Chromium context. Checkpoint before closing its final page.
       assert.ok((await session.context.storageState()).cookies.length);
       for (const page of session.context.pages()) await page.close();
       sessions.delete(id); closed.push(id); events.emit('session:destroyed', {userId: id});
@@ -149,7 +149,7 @@ test('a failed checkpoint leaves the tab intact and idle cleanup retries later',
 });
 
 test('tab creation knows its ID before navigation, and cleans up failed navigation', async () => {
-  const browser = new Camofox({version: 1, mode: 'remote', remote: {url: 'https://browser.example.test', vncUrl: 'https://viewer.example.test'}, session: 'test', timeout: 0, open: false, transport: 'auto'});
+  const browser = new BrowserClient({version: 1, mode: 'remote', remote: {url: 'https://browser.example.test', vncUrl: 'https://viewer.example.test'}, session: 'test', timeout: 0, open: false, transport: 'auto'});
   const calls: string[] = [];
   browser.api = async (path: string, body?: any): Promise<any> => {
     calls.push(path);

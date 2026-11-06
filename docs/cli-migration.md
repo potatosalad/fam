@@ -1,5 +1,15 @@
 # CLI grammar migration
 
+## Browser engine migration
+
+Camofox has been removed; CloakBrowser is the only browser engine. Run
+`fam cli.browser setup --local`, or configure a remote CloakBrowser service with
+`fam cli.browser setup --remote URL --vnc-url URL --api-key-file FILE`.
+`--engine cloakbrowser` is still accepted for scripts. Retired config entries are
+ignored; if the selected endpoint was Camofox, fam uses a saved CloakBrowser
+endpoint at the same local/remote location, or asks you to run setup. Old
+containers and profiles are not started, deleted, or imported automatically.
+
 The provider/command syntax is removed. All values now use named flags; optional flags and examples are available from `fam cli.command describe --command "PROVIDER.OBJECT ACTION"`. Ancestry record search uses `--first-name` and `--last-name` instead of `--given` and `--surname`.
 
 | Previous command | Current syntax |

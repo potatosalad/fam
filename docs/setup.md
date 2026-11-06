@@ -148,7 +148,7 @@ fam familysearch.session login
 
 Keep that variable set for subsequent commands. Each process reads it at startup. No CLI imports credentials from an older checkout's `.credentials/` directory.
 
-Provider commands renew saved sessions automatically before known token expiry or after an authentication rejection, save rotated credentials, and continue the command. This includes GraphQL authentication errors returned with HTTP 200. Each operation makes at most one renewal attempt; permission errors, rate limits, network failures, and server errors do not trigger renewal. MyHeritage browser commands load current API credentials from the authenticated website. MyHeritage and Findmypast sessions created through Camofox can renew through that browser, trying configured credentials once when needed. Native token renewal does not fall back to password login after rejection; required verification uses the viewer URL.
+Provider commands renew saved sessions automatically before known token expiry or after an authentication rejection, save rotated credentials, and continue the command. This includes GraphQL authentication errors returned with HTTP 200. Each operation makes at most one renewal attempt; permission errors, rate limits, network failures, and server errors do not trigger renewal. MyHeritage browser commands load current API credentials from the authenticated website. MyHeritage and Findmypast sessions created through CloakBrowser can renew through that browser, trying configured credentials once when needed. Native token renewal does not fall back to password login after rejection; required verification uses the viewer URL.
 
 Run one process per profile when renewing sessions. Separate processes do not coordinate token refreshes.
 
@@ -158,7 +158,7 @@ Run `fam cli.health check --provider PROVIDER` to check access, try refresh if s
 
 Run the CLI's `status` command to find its configuration directory. Remove that service's `session.json`, then run `auth`. Remove its `login.json` too if you want to forget the saved password. This clears local files; it does not revoke the session on the service.
 
-For MyHeritage or Findmypast browser login, run `fam myheritage.session login` or `fam findmypast.session login`. The configured Camofox instance retains cookies, supports automatic credential entry, and supplies a viewer URL for verification. Browser session snapshots are scoped to the selected instance. See [browser state and recovery](browser.md).
+For MyHeritage or Findmypast browser login, run `fam myheritage.session login` or `fam findmypast.session login`. The configured CloakBrowser instance retains cookies, supports automatic credential entry, and supplies a viewer URL for verification. Browser session snapshots are scoped to the selected instance. See [browser state and recovery](browser.md).
 
 Find a Grave has no token refresh command. `fam findagrave.session verify` checks the saved session without extending it; use `fam findagrave.session login` to replace an expired session.
 

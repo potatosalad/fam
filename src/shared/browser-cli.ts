@@ -1,6 +1,6 @@
 import type {Values} from './command-runtime.js';
 import {browserConfig, browserUrl, BrowserError, saveBrowserConfig, type BrowserMode, type BrowserEngine, type BrowserTransportMode} from './browser-config.js';
-import {setupBrowser, startBrowser, stopBrowser, browserStatus, openUrl, resetBrowserRouting, resetBrowserSession, switchBrowserEngine, upgradeBrowser} from './browser-runtime.js';
+import {setupBrowser, startBrowser, stopBrowser, browserStatus, openUrl, resetBrowserRouting, resetBrowserSession, switchBrowserEngine} from './browser-runtime.js';
 import {providerNames} from './command-registry.js';
 import {browserRouting} from './browser-routing.js';
 
@@ -31,9 +31,9 @@ export async function browserCommand(action: string, values: Values): Promise<un
     if (!mode || !config[mode]) throw new BrowserError('Set up the selected mode first with fam browser setup.');
     config.mode = mode; await saveBrowserConfig(config); return browserStatus(config);
   }
-  if (action === 'start') {config = await upgradeBrowser(config); await startBrowser(config); return browserStatus(config);}
+  if (action === 'start') {await startBrowser(config); return browserStatus(config);}
   if (action === 'stop') return stopBrowser(config);
-  if (action === 'open') {config = await upgradeBrowser(config); await startBrowser(config); const vncUrl = config[config.mode]!.vncUrl; return {vncUrl, opened: await openUrl(vncUrl)};}
+  if (action === 'open') {await startBrowser(config); const vncUrl = config[config.mode]!.vncUrl; return {vncUrl, opened: await openUrl(vncUrl)};}
   if (action === 'transport-reset') return resetBrowserRouting(config);
   if (action === 'reset') return resetBrowserSession(config, {provider: values.provider as string | undefined, all: !!values.all,
     open: values.open ? true : values['no-open'] ? false : config.open});

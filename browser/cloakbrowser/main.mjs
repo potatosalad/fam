@@ -8,8 +8,7 @@ const result = await promisify(execFile)('python', [fileURLToPath(new URL('./lau
 if (result.stderr) process.stderr.write(result.stderr);
 const launch = JSON.parse(result.stdout.trim().split('\n').at(-1));
 const service = await createService({apiKey: process.env.FAM_BROWSER_API_KEY,
-  profileDir: process.env.FAM_BROWSER_PROFILE_DIR ?? '/data/profiles', launch,
-  alternatives: JSON.parse(process.env.FAM_BROWSER_ALTERNATIVES ?? '{}')});
+  profileDir: process.env.FAM_BROWSER_PROFILE_DIR ?? '/data/profiles', launch});
 const children = [
   spawn('x11vnc', ['-display', ':99', '-localhost', '-forever', '-shared', '-nopw', '-rfbport', '5900'], {stdio: 'ignore'}),
   spawn('websockify', ['--web=/usr/share/novnc', '6080', '127.0.0.1:5900'], {stdio: 'ignore'}),

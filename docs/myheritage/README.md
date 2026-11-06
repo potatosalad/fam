@@ -2,7 +2,7 @@
 
 Create output folders before using these examples: `mkdir -p research-output/myheritage`. This folder is ignored in the checkout; keep exports outside Git elsewhere.
 
-`fam myheritage` is a TypeScript/Node CLI derived from MyHeritage Android 7.5.44. It includes 164 REST declarations, 135 GraphQL documents, and 210 FamilyGraph models, plus website-backed historical-record research. Sign-in uses persistent Camofox. Research requests use direct HTTP or the browser according to the selected transport and remembered website challenges.
+`fam myheritage` is a TypeScript/Node CLI derived from MyHeritage Android 7.5.44. It includes 164 REST declarations, 135 GraphQL documents, and 210 FamilyGraph models, plus website-backed historical-record research. Sign-in uses persistent CloakBrowser. Research requests use direct HTTP or the browser according to the selected transport and remembered website challenges.
 
 See the [main README](../../README.md) for installation and credential storage. Browser sessions support selected tree reads and historical research; native API availability is not fully verified and can be blocked by reCAPTCHA. Offline catalog coverage does not establish live API access.
 
@@ -71,7 +71,7 @@ fam myheritage.record get --url "RECORD_URL"
 
 These commands use the saved website session. Search supports names, dates, places, relatives, keywords, collection/category scopes, record types and pagination. Advanced options add independent name matching, year ranges, translated-name controls, and collection-specific criteria through `search-fields` and `search --field`. `record` returns visible fields and source citations, plus image links when present. `document URL` lists the viewer’s original pages; `download-document URL --page 1 --out scan.jpg` saves a page with a source/checksum sidecar. [Full examples and coverage](research.md) include JSON input and TypeScript usage.
 
-Both `--transport browser` and `--transport http` support record search with the saved website login. Browser login currently remembers a browser route for the website, so subsequent `auto` requests use Camofox. Add `--transport http` to use direct HTTP for an individual command; this retains the same saved login.
+Both `--transport browser` and `--transport http` support record search with the saved website login. Browser login currently remembers a browser route for the website, so subsequent `auto` requests use CloakBrowser. Add `--transport http` to use direct HTTP for an individual command; this retains the same saved login.
 
 ## Research someone already in a tree
 
