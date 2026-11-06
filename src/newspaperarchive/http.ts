@@ -10,8 +10,9 @@ export function checkUrl(value: string | URL): URL {
   return url;
 }
 export class NewspaperArchiveError extends Error {
-  constructor(readonly code: 'http' | 'verification-required' | 'api-changed', readonly status?: number) {
+  constructor(readonly code: 'http' | 'verification-required' | 'api-changed' | 'calendar-unavailable', readonly status?: number) {
     super(code === 'verification-required' ? 'NewspaperArchive requires browser verification for this public page. Open its source URL on the website; the request was not retried.'
+      : code === 'calendar-unavailable' ? 'NewspaperArchive calendar data is unavailable for this publication or date range. This does not mean there are no issues. Use fam newspaperarchive.newspaper search with --publication-id and --from/--to to find searchable pages.'
       : code === 'api-changed' ? 'NewspaperArchive response format changed or this capability is unavailable.'
       : `NewspaperArchive HTTP ${status}; check website access. The request was not retried.`);
     this.name = 'NewspaperArchiveError';

@@ -45,10 +45,11 @@ export function searchQuery(options: SearchOptions = {}): Record<string, string 
   }
   return query;
 }
-function unwrap(value: unknown): any {
+function unwrap(value: unknown, allowNull = false): any {
+  if (allowNull && value === null) return null;
   if (!value || typeof value !== 'object' || !Object.hasOwn(value, 'data')) throw new NewspaperArchiveError('api-changed');
   const result = value as {data: unknown; error?: unknown};
-  if (result.error != null || result.data == null) throw new NewspaperArchiveError('api-changed');
+  if (result.error != null || result.data === undefined || result.data === null && !allowNull) throw new NewspaperArchiveError('api-changed');
   return result.data;
 }
 export function sourceUrl(record: {thumbnailUrl?: unknown; pageNumber?: unknown}): string | null {
@@ -106,7 +107,10 @@ export class NewspaperArchiveClient {
   async dates(publicationId: string, year?: string, month?: string) {
     if (year !== undefined && (!/^\d{4}$/.test(year) || Number(year) < 1600)) throw new Error('Year must have four digits, from 1600 onward.');
     if (month !== undefined && (!year || !/^\d{1,2}$/.test(month) || Number(month) < 1 || Number(month) > 12)) throw new Error('Month must be 1–12 and requires --year.');
-    return unwrap(await this.call(month ? 'publication-dates' : year ? 'publication-months' : 'publication-years', {path: {pubId: id(publicationId), ...(year ? {year} : {}), ...(month ? {month: String(Number(month))} : {})}}));
+    const result = unwrap(await this.call(month ? 'publication-dates' : year ? 'publication-months' : 'publication-years', {path: {pubId: id(publicationId), ...(year ? {year} : {}), ...(month ? {month: String(Number(month))} : {})}}), true);
+    if (result == null || typeof result === 'object' && ['publicationYears','publicationMonths','publicationDates'].some(key=>Object.hasOwn(result,key)&&result[key]==null))
+      throw new NewspaperArchiveError('calendar-unavailable');
+    return result;
   }
   async page(url: string) {
     const parsed = checkUrl(url);

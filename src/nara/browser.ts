@@ -3,6 +3,11 @@ import {configuredBrowser, type BrowserTab} from '../shared/browser-runtime.js';
 import {browserConfig, transportPreference, BrowserError} from '../shared/browser-config.js';
 import {catalogUrl, NaraError} from './url.js';
 
+export const NO_TRANSCRIPTION = /not (?:yet )?available|no transcription|not (?:yet )?been started|not started|no one has transcribed this yet/i;
+export function transcriptionText(value: string | null, label = ''): string | null {
+  if (NO_TRANSCRIPTION.test(label)) return null;
+  return value?.split(/\n\s*\n/).map(p=>p.trim()).filter(p=>p && p !== 'Transcriptions help make records searchable and accessible for everyone.').join('\n\n') || null;
+}
 export interface Link {title: string; url: string}
 export interface Snapshot {
   url: string; title: string; text: string; alerts: string[]; notices?: string[]; challenge: boolean;
@@ -11,7 +16,7 @@ export interface Snapshot {
   record: {title: string; level: string; header: string; text: string; breadcrumbs: Link[]; links: Link[]};
   objects: {page: string; total: string; selected: string; downloadUrl: string | null;
     items: {page: string; label: string; thumbnailUrl: string | null}[];
-    transcriptionLabel: string; transcriptionOpen: boolean; transcription: string | null};
+    transcriptionLabel: string; transcriptionUnavailable?: boolean; transcriptionOpen: boolean; transcription: string | null};
 }
 // Read rendered DOM only. No API keys, application state, cookies, or web-storage
 // extraction. The Catalog itself performs its ordinary anonymous page requests.
@@ -36,6 +41,7 @@ export const SNAPSHOT = String.raw`(() => {
   // Single-file records have no thumbnail strip or pagination input.
   if (!items.length && total === '1' && downloadUrl) items.push({page: '1', label: 'Digital object 1', thumbnailUrl: null});
   const transcriptionLabel = one('#transcription-tab')?.getAttribute('aria-label') || '';
+  const transcriptionUnavailable = ${NO_TRANSCRIPTION}.test(transcriptionLabel) || /^No one has transcribed this yet\./m.test(text(panel));
   const alerts = all('.usa-alert');
   // The Catalog styles its in-person availability reminder as a warning, even
   // when the online retrieval succeeded. Preserve that reminder as a notice.
@@ -64,8 +70,8 @@ export const SNAPSHOT = String.raw`(() => {
       breadcrumbs: all('[data-testid="nac-breadcrumbs"] a[href]').map(link),
       links: description ? all('a[href]', description).map(link) : []},
     objects: {page: objectPage, total, selected, downloadUrl, items, transcriptionLabel,
-      transcriptionOpen: !!panel, transcription: panel && !/not (?:yet )?available|no transcription/i.test(transcriptionLabel)
-        ? all('p', panel).map(text).filter(Boolean).join('\n\n') : null}
+      transcriptionUnavailable, transcriptionOpen: !!panel, transcription: panel && !transcriptionUnavailable
+        ? all('p', panel).map(text).filter(p => p && p !== 'Transcriptions help make records searchable and accessible for everyone.').join('\n\n') || null : null}
   };
 })()`;
 
@@ -80,7 +86,8 @@ export function ready(state: Snapshot, url: string, kind: PageKind): boolean {
     const empty = /(?:\b0\s+results?\b|no (?:search )?results (?:found|were found)|no results match)/i.test(state.search.summary);
     return state.search.results.length > 0 || empty;
   }
-  if (/\b(?:page|record) (?:was )?not found\b|record (?:is |has been )?unavailable/i.test(state.title)) throw new NaraError('Catalog record not found.', 'NOT_FOUND');
+  if (/\b(?:page|record) (?:was )?not found\b|record (?:is |has been )?unavailable/i.test(state.title)
+      || !state.record.title && /\b404[,:]\s*PAGE_NOT_FOUND\b|We could not find the page you are looking for\./i.test(state.text)) throw new NaraError('Catalog record not found.', 'NOT_FOUND');
   if (!state.record.title || !state.record.text || !/NAID:\s*\d+/.test(state.record.header)) return false;
   if (kind === 'record') return true;
   if (!state.objects.items.length && !state.objects.downloadUrl) return false;
@@ -88,7 +95,7 @@ export function ready(state: Snapshot, url: string, kind: PageKind): boolean {
   if (state.objects.total && Number(page) > Number(state.objects.total)) throw new NaraError('Requested object page exceeds the record’s object count.', 'INVALID_ARGUMENT');
   if ((state.objects.page || state.objects.selected) !== page || state.objects.selected && state.objects.selected !== page) return false;
   if (kind === 'object') return !!state.objects.downloadUrl;
-  return state.objects.transcriptionOpen && (!!state.objects.transcription || /not (?:yet )?available|no transcription/i.test(state.objects.transcriptionLabel));
+  return state.objects.transcriptionOpen && (!!transcriptionText(state.objects.transcription,state.objects.transcriptionLabel) || state.objects.transcriptionUnavailable === true || NO_TRANSCRIPTION.test(state.objects.transcriptionLabel));
 }
 export async function readPage(url: string, kind: PageKind, timeout = 60,
   getBrowser = configuredBrowser): Promise<Snapshot> {

@@ -87,7 +87,7 @@ test('incomplete browse results never imply an exhausted collection',async()=>{
   const r=await client.browse('7');assert.equal(r.kind,'branches');assert.equal(r.incomplete,true);
 });
 
-async function exportFixture(){
+async function exportFixture(reduced=false){
   const jpeg=await sharp({create:{width:4,height:3,channels:3,background:'#abcdef'}}).jpeg().toBuffer();
   let denied='124';const fetched:string[]=[];
   const client=new Fold3Client(new Fold3Http(undefined,async(value,init)=>{
@@ -96,7 +96,7 @@ async function exportFixture(){
     if(url.origin===IMG)return new Response(jpeg,{headers:{'content-type':'image/jpeg'}});
     if(url.pathname.includes('/publication/'))return response({id:7,t:'Synthetic collection'});
     const imageId=url.pathname.split('/').at(-1)!;fetched.push(imageId);
-    return response({w:{id:{ct:'IMAGE',id:imageId}},d:{t:'Synthetic page',w:4,h:3,m:[]},r:{p:{allowed:imageId===denied?[]:['VIEW','DOWNLOAD'],denied:{}},o:{token:'synthetic-secret'},x:{collectionType:'PUBLICATION',collectionObjectId:7}}});
+    return response({w:{id:{ct:'IMAGE',id:imageId}},d:{t:'Synthetic page',w:reduced?8:4,h:reduced?6:3,m:[]},r:{p:{allowed:imageId===denied?[]:['VIEW','DOWNLOAD'],denied:{}},o:{token:'synthetic-secret'},x:{collectionType:'PUBLICATION',collectionObjectId:7}}});
   }));
   return {client,fetched,permit:()=>{denied='';}};
 }
@@ -115,6 +115,23 @@ test('an interrupted file export resumes after verifying saved images and citati
   }finally{await rm(root,{recursive:true,force:true});}
 });
 
+test('file exports require an explicit reduced-resolution opt-in and do not prescribe an ineffective resume',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'fam-fold3-reduced-'));
+ try{
+  const f=await exportFixture(true);f.permit();
+  await assert.rejects(exportFile(f.client,'124',join(root,'blocked')),e=>{
+   assert.equal((e as any).code,'reduced-resolution');assert.match((e as Error).message,/--allow-reduced/);assert.doesNotMatch((e as Error).message,/--resume/);return true;
+  });
+  const directory=join(root,'allowed');const result=await exportFile(f.client,'124',directory,{allowReduced:true});
+  assert.equal(result.complete,true);assert.equal(result.downloaded,3);
+  const manifest=JSON.parse(await readFile(join(directory,'manifest.json'),'utf8'));
+  const side=JSON.parse(await readFile(join(directory,manifest.pages[0].filename)+'.json','utf8'));
+  assert.equal(side.fullSize,false);assert.equal(side.width,4);assert.equal(side.sourceWidth,8);
+  await assert.rejects(exportFile(f.client,'124',directory,{resume:true}),{code:'reduced-resolution'});
+  assert.equal((await exportFile(f.client,'124',directory,{resume:true,allowReduced:true})).reused,3);
+  assert.equal(commandById.get('fold3.file download')!.flags.find(f=>f.name==='allow-reduced')?.type,'boolean');
+ }finally{await rm(root,{recursive:true,force:true});}
+});
 test('resume rejects corrupted files, mismatched manifests, symlinks and active locks without downloading',async()=>{
   for(const mode of ['bytes','manifest','symlink','lock']){
     const root=await mkdtemp(join(tmpdir(),'fam-fold3-corruption-')),directory=join(root,'file');

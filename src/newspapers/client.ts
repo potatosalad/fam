@@ -4,7 +4,7 @@ import {account, pageMetadata, publicValue} from './parse.js';
 import {loadSession, loginNewspapers, saveSession, type NewspapersSession} from './auth.js';
 import {directOnly} from '../shared/browser-config.js';
 import {downloadPage} from './download.js';
-import {articleId, articleTypes, recordType, selectArticle, clippingRecord, type ArticleType, type RecordType} from './records.js';
+import {articleId, readableArticleTypes, recordType, selectArticle, clippingRecord, type ArticleType, type RecordType} from './records.js';
 export function id(value: unknown): string {
   if (typeof value !== 'string' || !/^[1-9]\d{0,19}$/.test(value)) throw new InputError('Newspapers IDs must be positive decimal strings.');
   return value;
@@ -37,7 +37,7 @@ export interface ClippingSearchOptions {keyword?:string;user?:string;mine?:boole
 export function clippingQuery(options:ClippingSearchOptions={}) {
   if(options.mine!==undefined&&typeof options.mine!=='boolean')throw new InputError('mine must be a boolean.');
   if(options.mine&&options.user!==undefined)throw new InputError('Choose --mine or --user.');
-  const query:Record<string,string>={product_id:'1',visibility:options.mine?'all':'public',count:String(integer(options.limit??24)),cursor_mark:options.cursor===undefined?'*':text(options.cursor,4096)};
+  const query:Record<string,string>={product_id:'1',visibility:options.mine?'all':'public',count:String(integer(options.limit??24,1,25)),cursor_mark:options.cursor===undefined?'*':text(options.cursor,4096)};
   for(const key of ['keyword','user','tag','region'] as const)if(options[key]!==undefined)query[key]=text(options[key]!,key==='keyword'?2000:200);
   if(options.publicationId!==undefined)query.title=id(options.publicationId);
   if(!!options.from!==!!options.to)throw new InputError('Use --from and --to together.');
@@ -46,21 +46,21 @@ export function clippingQuery(options:ClippingSearchOptions={}) {
   return query;
 }
 export const operations = {
-  publicationSearch: {method:'GET',path:'/api/title/query',input:{keyword:'title keywords',limit:'1–100?',offset:'nonnegative integer?'},description:'Search publication titles using the website Papers catalog.'},
+  publicationSearch: {method:'GET',path:'/api/title/query',input:{keyword:'title keywords',limit:'1–50?',offset:'nonnegative integer?'},description:'Search publication titles using the website Papers catalog.'},
   account: {method:'GET',path:'/account/',input:{},description:'Authenticated account data from serialized website JSON; no billing details or tokens.'},
   search: {method:'GET',path:'/api/search/query',input:{type:'page | obituary | marriage | birth | enslavement | crime?',keyword:'string?',publicationId:'decimal ID?',country:'string?',region:'string?',city:'string?',from:'date?',to:'date?',sort:'score | date-asc | date-desc?',limit:'1–100?',cursor:'opaque nextStart?'},description:'Page or indexed article search with opaque cursor pagination.'},
-  article: {method:'GET',path:'/api/article/page/{pageId}/articles',input:{pageId:'decimal ID',articleId:'UUID or decimal ID',type:'obituary | marriage | birth | enslavement | crime?'},description:'Select one indexed article, with extracted people/events, crop coordinates, and citation.'},
+  article: {method:'GET',path:'/api/article/page/{pageId}/articles',input:{pageId:'decimal ID',articleId:'UUID or decimal ID',type:'obituary | marriage | birth | enslavement | crime | everyday-story?'},description:'Select one indexed article, with extracted people/events, crop coordinates, and citation.'},
   clipping: {method:'GET',path:'/article/api/{clippingId}/',input:{clippingId:'decimal ID'},description:'Clipping details, tags, page identity, and any available OCR; tokens are withheld.'},
-  clippingSearch: {method:'GET',path:'/api/clipping/list',input:{keyword:'string?',user:'username or ID?',mine:'boolean?',tag:'string?',region:'place name?',publicationId:'decimal ID?',from:'date?',to:'date?',sort:'modified-desc | modified-asc | date-desc | date-asc | score?',limit:'1–100?',cursor:'opaque next_cursor_mark?'},description:'Search public clippings, or the signed-in account’s own clippings with mine=true.'},
-  locations: {method:'GET',path:'/api/title/location/search',input:{prefix:'string',limit:'1–100?'},description:'Place suggestions for search filters.'},
+  clippingSearch: {method:'GET',path:'/api/clipping/list',input:{keyword:'string?',user:'username or ID?',mine:'boolean?',tag:'string?',region:'place name?',publicationId:'decimal ID?',from:'date?',to:'date?',sort:'modified-desc | modified-asc | date-desc | date-asc | score?',limit:'1–25?',cursor:'opaque next_cursor_mark?'},description:'Search public clippings, or the signed-in account’s own clippings with mine=true.'},
+  locations: {method:'GET',path:'/api/title/location/search',input:{prefix:'string',limit:'1–20?'},description:'Place suggestions for search filters.'},
   browse: {method:'GET',path:'/api/browse/1/{path}',input:{path:'browse path?'},description:'Browse the newspaper hierarchy using returned paths.'},
   publication: {method:'GET',path:'/api/browse/get-publication/1/{publicationId}',input:{publicationId:'decimal ID'},description:'Resolve a publication to its browse path and title.'},
   issue: {method:'GET',path:'/api/browse/get-issue/{publicationId}/{date}',input:{publicationId:'decimal ID',date:'YYYY-MM-DD'},description:'List editions and pages in an issue.'},
   page: {method:'GET',path:'/api/client/image/authorize/',input:{pageId:'decimal ID'},description:'Page metadata and current access rights; authorization tokens are withheld.'},
   hits: {method:'GET',path:'/api/search/hits',input:{pageId:'decimal ID',keyword:'string'},description:'Coordinates of keyword matches on the scan.'},
-  clippings: {method:'GET',path:'/api/clipping/page',input:{pageId:'decimal ID',offset:'0–1000000?',limit:'1–100?'},description:'Public clippings on a page.'},
+  clippings: {method:'GET',path:'/api/clipping/page',input:{pageId:'decimal ID',offset:'0–1000000?',limit:'1–25?'},description:'Public clippings on a page.'},
   articles: {method:'GET',path:'/api/article/page/{pageId}/articles',input:{pageId:'decimal ID'},description:'Structured article categories using a fresh page authorization.'},
-  ocr: {method:'GET',path:'/api/client/image/ocr/',input:{pageId:'decimal ID',articleId:'UUID or decimal ID?',type:'obituary | marriage | birth | enslavement | crime?',clippingId:'decimal ID?',x:'integer?',y:'integer?',width:'integer?',height:'integer?'},description:'Indexed article or saved clipping OCR. An article ID resolves its rectangle automatically; whole-page and rectangle-only retrieval are unavailable.'},
+  ocr: {method:'GET',path:'/api/client/image/ocr/',input:{pageId:'decimal ID',articleId:'UUID or decimal ID?',type:'obituary | marriage | birth | enslavement | crime | everyday-story?',clippingId:'decimal ID?',x:'integer?',y:'integer?',width:'integer?',height:'integer?'},description:'Indexed article or saved clipping OCR. An article ID resolves its rectangle automatically; whole-page and rectangle-only retrieval are unavailable.'},
 } as const;
 export type Operation = keyof typeof operations;
 export class NewspapersClient {
@@ -95,14 +95,14 @@ export class NewspapersClient {
         limit:Number(query.count),type:query['entity-types'], accessNote:'Search results do not establish subscription access to every scan. Indexed people and events are provider extractions; verify them against the image.'};
     });
   }
-  locations(prefix: string, limit = 10) {text(prefix,200);integer(limit);return this.run(async () => {const result=await this.json('/api/title/location/search',{prefix,'product-id':'1',count:String(limit)});if (!Array.isArray(result)) throw new NewspapersError('api-changed');return publicValue(result);});}
+  locations(prefix: string, limit = 10) {text(prefix,200);integer(limit,1,20);return this.run(async () => {const result=await this.json('/api/title/location/search',{prefix,'product-id':'1',count:String(limit)});if (!Array.isArray(result)) throw new NewspapersError('api-changed');return publicValue(result);});}
   browse(path = '') {
     if (!/^\/?[a-zA-Z0-9_/-]*$/.test(path) || path.includes('//') || path.length > 1000) throw new Error('Use a Newspapers browse path containing letters, numbers, slashes, underscores, or hyphens.');
     return this.run(async () => publicValue(await this.json(`/api/browse/1/${path.replace(/^\//,'')}`)));
   }
   publication(publicationId: string) {id(publicationId);return this.run(async () => publicValue(await this.json(`/api/browse/get-publication/1/${publicationId}`)));}
   publicationSearch(keyword: string, limit = 20, offset = 0) {
-    text(keyword,200);integer(limit);integer(offset,0,1_000_000);
+    text(keyword,200);integer(limit,1,50);integer(offset,0,1_000_000);
     return this.run(async () => {
       const result = await this.json('/api/title/query', {'product-id':'1',keyword,start:String(offset),count:String(limit),sort:'title',
         'include-literal-titles':'all',fields:'id,title,url,location.display,free,extra,product_canonical_start_year,product_canonical_end_year,canonical_page_count,count'});
@@ -128,11 +128,11 @@ export class NewspapersClient {
     return selectArticle(articles,authorization,pageId,requestedId,type);
   }
   article(pageId:string, requestedId:string, type?:ArticleType) {
-    id(pageId);requestedId=articleId(requestedId);if(type!==undefined&&!articleTypes.includes(type))throw new Error('Unknown article type.');
+    id(pageId);requestedId=articleId(requestedId);if(type!==undefined&&!readableArticleTypes.includes(type))throw new Error('Unknown article type.');
     return this.run(async()=>this.articleData(pageId,requestedId,await this.authorize(pageId),type));
   }
   downloadArticle(pageId:string, requestedId:string, type?:ArticleType) {
-    id(pageId);requestedId=articleId(requestedId);if(type!==undefined&&!articleTypes.includes(type))throw new Error('Unknown article type.');
+    id(pageId);requestedId=articleId(requestedId);if(type!==undefined&&!readableArticleTypes.includes(type))throw new Error('Unknown article type.');
     return this.run(async()=>{const authorization=await this.authorize(pageId);const article=await this.articleData(pageId,requestedId,authorization,type);
       return downloadPage(this.http,pageId,authorization,{kind:'article',article});});
   }
@@ -151,7 +151,7 @@ export class NewspapersClient {
     });
   }
   hits(pageId: string, keyword: string) {id(pageId);text(keyword);return this.run(async () => {const result=await this.json('/api/search/hits',{images:pageId,terms:keyword.trim().replace(/\s+/g,'|')});if (!Array.isArray(result)) throw new NewspapersError('api-changed');return {pageId,keyword,hits:publicValue(result[0] ?? [])};});}
-  clippings(pageId: string, offset = 0, limit = 25) {id(pageId);integer(offset,0,1_000_000);integer(limit);return this.run(async () => {
+  clippings(pageId: string, offset = 0, limit = 25) {id(pageId);integer(offset,0,1_000_000);integer(limit,1,25);return this.run(async () => {
     const result=await this.json('/api/clipping/page',{page_id:pageId,start:String(offset),count:String(limit)});
     if (!Array.isArray(result?.clippings) || typeof result.more_clippings !== 'boolean') throw new NewspapersError('api-changed');
     return {...publicValue(result),nextOffset:result.more_clippings && result.clippings.length ? offset+result.clippings.length : null};
@@ -163,18 +163,25 @@ export class NewspapersClient {
   ocr(pageId: string, options: {articleId?:string;type?:ArticleType;clippingId?:string;x?:number;y?:number;width?:number;height?:number} = {}) {
     id(pageId);if (options.articleId && options.clippingId) throw new Error('Choose an article or clipping, not both.');
     if (options.articleId!==undefined) options={...options,articleId:articleId(options.articleId)};if (options.clippingId) id(options.clippingId);
-    if (options.type!==undefined&&(!options.articleId||!articleTypes.includes(options.type))) throw new Error('OCR record type requires an article ID and a supported article type.');
+    if (options.type!==undefined&&(!options.articleId||!readableArticleTypes.includes(options.type))) throw new Error('OCR record type requires an article ID and a supported article type.');
     const rect = ['x','y','width','height'] as const;
     if (rect.some(k=>options[k]!==undefined) && !rect.every(k=>options[k]!==undefined)) throw new Error('Supply x, y, width, and height together.');
     if (options.clippingId && options.x !== undefined) throw new Error('Clipping OCR uses the clipping rectangle; omit coordinates.');
     if (!options.articleId && !options.clippingId) throw new InputError('Newspapers whole-page and rectangle-only OCR are unavailable through the current integration. Supply --article-id from page articles or --clipping-id from an existing clipping.');
     for (const key of rect) if (options[key] !== undefined) integer(options[key]!, key==='x'||key==='y'?0:1,100000);
     return this.run(async () => {
+      if(options.clippingId){
+        const clipping=await this.clippingData(options.clippingId);
+        if(clipping.pageId!==pageId)throw new InputError('The clipping does not belong to the requested page.');
+        if(clipping.ocr!=null&&typeof clipping.ocr!=='string')throw new NewspapersError('api-changed');
+        const text=clipping.ocr??'';
+        return {pageId,text,available:!!text.trim(),sourceUrl:clipping.sourceUrl,note:'Saved clipping OCR may be unavailable; verify names and dates against the scan.'};
+      }
       const value=await this.authorize(pageId);if (!value.image.canView || typeof value.iat !== 'string') throw new NewspapersError('access-denied');
       const selection = options.articleId&&options.x===undefined ? (await this.articleData(pageId,options.articleId,value,options.type)).rectangle
         : options;
       if (selection.x !== undefined && (selection.x+selection.width! > value.image.width || selection.y!+selection.height! > value.image.height)) throw new Error('OCR rectangle exceeds the page dimensions.');
-      const query:Record<string,string>={page:pageId,type:options.clippingId?'clipping':'article',objectId:options.clippingId ?? options.articleId ?? '',iat:value.iat};
+      const query:Record<string,string>={page:pageId,type:'article',objectId:options.articleId ?? '',iat:value.iat};
       for (const key of rect) if (selection[key]!==undefined) query[key]=String(selection[key]);
       const result=await this.json('/api/client/image/ocr/',query);if (typeof result?.ocr !== 'string') throw new NewspapersError('api-changed');
       return {pageId,text:result.ocr,available:!!result.ocr.trim(),sourceUrl:`${WEB}/image/${pageId}/`,note:'Machine OCR may be unavailable for this selection or account; verify names and dates against the scan.'};

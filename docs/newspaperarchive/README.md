@@ -42,7 +42,7 @@ fam newspaperarchive.publication dates --publication-id PUBLICATION_ID --year 19
 fam newspaperarchive.publication dates --publication-id PUBLICATION_ID --year 1900 --month 4
 ```
 
-Publication search returns both places and titles. Its `ids` field lists IDs from narrowest to broadest: publication (when present), city, state, country. A scoped location list returns countries, states, cities, or publication titles with their IDs. Use a title's ID with `--publication-id` in newspaper search. Publication search returns one provider page without asserting a complete result count. Calendar endpoints can return no data for some titles.
+Publication search returns both places and titles. Its `ids` field lists IDs from narrowest to broadest: publication (when present), city, state, country. A scoped location list returns countries, states, cities, or publication titles with their IDs. Use a title's ID with `--publication-id` in newspaper search. Publication search returns one provider page without asserting a complete result count. Calendar endpoints can return no data for some titles, even when pages are searchable. Null year/month data or `publicationDates: null` now returns the explicit `calendar-unavailable` error, not a schema-change error or a successful empty calendar. This is an upstream calendar limitation, not evidence that issues are absent. Use `fam newspaperarchive.newspaper search --publication-id PUBLICATION_ID --from 1900-01-01 --to 1900-12-31` instead. Raw `api call` responses retain their native null envelope for diagnostics.
 
 ## Read page text and cite sources
 

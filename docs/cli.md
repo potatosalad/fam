@@ -47,6 +47,13 @@ FamilySearch Full-Text `--name` matches NAME entity tags, which may omit visible
 
 `fam ancestry.record get` preserves the provider response and adds `household` from one additional same-record fields read. Members retain exact related record IDs, names, relationships, and original source labels. Missing or failed household enrichment is explicit; completeness remains unknown. See [indexed household context](ancestry/README.md#indexed-household-context).
 
+## Newspaper and military-record read limits
+
+- Newspapers.com validates endpoint-specific `--limit` maxima: 100 for page/indexed search, 50 for publication search, 20 for location suggestions, and 25 for clipping searches and page clipping lists. Continue with returned cursors or offsets where available. Article reads also resolve `everydayStories` IDs as `everyday-story`; saved clipping OCR comes from clipping details, with page identity checked.
+- NewspaperArchive null calendars fail with `calendar-unavailable`. They do not prove that issues are absent; use publication/date-filtered newspaper search instead. Raw API envelopes remain unchanged.
+- `fam fold3.file download --image-id IMAGE_ID --allow-reduced --out DIRECTORY` explicitly permits reduced-resolution scans while keeping permission checks and actual/source dimensions in sidecars. Reduced exports require the same opt-in when using `--resume`; retrying a persistent dimension mismatch unchanged is not a recovery.
+- NARA returns null/unavailable for unstarted citizen transcriptions, not instructional UI text. Confirmed Catalog missing-record pages return `NOT_FOUND`; unrecognized rendering failures remain timeouts.
+
 ## Local discovery
 
 Provider and object prefixes show local help without signing in or making provider requests:
