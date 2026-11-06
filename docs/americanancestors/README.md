@@ -2,6 +2,12 @@
 
 American Ancestors supports native HTTP research in fam: database discovery, indexed record search, citations, record details, and published scan downloads. No API key or browser is needed on the verified network. These are the website's internal endpoints, not a documented public developer API. See the [website contracts](contracts.json) and [observed protocol and sources](protocol.md).
 
+## Result counts and partner images
+
+`collection list --filter` and `collection volumes --filter` return `total` after filtering and `totalAvailable` for the unfiltered inventory. Search `total` remains the provider's declared hit count. An underfull terminal search page carries `countDiscrepancy: true` and a warning; absence of a next page is not proof that every declared hit was returned.
+
+`image get` accepts FamilySearch partner ARK and legacy `/pal:/MM9.3.1/TH-…` locators. These remain external links (`kind: familysearch`, `downloadAvailable: false`), with query tokens and fragments removed; FamilySearch access rules still apply.
+
 ## Setup
 
 Use the [shared credential setup](../setup.md): `AMERICANANCESTORS_USERNAME` and `AMERICANANCESTORS_PASSWORD`, a configured credential helper receiving `americanancestors`, or hidden interactive entry:

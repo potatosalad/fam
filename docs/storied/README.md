@@ -43,6 +43,8 @@ fam storied.subscription get
 fam storied.account get
 ```
 
+`person hints` reads the site's search-builder endpoint, **not hint records**. It returns `kind: record-search-criteria`, `hintRecordsReturned: false`, the original `queryString`, and parsed `criteria` with an array of values per native key (including repeated keys). Mode codes are preserved, not guessed. Run `fam storied.record search` separately with explicit criteria; the CLI does not automatically translate these keys into the universal-search request or claim that it fetched hints. `hint list` remains the separate homepage-hints read.
+
 IDs are strings, usually UUIDs. `people` returns objects whose person identifier is `id`; tree lists use `treeId` and `homePersonId`. Paginated commands return one page, with `--page` starting at 1 and `--limit` between 1 and 100. `trees` and `people` use unpaginated provider routes. `--out FILE` saves JSON with owner-only permissions. Full responses may contain personal data.
 
 ```sh
@@ -80,4 +82,4 @@ const details = await client.person('12345678-1234-1234-1234-123456789012');
 console.log(operation('pedigree'));
 ```
 
-Responses retain the provider's shape and are typed as `unknown`; the offline model catalog describes their structure. See [protocol.md](protocol.md) and [provenance.json](provenance.json) for sources and scope. No write operations are included in routine live verification.
+Raw operation responses retain the provider's shape and are typed as `unknown`; `personHintCriteria()` / `person hints` instead return the labeled criteria wrapper described above; the offline model catalog describes their structure. See [protocol.md](protocol.md) and [provenance.json](provenance.json) for sources and scope. No write operations are included in routine live verification.

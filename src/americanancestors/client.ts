@@ -27,7 +27,8 @@ export class AmericanAncestorsClient {
     const data = await this.http.json(`${APP}${operations['collections'].path}?onLoad=true`), catalog = data?.SearchDropdown;
     if (!catalog || !['Databases','Categories','Projects','RecordTypes','LifeEvents'].every(k => Array.isArray(catalog[k]) && catalog[k].every((v: unknown) => typeof v === 'string'))) throw new AmericanAncestorsError('api-changed');
     const titles = catalog.Databases.filter((v: string) => v !== '-All-');
-    return {items: titles.filter((title: string) => !filter || title.toLowerCase().includes(filter.toLowerCase())).map((title: string) => ({title})), total: titles.length,
+    const items = titles.filter((title: string) => !filter || title.toLowerCase().includes(filter.toLowerCase())).map((title: string) => ({title}));
+    return {items, total: items.length, totalAvailable: titles.length,
       categories: catalog.Categories.filter((s: string) => s !== '-All-'), projects: catalog.Projects.filter((s: string) => s !== '-All-'), recordTypes: catalog.RecordTypes.filter((s: string) => s !== '-All-')};
   }
   async collection(name: string) {
@@ -75,7 +76,8 @@ export class AmericanAncestorsClient {
       if (!/^\d+$/.test(volumeId) || typeof v.Name !== 'string') throw new AmericanAncestorsError('api-changed');
       return {volumeId, name:v.Name, sequence:v.SequenceId, sourceUrl:`${WEB}/databases/${slug}/image/?${new URLSearchParams({volumeId})}`};
     });
-    return {collection:collection.title,collectionId:collection.collectionId,total:items.length,items:items.filter((v: {name:string})=>!filter || v.name.toLowerCase().includes(filter.toLowerCase()))};
+    const filtered = items.filter((v: {name:string})=>!filter || v.name.toLowerCase().includes(filter.toLowerCase()));
+    return {collection:collection.title,collectionId:collection.collectionId,total:filtered.length,totalAvailable:items.length,items:filtered};
   }
   async browse(name: string, volumeId: string, pageName?: string) {
     if (!/^\d+$/.test(volumeId)) throw new Error('Volume ID must be a decimal string.');

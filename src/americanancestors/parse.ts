@@ -23,8 +23,11 @@ export function searchResults(html: string, query: URLSearchParams) {
   });
   if (total > 0 && !items.length || items.length > pageSize || items.length > total) throw new AmericanAncestorsError('api-changed');
   const nextPage = page * pageSize < total ? page + 1 : null;
+  const expected = Math.min(pageSize, Math.max(0, total - (page - 1) * pageSize));
+  const countDiscrepancy = nextPage === null && items.length < expected;
+  const warnings = countDiscrepancy ? [`Provider declared ${total} total hits but returned ${items.length} rows on terminal page ${page} (expected ${expected}); these results do not establish completeness.`] : [];
   const next = new URLSearchParams(query); if (nextPage) next.set('page', String(nextPage));
-  return {items, total, page, pageSize, nextPage, sourceUrl: `${WEB}/search/database-search?${query}`, nextUrl: nextPage ? `${WEB}/search/database-search?${next}` : null,
+  return {items, total, page, pageSize, nextPage, countDiscrepancy, warnings, sourceUrl: `${WEB}/search/database-search?${query}`, nextUrl: nextPage ? `${WEB}/search/database-search?${next}` : null,
     accessNote: 'Search hits may be masked for guests. Read the record and check its citation; a matching name alone is not proof of identity.'};
 }
 export function recordDetails(html: string, sourceUrl: string) {
@@ -51,7 +54,8 @@ export function imageDetails(html: string, sourceUrl: string) {
   if (!imageSource && (!$('#hdnCollectionID').val() || !$('#hdnVolumeid').val())) throw new AmericanAncestorsError('api-changed');
   if (imageSource && partner) {
     const url = new URL(imageSource);
-    if (!['https://familysearch.org','https://www.familysearch.org'].includes(url.origin) || !/^\/ark:\/61903\/3:1:[A-Za-z0-9-]+$/.test(url.pathname)) throw new AmericanAncestorsError('api-changed');
+    if (!['https://familysearch.org','https://www.familysearch.org'].includes(url.origin) || url.username || url.password ||
+        !/^(?:\/ark:\/61903\/3:1:[A-Za-z0-9-]+|\/pal:\/MM9\.3\.1\/TH-[A-Za-z0-9-]+)$/.test(url.pathname)) throw new AmericanAncestorsError('api-changed');
     imageSource = `${url.origin}${url.pathname}`;
   } else if (imageSource) {
     const url = checkUrl(imageSource, true);

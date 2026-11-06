@@ -54,6 +54,16 @@ FamilySearch Full-Text `--name` matches NAME entity tags, which may omit visible
 - `fam fold3.file download --image-id IMAGE_ID --allow-reduced --out DIRECTORY` explicitly permits reduced-resolution scans while keeping permission checks and actual/source dimensions in sidecars. Reduced exports require the same opt-in when using `--resume`; retrying a persistent dimension mismatch unchanged is not a recovery.
 - NARA returns null/unavailable for unstarted citizen transcriptions, not instructional UI text. Confirmed Catalog missing-record pages return `NOT_FOUND`; unrecognized rendering failures remain timeouts.
 
+## Research-result semantics
+
+- MyHeritage unknown collection field names are `INVALID_ARGUMENT` / exit 2 after field discovery. Newspaper `nameIsSearchQuery` labels identify query subjects, not extracted people; record `collection-icon` images are artwork, not scans. Browser person matches expose both ad-hoc and extended-card pending counts with discrepancy warnings.
+- Findmypast empty image gateway details use `image-details-unavailable` and direct you to the record transcript's external `ImagePal` locator; no partner download or purchase is implied.
+- American Ancestors filtered collection/volume totals describe filtered items; `totalAvailable` describes the full inventory. Search count discrepancies produce warnings. FamilySearch partner image ARK/PAL links are external locators, not downloaded scans.
+- Geneanet person text omits duplicate nested layout extraction and unresolved Angular placeholders.
+- `fam storied.person hints` returns parsed **record-search criteria**, not hint records. Its labeled wrapper retains native keys and repeated values; run record search separately.
+
+See each [provider guide](../README.md#providers) for access requirements and examples.
+
 ## Local discovery
 
 Provider and object prefixes show local help without signing in or making provider requests:

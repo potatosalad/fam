@@ -75,6 +75,14 @@ export class StoriedClient {
     await this.save(this.session);
     return {authenticated: true, checkedAt: this.session.validatedAt, check: 'account tree list'};
   }
+  async personHintCriteria(personId: string, query: Record<string, unknown> = {}) {
+    const queryString = await this.call('hints', {path: {personId}, query});
+    if (typeof queryString !== 'string' || !queryString.startsWith('?')) throw Object.assign(new Error('Storied did not return the expected person record-search criteria.'), {code: 'api-changed'});
+    const params = new URLSearchParams(queryString.slice(1));
+    const criteria = Object.fromEntries([...new Set(params.keys())].map(key => [key, params.getAll(key)]));
+    return {personId, kind: 'record-search-criteria' as const, hintRecordsReturned: false, queryString, criteria,
+      note: 'These are provider search-builder criteria, not hint records. Keys and repeated values are preserved without interpreting match modes. Use fam storied.record search for a separate historical-record search.'};
+  }
   trees() {return this.call('trees');}
   person(personId: string) {return this.call('person', {path: {personId}});}
   pedigree(treeId: string, personId: string, generations = 4) {return this.call('pedigree', {path: {treeId, personId, generations}});}

@@ -1,4 +1,5 @@
 import {parseJson} from '../shared/json.js';
+import {InputError} from '../shared/input-error.js';
 
 export type SearchFieldValue = string | number | boolean | Record<string, string | number | boolean>;
 export interface SearchField {name: string; type: string; label: string; config: Record<string, any>;}
@@ -18,7 +19,7 @@ const objectProperties: Record<string, Record<string, string>> = {
 /** Same scalar property names and component encoding as SearchFormComponentsConverter. */
 export function encodeCollectionFields(fields: Record<string, SearchFieldValue>, available: SearchField[], escape: (value: string | number | boolean) => string) {
   return Object.entries(fields).map(([name, value]) => {
-    const field = available.find(f => f.name === name); if (!field) throw new Error(`Unknown collection field ${name}; use fam myheritage.collection fields --collection-id COLLECTION.`);
+    const field = available.find(f => f.name === name); if (!field) throw new InputError(`Unknown collection field ${name}; use fam myheritage.collection fields --collection-id COLLECTION.`);
     let properties: Record<string, string | number | boolean>;
     const property = scalarProperties[field.type];
     if (property) {

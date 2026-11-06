@@ -454,7 +454,7 @@ add('wayback', 'list', 'snapshot list', 'List successful archived captures of a 
 add('wayback', 'fetch', 'page fetch', 'Find and fetch an archived page without the Wayback toolbar, with text, Markdown, HTML, raw bytes, or JSON output.', ['url'], 'date format timeout open', {flags:waybackFlags,
   examples:['fam wayback.page fetch --url https://example.org/ --format markdown', 'fam wayback.page fetch --url https://example.org/ --date 2015 --format html --out archived.html']});
 
-add('americanancestors', 'collections', 'collection list', 'Browse database titles and research categories.', ['?filter'], 'anonymous');
+add('americanancestors', 'collections', 'collection list', 'Browse database titles and research categories; total counts filtered titles, totalAvailable counts all titles.', ['?filter'], 'anonymous');
 add('americanancestors', 'collection', 'collection get', 'Read collection volumes, search fields, and research guidance.', ['name'], 'anonymous');
 const aaSearchFlags = 'first-name last-name keywords location from-year to-year collection category project record-type volume-id page-name exact soundex free images page family field';
 const aaSearchOptions: Extras['flags'] = {soundex:{type:'boolean',default:false},free:{type:'boolean',default:false},'record-type':{choices:undefined,description:'Record type returned by americanancestors.collection list.'},images:{type:'boolean',description:'Restrict results to records with images.'},'from-year':{description:'Four-digit lower year bound.'},'to-year':{description:'Four-digit upper year bound.'},family:{multiple:true,description:'Family member JSON with relationship (Any, Father, Mother, Spouse) and firstName/lastName; repeat up to three times.'},field:{multiple:true,description:'Collection-specific NAME=VALUE or ID=VALUE; validated against collection get fieldSchema. Repeat for multiple criteria.'}};
@@ -463,12 +463,12 @@ add('americanancestors', 'search', 'record search', 'Search indexed genealogy re
   flags: aaSearchOptions,
   examples: ['fam americanancestors.record search --first-name John --last-name Adams --from-year 1730 --to-year 1740 --collection "Massachusetts: Vital Records, 1620-1850"'],
 });
-add('americanancestors', 'volumes', 'collection volumes', 'List collection volumes and browse links, optionally filtering titles.', ['name'], 'filter anonymous');
+add('americanancestors', 'volumes', 'collection volumes', 'List collection volumes and browse links; total counts filtered volumes, totalAvailable counts all volumes.', ['name'], 'filter anonymous');
 add('americanancestors', 'browse', 'collection browse', 'Open the first page or an exact page label within a collection volume.', ['name'], 'volume-id page-name anonymous', {flags:{'volume-id':{required:true}}});
 add('americanancestors', 'pages', 'image list', 'Walk a bounded sequence of published pages with citations and next-page URLs.', ['url'], 'limit anonymous', {flags:{limit:{default:10,maximum:100}},pagination:'Follows provider page labels, never arithmetic page numbers. Continue using nextUrl.'});
 add('americanancestors', 'export', 'record export', 'Save bounded search results and optional record details with an atomic resume checkpoint.', [], `${aaSearchFlags} limit resume details`, {flags:{...aaSearchOptions,limit:{required:true,default:undefined,maximum:1000,description:'Maximum additional records to save this run; hard cap 10,000 per export.'},resume:{file:true,description:'Existing export JSON to continue with its saved filters and details setting.'},details:{type:'boolean',description:'Include indexed record fields and source citations; adds one record lookup per result.'}},pagination:'Explicit --limit per run. --resume continues the same private export file. Changed result pages halt continuation.',examples:['fam americanancestors.record export --last-name Adams --details --limit 10 --out research.json','fam americanancestors.record export --resume research.json --limit 20']});
 add('americanancestors', 'record', 'record get', 'Read indexed fields, source citation, and database guidance.', ['url'], 'anonymous');
-add('americanancestors', 'image', 'image get', 'Resolve a published scan or FamilySearch partner ARK.', ['url'], 'anonymous');
+add('americanancestors', 'image', 'image get', 'Resolve a published scan or external FamilySearch partner ARK/PAL locator.', ['url'], 'anonymous');
 add('americanancestors', 'download', 'image download', 'Download published Deep Zoom tiles as a full-resolution PNG with citation and checksum.', ['url'], 'anonymous', {flags:{out:{required:true}}});
 
 add('familysearch', 'metadata', 'session.metadata get', 'Read mobile login metadata with tokens removed.');
@@ -533,7 +533,7 @@ add('myheritage', 'tree', 'tree get', 'Read tree details.', ['tree-id'], 'query'
 add('myheritage', 'people', 'person list', 'List people in a tree; browser sessions retain their existing neighborhood scope.', ['tree-id'], page, {pagination: paging});
 add('myheritage', 'find', 'person search', 'Find a person by name in a tree.', ['tree-id', 'name']);
 for (const [legacy, action] of [['person', 'get'], ['insights', 'insights'], ['events', 'events'], ['timeline', 'timeline'], ['facts', 'facts'], ['matches', 'matches'], ['records', 'records']])
-  add('myheritage', legacy, `person ${action}`, `Read a person’s ${legacy === 'person' ? 'details and relatives' : legacy}.`, ['person-id'], ['events', 'matches'].includes(legacy) ? 'query limit offset' : legacy === 'records' ? 'limit offset match-status' : '', {pagination: ['events', 'matches', 'records'].includes(legacy) ? paging : undefined});
+  add('myheritage', legacy, `person ${action}`, legacy === 'matches' ? 'Read matches; browser mode returns ad-hoc and extended-card counts with discrepancy warnings, not match records.' : `Read a person’s ${legacy === 'person' ? 'details and relatives' : legacy}.`, ['person-id'], ['events', 'matches'].includes(legacy) ? 'query limit offset' : legacy === 'records' ? 'limit offset match-status' : '', {pagination: ['events', 'matches', 'records'].includes(legacy) ? paging : undefined});
 add('myheritage', 'family', 'family get', 'Read a family object.', ['family-id'], 'query');
 add('myheritage', 'media', 'media list', 'List media for a person, tree, or site.', ['parent-id'], 'query limit offset', {pagination: paging});
 add('myheritage', 'albums', 'album list', 'List photo albums for a family site.', ['site-id']);
@@ -542,7 +542,7 @@ add('myheritage', 'search', 'record search', 'Search historical records by names
   `${names} birth-place death-place residence-year residence-place marriage-year marriage-place birth-year-range death-year-range residence-year-range marriage-year-range place keyword exact collection category record-type after gender first-name-match last-name-match no-translations field limit offset`,
   {flags: {field: {multiple: true}, limit: {default: undefined}}, pagination: paging,
     examples: ['fam myheritage.record search --first-name Abraham --last-name Lincoln --birth-year 1809']});
-add('myheritage', 'record', 'record get', 'Read record fields, citations, image links, and optionally related leads.', ['url'], 'related');
+add('myheritage', 'record', 'record get', 'Read record fields, citations, classified image/icon links, and optionally related leads.', ['url'], 'related');
 add('myheritage', 'catalog', 'collection list', 'Browse and filter historical record collections.', [], 'category location years images limit offset', {pagination: paging});
 add('myheritage', 'collections', 'collection search', 'Find historical collections by title or description.', ['name'], 'category location years images limit offset', {pagination: paging});
 add('myheritage', 'collection', 'collection get', 'Read collection details and supported fields.', ['collection-id']);
@@ -562,7 +562,7 @@ add('findmypast', 'collections', 'collection search', 'Find historical record se
 add('findmypast', 'collection', 'collection get', 'Read record-set metadata using a record metadata ID, not a collection-search ID.', ['collection-id'], '', {flags:{'collection-id':{description:'recordMetadataId from a record search result (for example image.recordMetadataId). Opaque collection-search IDs are not metadata IDs.'}}});
 add('findmypast', 'entitlement', 'record entitlement', 'Read the transcript access decision without confirming a purchase.', ['record-id']);
 add('findmypast', 'record', 'record get', 'Read a transcript without confirming a credit purchase.', ['record-id']);
-add('findmypast', 'image', 'image get', 'Read record image gateway details.', ['record-id']);
+add('findmypast', 'image', 'image get', 'Read record image gateway details; unavailable external images report transcript ImagePal guidance.', ['record-id']);
 add('findmypast', 'download', 'image download', 'Download a full-resolution record image with source/checksum metadata.', ['record-id'], '', {flags: {out: {required: true, description: 'New JPEG destination ending in .jpg or .jpeg; also writes FILE.json. Neither path may already exist.'}}});
 add('findmypast', 'newspapers', 'newspaper search', 'Search historical newspapers by person, publication, dates, and location.', [], `name keywords exact publication country county place from to sort descending ${page}`, {pagination: paging, flags: {name: {multiple: true}, publication: {multiple: true}, sort: {choices: ['relevance', 'date']}}});
 add('findmypast', 'newspaper-manifest', 'newspaper manifest', 'Read the newspaper image manifest.', ['newspaper-id']);
@@ -604,7 +604,7 @@ for (const [legacy, objectAction, description, args] of [
   ['people', 'person list', 'Read people in a tree.', 'tree-id'], ['find-people', 'person search', 'Search people linked to the account.', 'name'],
   ['person', 'person get', 'Read person details.', 'person-id'], ['pedigree', 'person pedigree', 'Read a tree pedigree.', 'tree-id person-id'],
   ['family', 'person family', 'Read immediate family.', 'tree-id person-id'], ['events', 'person events', 'Read life events.', 'tree-id person-id'],
-  ['hints', 'person hints', 'Read record hints.', 'person-id'], ['records', 'person records', 'Read saved records.', 'person-id'],
+  ['hints', 'person hints', 'Read parsed record-search criteria for a person, not hint records.', 'person-id'], ['records', 'person records', 'Read saved records.', 'person-id'],
   ['stories', 'story list', 'List your stories.', ''], ['person-stories', 'person stories', 'List stories attached to a person.', 'person-id'],
   ['story', 'story get', 'Read story details.', 'story-id'], ['comments', 'story comments', 'Read story comments.', 'story-id'],
   ['feed', 'feed get', 'Read the home feed.', ''], ['media', 'media list', 'Read your media gallery.', ''],

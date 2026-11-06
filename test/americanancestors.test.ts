@@ -60,6 +60,31 @@ test('search parsing preserves exact IDs, masks, citations links and continuatio
   assert.equal(searchResults(results(0),searchQuery({lastName:'NoMatch'})).nextPage,null);
   assert.throws(()=>searchResults('<html>Unavailable</html>',searchQuery({lastName:'A'})),/format changed/);
 });
+test('underfull terminal search pages preserve totals with a discrepancy warning',()=>{
+  const q=searchQuery({lastName:'Example'});
+  const extra=Array.from({length:5},(_,i)=>`<tr><td><a id="name-${i+2}" href="/DB27/r/${i+2}">Synthetic Person ${i+2}</a></td><td></td><td></td></tr>`).join('');
+  const short=searchResults(results(7).replace('</tbody>',extra+'</tbody>'),q);
+  assert.equal(short.total,7);assert.equal(short.items.length,6);assert.equal(short.nextPage,null);
+  assert.equal(short.countDiscrepancy,true);assert.match(short.warnings.join(' '),/declared.*7.*returned.*6/i);
+  for(const [html,query] of [[results(1),q],[results(0),q],[results(51,2),searchQuery({lastName:'Example',page:2})]] as const) {
+    const r=searchResults(html,query);assert.equal(r.countDiscrepancy,false);assert.deepEqual(r.warnings,[]);
+  }
+});
+test('filtered catalog and volume totals describe the filtered inventory',async()=>{
+  const client=new AmericanAncestorsClient(new AmericanAncestorsHttp(undefined,async url=>{
+    const path=new URL(url).pathname;
+    const data=path===operations.collections.path?{SearchDropdown:{Databases:['-All-','Example Georgia','Example Maine'],Categories:[],Projects:[],RecordTypes:[],LifeEvents:[]}}
+      :path===operations['collection-url'].path?'27/example'
+      :path===operations['collection-fields'].path?{volumes:[{VolumeId:1,Name:'Georgia'},{VolumeId:2,Name:'Maine'}],attributes:[]}:'';
+    return response(JSON.stringify(data),200,{'content-type':'application/json'});
+  }));
+  for(const filter of ['Georgia','missing',undefined]) {
+    const expected=filter==='Georgia'?1:filter?0:2;
+    const catalog=await client.collections(filter), volumes=await client.volumes('Example',filter);
+    assert.equal(catalog.total,expected);assert.equal(catalog.items.length,expected);assert.equal(catalog.totalAvailable,2);
+    assert.equal(volumes.total,expected);assert.equal(volumes.items.length,expected);assert.equal(volumes.totalAvailable,2);
+  }
+});
 test('person search separates reusable collection titles from categories',async()=>{
   const html=results(1).replace('<div class="nameValueDiv">Example Collection</div>','<div class="nameValueDiv">Example Collection</div><div class="nameValueDiv">Journals and Periodicals</div>');
   const hit=searchResults(html,searchQuery({lastName:'Example'})).items[0];
@@ -85,6 +110,14 @@ test('image parser never exposes partner tokens and rejects hostile image URLs',
   assert.equal(partner.kind,'familysearch');assert.equal(partner.downloadAvailable,false);assert.ok(!JSON.stringify(partner).includes('fixture-private-token'));
   assert.equal(imageDetails(html('https://75.img.americanancestors.org/abcd.xml',false),WEB).kind,'deepzoom');
   assert.throws(()=>imageDetails(html('https://evil.test/abcd.xml',false),WEB));
+});
+test('legacy FamilySearch PAL images remain clean external partner locators',()=>{
+  const pal='https://familysearch.org/pal:/MM9.3.1/TH-123-456-789-10';
+  const html=(url:string)=>`<script>initImage('${url}', jQuery.parseJSON('true'), 'fixture-private-token')</script>`;
+  const r=imageDetails(html(pal+'?token=fixture-secret#secret'),WEB);
+  assert.equal(r.imageSource,pal);assert.equal(r.kind,'familysearch');assert.equal(r.downloadAvailable,false);
+  assert.ok(!JSON.stringify(r).includes('fixture-secret'));assert.ok(!JSON.stringify(r).includes('fixture-private-token'));
+  for(const url of ['https://evil.invalid/pal:/MM9.3.1/TH-123','https://user:pass@familysearch.org/pal:/MM9.3.1/TH-123','https://familysearch.org/pal:/MM9.3.1/../../bad'])assert.throws(()=>imageDetails(html(url),WEB));
 });
 test('Deep Zoom validates resource bounds and tile overlap',()=>{
   const xml=(w:number)=>`<Image TileSize="256" Overlap="1" Format="jpg"><Size Width="${w}" Height="900"/></Image>`;

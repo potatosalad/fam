@@ -99,7 +99,13 @@ export function parsePage(html: string, url: string): ResearchPage {
   }
   const title = clean($('title').text());
   $('script,style,noscript,header,footer,nav,form,#gw-header,#gw-footer,#gw-individual-header,.footer-container,.footer-legal,.tarteaucitronRoot').remove();
-  const content = $('#content').length ? $('#content') : $('#content-wrapper').length ? $('#content-wrapper') : $('body');
+  // Some tree pages nest a second #content inside the first. Flatten each outer
+  // container once, rather than concatenating the same biography twice.
+  const candidates = $('#content').length ? $('#content') : $('#content-wrapper').length ? $('#content-wrapper') : $('body');
+  const content = candidates.filter((_i, e) => !$(e).parents().toArray().some(parent => candidates.toArray().includes(parent)));
+  content.find('*').addBack().contents().each((_i, node) => {
+    if (node.type === 'text') node.data = node.data.replace(/\{\{[\s\S]*?\}\}/g, ' ');
+  });
   const links = content.find('a[href]').map((_i, e) => ({label: clean($(e).text()), url: link($(e).attr('href'), url) ?? ''})).get().filter(x => x.url && x.label);
   const fields = content.find('tr').map((_i, e) => {
     const cells = $(e).children('td,th'); return {label: clean(cells.first().text()).replace(/\s*:$/, ''), value: clean(cells.slice(1).text()).replace(/^:\s*/, '')};
