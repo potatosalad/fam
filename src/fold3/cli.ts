@@ -46,7 +46,7 @@ export async function runProvider(argv:string[]){
     else if(command==='entries')result=await client.entries(arg,{limit:options.limit,offset:options.offset,...Object.fromEntries(['x','y','width','height'].filter(k=>v[k]!==undefined).map(k=>[k,Number(v[k])]))});
     else if(command==='contributions')result=await client.contributions(arg);
     else if(command==='connections')result=await client.connections(arg,{type:v.type,direction:v.direction,limit:options.limit,offset:options.offset} as ConnectionOptions);
-    else if(command==='file-download')return exportFile(client,arg,v.out,{maxPages:v['max-pages']===undefined?undefined:Number(v['max-pages']),resume:v.resume});
+    else if(command==='file-download')return exportFile(client,arg,v.out,{maxPages:v['max-pages']===undefined?undefined:Number(v['max-pages']),resume:v.resume,allowReduced:v['allow-reduced']});
     else if(command==='image')result=await client.image(arg);
     else if(command==='record'||command==='memorial'||command==='unit'||command==='document')result=await client.record(arg,command);
     else if(command==='filmstrip')result=await client.filmstrip(arg,options.limit);

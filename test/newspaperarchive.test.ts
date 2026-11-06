@@ -109,6 +109,28 @@ test('locations and calendars retain numeric IDs and validate scope and dates be
   assert.equal(calls.length,2);
 });
 
+test('a literal null calendar response is unavailable too, not a malformed envelope',async()=>{
+ const client=new NewspaperArchiveClient(fake(async()=>null));
+ for(const [year,month] of [[undefined,undefined],['1900',undefined],['1900','4']])
+  await assert.rejects(client.dates('123',year,month),{code:'calendar-unavailable'});
+ // Other reads must still reject null as an invalid response.
+ await assert.rejects(client.locations(),{code:'api-changed'});
+});
+test('null calendar data has a dedicated unavailable diagnostic rather than missing-issue evidence',async()=>{
+ for(const [year,month] of [[undefined,undefined],['1900',undefined],['1900','4']]){
+  for(const data of [null,{publicationYears:null},{publicationMonths:null},{publicationDates:null}]){
+   const client=new NewspaperArchiveClient(fake(async()=>({data,error:null})));
+   await assert.rejects(client.dates('123',year,month),e=>{
+    assert.equal((e as any).code,'calendar-unavailable');assert.match((e as Error).message,/does not mean.*no issues/i);assert.match((e as Error).message,/search/i);return true;
+   });
+  }
+ }
+ const entries={publicationDates:['1900-04-01']};
+ assert.deepEqual(await new NewspaperArchiveClient(fake(async()=>({data:entries}))).dates('123','1900','4'),entries);
+ for(const envelope of [{data:null,error:{message:'synthetic-private'}},{data:undefined},{}]){
+  await assert.rejects(new NewspaperArchiveClient(fake(async()=>envelope)).dates('123'),{code:'api-changed'});
+ }
+});
 test('OCR service errors are not successful empty transcripts; public OCR includes a citation', async () => {
   assert.equal(sourceUrl({thumbnailUrl:`${WEB}/un/fixture/city/fixture-gazette/1865/04-15/123-thumbnail.jpg`,pageNumber:3}),url);
   assert.equal(sourceUrl({thumbnailUrl:'https://evil.example/fixture/1865/04-15/123-thumbnail.jpg',pageNumber:3}),null);

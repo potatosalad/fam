@@ -12,7 +12,7 @@ export class Fold3Error extends Error {
       : code === 'verification-required' ? 'Fold3 requires browser verification. Run fam fold3.session login, or retry the read with --transport browser.'
       : code === 'not-found' ? 'The Fold3 record was not found.'
       : code === 'ocr-unavailable' ? 'Fold3 did not supply OCR for this scan.'
-      : code === 'reduced-resolution' ? 'Fold3 returned different dimensions from the full-size scan. No file was saved. Use --allow-reduced on image download to explicitly save an authorized reduced-resolution export.'
+      : code === 'reduced-resolution' ? 'Fold3 returned different dimensions from the full-size scan. No file was saved. Use --allow-reduced on image download or file download to explicitly save an authorized reduced-resolution export.'
       : code === 'api-changed' ? 'Fold3 returned an unexpected response format.' : `Fold3 HTTP ${status}.`);
     this.name = 'Fold3Error';
   }

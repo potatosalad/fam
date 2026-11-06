@@ -39,6 +39,13 @@ Each retry prints the provider, reason, delay, and upcoming attempt number to **
 
 Negative numeric IDs are preserved as strings: both `--record-id -123` and `--record-id=-123` work. Unknown commands still show suggestions. Provider-specific values and filters remain unchanged; there is no additional semantic prevalidation. Known local input errors use `INVALID_ARGUMENT` and exit 2. Remote HTTP 400 responses retain their failure, include the HTTP status in JSON errors, and show relevant local examples (including an operation input example where available). Showing examples makes no provider requests.
 
+## Newspaper and military-record read limits
+
+- Newspapers.com validates endpoint-specific `--limit` maxima: 100 for page/indexed search, 50 for publication search, 20 for location suggestions, and 25 for clipping searches and page clipping lists. Continue with returned cursors or offsets where available. Article reads also resolve `everydayStories` IDs as `everyday-story`; saved clipping OCR comes from clipping details, with page identity checked.
+- NewspaperArchive null calendars fail with `calendar-unavailable`. They do not prove that issues are absent; use publication/date-filtered newspaper search instead. Raw API envelopes remain unchanged.
+- `fam fold3.file download --image-id IMAGE_ID --allow-reduced --out DIRECTORY` explicitly permits reduced-resolution scans while keeping permission checks and actual/source dimensions in sidecars. Reduced exports require the same opt-in when using `--resume`; retrying a persistent dimension mismatch unchanged is not a recovery.
+- NARA returns null/unavailable for unstarted citizen transcriptions, not instructional UI text. Confirmed Catalog missing-record pages return `NOT_FOUND`; unrecognized rendering failures remain timeouts.
+
 ## Local discovery
 
 Provider and object prefixes show local help without signing in or making provider requests:

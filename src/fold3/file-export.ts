@@ -3,12 +3,13 @@ import {mkdir,readFile,writeFile,rename,rm,lstat,open} from 'node:fs/promises';
 import {dirname,join,resolve} from 'node:path';
 import {hostname} from 'node:os';
 import {parseJson,stringifyJson} from '../shared/json.js';
+import {Fold3Error} from './http.js';
 import type {Fold3Client} from './client.js';
 import {downloadImage,saveDownload} from './download.js';
 import {fileImages,fileInfo,type FileInfo,type FileImage} from './research.js';
 import {integer,object} from './parse.js';
 
-export interface FileExportOptions {maxPages?:number;resume?:boolean}
+export interface FileExportOptions {maxPages?:number;resume?:boolean;allowReduced?:boolean}
 interface ExportPage extends FileImage {filename:string;sha256?:string;bytes?:number}
 interface Manifest {version:1;provider:'Fold3';file:FileInfo;createdAt:string;updatedAt:string;complete:boolean;pages:ExportPage[]}
 const filename=(page:FileImage)=>`${String(page.ordinal+1).padStart(6,'0')}-${page.imageId}.jpg`;
@@ -17,19 +18,20 @@ async function writeManifest(path:string,manifest:Manifest){
   try{await writeFile(temp,stringifyJson(manifest,2)+'\n',{flag:'wx',mode:0o600});await rename(temp,path);}finally{await rm(temp,{force:true});}
 }
 async function optionalStat(path:string){try{return await lstat(path);}catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return null;throw e;}}
-async function verifySaved(directory:string,page:ExportPage){
+async function verifySaved(directory:string,page:ExportPage,allowReduced=false){
   const path=join(directory,filename(page)),sidecar=path+'.json',scan=await optionalStat(path),side=await optionalStat(sidecar);
   if(!scan&&!side){if(page.sha256)throw new Error('An exported page is missing; restore it before resuming.');return null;}
   if(!scan?.isFile()||!side?.isFile()||scan.size>64*1024*1024||side.size>4*1024*1024)throw new Error('An existing export page or sidecar is incomplete or invalid; it was left unchanged.');
   const metadata=object(parseJson(await readFile(sidecar,'utf8'))),bytes=await readFile(path),sha256=createHash('sha256').update(bytes).digest('hex');
   if(metadata.imageId!==page.imageId||metadata.sha256!==sha256||metadata.bytes!==bytes.length||page.sha256!==undefined&&page.sha256!==sha256||page.bytes!==undefined&&page.bytes!==bytes.length)throw new Error('An existing exported page failed its identity, size, or checksum check; it was left unchanged.');
+  if(metadata.fullSize===false&&!allowReduced)throw new Fold3Error('reduced-resolution');
   return {sha256,bytes:bytes.length};
 }
 
 /** Enumerate first, then save pages sequentially. Resume validates every saved pair. */
 export async function exportFile(client:Fold3Client,value:string,destination:string,options:FileExportOptions={}){
   if(!destination?.trim())throw new Error('Supply --out DIRECTORY for the file export.');
-  if(Object.keys(options).some(k=>!['maxPages','resume'].includes(k))||options.resume!==undefined&&typeof options.resume!=='boolean')throw new Error('Unknown Fold3 file export option.');
+  if(Object.keys(options).some(k=>!['maxPages','resume','allowReduced'].includes(k))||options.resume!==undefined&&typeof options.resume!=='boolean'||options.allowReduced!==undefined&&typeof options.allowReduced!=='boolean')throw new Error('Unknown Fold3 file export option.');
   const maxPages=integer(options.maxPages??500,1,10000),file=await fileInfo(client,value);
   if(file.total>maxPages)throw new Error(`The file contains ${file.total} pages, exceeding --max-pages ${maxPages}. Raise the bound explicitly to export it.`);
   const pages:ExportPage[]=[];
@@ -56,20 +58,24 @@ export async function exportFile(client:Fold3Client,value:string,destination:str
         pages[i].sha256=p.sha256;pages[i].bytes=p.bytes;
       }
       // Validate all existing files before making further downloads.
-      for(const page of pages){const existing=await verifySaved(directory,page);if(existing){Object.assign(page,existing);reused++;}}
+      for(const page of pages){const existing=await verifySaved(directory,page,options.allowReduced);if(existing){Object.assign(page,existing);reused++;}}
       manifest={version:1,provider:'Fold3',file,createdAt:typeof saved.createdAt==='string'?saved.createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),complete:false,pages};
     }else manifest={version:1,provider:'Fold3',file,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),complete:false,pages};
     await writeManifest(manifestPath,manifest);
     for(const page of pages){
       if(page.sha256)continue;
-      const saved=await saveDownload(join(directory,page.filename),await downloadImage(client,page.imageId));
+      const saved=await saveDownload(join(directory,page.filename),await downloadImage(client,page.imageId,{allowReduced:options.allowReduced}));
       page.sha256=saved.sha256;page.bytes=saved.bytes;downloaded++;manifest.updatedAt=new Date().toISOString();await writeManifest(manifestPath,manifest);
     }
     manifest.complete=true;manifest.updatedAt=new Date().toISOString();await writeManifest(manifestPath,manifest);
     return {saved:directory,manifest:manifestPath,complete:true,total:file.total,downloaded,reused,clusterId:file.clusterId,
       note:'Every page in the website scan cluster was saved with a citation and checksum. A cluster is the website grouping, not a guarantee of archival completeness or original image resolution.'};
   }catch(error){
-    if(manifest&&error instanceof Error)error.message+=` Progress is saved in ${manifestPath}; retry the same file and directory with --resume.`;
+    if(manifest&&error instanceof Error){
+      error.message+=error instanceof Fold3Error&&error.code==='reduced-resolution'
+        ? ` Progress is saved in ${manifestPath}. To accept reduced scans, start a new file export with --allow-reduced and a new destination directory.`
+        : ` Progress is saved in ${manifestPath}; retry the same file and directory with --resume.`;
+    }
     throw error;
   }finally{await lock.close();await rm(lockPath,{force:true});}
 }

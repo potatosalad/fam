@@ -109,6 +109,39 @@ test('object selection never substitutes the first page; transcriptions preserve
   s.objects.transcriptionOpen = false; assert.equal(ready(s, s.url, 'transcription'), false);
 });
 
+test('unstarted transcription panels never promote instructional paragraphs to source text',async()=>{
+ const boilerplate='Transcriptions help make records searchable and accessible for everyone.';
+ let label='Collapse the transcription panel. The transcription for this object has not been started.';
+ let paragraphs=[boilerplate];
+ const panel={innerText:`No one has transcribed this yet.\nDid you know?\n${boilerplate}`,querySelector:()=>null,querySelectorAll:(s:string)=>s==='p'?paragraphs.map(innerText=>({innerText})):[]};
+ const document={title:'Catalog',body:{innerText:'Example'},querySelector:(s:string)=>s.includes('transcription-panel')?panel:s==='#transcription-tab'?{getAttribute:()=>label}:null,querySelectorAll:()=>[]};
+ const captured=runInNewContext(SNAPSHOT,{document,location:{href:recordUrl(id,1,true)}});
+ assert.equal(captured.objects.transcription,null);
+ const s=snapshot();s.objects={...s.objects,...captured.objects,page:'1',selected:'1',items:s.objects.items,downloadUrl:media};
+ assert.equal(ready(s,recordUrl(id,1,true),'transcription'),true);
+ assert.equal((await new NaraClient({read:async()=>s}).object(id,1,true)).transcriptionStatus,'unavailable');
+ // Defense in depth for injected readers or an old browser snapshot.
+ s.objects.transcription=boilerplate;s.objects.transcriptionLabel='';s.objects.transcriptionUnavailable=false;
+ const result=await new NaraClient({read:async()=>s}).object(id,1,true);
+ assert.equal(result.transcription,null);assert.equal(result.transcriptionStatus,'unavailable');
+ label='';
+ const emptyPanel=runInNewContext(SNAPSHOT,{document,location:{href:recordUrl(id,1,true)}});
+ assert.equal(emptyPanel.objects.transcriptionUnavailable,true);assert.equal(emptyPanel.objects.transcription,null);
+ label='The transcription for this object is available.';panel.innerText='First line\nSecond line';paragraphs=['First line\nSecond line',boilerplate];
+ const populated=runInNewContext(SNAPSHOT,{document,location:{href:recordUrl(id,1,true)}});
+ assert.equal(populated.objects.transcription,'First line\nSecond line');
+ s.objects.transcription=populated.objects.transcription;s.objects.transcriptionLabel=label;
+ const positive=await new NaraClient({read:async()=>s}).object(id,1,true);
+ assert.equal(positive.transcription,'First line\nSecond line');assert.equal(positive.transcriptionStatus,'available');
+});
+test('Catalog 404 body markers return NOT_FOUND even with a generic document title',()=>{
+ const s=snapshot();s.title='National Archives Catalog';s.record.title='';s.record.text='';
+ s.text='Alert! There was an error with a status of 404, PAGE_NOT_FOUND\nWe could not find the page you are looking for.\nDecorative record NAID: 123';
+ for(const kind of ['record','object','transcription'] as const)assert.throws(()=>ready(s,recordUrl(id),kind),{code:'NOT_FOUND'});
+ s.text='Loading catalog record...';assert.equal(ready(s,recordUrl(id),'record'),false);
+ s.record.title='Example record';s.record.text='A document mentioning PAGE_NOT_FOUND';s.text=s.record.text;
+ assert.equal(ready(s,recordUrl(id),'record'),true);
+});
 test('browser reads close their tab after success, rendering failure, and verification', async () => {
   const s = snapshot(); let closed = 0;
   const get = async () => ({tab: async (provider: string) => {assert.equal(provider, 'nara'); return {evaluate: async () => s, close: async () => {closed++;}};}} as unknown as BrowserClient);

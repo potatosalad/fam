@@ -41,6 +41,18 @@ test('search preserves opaque cursors and dates, translates sort, and rejects in
  for(const input of [{},{keyword:'a',limit:0},{keyword:'a',from:'1900-02-29',to:'1900-03-01'},{keyword:'a',from:'1900-01-01'},{keyword:'a',publicationId:'../account'},{keyword:'a',city:'Chicago'}]) assert.throws(()=>searchQuery(input));
  for(const value of [12,'1e3','0','../1']) assert.throws(()=>id(value));
 });
+test('each search endpoint validates its observed upstream maximum before HTTP',async()=>{
+ assert.equal(clippingQuery({limit:25}).count,'25');
+ for(const limit of [26,30,100])assert.throws(()=>clippingQuery({limit}),/between 1 and 25/);
+ let calls=0;const c=new NewspapersClient(new NewspapersHttp(undefined,async()=>{calls++;throw new Error('Unexpected request');}));
+ assert.throws(()=>c.locations('Reader',21),/between 1 and 20/);
+ assert.throws(()=>c.publicationSearch('Reader',51),/between 1 and 50/);
+ assert.throws(()=>c.clippings('123',0,26),/between 1 and 25/);
+ assert.equal(calls,0);assert.equal(searchQuery({keyword:'Reader',limit:100}).count,'100');
+ for(const [command,max] of [['newspapers.clipping search',25],['newspapers.page.clipping list',25],['newspapers.publication search',50],['newspapers.location search',20]] as const){
+  assert.equal(commandById.get(command)!.flags.find(f=>f.name==='limit')!.maximum,max);
+ }
+});
 test('native HTTP keeps bytes and cookies but strips authorization on cross-origin redirects',async()=>{
  const urls:string[]=[],headers:Headers[]=[];
  const http=new NewspapersHttp(jar.serializeSync(),async(url,init)=>{
@@ -84,6 +96,18 @@ test('OCR validates selection geometry and exposes empty text without inventing 
  assert.throws(()=>c.ocr('123',{articleId:'../4'}));assert.throws(()=>c.ocr('123',{x:0}));
  await assert.rejects(c.ocr('123',{articleId:'456',x:90,y:0,width:20,height:10}),/exceeds/);assert.equal(requests,1);
  const result=await c.ocr('123',{articleId:'456',x:0,y:0,width:50,height:50});assert.equal(result.available,false);assert.equal(result.text,'');
+});
+test('clipping OCR uses saved clipping text and verifies its page without the broken OCR endpoint',async()=>{
+ let ocr:unknown='Synthetic clipping text';const calls:string[]=[];
+ const c=new NewspapersClient(new NewspapersHttp(undefined,async value=>{
+  const path=new URL(value).pathname;calls.push(path);assert.equal(path,'/article/api/456/');
+  return Response.json({clipping_id:456,page_id:123,title:'Synthetic clipping',ocr});
+ }));
+ const result=await c.ocr('123',{clippingId:'456'});assert.equal(result.text,ocr);assert.equal(result.available,true);
+ assert.deepEqual(calls,['/article/api/456/']);
+ await assert.rejects(c.ocr('999',{clippingId:'456'}),/page/i);
+ for(const absent of ['',null,undefined]){ocr=absent;const empty=await c.ocr('123',{clippingId:'456'});assert.equal(empty.text,'');assert.equal(empty.available,false);}
+ ocr={unexpected:true};await assert.rejects(c.ocr('123',{clippingId:'456'}),{code:'api-changed'});
 });
 test('login fills but never submits while Turnstile is pending',async()=>{
  process.env.NEWSPAPERS_USERNAME='reader@example.test';process.env.NEWSPAPERS_PASSWORD='synthetic';const calls:string[]=[];
@@ -166,6 +190,16 @@ test('article selection preserves extracted relatives, resolves entity IDs, and 
  assert.equal(selectArticle(crimes,downloadAuthorization,'123',articleUuid,'crime').details[0].crime.Crime,'Synthetic report');
  const conflicting={...indexedArticles(),marriages:[...indexedArticles().marriages,{...indexedArticles().marriages[0],rectangle:{...smallRect,x:3}}]};
  assert.throws(()=>selectArticle(conflicting,downloadAuthorization,'123',articleUuid),{code:'api-changed'});
+});
+test('everyday story IDs from page articles resolve normalized polygons without adding a search type',async()=>{
+ const polygon=[{x:0.25,y:0.25},{x:0.75,y:0.25},{x:0.75,y:0.75},{x:0.25,y:0.75}];
+ const value={...indexedArticles(),marriages:[],everydayStories:[{id:articleUuid,polygon,topics:['Synthetic news']}]};
+ const c=new NewspapersClient(new NewspapersHttp(undefined,async url=>Response.json(url.includes('/authorize')?downloadAuthorization:value)));
+ const listed=await c.articles('123');const result=await c.article('123',listed.everydayStories[0].id);
+ assert.equal(result.type,'everyday-story');assert.deepEqual(result.rectangle,{x:8,y:12,width:16,height:24});assert.deepEqual(result.details[0].topics,['Synthetic news']);
+ assert.equal(selectArticle(value,downloadAuthorization,'123',articleUuid,'everyday-story').type,'everyday-story');
+ assert.throws(()=>searchQuery({keyword:'Reader',type:'everyday-story' as any}),/Record type/);
+ assert.ok(commandById.get('newspapers.article get')!.flags.find(f=>f.name==='type')!.choices!.includes('everyday-story'));
 });
 test('article OCR resolves coordinates automatically and keeps the selected entity ID',async()=>{
  const calls:URL[]=[];const c=new NewspapersClient(new NewspapersHttp(undefined,async value=>{

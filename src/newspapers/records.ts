@@ -2,15 +2,16 @@ import {NewspapersError, WEB} from './http.js';
 import {pageMetadata, publicValue} from './parse.js';
 
 export const articleTypes = ['obituary','marriage','birth','enslavement','crime'] as const;
-export type ArticleType = typeof articleTypes[number];
-export type RecordType = 'page' | ArticleType;
-export const articleCollections: Record<ArticleType,string> = {obituary:'obituaries',marriage:'marriages',birth:'births',enslavement:'enslavements',crime:'crimeArticles'};
+export const readableArticleTypes = [...articleTypes,'everyday-story'] as const;
+export type ArticleType = typeof readableArticleTypes[number];
+export type RecordType = 'page' | typeof articleTypes[number];
+export const articleCollections: Record<ArticleType,string> = {obituary:'obituaries',marriage:'marriages',birth:'births',enslavement:'enslavements',crime:'crimeArticles','everyday-story':'everydayStories'};
 export function articleId(value: unknown): string {
   if (typeof value !== 'string' || !/^(?:[1-9]\d{0,19}|[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12})$/i.test(value)) throw new Error('Article IDs must be UUIDs or positive decimal strings.');
   return value.toLowerCase();
 }
 export function recordType(value: unknown): RecordType {
-  if (value !== 'page' && !articleTypes.includes(value as ArticleType)) throw new Error('Record type must be page, obituary, marriage, birth, enslavement, or crime.');
+  if (value !== 'page' && !(articleTypes as readonly unknown[]).includes(value)) throw new Error('Record type must be page, obituary, marriage, birth, enslavement, or crime.');
   return value as RecordType;
 }
 export interface Rectangle {x:number;y:number;width:number;height:number}
@@ -33,8 +34,8 @@ function polygonRectangle(polygon: unknown, pageWidth: number, pageHeight: numbe
 }
 export function selectArticle(value: any, authorization: any, pageId: string, requestedId: string, type?: ArticleType) {
   const citation=pageMetadata(authorization,pageId), matches:{type:ArticleType;record:any}[]=[];
-  for (const kind of type ? [type] : articleTypes) {
-    const records=value?.[articleCollections[kind]] ?? (kind==='crime'?[]:undefined);
+  for (const kind of type ? [type] : readableArticleTypes) {
+    const records=value?.[articleCollections[kind]] ?? (kind==='crime'||kind==='everyday-story'?[]:undefined);
     if (!Array.isArray(records)) throw new NewspapersError('api-changed');
     for (const record of records) {
       const entityId=kind==='crime'?record?.crime?.CrimeId:record?.id;
@@ -44,7 +45,7 @@ export function selectArticle(value: any, authorization: any, pageId: string, re
   if (!matches.length) throw new NewspapersError('not-found',404);
   const match=matches[0], {width,height}=authorization.image;
   if (matches.some(item=>item.type!==match.type)) throw new Error('More than one article category matches this ID; supply --type.');
-  const crops=matches.map(item=>item.type==='enslavement'||item.type==='birth'
+  const crops=matches.map(item=>item.type==='enslavement'||item.type==='birth'||item.type==='everyday-story'
     ? polygonRectangle(item.record.polygon,width,height)
     : rectangle(item.record.rectangle,width,height));
   const crop=crops[0];

@@ -1,4 +1,4 @@
-import {readPage, type ReadPage, type Snapshot, type Link} from './browser.js';
+import {readPage, transcriptionText, type ReadPage, type Snapshot, type Link} from './browser.js';
 import {NaraError, catalogUrl, recordId, recordUrl, searchUrl, integer, mediaUrl, type SearchOptions} from './url.js';
 import {downloadObject} from './download.js';
 
@@ -101,10 +101,11 @@ export class NaraClient {
       throw new NaraError('The Catalog did not select the requested object page.', 'UNEXPECTED_PAGE');
     const downloadUrl = state.objects.downloadUrl ? mediaUrl(state.objects.downloadUrl) : null;
     const item = state.objects.items.find(item => Number(item.page) === page);
+    const transcript = state.objects.transcriptionUnavailable ? null : transcriptionText(state.objects.transcription,state.objects.transcriptionLabel);
     return {...provenance(state), naid: id, title: state.record.title, page, total: number(state.objects.total),
       label: item?.label ?? null, thumbnailUrl: thumbnail(item?.thumbnailUrl ?? null), downloadUrl,
-      ...(transcription ? {transcription: state.objects.transcription || null, transcriptionKind: 'citizen-contributed' as const,
-        transcriptionStatus: state.objects.transcription ? 'available' as const : 'unavailable' as const} : {})};
+      ...(transcription ? {transcription: transcript, transcriptionKind: 'citizen-contributed' as const,
+        transcriptionStatus: transcript ? 'available' as const : 'unavailable' as const} : {})};
   }
   async download(value: string, out: string, options: {page?: number; maxBytes?: number} = {}) {
     if (!out?.trim()) throw new NaraError('A destination file is required.', 'INVALID_ARGUMENT');
