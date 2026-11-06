@@ -65,8 +65,10 @@ Follow a provider link for its commands and access requirements.
 | [`nara`](docs/nara/README.md) | National Archives Catalog records, digital objects, and transcriptions |
 | [`newspaperarchive`](docs/newspaperarchive/README.md) | Newspapers, publications, locations, and page text |
 | [`newspapers`](docs/newspapers/README.md) | Newspapers, publications, clippings, and page text |
-| [`storied`](docs/storied/README.md) | Family trees, stories, media, hints, and historical records |
+| [`storied`](docs/storied/README.md) | Family trees, stories, media, homepage hints, and historical record-search criteria |
 | [`wayback`](docs/wayback/README.md) | Archived web pages and captures from a chosen date |
+
+Research output distinguishes query labels from extracted people, collection icons from scans, and search-builder criteria from hint records. Provider count discrepancies are surfaced rather than silently treated as complete results; see [research-result semantics](docs/cli.md#research-result-semantics).
 
 ## Find a command
 

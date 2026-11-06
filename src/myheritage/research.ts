@@ -109,7 +109,7 @@ export function recordUrl(value: string): URL {
   if (url.origin !== WEB || url.username || url.password || !/^\/research\/record-[\w-]+(?:\/[^?#]*)?$/.test(url.pathname)) throw new Error('Expected a MyHeritage research record URL from the link field of search results.');
   return url;
 }
-function plainHtml(value: string) {const $ = load(value); $('script,style,noscript').remove(); $('br').replaceWith(' '); $('div,p,li').append(' '); return $.root().text().replace(/\s+/g, ' ').trim();}
+function plainHtml(value: string) {const $ = load(value); $('script,style,noscript').remove(); $('br').replaceWith(' '); $('div,p,li,a,span').before(' ').after(' '); return $.root().text().replace(/\s+/g, ' ').trim();}
 export function parseRecordPage(html: string, url: string) {
   const $ = load(html), identity = pageJson<ObjectData>(html, 'recordData');
   if (!identity?.collectionId || !identity?.itemId) throw new Error('Record page is unavailable with this session or the page format changed.');
@@ -122,7 +122,8 @@ export function parseRecordPage(html: string, url: string) {
   const images = [...new Set($('.recordImageContainer img[src], .recordImageBoxContainer img[src]').toArray().map(i => $(i).attr('src')!).filter(u => /^https:\/\//.test(u) && !/spacer|silhouette/i.test(u)))];
   return {id: `record-${identity.collectionId}-${identity.itemId}${identity.groupId ? `-${identity.groupId}` : ''}`, url,
     title: fields.find(f => f.name === 'NAME' || f.label === 'Name')?.value ?? plainHtml($('h1').first().html() ?? $('title').html() ?? ''), collectionId: String(identity.collectionId), itemId: String(identity.itemId), groupId: String(identity.groupId ?? ''),
-    fields, images: images.map(url => ({url, kind: 'displayed-image' as const})), fieldsVisible: fields.length > 0,
+    fields, images: images.map(url => ({url, kind: new URL(url).pathname.startsWith('/collections/assets/') ? 'collection-icon' as const : 'displayed-image' as const})), fieldsVisible: fields.length > 0,
+    imageNote: 'Collection icons are not scans. Use fam myheritage.document get or fam myheritage.document download with the record URL to resolve the document scan.',
     notices: $('.record_main_content .paywall, .record_main_content .recordPaywall').toArray().map(n => plainHtml($(n).html() ?? '')).filter(Boolean)};
 }
 export class MyHeritageResearchVerificationError extends Error {
@@ -178,7 +179,9 @@ export class MyHeritageResearch {
     const rows = results.data === null && BigInt(results.count) === 0n ? [] : results.data;
     if (!Array.isArray(rows)) throw new Error('Record search returned no result connection.');
     if (options.collection && rows.some((row: ObjectData) => row.record?.collection?.id !== built.hierarchy)) throw new Error('The service returned records outside the requested collection; refusing misleading scoped results.');
-    const data = rows.map((row: ObjectData) => ({...row.record, record_type: row.record_type, user_info: row.user_info, cursor: row.cursor}));
+    const data = rows.map((row: ObjectData) => ({...row.record, record_type: row.record_type, user_info: row.user_info, cursor: row.cursor,
+      ...(options.category?.replace(/^(?:searchcategory|category)-/, '') === '8000' || /\bnewspapers?\b/i.test(row.record?.collection?.name ?? '')
+        ? {nameIsSearchQuery: true, nameNote: 'The newspaper name label is the search query, not an extracted person. Inspect the page and OCR before identifying anyone.'} : {})}));
     return {query: options, count: results.count, returned: data.length, offset: built.offset, limit: built.limit,
       nextOffset: data.length && BigInt(built.offset + built.limit) < BigInt(results.count) ? built.offset + built.limit : null,
       lastCursor: data.at(-1)?.cursor ?? null, summary: response.summary, data, serviceStatus: r.status,

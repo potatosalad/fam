@@ -107,6 +107,14 @@ test('Geneanet JSON page literals are parsed without evaluation; profile media u
   assert.deepEqual(pageKeys('<script>throw new Error("must never execute")</script>'), {});
 });
 
+test('Geneanet nested layout containers and Angular templates do not duplicate person narratives',()=>{
+  const html=`<div id="content" class="container"><div id="content-wrapper"><div id="content" class="clearfix"><div id="perso"><h1>Jane Example</h1><p>Born 1800</p><p>Spouse: John Example</p><table><tr><td>Birth</td><td>1800</td></tr></table><div>{{ mediasCtrl.getTitle(media, true) }} {{ media.doc_date_translated }}</div></div></div></div></div>`;
+  const r=parsePage(html,`${TREE}/fixture?p=jane&n=example`);
+  assert.equal(r.text.split('Born 1800').length-1,1);
+  assert.equal(r.text.split('Spouse: John Example').length-1,1);
+  assert.ok(!JSON.stringify(r).includes('{{'));
+  assert.deepEqual(r.fields,[{label:'Birth',value:'1800'}]);
+});
 test('Geneanet portraits extract tree attribution, event dates and image locators', () => {
   const html = `<span data-nb-results="1"></span><a class="ligne-resultat" data-id-es="portrait_1" href="/media/public/fixture"><div class="image-resultat"><img src="/public/fixture.jpg"></div><div class="info-resultat"><p class="fake-a">DOE Jane</p><p><span class="text-light">Spouse</span>: <span class="text-large">DOE John (1842)</span></p><p><span class="text-light">Birth</span>&nbsp;<span class="text-large">1809</span></p><p><span class="text-light">Death</span>&nbsp;<span class="text-large">1865</span></p><p class="ligne-lieu"><span title="Birth"></span><span class="title-lieu">Example Town</span></p><p><em>Family tree of fixture</em></p></div></a>`;
   const result = parseSearch(html,WEB).results[0];

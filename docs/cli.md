@@ -39,6 +39,16 @@ Each retry prints the provider, reason, delay, and upcoming attempt number to **
 
 Negative numeric IDs are preserved as strings: both `--record-id -123` and `--record-id=-123` work. Unknown commands still show suggestions. Provider-specific values and filters remain unchanged; there is no additional semantic prevalidation. Known local input errors use `INVALID_ARGUMENT` and exit 2. Remote HTTP 400 responses retain their failure, include the HTTP status in JSON errors, and show relevant local examples (including an operation input example where available). Showing examples makes no provider requests.
 
+## Research-result semantics
+
+- MyHeritage unknown collection field names are `INVALID_ARGUMENT` / exit 2 after field discovery. Newspaper `nameIsSearchQuery` labels identify query subjects, not extracted people; record `collection-icon` images are artwork, not scans. Browser person matches expose both ad-hoc and extended-card pending counts with discrepancy warnings.
+- Findmypast empty image gateway details use `image-details-unavailable` and direct you to the record transcript's external `ImagePal` locator; no partner download or purchase is implied.
+- American Ancestors filtered collection/volume totals describe filtered items; `totalAvailable` describes the full inventory. Search count discrepancies produce warnings. FamilySearch partner image ARK/PAL links are external locators, not downloaded scans.
+- Geneanet person text omits duplicate nested layout extraction and unresolved Angular placeholders.
+- `fam storied.person hints` returns parsed **record-search criteria**, not hint records. Its labeled wrapper retains native keys and repeated values; run record search separately.
+
+See each [provider guide](../README.md#providers) for access requirements and examples.
+
 ## Local discovery
 
 Provider and object prefixes show local help without signing in or making provider requests:

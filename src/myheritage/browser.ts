@@ -160,6 +160,17 @@ export class MyHeritageBrowser {
   async matches(id: string) {
     const p = await this.context(), local = await this.localId(id, 'individual');
     const counts = await this.api('FamilyTree/get-adhoc-matches.php', {familyTreeID: p.treeId, individualIDs: local, SM: 1, RM: 1, dataLang: p.dataLang});
-    return {scope: 'match-counts', ...counts};
+    const warnings: string[] = [];
+    let card: JsonObject | undefined;
+    try {card = (await this.person(id)).matches;} catch {warnings.push('Extended-card counts could not be read; ad-hoc counts alone do not establish that no matches exist.');}
+    const count = (value: unknown): number | null => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+    const extendedCardCounts = {pendingSmartsAmount: count(card?.pendingSmartsAmount), pendingRecordsAmount: count(card?.pendingRecordsAmount)};
+    for (const [adhoc, pending, label] of [[counts.matchCounts?.[local], extendedCardCounts.pendingSmartsAmount, 'Smart Match'],
+      [counts.recordMatchCounts?.[local], extendedCardCounts.pendingRecordsAmount, 'Record Match']] as const) {
+      if (pending === null) warnings.push(`${label} extended-card count is unavailable, not zero.`);
+      else if (count(adhoc) !== null && adhoc !== pending) warnings.push(`${label} counts disagree between endpoints; neither count proves that match records are available or absent.`);
+    }
+    return {...counts, scope: 'match-counts', extendedCardCounts, warnings,
+      countNote: 'matchCounts/recordMatchCounts are ad-hoc endpoint counts; extendedCardCounts are pending counts from the extended-card endpoint. Their freshness and equivalence are not established. No match records are returned.'};
   }
 }

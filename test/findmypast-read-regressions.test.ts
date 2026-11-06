@@ -39,7 +39,7 @@ test('image details resolves a record to its image without confirming a purchase
   });
   assert.equal((await client.image('REC/1')).imageCount,2);assert.equal(calls.length,2);
   const empty=fixture(url=>url.endsWith('/graphql')?{data:{root:{search:{recordSearch:{records:[{id:'REC/1',image:{id:'IMG/2',recordMetadataId:'metadata'}}]}}}}}:{});
-  await assert.rejects(empty.image('REC/1'),/empty image details/i);
+  await assert.rejects(empty.image('REC/1'),e=>e instanceof Error && 'code' in e && e.code==='image-details-unavailable' && /FamilySearch.*ImagePal.*transcript/i.test(e.message));
   const missing=fixture(()=>({data:{root:{search:{recordSearch:{records:[]}}}}}));
   await assert.rejects(missing.image('REC/1'),/record.*not found/i);
 });

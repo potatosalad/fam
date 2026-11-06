@@ -8,6 +8,8 @@ import { StoriedClient, prepareCall } from '../src/storied/client.js';
 import { contracts, aliases, operation, validate } from '../src/storied/catalog.js';
 import { acceptAuthorizationCode, REDIRECT_URI, saveSession, sessionStatus, type StoriedSession } from '../src/storied/auth.js';
 import { authorizationRequest, callbackCode } from '../src/storied/browser-auth.js';
+import {commands} from '../src/shared/command-registry.js';
+import {runProvider} from '../src/storied/cli.js';
 import { CREDENTIAL_DIR } from '../src/shared/storage.js';
 
 const uuid = '12345678-1234-1234-1234-123456789012';
@@ -110,6 +112,30 @@ test('writes are not replayed and rotation is saved before the first API call', 
   await expired.trees();
 });
 
+test('person hints help and CLI output describe criteria honestly',async()=>{
+  const command=commands.find(c=>c.provider==='storied'&&c.object==='person'&&c.action==='hints')!;
+  assert.match(command.description,/search.*criteria.*not.*records/i);
+  const original=StoriedClient.open;
+  StoriedClient.open=async()=>new StoriedClient(session(),new StoriedHttp(async()=>json('?fm.t=Jane&ln.t=Example')),async()=>{});
+  try {
+    const r=await runProvider(['hints',uuid]) as {kind:string;hintRecordsReturned:boolean};
+    assert.equal(r.kind,'record-search-criteria');assert.equal(r.hintRecordsReturned,false);
+  } finally {StoriedClient.open=original;}
+});
+test('person hints identify search criteria rather than claiming to return hint records',async()=>{
+  const client=new StoriedClient(session(),new StoriedHttp(async url=>{
+    assert.equal(new URL(String(url)).pathname,`/api/Persons/${uuid}/personhint`);
+    return json('?fm.t=Jane+Example&ln.t=Doe&fm.s=2&event=one&event=two');
+  }),async()=>{});
+  const r=await client.personHintCriteria(uuid);
+  assert.equal(r.kind,'record-search-criteria');assert.equal(r.hintRecordsReturned,false);
+  assert.deepEqual(r.criteria,{'fm.t':['Jane Example'],'ln.t':['Doe'],'fm.s':['2'],event:['one','two']});
+  assert.match(r.note,/not hint records/i);
+});
+test('person hint criteria reject non-query responses without leaking provider bodies',async()=>{
+  const client=new StoriedClient(session(),new StoriedHttp(async()=>json('private unexpected body')),async()=>{});
+  await assert.rejects(client.personHintCriteria(uuid),e=>e instanceof Error && !e.message.includes('private unexpected body') && /criteria/i.test(e.message));
+});
 test('catalog aliases resolve; parameter contracts reject traversal and encode arrays correctly', () => {
   assert.ok(contracts.operations.length > 700);
   for (const name of Object.keys(aliases)) assert.ok(operation(name));

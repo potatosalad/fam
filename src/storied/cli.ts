@@ -95,6 +95,7 @@ export async function runProvider(argv: string[]): Promise<unknown> {
     if (command === 'me') result = await client.me();
     else if (command === 'verify') result = await client.verify();
     else if (command === 'refresh') {await client.refresh(); result = await client.verify();}
+    else if (command === 'hints') result = await client.personHintCriteria(first!, request.query);
     else result = await client.call(name, request);
   }
   const text = stringifyJson(result, 2) + '\n';

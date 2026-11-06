@@ -156,7 +156,7 @@ export class FindmypastClient {
     const media = record.image;
     if (!media?.id || !media.recordMetadataId) throw new Error('This record has no image metadata.');
     const details = await this.call('image.details', {path:{id:media.id},query:{recordMetadataId:media.recordMetadataId,parentRecordId:recordId,confirmedPurchase:false}}) as Record<string,unknown>;
-    if (!details || typeof details !== 'object' || Array.isArray(details) || !Object.keys(details).length) throw new Error('Findmypast returned empty image details for this record.');
+    if (!details || typeof details !== 'object' || Array.isArray(details) || !Object.keys(details).length) throw Object.assign(new Error('Findmypast returned no gateway image details. This can occur for externally hosted images, including FamilySearch ImagePal scans. Use fam findmypast.record get with this record ID and inspect the transcript ImagePal field for the external locator; access follows the partner’s rules. No image was downloaded or purchase confirmed.'), {code:'image-details-unavailable'});
     return details;
   }
   async record(recordId: string) {

@@ -2,6 +2,8 @@
 
 `fam geneanet` signs in through Geneanet's website, searches records and old portraits, reads transcriptions and document metadata, and downloads images or PDF pages. It uses the existing web forms and JSON services; no mobile app is required. Install using the [main README](../../README.md#install).
 
+Tree-person text is extracted once from nested page-layout containers; unrendered Angular `{{ … }}` placeholders are removed from text, fields, and link labels. This cleanup does not verify user-tree assertions or supply missing media titles.
+
 ## Sign in
 
 ```sh

@@ -4,6 +4,8 @@ import {CookieJar} from 'tough-cookie';
 import {parse} from 'graphql';
 import {execFileSync} from 'node:child_process';
 import {pageJson} from '../src/myheritage/page-data.js';
+import {encodeCollectionFields} from '../src/myheritage/advanced-search.js';
+import {InputError} from '../src/shared/input-error.js';
 import {buildRecordSearch, MyHeritageResearch, parseRecordPage, recordUrl} from '../src/myheritage/research.js';
 import {historicalRecordsQuery, collectionCatalogQuery, collectionPageQuery} from '../src/myheritage/research-queries.js';
 import {MyHeritageHttpError} from '../src/myheritage/http.js';
@@ -24,6 +26,9 @@ function fixture(send: (url: string, request: ApiRequest) => Promise<{data: any;
   }},async()=>{saved++;});
   return {client,session,saves:()=>saved};
 }
+test('unknown collection fields are invalid arguments, not execution failures',()=>{
+  assert.throws(()=>encodeCollectionFields({'not-a-field':'x'},[],String), error=>error instanceof InputError && error.code==='INVALID_ARGUMENT');
+});
 test('page JSON handles escaped JavaScript strings without evaluating expressions',()=>{
   assert.deepEqual(pageJson(page,'clientData'),context);
   assert.deepEqual(pageJson('var recordData = {"itemId":9223372036854775807};','recordData'),{itemId:9223372036854775807n});
@@ -68,6 +73,16 @@ test('record search uses saved session, server-side scope, variables and explici
   assert.equal(r.nextOffset,40);assert.equal(r.returned,1);assert.equal(r.data[0].user_info.is_purchased,false);assert.equal(r.serviceStatus,230);assert.match(r.notice!,/230/);
   assert.equal(contexts,1);assert.equal(f.session.accessToken,'fresh-research-token');assert.equal(f.saves(),2);
 });
+test('newspaper search names are explicitly query labels, not extracted people',async()=>{
+  const f=fixture(async url=>url.endsWith('/research')?{data:page}:{data:{data:{search_query_upload:{response:{results:{count:2,data:[
+    {record:{name:'Jane Example',collection:{id:'collection-9',name:'Example Newspapers'}}},
+    {record:{name:'Jane Example',collection:{id:'collection-8',name:'Example Census'}}},
+  ]}}}}}});
+  const r=await f.client.search({firstName:'Jane',lastName:'Example'});
+  assert.equal(r.data[0].nameIsSearchQuery,true);
+  assert.match(r.data[0].nameNote,/not an extracted person/i);
+  assert.equal(r.data[1].nameIsSearchQuery,undefined);
+});
 test('record search accepts null data only for an explicit zero count',async()=>{
   for(const count of [0,'0',0n]){
     const f=fixture(async url=>url.endsWith('/research')?{data:page}:{data:{data:{search_query_upload:{response:{summary:{total:{count:'0'}},results:{count,data:null}}}}}});
@@ -85,6 +100,19 @@ test('expired research sessions and API challenges stop without password retries
   await assert.rejects(expired.client.search({lastName:'Smith'}),/signed-in/);assert.equal(calls,1);
   const challenge=fixture(async url=>{if(url.endsWith('/research'))return{data:page};throw new MyHeritageHttpError(406,url);});
   await assert.rejects(challenge.client.search({lastName:'Smith'}),/406/);
+});
+test('collection icons are not presented as record scans',()=>{
+  const icon='https://cf.myheritageimages.com/collections/assets/fixture.png', scan='https://cf.myheritageimages.com/records/fixture.jpg';
+  const r=parseRecordPage(recordHtml+`<div class="recordImageContainer"><img src="${icon}"><img src="${scan}"></div>`,'https://www.myheritage.com/research/record-101-202/jane');
+  assert.equal(r.images[0]!.kind,'collection-icon');
+  assert.equal(r.images[1]!.kind,'displayed-image');
+  assert.match(r.imageNote,/myheritage.document get.*myheritage.document download/);
+});
+test('tree record names and lifespans keep element boundaries',()=>{
+  for(const name of ['<a>Jane Example</a>','<span>Jane Example</span>','Jane Example']) {
+    const r=parseRecordPage(recordHtml.replace('Anne &amp; Marie', name+'<span>1850 - 1920</span>'),'https://www.myheritage.com/research/record-101-202/jane');
+    assert.equal(r.title,'Jane Example 1850 - 1920');
+  }
 });
 test('record pages extract readable fields and safe links without script text',()=>{
   const r=parseRecordPage(recordHtml,'https://www.myheritage.com/research/record-101-202/anne');
